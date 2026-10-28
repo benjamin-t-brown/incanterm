@@ -1,0 +1,25 @@
+@credits_part1
+  +fadeOut(1)
+  +setStorage(tmp.creditPauseTime, 3500)
+  +setConversationWithoutBars()
+  +setPlayerVisibility(false)
+  +stopMusic()
+  +playMusic(music_intro)
+  +:w(1000)
+  +spawnParticleEx(credits, "The End of Chapter 1")
+  +:w({tmp.creditPauseTime})
+  +spawnParticleEx(credits, "Special Thanks to...")
+  +:w({tmp.creditPauseTime})
+  +spawnParticleEx(credits, "PORTRAIT ARTIST:", 0, -16)
+  +spawnParticleEx(credits, "David (Vulp)", 0, 16)
+  +:w({tmp.creditPauseTime})
+// +spawnParticleEx(credits, "A game by...", 0, -16);
+// +spawnParticleEx(credits, "Benjamin", 0, 16);
+// +:w({tmp.creditPauseTime});
+  +spawnParticleEx(credits, "Thanks for playing!")
+  +:w({tmp.creditPauseTime})
+  +showUISection(Modal, INFO, 'End', 'The game will now return to the title screen.')
+  +stopMusic(1000)
+  +:w(1000)
+  +showUISection(Title)
+  +endConversation()

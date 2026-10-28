@@ -1,0 +1,21 @@
+#floor1test
+  action,this
+@this
+// +eatPizza();
+
+#floor1test
+  action,?once():this
+@this
+  Ada: "asdf"
+  +?is(pizza):{
+    Ada: "Pizza"
+    Conscience: "Pizza2"
+    +?func(inParty, Anjana):{
+      +:la(Ada, Anjana)
+      Anjana: "I am in the party too!"
+    }
+  }
+
+@pizza
+  +:question(Ada)
+

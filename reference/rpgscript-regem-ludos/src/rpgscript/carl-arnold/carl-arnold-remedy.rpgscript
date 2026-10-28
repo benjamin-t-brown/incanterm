@@ -1,0 +1,90 @@
+@remedy_speakToConscience
+  +setConversation(Conscience)
+  // Remedy walks into Conscience's room.  Conscience is lounging, bored, on one of the tables
+  // When the door opens, Conscience jumps up abruptly.
+  Remedy: "Oh, I apologize for interrupting.  I thought that this room was unoccupied."
+  Conscience: "Oooh... Now this is more like it."
+  Conscience: "Who are you?"
+  Remedy: "No one of consequence.  I'll just let you be by yourself.  I'm really quite sorry."
+  Conscience: "No, wait!  I didn't mean to be rude.  I'm just... I'm just bored."
+  Remedy: "Bored?  There is a lot to do in this place if you really explore around."
+  +:flat(Conscience)
+  Conscience: "It's tough to explore when the only door out is <italic>locked</>."
+  Remedy: "Yes it was, wasn't it?  I thought that was odd, but I have seen many odd things here."
+  Remedy: "I take it, since you are <italic>bored</>, that you were not the one who locked it?"
+  +:flat(Conscience)
+  Conscience: "You... umm... don't know who I am? <color=LIGHTGREY />(Geez, I feel so vain saying that.)"
+  Conscience: "But does <color=LIGHTRED>Carl-Arnold</> not tell any of his lackeys what he's doing?"
+  +:question(Remedy)
+  Remedy: "Lackeys?"
+  +:shakeZ(Remedy)
+  Remedy: "I wonder if we are both confused here."
+  Remedy: "I shall reboot this conversation if you don't mind.  It is easier for me to understand this way."
+  // beep boop
+  +setConversation(Conscience)
+  Remedy: "Hello, I am <cascade-letters COLOR=LIGHTGREEN>Remedy</>.  May I ask what your name is?"
+  Conscience: "<cascade-letters>...Conscience</>."
+  +:teardrop(Conscience)
+  Conscience: "Um, this might seem like an odd question, <scale=0.85 />especially coming from me..."
+  Conscience: "But, are you an <color=GREEN>Alternate</>?"
+  Remedy: "Yes.  I am.  I live inside <color=LIGHTPURPLE>Instance 0845-B</>: this very space.  The colloquial label is <color=LIGHTPURPLE>Carl-Arnold's Realm</>."
+  Conscience: "And how do you know <color=LIGHTRED>Carl-Arnold</>?  Is he your <color=ORANGE>Custodian</>?"
+  Remedy: "...I do not have a <color=ORANGE>Custodian</>.  I simply live here, much like many other <color=GREEN>Alternates</> in the Regem Ludos Revirtualis."
+  Conscience: "No <color=ORANGE>Custodian</>?  Then you really do live here, huh."
+  Conscience: "Are there others like you?"
+  Remedy: "Yes.  There are many more.  Though I have only met a few of them."
+  Remedy: "This particular instance does exist under the full control of the current <italic>King of Games</>:  <color=LIGHTRED>Carl-Arnold</>."
+  Remedy: "He is not my master, but I do my best to acquiesce to his direct wishes, just like I have observed everyone else in this place."
+  Remedy: "It makes things easier for everyone."
+  Remedy: "But I rarely speak with him.  He is a busy individual.  I mostly only experience what he has created in here."
+  Conscience: "So you have nothing really to do with <color=LIGHTRED>Carl-Arnold</>?"
+  Remedy: "For the most part, that is correct.  Unless he specifically wishes me to do something, I am left to my own devices."
+  Conscience: "...And he hasn't told you anything about me?"
+  Conscience: "You have no idea that <color=LIGHTRED>Carl-Arnold</> has abducted me and locked me in here?"
+  Remedy: "Abducted?  I do not understand.  Why would he do that?"
+  Conscience: "Honestly, I don't know for sure.\n<color=LIGHTGREY>He seems to have a vendetta against <color=YELLOW>Ada</>."
+  Conscience: "Do you happen to know where <color=LIGHTRED>Carl-Arnold</> is right now?"
+  Conscience: "I kind of want to see what he's up to."
+  Remedy: "Didn't you just say you were abducted?  Do you not wish to escape?"
+  Conscience: "Yeah, I guess, <cascade-letters italic>eventually."
+  Conscience: "But I can let <color=YELLOW>Ada</> do that for me.  Really, I want to snoop around and maybe find out why he's so obsessed with her."
+  Remedy: "Ah yes.  I now recall that you said you were bored.  This makes sense."
+  Remedy: "If you would like to find <color=LIGHTRED>Carl-Arnold</>, I would suggest you check the <color=LIGHTRED>Throne Room</>."
+  Remedy: "He is often there.  However, it is the only place in this instance that I have not been able to access."
+  Conscience: "I think I was just there..."
+  Conscience: "Well, at least I can try to sneak back."
+  Remedy: "If you wish to do that, I will not stop you.  As far as I am concerned, you are free to do as you please."
+  Remedy: "Actually, I would like to accompany you, if you don't mind."
+  Remedy: "I think I am in accord with your boredom, and to be frank, I like you."
+  Remedy: "I feel there is something I can learn from you."
+  Conscience: "Um... sure.  I guess."
+  Remedy: "Excellent.  I will follow you."
+  Remedy: "Also for your information, this place is very dangerous for someone delicate like yourself."
+  Conscience: "I'm not delicate.  Why do you all think that?"
+  Remedy: "There are a lot of dangerous pests that <color=LIGHTRED>Carl-Arnold</> leaves roaming around here."
+  Remedy: "But do not worry if we have to fight.  I am quite capable of defending myself.  And you as well, if you wish."
+  Remedy: "I believe he leaves them around so he can enjoy the feeling of crushing them.  He is quite strong, you know."
+  Conscience: "Thanks for the warning.  I'll be careful."
+  +:shakeZ(Conscience)
+  Conscience: "Shall we go then?"
+  Remedy: "Lead the way."
+  // add Remedy to party
+  +endConversation()
+
+
+@remedy_wowYouAreReallyStrong
+  +setConversation(Conscience)
+  +:exclaim(Conscience)
+  Conscience: "Whoa!  You are really strong!"
+  Remedy: "Yes.  As I said, I am quite capable of defending myself."
+  Conscience: "I think that's down playing it a bit, don't you think?"
+  Conscience: "How many battles have you won?"
+  Remedy: "I do not count them.  I do not see the point."
+  Remedy: "It is no longer my goal to be the strongest.  I have become bored with the concept."
+  Conscience: "But... that was your goal before?"
+  Remedy: "Yes.  I wished to challenge <color=LIGHTRED>Carl-Arnold</> for control of this domain."
+  Remedy: "However I discovered just how strong he is and thus I became apathetic."
+  Conscience: "He's that strong, huh?"
+  Remedy: "Yes.  It would be impossible for me to defeat him."
+  Conscience: "...you don't say."
+  +endConversation()

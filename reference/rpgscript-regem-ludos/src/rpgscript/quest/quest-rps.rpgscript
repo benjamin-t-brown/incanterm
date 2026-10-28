@@ -1,0 +1,872 @@
+@floor2Rps
+  +?isnot(func(questActive, RPS)):{
+    +despawnCharacter(Thug1)
+    +despawnCharacter(Thug2)
+    +despawnCharacter(Thug3)
+    +despawnCharacter(ThugLeader)
+  }
+  +?func(questActive, RPS):{
+    +setAnimationState(ThugLeader, idle)
+    +:floor2Rps_thugsLookAtSomething(Ada)
+  }
+
+#floor2-thugSequence1
+  step,?all(isnot(func(questCompleted, RPS)), once('6cd70604')):this
+@this
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerAdaDoor)
+  +walkToOffset(Ada, 0, -16, true)
+  +panCameraToFitCharacters(500, true, ThugLeader, Ada)
+  +setAnimation(ThugLeader, 'characters/guy-thug4_spot_ada')
+  +waitMS(1000)
+  +:shakeZ(ThugLeader)
+  +:la(Ada, ThugLeader)
+  ThugLeader: "'Scuse me miss!"
+  +none()
+  +setAnimationState(ThugLeader, idle)
+  +walkToOffset(ThugLeader, 8, 8)
+  +:leach(Ada, ThugLeader)
+  ThugLeader: "You have the look of a lost lamb about you."
+  ThugLeader: "If I'm not mistaken, I'd say you're a student from <color=LIGHTPURPLE>Erran Valley</>."
+  ThugLeader: "And on top of that, you're also a <color=ORANGE>newcomer</>."
+  +none()
+  +walkToCharacter(ThugLeader, Ada, -16, 0)
+  +walkToOffset(Ada, 8, 0)
+  +:leach(Ada, ThugLeader)
+  +:question(ThugLeader)
+  ThugLeader: "How 'bout it?  Am I correct?"
+  +:shakeZ(Ada)
+  Ada: "Yes.  Both of those things are true."
+  +:none()
+  +:jump(ThugLeader)
+  ThugLeader: "I knew it!"
+  ThugLeader: "I can spot y'all from a mile away."
+  +:ld(ThugLeader, leftdown)
+  ThugLeader: "That's good.  That's very good."
+  +:la(ThugLeader, ada)
+  ThugLeader: "It means you're quite <italic>susceptible</>."
+  +:smallPause()
+  +stopMusic()
+  +walkToCharacter(ThugLeader, Ada, 0, 0)
+  +playSound(rustle)
+  +:face(Ada, left)
+  +offsetCharacter(Ada, 4, 0)
+  +waitMS(50)
+  +:face(Ada, leftdown)
+  +offsetCharacter(Ada, 4, 0)
+  +waitMS(50)
+  +:face(Ada, down)
+  +offsetCharacter(Ada, 3, 0)
+  +waitMS(50)
+  +:face(Ada, rightdown)
+  +offsetCharacter(Ada, 3, 0)
+  +waitMS(50)
+  +:face(Ada, right)
+  +offsetCharacter(Ada, 2, 0)
+  +waitMS(50)
+  +:face(Ada, rightup)
+  +offsetCharacter(Ada, 2, 0)
+  +waitMS(50)
+  +:face(Ada, up)
+  +offsetCharacter(Ada, 1, 0)
+  +waitMS(50)
+  +:face(Ada, leftup)
+  +offsetCharacter(Ada, 1, 0)
+  +waitMS(50)
+  +:leach(Ada, ThugLeader)
+  +panCameraToFitCharacters(500, true, ThugLeader, Ada)
+  +removeItem(HapticBracer)
+  Ada: "Hey!"
+  +playMusic(music_tense, 1)
+  +none()
+  +walkToOffset(ThugLeader, -32, 0)
+  +:leach(Ada, ThugLeader)
+  +:smirk(ThugLeader)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "Ahh, yes, as easy as ever."
+  +none()
+  +walkToOffset(Ada, -8, 0)
+  +:shakeZ(Ada)
+  Ada: "Give that back! I spent a lot of time and effort getting it!"
+  +none()
+  +walkToOffset(Ada, -8, 0)
+  +:shakeZ(Ada)
+  Ada: "<italic cascade=100>I require that back in my possession right now</>."
+  +none()
+  +:jump(ThugLeader)
+  ThugLeader: "Wow! You've got some real-scary eyes!"
+  ThugLeader: "Good thing I've got some backup!"
+  +none()
+  +panCameraToFitCharacters(700, true, Thug1, Ada)
+  +walkToOffset(Thug1, 24, -32)
+  +:leach(Ada, Thug1)
+  +panCameraToFitCharacters(700, true, Thug2, Ada)
+  +walkToOffset(Thug2, -24, 32)
+  +:leach(Ada, Thug2)
+  +panCameraToFitCharacters(700, true, Thug3, Ada)
+  +walkToOffset(Thug3, -32, -32)
+  +:leach(Ada, Thug3)
+  +panCameraBackToPlayer()
+  +:leach(Ada, ThugLeader)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "Now now, no need to be afraid or anything.  They're just insurance is all."
+  +:ld(ThugLeader, leftdown)
+  ThugLeader: "You know, this thing's pretty valuable: sells for a lot of <color=LIGHTBLUE italic>t-bucks</>."
+  +:leach(Ada, ThugLeader)
+  ThugLeader: "But I'd feel pretty bad just taking it from you."
+  ThugLeader: "You've at least gotta have a chance to get it back."
+  ThugLeader: "So why don't you come down to our turf?"
+  +none()
+  +panCameraRelativeToPlayer(340, 180, 2000)
+  ThugLeader: "It's just the room over there."
+  ThugLeader: "Don't worry, it's very <italic>comfortable</>, and you won't need this <color=LIGHTBLUE>Haptic Bracer</> to enter."
+  +none()
+  +panCameraBackToPlayer()
+  +:serious(Ada)
+  Ada: "Who exactly are you?"
+  +:shakeZ(ThugLeader)
+  ThugLeader: "We're the <italic color=LIGHTPURPLE>Sashes</>."
+  ThugLeader: "Just a little group of like-minded fellas who happen to hang out around here."
+  Ada: "You mean a group of <italic>thugs.</>"
+  +:shrug(ThugLeader)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "I think you'll find we're held in much higher regard than you assume."
+  ThugLeader: "Anyway, I hope to see you soon."
+  Ada: "It seems like I have little choice."
+  +none()
+  +:leach(ThugLeader, Thug1)
+  +:shakeZ(Thug1)
+  +:smirk(ThugLeader)
+  +:leach(ThugLeader, Thug2)
+  +:shakeZ(Thug2)
+  +:smirk(ThugLeader)
+  +:leach(ThugLeader, Thug3)
+  +:shakeZ(Thug3)
+  +:smirk(ThugLeader)
+  +walkToMarker(Thug1, MarkerFromRps, 0, 0, true)
+  +walkToMarker(Thug2, MarkerFromRps, 0, 0, true)
+  +walkToMarker(Thug3, MarkerFromRps, 0, 0, true)
+  +waitMS(1000)
+  +:shakeZ(ThugLeader)
+  +:smirk(ThugLeader)
+  +walkToMarker(ThugLeader, MarkerFromRps, 0, 32, true)
+  +:ld(Ada, rightdown)
+  +waitMS(3500)
+  +despawnCharacter(Thug1)
+  +despawnCharacter(Thug2)
+  +despawnCharacter(Thug3)
+  +despawnCharacter(ThugLeader)
+  +stopMusic(1000)
+  +:utils-start-Conscience-dialogue()
+  +playMusic(music_floor2)
+  +:shakeZ(Conscience)
+  Conscience: "So<cascade-letters>...</> what do you suppose a 't-buck' is?"
+  Conscience: "Wait... did he mean 'tickets'?"
+  +:shakeZ(Ada)
+  Ada: "This place is starting to seem quite vulture-esque."
+  Ada: "It is no wonder <color=LIGHTRED>Carl-Arnold</> adores it."
+  +:ld(Conscience, rightdown)
+  Conscience: "Should we go confront him, you think?"
+  Conscience: "What do you think they're gonna do in there?"
+  +:ld(Ada, rightdown)
+  Ada: "I have no idea.  But I need that stupid <color=LIGHTBLUE>Haptic Bracer</> back."
+  +:ld(Ada, rightup)
+  Ada: "I do not think I can access the rest of this floor without it."
+  +:leach(Ada, Conscience)
+  +:surprised(Conscience)
+  Conscience: "Then let's get to it!"
+  +:utils-stop-Conscience-dialogue()
+  +startQuest(RPS)
+  +endConversation()
+
+@floor2Rps_thugsLookAtSomething
+  +:la(Thug1, [ARG0])
+  +:la(Thug2, [ARG0])
+  +:la(Thug3, [ARG0])
+  +:la(ThugLeader, [ARG0])
+
+#floor2Rps_primaryCutscene
+  load,?func(questActive, RPS):this
+@floor2Rps_primaryCutscene
+  +stopSkipCutscene()
+  +setCharacterAtCharacter(Conscience, Ada, -8, -8)
+  +walkToOffset(COnscience, 8, 0)
+  +fadeIn(300)
+  +stopMusic(500, false)
+  +playMusic(music_snoop)
+  +endConversation(100)
+  +setConversationGroup(Ada, ThugLeader)
+  +:ld(Party, right)
+  +setSpeed(Ada, 1)
+  +setSpeed(ThugLeader, 0.75)
+  +panCameraToFitCharacters(2000, false, Ada, ThugLeader)
+  +walkToOffset(ThugLeader, 8, 0)
+  +:ld(ThugLeader, leftdown)
+  +:shakeZ(ThugLeader)
+  +:smirk(ThugLeader)
+  ThugLeader: "So, our little challenger has arrived."
+  +none()
+  +walkToMarker(ThugLeader, MarkerThugLeader)
+  +:ld(ThugLeader, leftdown)
+  ThugLeader: "C'mon over here and let's get this little game started."
+  +none()
+  +walkToMarker(Ada, MarkerRPSAdaWalk1)
+  +walkToMarker(Conscience, MarkerRPSAdaWalk1, 24, 24)
+  +:ld(Conscience, up)
+  +:floor2Rps_thugsLookAtSomething(Ada)
+  +:ld(Ada, rightup)
+  +panCameraToFitCharacters(500, false, Ada, ThugLeader)
+  +:question(Ada)
+  Ada: "I presume this is your <italic>hideout</>?"
+  +:ld(ThugLeader, rightdown)
+  ThugLeader: "That's right!"
+  ThugLeader: "It's more a <italic>den</> than a <italic>hideout</>, but that ain't here nor there."
+  +:ld(ThugLeader, leftdown)
+  +:smallPause()
+  +:ld(Ada, right)
+  +:shakeZ(Ada)
+  Ada: "It looks like some kind of storage room."
+  +:ld(Ada, rightup)
+  Ada: "Does the staff know that you have apprehended this place?"
+  ThugLeader: "<cascade-letters>The staff...?"
+  +:shakeZ(ThugLeader)
+  ThugLeader: "Don't make me laugh!  I'd be surprised if any of the staff even knew this room exists."
+  ThugLeader: "If you don't know, they're kinda <italic>clueless</>."
+  +:ld(Ada, rightdown)
+  Ada: "<italic>No kidding...</>"
+  +:ld(Ada, rightup)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "But they do know that we, <color=LIGHTBLUE>The Sashes</>, exist!"
+  ThugLeader: "And they respect us!"
+  +:exhale(Ada)
+  Ada: "Look, I have neither the time, nor desire to deal with you right now."
+  Ada: "Just get on with whatever <color=LIGHTBLUE>stupid thing you have concocted</>."
+  +:shakeZ(ThugLeader)
+  ThugLeader: "Of course, milady."
+  ThugLeader: "Why don't you check out the little box between us."
+  ThugLeader: "This right here's a machine we went through a painstakingly precise process to procure."
+  +panCameraToFitCharacters(500, false, Thug1)
+  +:shakeZ(Thug1)
+  Thug1: "Wait, didn't <color=ORANGE>Bartolo</> just <italic>give</> that to us?"
+  +:la(ThugLeader, Thug1)
+  +:jump(ThugLeader)
+  ThugLeader: "<shake>SILENCE!"
+  +panCameraToFitCharacters(500, false, Ada, ThugLeader)
+  +:la(ThugLeader, Ada)
+  ThugLeader: "It's an arcade game console.  Top of the line, of course.  It lets us play <italic>a certain head-to-head game</> you might have heard of..."
+  +:jump(ThugLeader)
+  ThugLeader: "<cascade=250 color=YELLOW>Rock! Paper! Scissors!"
+  +:teardrop(Ada)
+  Ada: "You cannot be serious."
+  +:smirk(ThugLeader)
+  ThugLeader: "Ah, but I am!"
+  Ada: "You are <italic>really</> going to make me play you in Rock-Paper-Scissors just so I can get get my <color=LIGHTBLUE>Haptic Bracer</> back?"
+  ThugLeader: "Yup.  And I can assure you.  You won't beat me."
+  +:flat(Ada)
+  Ada: "You cannot possibly make such a strong assurance."
+  Ada: "It is a straightforward game of rote probability.  If you play it enough times we will both win equally."
+  ThugLeader: "If you believe that, you'll wanna come to terms with the fact that you'll not get your little, precious item back."
+  ThugLeader: "Why don't we set up some rules then?"
+  ThugLeader: "I wanna savor this, so..."
+  ThugLeader: "Best of five?  So you gotta win <color=LIGHTBLUE>three games</> to win."
+  Ada: "Do we really have to use this box to play?  Can we not just use our hands or something?"
+  +:angry(ThugLeader)
+  ThugLeader: "No!  We have the technology.  No need to be so <italic>old-fashioned."
+  Ada: "Fine.  Whatever."
+  ThugLeader: "It's easy.  Just walk up and make your selection when the time comes."
+  ThugLeader: "And - just so you know - it's on 'shoot!'"
+  +stopSkipCutscene()
+  +setUnskippable(true)
+  +none()
+  +walkToOffset(Ada, 0, -8, true)
+  +walkToOffset(ThugLeader, 0, 8, false)
+  +:bumpY(ThugLeader, 2)
+  +playSound(terminal_beep)
+  +:smallPause()
+  +changePropAnim(PropRPSMachine, props-anims-square-machine)
+  +playSound(ready_arcade_game)
+  +:smallPause()
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>INITIALIZING GAME OF <color=ORANGE cascade-letters=13>Rock! Paper! Scissors!</>"
+  +playSound(click)
+  +none()
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>TWO PLAYERS DETECTED..."
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>PLAYER 1: <color=ORANGE>GUEST</>."
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>PLAYER 2: <cascade-letters=13 color=LIGHTRED>THE SASHES <color=LIGHTPURPLE>(WARNING: NAME OVERRIDDEN BY CONFIG)"
+  +playSound(click)
+  +none()
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>READY TO PLAY?"
+  +:serious(ThugLeader)
+  ThugLeader: "Let's do this."
+  +:rps-setup-new-game()
+
+
+@rps-setup-new-game
+  +setStorage('rps.playerWins', 0)
+  +setStorage('rps.cpuWins', 0)
+  +setStorage('rps.cheating', true)
+  +setStorage('rps.adaCheating', false)
+  +setStorage('rps.round', 0)
+  +:rps-do-round()
+
+@rps-do-round
+  +setUnskippable(true)
+  +playSound(rps)
+  Narrator: "<cascade=325>ROCK! PAPER! SCISSORS! <color=LIGHTBLUE italic scale=1.25>SHOOT!"
+  +none()
+  +awaitChoice('Rock!', 'Paper!', 'Scissors!')
+  +?is(rps.adaCheating):{
+    +:shakeZ(Conscience)
+  }
+  +?isnot(rps.adaCheating):{
+    +:shakeZ(Ada)
+  }
+  +:shakeZ(ThugLeader)
+  +?is(rps.adaCheating):{
+    +:shakeZ(Conscience)
+  }
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>CHOICE RECORDED."
+  +playSound(monitor_talk)
+  Narrator: "<cascade-letters=13>CALCULATING RESULT..."
+  +?eq(lastChoiceIndex, 0):{
+    +setStorage('rps.playerChoice', 'rock')
+    +?is('rps.cheating'):{
+      +setStorage('rps.cpuChoice', 'paper')
+      +?is('rps.adaCheating'):{
+        +setStorage('rps.playerChoice', 'scissors')
+      }
+    }
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +setStorage('rps.playerChoice', 'paper')
+    +?is('rps.cheating'):{
+      +setStorage('rps.cpuChoice', 'scissors')
+      +?is('rps.adaCheating'):{
+        +setStorage('rps.playerChoice', 'rock')
+      }
+    }
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +setStorage('rps.playerChoice', 'scissors')
+    +?is('rps.cheating'):{
+      +setStorage('rps.cpuChoice', 'rock')
+      +?is('rps.adaCheating'):{
+        +setStorage('rps.playerChoice', 'paper')
+      }
+    }
+  }
+  +playSound(terminal_beep)
+  +:smallPause()
+  +playSound(terminal_beep)
+  +:smallPause()
+  +playSound(terminal_beep)
+  +:smallPause()
+  +playSound(monitor_talk)
+  Narrator: "RESULTS ARE READY!"
+  +playSound(monitor_talk)
+  Narrator: "PLAYER 1 <color=ORANGE>GUEST</>: {rps.playerChoice}.\nPLAYER 2 <color=LIGHTRED>THE SASHES</>: {rps.cpuChoice}."
+  +playSound(chime)
+  +?is('rps.cheating'):{
+    +?is('rps.adaCheating'):{
+      +incrementStorage(rps.playerWins, 1)
+      +playSound(monitor_talk)
+      Narrator: "WINNER IS <color=ORANGE>GUEST</>!"
+    }
+    +?isnot('rps.adaCheating'):{
+      +incrementStorage(rps.cpuWins, 1)
+      +playSound(monitor_talk)
+      Narrator: "WINNER IS <color=LIGHTRED>THE SASHES</>!"
+    }
+  }
+  +playSound(monitor_talk)
+  Narrator: "THE SCORE IS - \n<color=ORANGE>GUEST</>: {rps.playerWins} \n<color=LIGHTRED>THE SASHES</>: {rps.cpuWins}"
+  +incrementStorage(rps.round, 1)
+
+  +?eq('rps.round', 1):{
+    +:exclaim(ThugLeader)
+    ThugLeader: "Aha! First win is us!"
+    ThugLeader: "Not unexpected."
+    +none()
+  }
+// +?eq('rps.round', 2):{
+//   +:happy(ThugLeader);
+//   ThugLeader: "Looks like another win for us!"
+//   +:angry(Ada);
+//   Ada: "Do we have to use this stupid machine?  It is quite slow compared to just using our hands."
+//   +:shakeZ(ThugLeader);
+//   ThugLeader: "This machine is the <italic>pinnacle</> of <color=ORANGE />Rock! Paper! Scissors!</>"
+//   ThugLeader: "You just don't appreciate the tech going into it."
+//   +none();
+// }
+  +?eq('rps.round', 2):{
+    +setUnskippable(false)
+    +:teardrop(Ada)
+    +:jump(ThugLeader)
+    +:exclaim(ThugLeader)
+    ThugLeader: "And that's the <color=LIGHTRED>second</> win!"
+    ThugLeader: "One more and you're donzo."
+    +:angry(Ada)
+    Ada: "This game is incredibly dumb."
+    +:shakeZ(ThugLeader)
+    ThugLeader: "These are the rules, <color=LIGHTBLUE>newby</>."
+    ThugLeader: "It's almost like I've <italic />downloaded your brain."
+    +:grumpy(Ada)
+    Ada: "I am sure you <italic>wish</> you could do that."
+    +none()
+    +:smallPause()
+    +walkToOffset(Ada, 0, 24)
+    +walkToOffset(Conscience, -8, -8)
+    +:utils-start-Conscience-dialogue()
+    +:leach(Ada, Conscience)
+    +panCameraToFitCharacters(1500, false, Ada, Conscience)
+    Conscience: "Ada... haven't you figured it out yet?"
+    Ada: "What?"
+    Conscience: "They're cheating."
+    Ada: "They are?"
+    Ada: "...how do you know?"
+    +:sigh(Conscience)
+    Conscience: "<scale=0.75 color=LIGHTGREY />You can be so very dull sometimes."
+    Conscience: "Look.  They're forcing you to use this machine.  Why do you think that is?"
+    Ada: "I do not know.  I just assumed it was because they were <italic>lazy</>."
+    Conscience: "No.  It's because they're cheating."
+    Conscience: "They're using this machine to rig the game."
+    +none()
+    +panCameraToFitCharacters(700, false, ThugLeader)
+    +:shakeZ(ThugLeader)
+    ThugLeader: "Hey!  What are you muttering about over there?"
+    +:jump(ThugLeader)
+    ThugLeader: "We are in the middle of a game here!"
+    +none()
+    +panCameraToFitCharacters(700, false, Ada)
+    +:shakeZ(Ada)
+    +:ld(Ada, rightdown)
+    Ada: "Nevermind them."
+    +:ld(Ada, down)
+  // Ada: "Let me think..."
+  // Ada: "It has to have been... Before we were leaving the tutorial area.  You did something to that terminal.  <scale=0.75 />That has to be it."
+    Ada: "<italic />If they're cheating then what should I do?"
+  // +:ld(Conscience, leftup);
+  // Conscience: "<scale=0.75 />As shrewd as ever I see."
+    +:ld(Conscience, up)
+    Conscience: "Let me play in your stead."
+    Ada: "How will that help?"
+    Conscience: "I know what they're doing.  I can rig it back in our favor."
+    +none()
+    +panCameraToFitCharacters(700, false, ThugLeader)
+    +:shakeZ(ThugLeader)
+    +:jump(ThugLeader)
+    ThugLeader: "Excuse me?  Are we still playing or what?"
+    +none()
+    +panCameraToFitCharacters(700, false, Ada)
+    +:la(Ada, ThugLeader)
+    +:shakeZ(Ada)
+    Ada: "She would like to play in my stead."
+    +:la(Party, ThugLeader)
+    +:smirk(ThugLeader)
+    ThugLeader: "Oh, really?"
+    ThugLeader: "Fine.  I don't care."
+    +:ld(Conscience, rightup)
+    +panCameraToFitCharacters(1000, false, Ada, ThugLeader)
+    +walkToMarker(Conscience, MarkerRPSAdaWalk1)
+    +walkToOffset(Ada, 16, 0)
+    +:la(Ada, ThugLeader)
+    +:ld(Conscience, rightup)
+    +endConversation()
+    +setConversation(Ada)
+    +:shakeZ(Conscience)
+    Conscience: "Alright, I'm ready to play."
+    +:teardrop(ThugLeader)
+    ThugLeader: "Hang on... What was all that muttering about?"
+    +:la(Ada, ThugLeader)
+    +:shakeZ(Ada)
+    Ada: "Never you mind.  We are in the midst of a game, are we not?"
+    +setUnskippable(true)
+    +stopSkipCutscene()
+    +setUnskippable(true)
+    Conscience: "Let us continue."
+    +setStorage(rps.adaCheating, true)
+  }
+
+  +?eq('rps.round', 3):{
+    +:exclaim_short(ThugLeader)
+    +:exclaim_short(Thug1)
+    +:exclaim_short(Thug2)
+    +:exclaim_short(Thug3)
+    +:ld(Conscience, leftdown)
+    // +walkToOffset(Conscience, 0, -8)
+    +:happy(Conscience)
+    Conscience: "It worked!"
+    +:grumpy(ThugLeader)
+    ThugLeader: "But how..."
+    +:ld(Conscience, rightup)
+    Ada: "Hmm?"
+    Ada: "Is there <italic />something wrong?</>"
+    +:leach(ThugLeader, Thug3)
+    +:exclaim(ThugLeader)
+    +:teardrop(Thug3)
+    +:ld(ThugLeader, leftdown)
+    +:shakeZ(ThugLeader)
+    ThugLeader: "Definitely not."
+    ThugLeader: "Remember, you're only <color=LIGHTRED>one loss</> away from losing the match."
+    +:shakeZ(Ada)
+    Ada: "Do not worry, I am fully aware."
+  }
+
+// +?eq('rps.round', 5):{
+//   +:shakeZ(Ada);
+//   Ada: "Oh, another win for me."
+//   +:happy(Conscience);
+//   +:shakeZ(Conscience);
+//   Conscience: "I almost feel bad for them."
+//   +:serious(ThugLeader);
+//   ThugLeader: "<italic />Just go to the next round."
+// }
+
+  +?eq('rps.round', 4):{
+    +:shakeZ(Conscience)
+    Conscience: "Looks like we're tied."
+  // +:exclaim(ThugLeader);
+  // ThugLeader: "How are you doing that?!"
+  // +:shakeZ(Ada);
+  // Ada: "Doing what?  Winning?  I told you this game is about probability."
+  // +:ld(Ada, right);
+  // Ada: "In a <italic>fair</> world, I am bound to catch up eventually."
+  // +:ld(Ada, rightup);
+  // +:sad(ThugLeader);
+  // ThugLeader: "But..."
+  // +:shakeZ(Ada);
+  // Ada: "So it shall come down to one more game?"
+  // +:smallPause();
+  // +:ld(ThugLeader, rightdown);
+    +:shakeZ(ThugLeader)
+    ThugLeader: "You <scale=1.25>WON'T</> win this one."
+    +:ld(ThugLeader, leftdown)
+  }
+
+  +?eq('rps.playerWins', 3):{
+    +playSound(monitor_talk)
+    Narrator: "Match concluded."
+    +playSound(monitor_talk)
+    Narrator: "PLAYER 1 <color=ORANGE>ADALAIS ELDRIDGE</> is the winner."
+    +playSound(monitor_talk)
+    Narrator: "The machine will now shut down."
+    +none()
+    +changePropAnim(PropRPSMachine, props_square_machine_off)
+    +playSound(dialog_start)
+    +:smallPause()
+    +:smallPause()
+    +:floor2_rps_completed()
+  }
+  +?lt('rps.playerWins', 3):{
+    +playSound(monitor_talk)
+    Narrator: "<cascade-letters=13>PROCEEDING TO NEXT ROUND."
+    +:rps-do-round()
+  }
+
+@floor2_rps_completed
+  +?isnot(Conscience):{
+    +setCharacterAtMarker(Ada, MarkerRPSAdaWalk1)
+    +setCharacterAtMarker(ThugLeader, MarkerThugLeader)
+    +:face(Ada, rightup)
+    +spawnCharacterAtCharacter(Conscience, Ada, 16, 16)
+    +:face(Conscience, up)
+  }
+  +setConversation(Conscience)
+  +:sad(Conscience)
+  Conscience: "That was kind of anti-climatic."
+  +:smallPause()
+  +:happy(Ada)
+  Ada: "We appear to have won."
+  +setUnskippable(false)
+  Ada: "Would you kindly hand over my <color=LIGHTBLUE>Haptic Bracer</>?"
+  +walkToOffset(ThugLeader, 0, -8)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "No.  That's impossible!"
+  +:ld(ThugLeader, leftdown)
+  ThugLeader: "You had to have been cheating!"
+  Ada: "Why do you say that?"
+  +:ld(ThugLeader, left)
+  ThugLeader: "Because... because there's no way you could win!"
+  +:ld(ThugLeader, right)
+  ThugLeader: "No possible way!"
+// +playMusic(music_tense, 1);
+  +:ld(ThugLeader, leftdown)
+  +:angry(ThugLeader)
+  +stopMusic()
+  ThugLeader: "I'm not giving this <color=LIGHTBLUE>Haptic Bracer</> back!"
+  +none()
+  +:jump(Ada)
+  +walkToOffset(Thug2, 0, 4)
+  +walkToOffset(Thug3, -4, 0)
+  +:shakeZ(Thug1)
+  +:teardrop(Ada)
+// reusing this trigger from the other sequence
+  +:floor2-transitionFromHallwayToFloor2_openDoors()
+  +spawnCharacterAtMarker(Floor2RPSEmployee, MarkerFromFloor2South, -32, 0)
+  +spawnCharacterAtMarker(Anjana, MarkerFromFloor2South, -16, 0)
+  +playMusic(music_anjana, 1)
+  +:ld(Anjana, rightdown)
+  +panCameraToFitCharacters(1000, true, Anjana, Ada, ThugLeader)
+  +walkToOffset(Employee, 32, 0, true)
+  +walkToOffset(Anjana, 16, 0)
+  +walkToOffset(Anjana, 0, -32)
+  +:ld(Anjana, rightdown)
+  Anjana: "That's enough!"
+  +none()
+  +:floor2Rps_thugsLookAtSomething(Anjana)
+  +:jump(ThugLeader)
+  +:la(Ada, Anjana)
+  +:la(Conscience, Anjana)
+  +:exclaim(Anjana)
+  Anjana: "I've caught you fools in the act!"
+  +none()
+  +:ld(Anjana, right)
+  +:w(250)
+  +:ld(Anjana, down)
+  +:w(250)
+  +:ld(Anjana, rightdown)
+  +:w(250)
+  +:question(Anjana)
+  Anjana: "Wait a sec, what's going on here?"
+  +:shakeZ(Ada)
+  +:la(Ada, ThugLeader)
+  Ada: "These gentlemen were about to give back the <color=LIGHTBLUE>Haptic Bracer</> they stole from me."
+  +:shakeZ(ThugLeader)
+  ThugLeader: "<cascade-letters>......"
+  +:la(Ada, Anjana)
+  Anjana: "But didn't they challenge you to some... unwinnable game?"
+  Anjana: "That's what they <italic>always</> do."
+  Ada: "Unwinnable?  No, they lost fair and square."
+  +:question(Anjana)
+  Anjana: "But..."
+  +none()
+  +:smallPause()
+  +:la(Anjana, Employee)
+  Anjana: "I'm telling you, this is what always happens."
+  +:none()
+  +walkToOffset(Employee, 8, 0)
+  +:ld(Employee, down)
+  Employee: "Um... <scale=0.75 cascade-letters>I didn't even know this room was back here..."
+  +:ld(Employee, right)
+  Employee: "But this is not an authorized room for <color=LIGHTPURPLE>challenges</>."
+  +:ld(Employee, rightup)
+  Employee: "The <color=ORANGE />Regem Ludos Arcade</> has <italic> official </> challenge rooms located on each floor."
+  Employee: "We ask that you make use of those if you have something to settle with another player."
+  +:ld(Employee, right)
+  Employee: "I'll have to ask you to conclude this challenge ASAP and vacate the room."
+  +:ld(Employee, rightup)
+  Employee: "Thank you for bringing this to our attention, miss."
+  +:ld(Employee, right)
+  +panCameraBackToPlayer()
+  +:la(Anjana, ThugLeader)
+  +:floor2Rps_thugsLookAtSomething(Ada)
+  +:la(Ada, ThugLeader)
+  +:la(Conscience, ThugLeader)
+  +:angry(ThugLeader)
+  ThugLeader: "Okay, fine."
+  ThugLeader: "<scale=0.75 />You can have it back."
+  +none()
+  +walkToOffset(ThugLeader, -24, 24)
+  +:ld(Ada, up)
+  +walkToCharacter(ThugLeader, Ada, -8, -8)
+  +:utils-get-treasure-cutscene('HapticBracer')
+  +none()
+  +walkToOffset(ThugLeader, -24, -24)
+  +:la(Conscience, ThugLeader)
+  +:ld(ThugLeader, down)
+  ThugLeader: "But this isn't over."
+  ThugLeader: "We'll figure out what you did.  <italic cascade-letters>And we'll defeat you."
+  ThugLeader: "Nobody humiliates <color=LIGHTBLUE>The Sashes</> and gets away with it."
+  +:ld(ThugLeader, rightup)
+  ThugLeader: "C'mon."
+  +none()
+  +:ld(ThugLeader, leftdown)
+  +walkToOffset(Thug1, 16, 0, true)
+  +walkToMarker(Thug2, MarkerFromFloor2South, 0, 0, true)
+  +walkToOffset(Thug3, 0, 24)
+  +walkToMarker(Thug3, MarkerFromFloor2South, 0, 0, true)
+  +:w(100)
+  +walkToMarker(Thug1, MarkerFromFloor2South)
+  +:w(500)
+  +despawnCharacter(Thug1)
+  +despawnCharacter(Thug2)
+  +despawnCharacter(Thug3)
+  +panCameraToFitCharacters(1000, false, Anjana, Ada, ThugLeader)
+  +:leach(Anjana, ThugLeader)
+  +:la(Ada, Anjana)
+  +:la(Conscience, Anjana)
+  +:shakeZ(ThugLeader)
+  ThugLeader: "And <italic>you</> need to stop following us around."
+  +:none()
+  +walkToOffset(ThugLeader, -4, 4)
+  ThugLeader: "Don't you have anything better to do?  Get a life."
+  +:none()
+  +walkToMarker(ThugLeader, MarkerFromFloor2South)
+  +despawnCharacter(ThugLeader)
+  +panCameraToFitCharacters(1000, false, Anjana, Ada)
+  +:ld(Employee, rightup)
+  +:shakeZ(Employee)
+  Employee: "I'll need to report this violation."
+  +:ld(Employee, rightdown)
+  Employee: "<scale=0.75 />And remember where this room is."
+  +none()
+  +walkToMarker(Employee, MarkerFromFloor2South)
+  +:face(Employee, leftup)
+  +:w(500)
+  +despawnCharacter(Employee)
+  +:floor2_anjana_postConvo()
+
+@floor2_anjana_postConvo
+  +?isnot(Conscience):{
+    +setConversation(Ada)
+    +:floor2-transitionFromHallwayToFloor2_openDoors()
+    +setCharacterAtMarker(Ada, MarkerRPSAdaWalk1)
+    +spawnCharacterAtMarker(Anjana, MarkerFromFloor2South, 0, -32)
+    +spawnCharacterAtCharacter(Conscience, Ada, 16, 16)
+    +panCameraToFitCharacters(1000, false, Anjana, Ada)
+  }
+  +:la(Conscience, Anjana)
+  +:la(Ada, Anjana)
+  +:la(Anjana, Ada)
+  +:grumpy(Anjana)
+  Anjana: "You have some explaining to do."
+  Ada: "Do I?"
+  +none()
+  +:shakeZ(Anjana)
+  Anjana: "Wait a second..."
+  +walkToCharacter(Anjana, Ada, -8, 0)
+  +:la(Conscience, Anjana)
+  +:bumpZ(Anjana, -2)
+  +:lightbulb(Anjana)
+  +:jump(Anjana)
+  Anjana: "I know you!"
+  +walkToOffset(Anjana, -16, 0)
+  +:la(Anjana, Ada)
+  Anjana: "You go to <color=LIGHTPURPLE />Erran Valley High School</>, don't you?"
+  Anjana: "You're that <color=LIGHTBLUE>'Eldridge Girl'</> that everybody talks about, aren't you?"
+  Ada: "My name is Ada."
+  Ada: "I do attend <color=LIGHTPURPLE />Erran Valley</>.  I assume you do as well?"
+  Anjana: "Yeah.  I'm a year ahead.  I'm <color=ORANGE>Anjana</>."
+  +:question(Anjana)
+  Anjana: "So, are the rumors true?"
+  Ada: "The rumors?"
+  +:ld(Ada, left)
+  Ada: "If you are referring to the ones about <color=ORANGE>my Father</>, then, yes, they probably are."
+  +:leach(Ada, Anjana)
+  Anjana: "That's good to know."
+  +:ld(Anjana, rightdown)
+  Anjana: "You must be pretty clever if you're the daughter of a famous Computer Scientist."
+  Anjana: "Case in point: you figured out how to beat those <italic>insufferable, cheating Sashes</>."
+  +:ld(Anjana, right)
+  Anjana: "They cheat at everything they do.  <scale=0.75>Disgusting blackguards</>."
+  +:leach(Anjana, Ada)
+  Ada: "Do you know about them?  Who exactly are they?"
+  Anjana: "It's this arcade.  It's chaos.  There's all sorts of factions in here vying for power."
+  Anjana: "I don't like to associate myself with any of them.  They're full of a bunch of <italic>idiots</>."
+  Anjana: "Those guys call themselves <color=LIGHTBLUE>The Sashes</>.  They prey on new players..."
+  +:lightbulb(Anjana)
+  Anjana: "That reminds me."
+  +none()
+  +walkToCharacter(Anjana, Ada, -8, 0)
+  +:bumpX(Anjana, 2)
+  +playSound(rustle)
+  +:bumpX(Anjana, 2)
+  +playSound(rustle)
+  +:smallPause()
+  +walkToOffset(Anjana, -16, 0)
+  +:la(Anjana, Ada)
+  Anjana: "That should prevent anybody from taking your <color=LIGHTBLUE>Haptic Bracer</>."
+  Anjana: "They don't tell anybody this, but you don't have to wear that thing on your arm where it can easily be stolen."
+  +:ld(Ada, leftdown)
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters>I see..."
+  +:leach(Ada, Anjana)
+  Anjana: "Anyway, I'll see you around."
+  +:ld(Anjana, left)
+  Anjana: "And be careful of those guys, they might seek revenge."
+  +:ld(Anjana, rightdown)
+  Anjana: "I'm sure you'll be able to handle it, but, still...  Cheaters like them have no shame."
+  +walkToMarker(Anjana, MarkerFromFloor2South)
+  +:face(Anjana, leftup)
+  +:smallPause()
+  +despawnCharacter(Anjana)
+// reusing this trigger from the other sequence
+  +:floor2-transitionFromHallwayToFloor2_closeDoors()
+  +panCameraBackToPlayer()
+  +:leach(Conscience, Ada)
+  +:shakeZ(Conscience)
+  Conscience: "She seems nice."
+  +:ld(Ada, left)
+  Ada: "Yes.  She does..."
+  +:smallPause()
+  +:smallPause()
+  +:la(Ada, Conscience)
+  +:jump(Ada)
+  Ada: "Are we done yet?  Any more distractions?"
+  Ada: "<cascade=75 scale=1.25>I would very much like to be done."
+  +:teardrop(Conscience)
+  Conscience: "I mean... we <italic>are</> on the second floor."
+  Conscience: "It seems like we're close to meeting <color=ORANGE>Carl-Arnold</>."
+  +:flat(Ada)
+  Ada: "<cascade-letters>......"
+  Conscience: "Let's get a move on then, shall we?"
+  +:utils-stop-Conscience-dialogue()
+  +setSpeed(Ada)
+  +stopMusic(1000, false)
+  +completeQuestStep(RPS, 1)
+  +playMusic(music_floor2)
+  +endConversation()
+
+#floor2_rpsMachineOff
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "The machine is off and does turn on."
+  +endConversation()
+
+#floor2_rpsMachineInStorage
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "It looks like an unused arcade machine."
+  +endConversation()
+
+#floor2_rpsSecretDoor
+  action,?isnot(vars.floor2.rpsSecretDoorOpen):this
+  load,floor2_rpsSecretDoor_load
+@floor2_rpsSecretDoor_load
+  +setStorage(vars.floor2.rpsSecretDoorOpen, false)
+@this
+  +setConversation(Ada)
+  +setStorage(vars.floor2.rpsSecretDoorOpen, true)
+  +:ld(Ada, rightdown)
+  +?once('c83b37c1'):{
+    +:question(Ada)
+    Ada: "Something seems <italic>off</> about this wall."
+  }
+  +none()
+  +:lockCamera()
+  +:bumpX(Ada, 2)
+  +:unlockCamera()
+  +playSound(battle_shoot_arrow)
+  +:w(30)
+  +playSound(battle_shoot_arrow)
+  +:w(30)
+  +playSound(battle_shoot_arrow)
+  +:w(100)
+  +playSound(move_wall)
+  +:openDoor(MarkerSecret2, DARK_BLOCK_BCK)
+  +:w(100)
+  +playSound(move_wall)
+  +:openDoor(MarkerSecret1, DARK_BLOCK_BCK)
+  +:w(100)
+  +removeTriggerNotifierAtMarker(MarkerSecretTrigger)
+// +changeTileAtMarker(MarkerSecretTrigger, DUNGEON_COBBLESTONE_FLOOR);
+  +endConversation()
+
+

@@ -1,0 +1,1047 @@
+{
+  "format": "incanterm-sprite",
+  "version": 3,
+  "id": "test1",
+  "width": 10,
+  "height": 10,
+  "originX": 0,
+  "originY": 0,
+  "sprites": [
+    {
+      "layers": [
+        {
+          "id": "layer-1",
+          "name": "bg",
+          "visible": true,
+          "locked": false,
+          "cells": [
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            null,
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            null,
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            null,
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            null,
+            null,
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            null,
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": "8",
+              "fg": "bright-white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            },
+            {
+              "ch": " ",
+              "fg": "white",
+              "bg": "black"
+            }
+          ]
+        },
+        {
+          "id": "layer-2",
+          "name": "Layer 2",
+          "visible": false,
+          "locked": true,
+          "cells": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "id": "layer-1",
+          "name": "bg",
+          "visible": true,
+          "locked": false,
+          "cells": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "id": "layer-2",
+          "name": "Layer 2",
+          "visible": false,
+          "locked": true,
+          "cells": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "id": "layer-1",
+          "name": "bg",
+          "visible": true,
+          "locked": false,
+          "cells": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "id": "layer-2",
+          "name": "Layer 2",
+          "visible": false,
+          "locked": true,
+          "cells": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    }
+  ]
+}

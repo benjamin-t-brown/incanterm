@@ -1,0 +1,54 @@
+#quest_PuzzlingTradition_suspiciousMachine
+  action,?once('e34e2920'):quest_PuzzlingTradition_suspiciousMachine_first
+  action,quest_PuzzlingTradition_suspiciousMachine_default
+@quest_PuzzlingTradition_suspiciousMachine_default
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "It does not appear to be functional."
+  +endConversation()
+@quest_PuzzlingTradition_suspiciousMachine_first
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerSuspiciousMachine)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "What is this machine doing here?"
+  +?func(inParty, Anjana):{
+    Anjana: "I've never seen it before."
+  }
+  +?func(inParty, Skye):{
+    Skye: "It is it just in storage?"
+  }
+  +none()
+  +walkToOffset(Ada, -8, 0)
+  +playSound(pop)
+  +:bumpX(Ada, -1)
+  +:w(500)
+  +:teardrop(Ada)
+  Ada: "It does not appear to be functional."
+  +?func(inParty, Anjana):{
+    Anjana: "What's with this setup though?  It's almost like something's supposed to be placed on the tables here."
+    +?func(inParty, Skye):{
+      +:la(Skye, Anjana)
+      Skye: "They're just tables.  You're reading <italic>way</> too much into this."
+      +:la(Ada, Anjana)
+      +:la(Anjana, Skye)
+      +:angry(Anjana)
+      Anjana: "You never know with this place!  It could be some kind of secret!"
+      Skye: "I'm just saying... not everything has to be a hidden door."
+      +:question(Ada)
+      Ada: "What do you suggest we try to put on these tables?"
+      +:ld(Anjana, leftup)
+      +walkToMarker(Anjana, MarkerSuspiciousMachine, 0, 16)
+      +:la(Ada, Anjana)
+      +:la(Skye, Anjana)
+      +:ld(Anjana, leftup)
+      +:shakeZ(Anjana)
+      +:ld(Anjana, down)
+      +:blush(Anjana)
+      Anjana: "I don't know, okay.  It just looks weird."
+      +:happy(Skye)
+    }
+    +:shrug(Ada)
+    Ada: "If we ask around somebody might know."
+  }
+  +endConversation()

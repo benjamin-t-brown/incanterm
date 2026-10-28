@@ -1,0 +1,86 @@
+@quest_freeThrowAfterGameComplete
+  +setStorage(tmp.score, [ARG0])
+  +setStorage(tmp.isMax, [ARG1])
+  +?is(tmp.isMax):{
+    +:quest_freeThrowInit()
+  }
+  +?all(isnot(tmp.isMax), gt(tmp.score, 0)):{
+    +setConversation()
+    Narrator: "The machine dispenses one ticket per basket."
+    +modifyTickets({tmp.score})
+    +endConversation()
+  }
+
+@quest_freeThrowInit
+  +?is(vars.gotFreeThrowMoney):{
+    +setConversation()
+    Narrator: "That's the MAX SCORE!  But the machine already dispensed bonus tickets..."
+    Narrator: "You still get the satisfaction of knowing you did it again though!"
+    Narrator: "And a small prize..."
+    +modifyTickets(10)
+    +endConversation()
+  }
+  +?isnot(vars.gotFreeThrowMoney):{
+    +setConversation()
+    +:ld(Ada, rightdown)
+    +walkPartyToFormation()
+    Narrator: "That's the MAX SCORE!"
+    Narrator: "The machine dispenses bonus tickets!"
+    +modifyTickets(100)
+    // call endConversation before hideArcadeGame, or some ui state gets broken
+    +endConversation()
+    +hideCurrentArcadeGame()
+    +:w(100)
+    +setConversation(Ada)
+    +?func(inParty, Skye):{
+      +panCameraToFitCharacters(500, false, Ada, Skye)
+      +:leach(Ada, Skye)
+      Skye: "Wow!  I didn't take you for a free throw shooter."
+      +:smirk(Ada)
+      Ada: "It is simple, with enough practice."
+    }
+    +none()
+    +spawnCharacterAtMarker(floor2SouthSports_FreeThrowEnthusiast, MarkerFreeThrowSpawn)
+    +walkToMarker(floor2SouthSports_FreeThrowEnthusiast, MarkerFreeThrowSpawn2)
+    +setConversationGroup(Ada, floor2SouthSports_FreeThrowEnthusiast)
+    +:la(Party, floor2SouthSports_FreeThrowEnthusiast)
+    +:leach(floor2SouthSports_FreeThrowEnthusiast, Ada)
+    +:jump(floor2SouthSports_FreeThrowEnthusiast)
+    floor2SouthSports_FreeThrowEnthusiast: "Wow!  You made all those shots in a row!"
+    floor2SouthSports_FreeThrowEnthusiast: "You must be super good at basketball."
+    Ada: "Um.  Thanks?"
+    +:shakeZ(floor2SouthSports_FreeThrowEnthusiast)
+    floor2SouthSports_FreeThrowEnthusiast: "You should come play for my team team when the gym opens up!"
+    floor2SouthSports_FreeThrowEnthusiast: "Here, let me give you a jersey!"
+    +none()
+    +walkToCharacter(floor2SouthSports_FreeThrowEnthusiast, Ada, 8, 8)
+    +:leach(floor2SouthSports_FreeThrowEnthusiast, Ada)
+    +:bumpY(floor2SouthSports_FreeThrowEnthusiast, 2)
+    // +modifyTickets(200)
+    +acquireItem(BasketballJersey)
+    +none()
+    +walkToMarker(floor2SouthSports_FreeThrowEnthusiast, MarkerFreeThrowSpawn2)
+    +:la(floor2SouthSports_FreeThrowEnthusiast, Ada)
+    floor2SouthSports_FreeThrowEnthusiast: "I'll see you later!"
+    +walkToMarker(floor2SouthSports_FreeThrowEnthusiast, MarkerFreeThrowSpawn)
+    +despawnCharacter(floor2SouthSports_FreeThrowEnthusiast)
+    +panCameraBackToPlayer()
+    Ada: "I suppose I should practice more often, then."
+    +?func(inParty, Anjana):{
+      +panCameraToFitCharacters(500, false, Ada, Anjana)
+      +endConversation(100);
+      +setConversation2(Ada, Anjana)
+      +:leach(Ada, Anjana)
+      Anjana: "What happened to you not wanting to 'waste any time'?"
+      +:blush(Ada)
+      Ada: "I... got distracted... is all."
+      +:angry(Ada)
+      Ada: "You are right, we should get going."
+      Anjana: "Oh no, by all means, continue."
+      Anjana: "You seem to be having fun."
+      Ada: "I am not here to have fun..."
+      +panCameraBackToPlayer()
+    }
+    +endConversation()
+    +setStorage(vars.gotFreeThrowMoney, true)
+  }

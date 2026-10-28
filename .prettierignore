@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.data
+reference
+ed-ascii
+package-lock.json
+
+# Design notes are maintained by hand.
+docs

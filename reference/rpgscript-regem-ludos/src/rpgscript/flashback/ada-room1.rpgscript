@@ -1,0 +1,229 @@
+@flashback-ada-room1
+ //ensure screen starts off as black during testing
+  +fadeOut(1)
+  +setConversation(Ada)
+  +setFlashbackMode(true)
+
+  +changePropAnim(PropBed, bed-ada)
+  +setCharacterAtMarker(Ada, MarkerAda1)
+
+  +setPlayerVisibility(false)
+
+//Slow pan (fade in) down to Ada sad on bed
+  +waitMS(3000)
+  +panCameraRelativeToPlayer(-20, -200, 1)
+  +panCameraRelativeToPlayer(-20, 0, 4000, true)
+  +playMusic(music_memory, 500)
+  +fadeIn(5000)
+
+// +panCameraRelativeToPlayer(-20, -200, 1);
+// +panCameraRelativeToPlayer(-20, 0, 1000, true);
+// +fadeIn(1000);
+
+
+  +setConversation(Ada)
+  +:none()
+  +playSound(knock)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_KNOCK, MarkerDoor, 'rise')
+  +waitMS(400)
+  +playSound(knock)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_KNOCK, MarkerDoor, 'rise')
+  +waitMS(400)
+  +playSound(knock)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_KNOCK, MarkerDoor, 'rise')
+  +waitMS(1000)
+  +changePropAnim(PropBed, bed-ada-lookup)
+  +panCameraRelativeToCurrentPosition(15, 0, 1000)
+  Father: "Ada? I'm coming in."
+  +:none()
+  +waitMS(100)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoor, WOOD_DOOR_BCK)
+  +spawnCharacterAtMarker(Father, MarkerDad0)
+  +waitMS(500)
+  +walkToMarker(Father, MarkerDad1)
+  +:smallPause()
+  +lookAtCharacter(Father, Ada)
+  +:smallPause()
+  Father: "I have some good news."
+  +none()
+  +:shakeZ(Father)
+  Father: "I've managed to fix the problem with <color=YELLOW>Conscience</>."
+  +none()
+  +changePropAnim(PropBed, bed-ada-jump)
+  +waitMS(1500)
+  +changePropAnim(PropBed, bed-standalone)
+  +setCharacterAtMarker(Ada, MarkerAda0)
+  +setFacing(Ada, rightdown)
+  +setCharacterSpriteBase(Ada, ada-pal-room)
+  +setPlayerVisibility(true)
+  +panCameraRelativeToCurrentPosition(0, 30, 1000)
+  Ada: "<cascade-letters>......"
+  +:teardrop(Father)
+  +walkToMarker(Father, MarkerDadLight)
+  +playSound(click)
+  +:bumpY(Father, 2)
+  +removeOverlays()
+  +:smallPause()
+  +walkToMarker(Father, MarkerDad1)
+  +lookAtCharacter(Father, Ada)
+  +setFacing(Father, leftdown)
+  +:exhale(Father)
+  Father: "For a bit there I wasn't sure if I was going to be able to salvage all her memory."
+  +:ld(Father, down)
+  Father: "I did manage to get it back.  I think."
+  +:la(Father, Ada)
+  Father: "I had to do some... hacky stuff.  I'm hoping there are no lasting <italic>side effects</>."
+  +:shakeZ(Father)
+  Father: "How are you feeling?"
+  +:shakeZ(Ada)
+  Ada: "<scale=0.75 cascade-letters>I am fine."
+  +:shakeZ(Father)
+  Father: "Good.  Please tell me if anything develops."
+  Father: "Now, I have to ask..."
+  Father: "What were you doing when she got deactivated like this?"
+  +:ld(Ada, down)
+  +:shakeZ(Ada)
+  Ada: "I do not know.  I just blacked out and..."
+  Ada: "<color=YELLOW>Conscience</> was gone."
+  +:la(Ada, Father)
+  Ada: "<scale=0.75 />I could not sense her."
+  +:ld(Father, leftdown)
+  +:shakeZ(Father)
+  Father: "That is... rather <italic cascade-letters>concerning</>.  I thought I had fixed this problem already."
+  Father: "You two are connected <italic>fundamentally</>."
+  +:ld(Father, down)
+  Father: "It isn't good for you and <color=YELLOW>Conscience</> to be separated like that."
+  Father: "There might be further complications."
+  +:lightbulb(Father)
+  +:la(Father, Ada)
+  Father: "Are you sure you didn't notice anything else, something that might have caused it?"
+  Ada: "<cascade-letters>...."
+  Ada: "Well."
+  +:ld(Ada, down)
+  Ada: "<scale=0.85>We may have been..."
+  +:ld(Ada, left)
+  Ada: "<scale=0.75 />...having a fight."
+  +:question(Father)
+  Father: "A fight?"
+  +:la(Ada, Father)
+  Ada: "She can be so frustrating!"
+  +:jump(Ada)
+  Ada: "She nags and nags about the littlest of things, it drives me crazy!"
+  +:ld(Ada, left)
+  +:angry(Ada)
+  Ada: "She is just like <italic>Mother</>."
+  Ada: "<color=LIGHTGREY italic scale=0.75 />I never told her to leave, though."
+  +:exhale(Father)
+  Father: "Ada..."
+  Father: "You need to learn to have a little more patience."
+  Father: "For better or for worse you and <color=YELLOW>Conscience</> share the same space, and that's the way it is."
+  Father: "It would be better if you could get along."
+  +:smallPause()
+  Ada: "<scale=0.75 />It would be better if she was quiet."
+  +:shakeZ(Father)
+  Father: "Well, it sounds like you got your wish, at least for the moment, until I reactivate her."
+  +:serious(Father)
+  Father: "But you need to realize something."
+  Father: "If this happens again I might not be able to get her back."
+  Father: "I think she loses a bit of her personality when it happens, and it's quite difficult for me to recover it."
+  Father: "Not to mention how it might affect <italic>you</>."
+  +:none()
+  +:smallPause()
+  +walkToMarker(Father, MarkerDadLight, 0, 0)
+  +:ld(Father, rightup)
+  +playSound(click)
+  +:bumpY(Father, 2)
+  +addOverlay('overlays/flashback-ada-room-multiply', multiply)
+  +addOverlay('overlays/flashback-ada-room-overlay', overlay)
+  +:smallPause()
+  +:smallPause()
+  +:smallPause()
+  +:la(Father, Ada)
+  +:shakeZ(Ada)
+  Ada: "I cannot say I have really enjoyed her being gone."
+  Ada: "It is hard to... <italic>think</> without her."
+  +:ld(Ada, left)
+  Ada: "<scale=0.75>And it feels... empty."
+  +none()
+  +stopMusic()
+  +fadeOut(2000)
+  +endConversation()
+  +resetCharacterSpriteBase(Ada)
+  +setFlashbackMode(false)
+
+
+
+// I simplified this down since it felt very jarring coming from the throne room cutscene
+// It almost seemed like the throne room was a flashback, and this was real time.
+// also, too much stuff was introduced here.
+// Father: "For a bit there I wasn't sure if I was going to be able to salvage all her memory, but..."
+// +:ld(Father, down);
+// Father: "I did manage to get it back.  I think."
+// +:la(Father, Ada);
+// Father: "I had to do some... hacky stuff.  I'm hoping there are no lasting <italic>side effects</>."
+// +:shakeZ(Father);
+// Father: "How are you feeling?"
+// +:shakeZ(Ada);
+// Ada: "I am fine, but...  I still have a splitting headache."
+// +:shakeZ(Father);
+// Father: "That's to be expected.  It should be better soon when I reactivate her."
+// Father: "What exactly where you doing that caused this?"
+// +:ld(Ada, leftdown);
+// Ada: "I got... forcibly ejected from the VR in <color=LIGHTPURPLE>Erran Valley</>."
+// +:la(Ada, Father);
+// +:question(Father);
+// Father: "Ejected?  In what manor?"
+// +:shakeZ(Ada);
+// Ada: "Eva... she sort of tackled me and I lost connection."
+// +:surprised(Father);
+// Father: "She <italic>tackled</> you?  Why?  Were you provoking her?"
+// +:la(Ada, Father);
+// +:angry(Ada);
+// +:shakeZ(Ada);
+// Ada: "No!  She was being particularly deplorable!  We were arguing... and..."
+// +:ld(Ada, leftdown);
+// Ada: "She disconnected from the VR, and as I said... she tackled me."
+// +:la(Ada, Father);
+// Ada: "I got ejected from VR, and when I got her off of me I realized that Conscience was... gone."
+// +:shakeZ(Father);
+// Father: "Oh Ada... You have to be more careful."
+// +:serious(Ada);
+// +:shakeZ(Ada);
+// Ada: "What should I have done?"
+// Ada: "How can I be expected to anticipate the erratic actions of an irrational sophomore girl?"
+// +:bored(Father);
+// Father: "By being <italic>friendly</>.  Or heaven forbid, <italic>tactful</>."
+// +:ld(Ada, leftdown);
+// Ada: "<scale=0.75 />That horrible girl does not deserve such amicable treatment."
+// +:leach(Father, Ada);
+// +:exhale(Father);
+// Father: "You need to take this more seriously."
+// Father: "It isn't good for you and Conscience to be separated like this."
+// +:shakeZ(Father);
+// +:ld(Father, leftdown);
+// Father: "If it keeps happening I may not be able to fix it as quickly as I did this time."
+// +:leach(Ada, Father);
+// +:question(Ada);
+// Ada: "I thought that the VR in <color=LIGHTPURPLE>Erran Valley</> was supposed to be safe for her."
+// +:shakeZ(Father);
+// Father: "Yes, but... We haven't really tested forcible ejection from it.  As you probably know that can be unpleasant."
+// +:ld(Father, leftdown);
+// Father: "It is concerning that the connection between you and Conscience can be severed so simply."
+// +:la(Father, Ada);
+// Father: "I'll need to look into this further, but for now please try to avoid provoking Eva when you are using that VR."
+// +:ld(Ada, left);
+// +:blush(Ada);
+// Ada: "I will... try to behave."
+// +:leach(Father, Ada);
+// Father: "That's my girl."
+// +:ld(Father, leftdown);
+// +:smallPause();
+// +:happy(Father);
+// Father: "Now, let's get Conscience back, shall we?"
+// +none();
+// +walkToMarker(Father, MarkerDad3, 0, 0, true);
+// +fadeOut(2000);
+// +endConversation();
+// +resetCharacterSpriteBase(Ada);
+// +setFlashbackMode(false);

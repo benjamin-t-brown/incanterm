@@ -1,0 +1,746 @@
+@floor2ThroneRoom
+  +stopMusic(500)
+  +:ld(Carnold, down)
+  +offsetCharacter(Carnold, 0, 0, 96)
+  +:floor2-throne-room-lotte1()
+// +:floor2ThroneRoom-beginSequence();
+
+@floor2-throne-room-lotte1
+  +waitMS(500)
+  +playMusic(music_c_ambience)
+  +setConversation(Ada)
+  +:smallPause()
+  Ada: "It is quite dark in here..."
+  +none()
+  +spawnCharacterAtCharacter(Lotte, Ada, 16, -16)
+  +:ld(Lotte, up)
+  +walkToMarker(Lotte, MarkerLotteWalk0)
+  +:ld(Lotte, down)
+  +:shakeZ(Lotte)
+  Lotte: "This way, please."
+  +none()
+  +:ld(Lotte, up)
+  +:shakeZ(Lotte)
+  +walkToMarker(Lotte, MarkerLotteWalk1)
+  +walkToMarker(Lotte, MarkerLotte, 0, 0, true)
+  +endConversation()
+
+#floor2ThroneRoom_ForceField
+  action,this
+@this
+  +:ld(Ada, down)
+  +setConversation(Ada)
+  Ada: "It looks like some kind of force-field."
+  +endConversation()
+
+
+#floor2ThroneRoom-overlay2
+  step-first,?once('04ca1ed7'):this
+@this
+  +playSound(lightswitch_echo)
+  +addOverlay('overlays/overlay-throne-room2', 'normal')
+  +removeOverlay('overlays/overlay-throne-room1', 'normal', 750, true)
+
+#floor2ThroneRoom-overlay3
+  step-first,?once('d5bffb28'):this
+@this
+  +playSound(lightswitch_echo)
+  +addOverlay('overlays/overlay-throne-room3', 'normal')
+  +removeOverlay('overlays/overlay-throne-room2', 'normal', 750, true)
+
+#floor2ThroneRoom-overlay4
+  step-first,?once('044666e2'):this
+@this
+  +playSound(lightswitch_echo)
+  +addOverlay('overlays/overlay-throne-room4', 'normal')
+  +removeOverlay('overlays/overlay-throne-room3', 'normal', 750, true)
+
+#floor2ThroneRoom-overlay5
+  step-first,?once('a4579b98'):this
+@this
+  +playSound(lightswitch_echo)
+  +addOverlay('overlays/overlay-throne-room6', 'normal')
+  +removeOverlay('overlays/overlay-throne-room4', 'normal', 750, true)
+
+#floor2ThroneRoom-overlay6
+  step-first,?once('cc7b13ac'):this
+@this
+  +?isnot(Lotte):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+  }
+  +:ld(Lotte, down)
+  +:ld(Bartolo, down)
+// +playSound(lightswitch_echo);
+// +addOverlay('overlays/overlay-throne-room6', 'normal');
+  +removeOverlay('overlays/overlay-throne-room6', 'normal', 400, true)
+  +:floor2ThroneRoom-beginSequence()
+
+@carlArnoldLaugh
+  +none()
+  +setAnimation(Carnold, ch_carl-arnold_laugh)
+  +playSound(boy_laugh)
+  +waitMS(150)
+  +playSound(boy_laugh)
+  +waitMS(150)
+  +playSound(boy_laugh)
+  +waitMS(150)
+  +playSound(boy_laugh)
+  +waitMS(200)
+  +playSound(boy_laugh)
+  +waitMS(350)
+  +setAnimationState(Carnold, idle)
+
+#floor2ThroneRoom-beginSequence
+// step-first,?once('5d175550'):this
+@this
+  +?isnot(Lotte):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+  }
+  +:ld(Lotte, down)
+  +:ld(Bartolo, down)
+  +setAnimation(Carnold, ch_carl-arnold_hands_behind_back_up)
+  +playSound(lightswitch_echo)
+// +removeOverlays(750, true);
+  +spawnCharacterAtCharacter('Conscience', 'Ada')
+  +walkToMarker(Ada, MarkerAda0, 0, 0, true)
+  +walkToMarker(Conscience, MarkerConscience0, 0, 0)
+  +:ld(Conscience, up)
+  +:ld(Ada, up)
+  +waitMS(200)
+  +:throneRoomCutscenePart1()
+
+@throneRoomCutscenePart1
+  +setConversation(Ada)
+
+
+
+
+// START BLOCK
+  +panCameraToFitCharacters(1500, false, Lotte, Bartolo, Carnold)
+  +panCameraRelativeToCurrentPosition(0, -20, 1000)
+  +:shakeZ(Carnold)
+  Carnold: "Hello there, <color=ORANGE cascade-letters>Adalais<cascade>."
+  Carnold: " I've been expecting you."
+  +:ld(Ada, up)
+  +none()
+  +panCameraRelativeToCurrentPosition(0, 20, 500)
+  +:ld(Ada, up)
+  +:flat(Ada)
+  +:ld(Conscience, up)
+  Ada: "I certainly hope so."
+  Ada: "You managed to <italic>drag</> me in here.  What is it that you want?"
+  +none()
+  +panCameraRelativeToCurrentPosition(0, -20, 500)
+  +:shakeZ(Carnold)
+  Carnold: "<scale=0.75 />What do I want...?"
+  +none()
+  +waitMS(1000)
+  +setAnimationState(Carnold, idle)
+  +:face(Carnold, up)
+  +waitMS(100)
+  +:face(Carnold, rightup)
+  +waitMS(100)
+  +:face(Carnold, right)
+  +waitMS(100)
+  +:face(Carnold, rightdown)
+  +waitMS(100)
+  +:face(Carnold, rightdown)
+  +waitMS(100)
+  +setAnimation(Carnold, ch_carl-arnold_hands_behind_back_down)
+  +:shakeZExtended(Carnold)
+  Carnold: "I desire so much.  And yet, also, so little."
+  +none()
+  +stopMusic(1000, true)
+  +:smallPause()
+  +playSound(terminal_beep)
+  +waitMS(100)
+  +applyZTransform(Carnold, -96, 1500, true, true)
+  +playSound(sliding_door_open)
+  +waitMS(50)
+  +playSound(robot_clank4)
+  +waitMS(50)
+  +playSound(robot_clank2)
+  +waitMS(900)
+  +playSound(robot_clank3)
+  +waitMS(50)
+  +playSound(robot_clank4)
+  +waitMS(50)
+  +playSound(robot_clank2)
+  +waitMS(400)
+  +playSound(robot_clank)
+  +waitMS(500)
+  +walkToMarker(Carnold, MarkerCarnoldWalk0)
+  +panCameraRelativeToCurrentPosition(0, 60, 500)
+  +waitMS(500)
+  +playMusic(music_carl_arnold_theme)
+  Carnold: "So..."
+  Carnold: "The widely-labeled <italic>smartest</> girl in all of <color=LIGHTPURPLE>Erran Valley High School</> has entered my domain."
+  +:shakeZ(Carnold)
+  Carnold: "This is a wondrous opportunity."
+  Ada: "<cascade-letters>......"
+  +:shakeZ(Carnold)
+  Carnold: "Before we get to all the serious business..."
+  Carnold: "I wanted to ask <italic>you</>, a certain question."
+  +none()
+  +:lookAround(Carnold)
+  Carnold: "What do you think of this place?"
+  +:grumpy(Ada)
+  +:ld(Ada, right)
+  +waitMS(250)
+  +:ld(Ada, rightdown)
+  +waitMS(250)
+  Ada: "What exactly is it?"
+  +:ld(Ada, up)
+  +:shakeZ(Carnold)
+  Carnold: "It's my throne room."
+  Carnold: "My <color=LIGHTPURPLE>status</> in this arcade allows me certain freedoms within the <color=LIGHTBLUE>Revirtualis</> here."
+  Carnold: "I created this place, among others, to serve as a monument to my many achievements."
+  +:teardrop(Ada)
+  Ada: "It is <italic>quite</> gaudy."
+  Ada: "But, as a <italic>throne room</> it seems to be missing something quite important."
+  Ada: "A throne, perhaps?"
+  +:ld(Carnold, leftdown)
+  +:happy(Carnold)
+  Carnold: "It's around here somewhere, you just have to look hard for it."
+  +:ld(Carnold, down)
+  +:grumpy(Ada)
+  Ada: "Is this all you wanted to show me?  Your throne room?"
+  +:carlArnoldLaugh()
+  +setAnimationState(Carnold, idle)
+  +:shakeZ(Carnold)
+  Carnold: "Of course not!"
+  Carnold: "I wanted you to see something I had achieved by myself."
+  +:question(Ada)
+  Ada: "What do you mean?"
+  +:shakeZ(Carnold)
+  Carnold: "I mean just what I said. <scale=1.25 italic>I alone</> built this place."
+  +:exclaim(Carnold)
+  +:shakeZ(Carnold)
+  +:la(Carnold, Ada)
+  Carnold: "It took a lot of effort you know."
+  +:shakeZ(Carnold)
+  Carnold: "I need to maintain intimate knowledge of the <color=LIGHTBLUE>Revirtualis</>: its inner workings, its quirks, its caveats..."
+  +:shakeZ(Carnold)
+  Carnold: "But, honestly it's trivial for a student at the top of the class, like me."
+  +:question(Carnold)
+  Carnold: "What about you?  Have you achieved anything <italic>by yourself</> like this?"
+  +:bored(Ada)
+  +:ld(Ada, right)
+  Ada: "Have I built a virtual throne room?  Goodness no."
+  +:ld(Ada, down)
+  Ada: "I would like to think my common sense would stop my head from getting so large."
+// +:ld(Ada, up);
+// +:angry(Carnold);
+// Carnold: "Oh, I bet you know exactly what I am getting at; you just don't wish to admit it."
+// Carnold: "Is there anything you have accomplished, on your own, without some kind of assistance?"
+// +:surprised(Ada);
+// Ada: "Of course...?"
+// Ada: "Most anything I do is on my own, actually."
+// +:jump(Carnold);
+// +:smirk(Carnold);
+// Carnold: "Is that so?  Can't you think of anything specific?"
+// +:shakeZ(Ada);
+// +:ld(Ada, leftup);
+// Ada: "Well, as you alluded to before, I am at the top of our class right now."
+// +:ld(Ada, up);
+// +:lightbulb(Carnold);
+// Carnold: "This is true.  You do indeed have the highest grades."
+// Carnold: "Although I am quite close behind you."
+// +:smirk(Carnold);
+// +:shakeZ(Carnold);
+// Carnold: "It's funny you mention grades, I have some thoughts on that."
+// +none();
+// +:ld(Carnold, leftdown);
+// +waitMS(500);
+  +:ld(Ada, up)
+  +:angry(Carnold)
+  Carnold: "It's clear you don't really get it."
+  Carnold: "That's fine, you'll understand in due time."
+  +:exclaim(Carnold)
+  Carnold: "But goodness!  I believe I have forgotten something rather important."
+  +none()
+  +walkToMarker(Carnold, MarkerCarnoldWalk1)
+  +panCameraRelativeToCurrentPosition(0, 20)
+  +:leach(Carnold, Conscience)
+  +lookAtCharacter(Ada, Carnold)
+  Carnold: "<cascade>You must be the fabled <color=ORANGE>Conscience<cascade> I've heard so much about."
+  Carnold: "I hope you can forgive my rudeness in ignoring your presence until now."
+  Conscience: "Oh, don't worry about it."
+  +:ld(Conscience, leftdown)
+  Conscience: "Happens all the time."
+  +:ld(Conscience, leftup)
+  Carnold: "At any rate, it's a pleasure to meet you!"
+  +:teardrop(Conscience)
+  Conscience: "Um.  Nice to meet you too, I guess?"
+  Conscience: "I already know who you are, so really, it's a one-way greeting. But 'hello' anyways."
+  +:happy(Carnold)
+  Carnold: "Yes, of course!  I'm sure <color=ORANGE>Adalais</> has spoken <italic>all</> about me."
+  +walkToOffset(Carnold, -8, 0)
+  Carnold: "It's truly unfortunate that the only way I can interact with you is through a <color=LIGHTBLUE>Revirtualis</> such as this."
+  +:question(Ada)
+  Ada: "Is that what you really wanted?  To speak with <color=ORANGE>Conscience</>?"
+  Ada: "You could have done that at <color=LIGHTBLUE>Revirtualis</> in <color=LIGHTPURPLE>Erran Valley</>, provided of course, that you asked nicely."
+  +lookAtCharacter(Carnold, Ada)
+  +:serious(Carnold)
+  Carnold: "I'd be lying if I said that wasn't part of the reason.  You have to admit that she is quite interesting indeed."
+// Carnold examines Conscience.
+  Carnold: "<cascade>However there's <color=LIGHTRED>much<cascade> more that I want from you."
+  +:ld(Carnold, rightdown)
+  Carnold: "And also, for that matter, of <color=ORANGE>her</>."
+  +:ld(Carnold, right)
+  Carnold: "It just so happens that this particular <color=LIGHTBLUE>Revirtualis</>, this particular <italic>shard</>, is what I require in order to get it."
+  +:shakeZ(Ada)
+  Ada: "Just tell me what it is so I can get on my way!"
+// +setAnimation(Carnold, ch_carl-arnold_thoughtful);
+// +:serious(Carnold);
+// Carnold: "<cascade>I notice you didn't say 'we'.  Is <color=ORANGE>Conscience</> inferred to be with you all the time?"
+// +:teardrop(Ada);
+// Ada: "<cascade-letters>......"
+// +:minorPause();
+// Carnold: "<cascade-letters>I see."
+  +none()
+  +setAnimationState(Carnold, idle)
+// +:minorPause();
+  +walkToMarker(Carnold, MarkerCarnoldWalk2)
+  +:leach(Carnold, Conscience)
+  +:ld(Ada, leftup)
+  +panCameraRelativeToCurrentPosition(0, -10)
+  Carnold: "I'm sure you've seen by now.  But the <color=LIGHTBLUE>Revirtualis</> that <color=LIGHTBLUE>this arcade</> is able to render is quite advanced."
+  +:minorPause()
+  +setAnimation(Carnold, ch_carl-arnold_gesture_right)
+  +:shakeZ(Carnold)
+  Carnold: "It appears we are adrift in the void of space. And yet--"
+  +none()
+  +:minorPause()
+  +setAnimation(Carnold, ch_carl-arnold_snap_right)
+  +waitMS(100)
+  +playSound(snap)
+  +waitMS(100)
+// +changePropAnim(PropTree, tree1_anim, 0, 0);
+  +createPropAtMarker(PropTree, MarkerTree, tree1, 0, 0)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerTree, 'normal', 0, 0)
+  +waitMS(500)
+  +:ld(Carnold, right)
+  Carnold: "Lo!  A tree hath appeared!"
+  Carnold: "I've prepared this little patch of grass just for the occasion.  A little bit of life in the desolate landscape of space."
+  +setAnimationState(Carnold, idle)
+  Carnold: "With some knowledge, I am able to specify that this lovely tree should grow right in this spot."
+  +:flat(Ada)
+  Ada: "You prepared this spot to place a tree just to show it to <italic>me?"
+  Ada: "This is a virtual world.  Could you not just make anything appear here?"
+  Carnold: "Not quite anything; there are rules in this world, just like there are rules in 'real' life."
+  Carnold: "It's just... in here the rules aren't quite the same as the ones outside of the <color=LIGHTBLUE>Revirtualis</>."
+  +:shakeZ(Carnold)
+  Carnold: "I have been a proponent of the <color=ORANGE>Regem Ludos Arcade</> since its very inception."
+  Carnold: "For so long I, alone, have owned the majority of the high scores in this arcade."
+  Carnold: "As such, I am alloted a <color=LIGHTBLUE>special status</>."
+  +none()
+  +setAnimation(Carnold, ch_carl-arnold_hands_on_hips)
+  +:jump(Carnold)
+  Carnold: "I am, the <color=ORANGE scale=1.5 cascade=250>King of Games</>."
+  Carnold: "I can control so much of this shard.  This tree is one such example."
+  +setAnimationState(Carnold, idle)
+  +:ld(Carnold, right)
+  Carnold: "You see, <italic color=ORANGE>Adalais</>, just like you are recognized for your supposed 'greatness' outside, I am recognized for mine in here."
+  +:ld(Carnold, down)
+  Carnold: "The only difference is, my greatness is <italic>earned."
+  Carnold: "And yours is unfairly inherited by your <color=LIGHTPURPLE>infamous father</>."
+  Carnold: "I can prove it."
+  +none()
+// +setAnimation(Carnold, ch_carl-arnold_raise_arms);
+// END BLOCK
+
+
+
+  +:throneRoomCutscenePart2()
+
+@throneRoomCutscenePart2
+  +setAtMarker(Carnold, MarkerCarnoldWalk2)
+  +lookAtCharacter(Ada, Carnold)
+  +lookAtCharacter(Conscience, Carnold)
+  +stopMusic(1000)
+  +panCameraToFitCharacters(1000, false, Carnold, Ada, Conscience)
+  Carnold: "You know, if you were truly smart, you never would have come here."
+  +:none()
+
+// START BLOCK
+  +stopSkipCutscene()
+  +setUnskippable(false)
+  +panCameraToFitCharacters(500, false, Carnold)
+  +setAnimation(Carnold, ch_carl-arnold_raise_arms)
+  +playSound(battle_cast)
+  +waitMS(800)
+  +playSound(battle_robot_charge_up, 8, 320)
+  +waitMS(100)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_HAND_FLAME, Carnold, normal, -8, 2)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_HAND_FLAME, Carnold, normal, 12, 2)
+  +waitMS(2400)
+  +playSound(zap_medium)
+  +waitMS(100)
+  +setAnimation(Carnold, ch_carl-arnold_raise_arms_open_eyes)
+  +waitMS(500)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_FLASH, MarkerConscience0, normal, 0, 0)
+  +playSound(failure)
+  +waitMS(100)
+  +playSound(despawn_tut_wall)
+  +createPropAtMarker(PropCageTop, MarkerConscience0, 'dynamic-props/cage_0', 99, 24, 24)
+  +createPropAtMarker(PropCageFront, MarkerConscience0, 'dynamic-props/cage_1', 0, 24, 24)
+  +createPropAtMarker(PropCageBack, MarkerConscience0, 'dynamic-props/cage_2', -20, 24, 24)
+  +panCameraToFitCharacters(500, false, Conscience)
+  +:exclaim(Ada)
+  +:ld(Ada, left)
+  +:exclaim(Conscience)
+  +:ld(Conscience, right)
+  +waitMS(500)
+  +:ld(Conscience, rightdown)
+  +waitMS(100)
+  +:ld(Conscience, down)
+  Conscience: "What is this...?"
+  +none()
+  +waitMS(100)
+  +:ld(Conscience, leftdown)
+  +waitMS(100)
+  +:jump(Conscience)
+  +:ld(Conscience, right)
+  +panCameraToFitCharacters(500, false, Ada)
+  +:exclaim(Ada)
+  Ada: "What is this!?"
+  +panCameraToFitCharacters(500, false, Carnold)
+  +lookAtCharacter(Ada, Carnold)
+  +:ld(Conscience, down)
+  +waitMS(1000)
+  +:ld(Conscience, rightdown)
+  +setAnimation(Carnold, ch_carl-arnold_lower_arms)
+  +waitMS(250)
+  +:ld(Conscience, rightup)
+  +:bumpY(Conscience, 2)
+  +waitMS(250)
+  +lookAtCharacter(Conscience, Carnold)
+  Carnold: "That takes care of one of you."
+  +setAnimation(Carnold, ch_carl-arnold_gesture_right)
+  +:smallPause()
+  Carnold: "As for the other...."
+  +none()
+  +waitMS(1000)
+  +setAnimation(Carnold, ch_carl-arnold_snap_right)
+  +playSound(snap)
+  +waitMS(300)
+  +panCameraBackToPlayer(300)
+  +:ld(Ada, down)
+  +:la(Conscience, Ada)
+  +playSound(wobble)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +:exclaim(Ada)
+  Ada: "Hey!"
+  +none()
+  +setAnimation(ada, ada_suspended)
+  +playSound(vr_portal_buzz)
+  +applyZTransform(Ada, 20, 700)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_CONSCIENCE_SPLIT, Ada, normal, 0, 0)
+  +playSound(low_rumble, 10, 300)
+  +waitMS(3200)
+  +playSound(battle_armor_broken)
+  +playSound(woosh)
+  +addOverlay('overlays/overlay-white', 'difference', 100)
+  +applyZTransform(Ada, 20, 10)
+  +waitMS(2000)
+  +playSound(battle_swing4)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_PIERCE_LEFT, Ada, normal, 0, 0)
+  +waitMS(100)
+  +playSound(monitor_talk)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +waitMS(300)
+  +playSound(monitor_talk)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +waitMS(300)
+  +playSound(monitor_talk)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +waitMS(300)
+  +playSound(monitor_talk)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +waitMS(300)
+  +playSound(monitor_talk)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_MISS, Ada, normal, 0, 0)
+  +waitMS(500)
+  +playSound(move_wall)
+  +fadeOutColor(255, 255, 255, 250)
+  +removeOverlay('overlays/overlay-white', 'difference', 100, true)
+  +:w(1000)
+  +playSound(move_wall)
+  +fadeInColor(255, 255, 255, 250)
+  +playSound(woosh_reverse)
+  +setAnimation(ada, ada_suspended_fall)
+  +applyZTransform(Ada, -20, 100)
+  +playSound(rustle)
+  +setAnimationState(Carnold, idle)
+  +:ld(Carnold, down)
+  +removePartyMemberFromActiveParty(Conscience, true)
+  Narrator: "<color=ORANGE>Conscience</> has been removed from the party."
+  +playMusic(music_c_ambience)
+  +:exclaim(Conscience)
+  Conscience: "Ada!"
+  +none()
+  +:face(Conscience, rightup)
+  +waitMS(200)
+  +:bumpY(Conscience, 2)
+  +waitMS(200)
+  +:bumpY(Conscience, 2)
+  +waitMS(200)
+  +:bumpY(Conscience, 2)
+  +waitMS(200)
+  +:bumpY(Conscience, 2)
+  +waitMS(100)
+  +:angry(Conscience, 2)
+  +waitMS(500)
+  +:face(Conscience, right)
+  +:shakeZ(Ada)
+  Ada: "What... did... you... do...?"
+  +none()
+  +panCameraToFitCharacters(500, false, Carnold, Ada, Conscience)
+  +:carlArnoldLaugh()
+  Carnold: "Feeling a bit different?"
+  +none()
+  +:shakeZ(Ada)
+  +waitMS(1000)
+  +:shakeZ(Ada)
+  Ada: "My head..."
+  +none()
+  +waitMS(2000)
+  Ada: "Where is..."
+  +:smallPause()
+  +:shakeZ(Ada)
+  Ada: "...Conscience?"
+  +none()
+  +:jump(Conscience)
+  Conscience: "I'm still right here!"
+  +none()
+  +waitMS(1000)
+  +setAnimationAndWait(ada, ada_recover_slow)
+  +setAnimation(ada, ada_headache)
+  +:question(Conscience)
+  Conscience: "Are you okay?"
+  +:smallPause()
+  +:shakeZ(Ada)
+  Ada: "I feel... sick."
+  +setAnimation(Carnold, ch_carl-arnold_thoughtful)
+  +:serious(Carnold)
+  +:shakeZ(Carnold)
+  Carnold: "Intriguing.  It seems you two are quite <italic> attached."
+  Carnold: "I did not expect that severing your connection would leave you so incapacitated."
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters>...sever?"
+  Carnold: "That's right. Like the ribbon at a grand-opening ceremony: snipped."
+  Carnold: "And what about Conscience herself?  <italic> She is not my hostage."
+  Carnold: "When you leave, you won't be taking her with you."
+  +:exclaim(Ada)
+  Ada: "But how...?"
+  +setAnimationState(Carnold, idle)
+  +setAnimationState(Ada, idle)
+  +:la(Conscience, Carnold)
+  +:la(Ada, Carnold)
+  +:exclaim(Ada)
+  +:exclaim(Conscience)
+  Ada: "How could you possibly..."
+  +:face(Conscience, leftup)
+  +:bumpX(Conscience, 2)
+  +:shakeZ(Carnold)
+  Carnold: "You know, <color=ORANGE>Adalais</>, I've always wondered something about you."
+  Carnold: "How much of your achievements are <color=LIGHTBLUE>you</>?"
+  +:leach(Carnold, Conscience)
+  Carnold: "And how much of that is your <italic>accomplice?"
+  +:leach(Carnold, Ada)
+  +:exclaim(Ada)
+  Ada: "You think that Conscience is...?"
+  Ada: "You have no idea what you are talking about."
+  +:smirk(Carnold)
+  Carnold: "Do I not?"
+  +:la(Carnold, Conscience)
+  Carnold: "<italic cascade-letters>I know what she is."
+  +walkToOffset(Carnold, 8, 8)
+  +:la(Carnold, Conscience)
+  Carnold: "Rumors have swarmed about you ever since you started attending <color=LIGHTPURPLE>Erran Valley High School.</>"
+  Carnold: "They say you've got a hyper-advanced <italic>being</> in your head.  It's the reason why you have such high grades."
+  Carnold: "And it's true."
+  Carnold: "Who you call <color=ORANGE>Conscience</> is an <color=LIGHTPURPLE cascade-letters>Artificial Intelligence</>."
+  Carnold: "A rather advanced one, created by non other than your infamous father, <color=ORANGE>Dr. Dalton Eldridge</>."
+  +:la(Carnold, Ada)
+  +:ld(Conscience, down)
+  +:teardrop(Conscience)
+  +:ld(Ada, leftdown)
+  +:teardrop(ada)
+  +:shakeZ(Ada)
+  Ada: "You are... not incorrect..."
+  +:la(Ada, Carnold)
+  Ada: "However, everyone in <color=LIGHTPURPLE>Erran Valley</> already knows about my father, and about the nature of <color=YELLOW>Conscience</>."
+  Ada: "My Father has never tried to hide it from anybody."
+  +:shakeZ(Carnold)
+  Carnold: "Yes yes, everybody knows of Conscience.  But..."
+  Carnold: "I'm not sure they know what Conscience actually <italic>means."
+  +:face(Conscience, rightdown)
+  +:bumpX(Conscience, 2)
+  Carnold: "I think I have a good guess, though."
+  Carnold: "With such an advanced asset in your brain, what else would she be doing there but assisting you in all your achievements?"
+  +:serious(Carnold)
+  Carnold: "<cascade-letters scale=1.25>You are NOTHING without her."
+  +:la(Conscience, Carnold)
+  +:exclaim(Ada)
+  +:jump(Ada)
+  Ada: "That is NOT true!"
+// END BLOCK
+
+  +stopSkipCutscene()
+  +setUnskippable(false)
+  +:carlArnoldLaugh()
+  Carnold: "I knew you'd deny it."
+  +none()
+  +:face(Conscience, leftup)
+  +:bumpX(Conscience, 2)
+  +:la(Conscience, Carnold)
+  Carnold: "Care to put that assertion to the test? I have surmised a bit of a <color=LIGHTRED>challenge</> that should showcase who you really are."
+  +none()
+  +walkToMarker(Carnold, MarkerCarnoldWalk3)
+  +:shakeZ(Carnold)
+  Carnold: "This arcade has several floors.  Ten, to be exact."
+  Carnold: "Ascend all of these floors and reach the top.  I shall be waiting for you there."
+  Carnold: "Once you arrive..."
+  +:ld(Carnold, down)
+  +:shakeZ(Carnold)
+  Carnold: "*ahem* I mean, 'if' you arrive, of course."
+  +lookAtCharacter(Carnold, Ada)
+  Carnold: "Then we can truly see if your <color=YELLOW>golden reputation</> is warranted."
+  Carnold: "Once there, if you defeat me in a duel, then I shall let your beloved <color=YELLOW>Conscience</> go."
+  +:smirk(Carnold)
+  Carnold: "However, if you lose, then perhaps there's more to your success than meets the eye."
+  +:la(Conscience, Ada)
+  +:angry(Ada)
+  Ada: "No!  I will not play your stupid game.  This is utterly ridiculous!"
+  Ada: "Whatever you just did, <italic>undo it</> and let me go on my way."
+  +:la(Conscience, Carnold)
+  +:shakeZ(Carnold)
+  Carnold: "<cascade>Are you afraid you can't accomplish this <color=LIGHTRED>simple task</>?"
+  +:face(Conscience, leftup)
+  +:bumpX(Conscience, 2)
+  +:exclaim(Ada)
+  Ada: "You cannot take Conscience!"
+  +:la(Conscience, Ada)
+  +walkToOffset(Ada, -8, 8)
+  Ada: "Let her out of that cage!"
+  +none()
+
+
+
+
+  +waitMS(100)
+  +playSound(rustle)
+  +setAnimation(Lotte, ch_lotte_pull_out_wand)
+  +panCameraToFitCharacters(500, false, Lotte)
+  Lotte: "Careful now, I'd advise you not to get too close."
+  +none()
+  +setAnimation(Lotte, ch_lotte_cast_wand)
+  +waitMS(300)
+  +playSound(high_blip)
+  +waitMS(200)
+  +panCameraToFitCharacters(500, false, Ada)
+  +playSound(battle_swing4)
+  +setAnimation(Ada, ada_battle_knocked_down_left)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_PIERCE_LEFT, Ada, normal, 0, 0)
+  +waitMS(1000)
+  +panCameraToFitCharacters(500, false, Lotte)
+  +setAnimation(Lotte, ch_lotte_put_back_wand)
+  +:bored(Lotte)
+  Lotte: "All it takes is a level 1 spell?  How disappointing..."
+  +panCameraToFitCharacters(500, false, Bartolo)
+  +lookAtCharacter(Bartolo, Carnold)
+  +:question(Bartolo)
+  Bartolo: "She does seem <italic>incompetent."
+  +:ld(Bartolo, leftdown)
+  Bartolo: "Are you sure this is even worth our time?"
+  +none()
+  +:ld(Bartolo, down)
+  +panCameraToFitCharacters(500, false, Carnold, Ada)
+  +waitMS(500)
+  +setAnimationAndWait(ada, ada_recover_slow)
+  +setAnimation(ada, ada_headache)
+  Ada: "Ahh..."
+  +none()
+  +:happy(Carnold)
+  Carnold: "I am the owner of this domain, <color=ORANGE>Adalais</>.  What I say goes."
+  Carnold: "If you want Conscience back, then you'll have to defeat me on the <color=LIGHTRED scale=1.5>10th floor</> of this arcade."
+  Carnold: "It's as simple as that."
+  +none()
+  +:la(Conscience, Carnold)
+  +:leach(Carnold, Lotte)
+  +:shakeZ(Carnold)
+  +:shakeZ(Lotte)
+  +:leach(Carnold, Bartolo)
+  +:shakeZ(Carnold)
+  +:shakeZ(Bartolo)
+  +:face(Carnold, down)
+  +:jump(Carnold)
+  Carnold: "I'm done, get her out of here!"
+  +:la(Carnold, Ada)
+  +:face(Bartolo, down)
+  +:face(Lotte, down)
+  +:la(Conscience, Bartolo)
+  +panCameraToFitCharacters(500, false, Bartolo)
+  +walkToOffset(Bartolo, 0, 16)
+  +:jump(Bartolo)
+  Bartolo: "One <color=LIGHTPURPLE>Hyper-Expanse Machinery Portal</>, coming right up."
+  +panCameraToFitCharacters(500, false, Ada, Bartolo)
+  +none()
+  +setAnimation(Bartolo, ch_bartolo_beep)
+  +stopMusic()
+  +waitMS(1000)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_PURPLE_PORTAL, MarkerPortal, normal)
+  +playSound(spawn_enemy)
+  +waitMS(500)
+  +panCameraToFitCharacters(1000, false, Ada, Lotte)
+  +walkToOffset(Lotte, 16, 0)
+  +waitMS(1000)
+  +:la(Ada, Lotte)
+  +:shakeZ(Lotte)
+  Lotte: "Perhaps we'll meet again.  Perhaps not."
+  +none()
+  +playSound(rustle)
+  +setAnimation(Lotte, ch_lotte_pull_out_wand)
+  +setAnimationState(Ada)
+  +waitMS(500)
+  +:la(Ada, Lotte)
+  +:jump(Ada)
+  Ada: "Wait!  Give Conscience back!"
+  +none()
+  +waitMS(500)
+  +setAnimation(Lotte, ch_lotte_cast_wand)
+  +playSound(vr_portal_focus)
+  +waitMS(250)
+  +playSound(woosh_reverse)
+  +waitMS(100)
+  +playSound(failure)
+  +fadeOut(1500, true)
+  +setAnimation(Ada, ada_battle_staggered_left)
+  +offsetCharacter(Ada, 5, 0)
+  +waitMS(100)
+  +offsetCharacter(Ada, 5, 0)
+  +waitMS(100)
+  +offsetCharacter(Ada, 5, 0)
+  +waitMS(100)
+  +offsetCharacter(Ada, 5, 0)
+  +waitMS(100)
+  +offsetCharacter(Ada, 5, 0)
+  +waitMS(100)
+  +setAnimationState(Ada, idle)
+  +panCameraBackToPlayer(500)
+  +playSound('battle_encountered')
+  +disableAnimationSounds()
+  +fadeOutColor(255, 255, 255, 1000)
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PURPLE_PORTAL', 'Ada', 'normal')
+  +playSound('vr_portal_zoom')
+  +fadeInColor(255, 255, 255, 1000)
+  +waitMS(4000, '', true)
+  +fadeOut()
+  +stopSkipCutscene()
+  +setUnskippable(false)
+  +changeRoom(flashBackAdaRoom, MarkerPlayer)
+  +modifyPartyHP(99999)
+  +:ada-flash-back1()

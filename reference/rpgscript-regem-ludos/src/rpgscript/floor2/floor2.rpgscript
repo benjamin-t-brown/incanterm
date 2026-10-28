@@ -1,0 +1,1746 @@
+@floor2south
+  +?func(questIsStarted, RPS):{
+    +despawnCharacter(ThugLeader)
+  }
+// +?all(func(questActive, MainQuest), once('97e7718a')):{
+//   +:floor2_AnjanaJoinsAda();
+// }
+
+#floor2-transitionFromFloor2SouthWestToFloor2South
+  step,this
+@this
+  +:utils-change-room(floor2South, MarkerFromFloor2SouthWest)
+#floor2-transitionFromFloor2SouthWestToFloor2South_doors
+  step-first,floor2-transitionFromFloor2SouthWestToFloor2South_openDoors
+  step-off,floor2-transitionFromFloor2SouthWestToFloor2South_closeDoors
+@floor2-transitionFromFloor2SouthWestToFloor2South_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorFloor2South1, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorFloor2South2, RED_DOOR_FWDR)
+@floor2-transitionFromFloor2SouthWestToFloor2South_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorFloor2South1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorFloor2South2, RED_DOOR_FWDR)
+
+#floor2-transitionFromFloor2SouthToFloor2SouthWest
+  step,this
+@this
+  +:utils-change-room(floor2SouthWest, MarkerFromFloor2South)
+#floor2-transitionFromFloor2SouthToFloor2SouthWest_doors
+  step-first,transitionFromFloor2SouthToFloor2SouthWest_doors_openDoors
+  step-off,transitionFromFloor2SouthToFloor2SouthWest_doors_closeDoors
+@transitionFromFloor2SouthToFloor2SouthWest_doors_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorSouthWest1, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorSouthWest2, RED_DOOR_FWDR)
+@transitionFromFloor2SouthToFloor2SouthWest_doors_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorSouthWest1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorSouthWest2, RED_DOOR_FWDR)
+
+#floor2_elevator_call
+  step,elevator_call_step
+  action,?isnot(with('HapticBracer')):floor2-south-call-elevator-no-bracer
+  action,this
+@this
+  +:elevator_call_action()
+@floor2-south-call-elevator-no-bracer
+  +setConversation(Ada)
+  +panCameraRelativeToPlayer(0, 0, 1)
+  +setFacing(Ada, rightup)
+  +waitMS(100)
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -1)
+  +waitMS(100)
+  +playSound(terminal_cancel)
+  +waitMS(100)
+  +:question(Ada)
+  +waitMS(100)
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -1)
+  +waitMS(100)
+  +playSound(terminal_cancel)
+  +waitMS(100)
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -1)
+  +waitMS(100)
+  +:angry(Ada)
+  Ada: "I think I need a <color=LIGHTBLUE>Haptic Bracer</> to use this elevator!"
+  +panCameraBackToPlayer(1)
+  +endConversation()
+
+#floor2-transitionFromFloor2ToGuestRoomHallway_doors
+  step-first,floor2-transitionFromFloor2ToGuestRoomHallway_doors_openDoors
+  step-off,floor2-transitionFromFloor2ToGuestRoomHallway_doors_closeDoors
+@floor2-transitionFromFloor2ToGuestRoomHallway_doors_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorHallway1, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorHallway2, RED_DOOR_FWDR)
+@floor2-transitionFromFloor2ToGuestRoomHallway_doors_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorHallway1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorHallway2, RED_DOOR_FWDR)
+
+#floor2-transitionFromFloor2ToGuestRoomHallway
+  step,this
+@this
+  +:utils-change-room(floor2GuestroomHallway, MarkerFromFloor2)
+
+#floor2-transitionFromRpsToFloor2
+  step,this
+@this
+  +:utils-change-room(floor2South, MarkerFromRps)
+
+#floor2-transitionFromFloor2ToRps
+  step,this
+@this
+  +?isnot(func(questActive, RPS)):{
+    +:utils-change-room(floor2Rps, MarkerFromFloor2South)
+  }
+  +?func(questActive, RPS):{
+    +setConversation(Ada)
+    +setPlayerVisibility(false)
+    +despawnCharacter(Conscience)
+    +stopMusic(500)
+    +spawnCharacterAtMarker(Anjana, MarkerAnjanaSpawn)
+    +:ld(Anjana, leftdown)
+    +setSpeed(Anjana, 0.75)
+    +walkToMarker(Anjana, MarkerAnjanaWalk1, 0, 0, true)
+    +:w(1000)
+    +playMusic(music_anjana)
+    +panCameraToFitCharacters(2000, false, Anjana, Floor2Dummy)
+    +:floor2-OpenRedDoorsToElevatorBCKOpen()
+    +walkToMarker(Anjana, MarkerAnjanaWalk2)
+    +:floor2-OpenRedDoorsToElevatorBCKClose()
+    +panCameraToFitCharacters(500, false, Anjana)
+    +:w(500)
+    +:question(Anjana)
+    +:ld(Anjana, up)
+    +:w(500)
+    +:ld(Anjana, right)
+    +:w(500)
+    +:ld(Anjana, down, 100)
+    +:w(100)
+    +:ld(Anjana, left)
+    +:teardrop(Anjana)
+    Anjana: "That's weird..."
+    +none()
+    +walkToOffset(Anjana, 8, 0)
+    +:w(100)
+    +walkToOffset(Anjana, 0, 8)
+    Anjana: "Where's the usual crowd?"
+    +:exclaim(Anjana)
+    +walkToOffset(Anjana, 8, 0)
+    +:ld(Anjana, rightdown)
+    +:jump(Anjana)
+    Anjana: "Don't tell me they've found another victim..."
+    +none()
+    +walkToOffset(Anjana, 0, -8)
+    Anjana: "Why are there so many idiots who get caught in their stupid trap?"
+    +none()
+    +walkToOffset(Anjana, -8, -8)
+    Anjana: "Ugh."
+    +none()
+    +:sigh(Anjana)
+    +:w(100)
+    +walkToMarker(Anjana, MarkerAnjanaWalk2)
+    +:floor2-OpenRedDoorsToElevatorBCKOpen()
+    +walkToMarker(Anjana, MarkerAnjanaWalk1, 0, 0, true)
+    +fadeOut(1000)
+    +setPlayerVisibility(true)
+    +panCameraBackToPlayer(1)
+    +stopMusic(500, false)
+    +:utils-change-room(floor2Rps, MarkerFromFloor2South, true)
+  }
+
+#floor2-OpenRedDoorsToElevatorBCK
+  step-first,?isnot(with('HapticBracer')):floor2-OpenRedDoorsNoBracer
+  step-first,floor2-OpenRedDoorsToElevatorBCKOpen
+  step-off,floor2-OpenRedDoorsToElevatorBCKClose
+@floor2-OpenRedDoorsToElevatorBCKOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerRedDoorBCK2, RED_DOOR_BCKL)
+  +:openDoor(MarkerRedDoorBCK1, RED_DOOR_BCKR)
+@floor2-OpenRedDoorsToElevatorBCKClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerRedDoorBCK2, RED_DOOR_BCKL)
+  +:closeDoor(MarkerRedDoorBCK1, RED_DOOR_BCKR)
+@floor2-OpenRedDoorsNoBracer
+  +setConversation(Ada)
+  +playSound(deep_siren)
+  +changePropAnim(PropDoorLight1, props_small_light_alert)
+  +changePropAnim(PropDoorLight2, props_small_light_alert)
+  +changePropAnim(PropDoorLight3, props_small_light_alert)
+  +changePropAnim(PropDoorLight4, props_small_light_alert)
+  +:exclaim(Ada)
+  +:jump(Ada)
+  +waitMS(33)
+  +walkToOffset(Ada, 0, 24)
+  +setFacing(Ada, rightup)
+  +changePropAnim(PropDoorLight1, props_small_light_off)
+  +changePropAnim(PropDoorLight2, props_small_light_off)
+  +changePropAnim(PropDoorLight3, props_small_light_off)
+  +changePropAnim(PropDoorLight4, props_small_light_off)
+  +waitMS(100)
+  Ada: "It seems I need a <color=LIGHTBLUE>Haptic Bracer</> to proceed through these doors."
+  +endConversation()
+
+@floor2_AnjanaJoinsAda
+  +spawnCharacterAtMarker(Anjana, MarkerAnjanaSpawn2)
+  +stopMusic(500, false)
+  +playMusic(music_anjana)
+  +setConversation(Ada)
+  +:la(Anjana, Ada)
+  +panCameraToFitCharacters(2000, false, Anjana)
+  +:la(Anjana, Ada)
+  +:smallPause()
+  +:jump(Anjana)
+  +:exclaim(Anjana)
+  +walkToCharacter(Anjana, Ada, 16, -16)
+  +:leach(Anjana, Ada)
+  +panCameraToFitCharacters(500, false, Ada, Anjana)
+  +setConversation2(Ada, Anjana)
+  Anjana: "Hey."
+  Anjana: "Sorry for prying, but..."
+  +:ld(Anjana, leftup)
+  Anjana: "I saw you walk in there with that <color=LIGHTBLUE>Lotte</> girl."
+  +:la(Anjana, Ada)
+  Anjana: "Where did she take you?"
+  +:ld(Ada, leftup)
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters>...</>She took me to... Some kind of space station, I guess... From one of the guestrooms back there."
+  +:la(Ada, Anjana)
+  Anjana: "I see."
+  +:la(Anjana, Ada)
+  Anjana: "I don't trust her."
+  Anjana: "I've seen her and that conniving rat <color=LIGHTRED>Bartolo</> together.  Nothing good can come of a union like that."
+  Ada: "Do you... know them?"
+  Anjana: "They are classmates.  My year.  I'd rather not associate with them.  It's a long story."
+  Anjana: "What did they want with you?"
+  Ada: "They did not seem particularly interested in me actually. It was <color=LIGHTRED>Carl-Arnold</> that wanted to speak with me."
+  +:surprised(Anjana)
+  Anjana: "<color=LIGHTRED>Carl-Arnold</>?  He's with them too?  That's <italic>definitely</> not good."
+  Anjana: "That guy is the king here.  If you get too involved with him you're not going to have a good time."
+  +:angry(Ada)
+  Ada: "A good time?  I do not want a good time.  I want to get <color=YELLOW>Conscience</> back."
+  +:ld(Ada, rightdown)
+  Ada: "He trapped her in that space station somehow..."
+  +:la(Ada, Anjana)
+  +:question(Anjana)
+  Anjana: "Conscience?"
+  Anjana: "Oh, is that your... <color=LIGHTGREEN cascade-letters>Alternate</>?"
+  +:ld(Anjana, rightdown)
+  Anjana: "<scale=0.75 />Wow I didn't realize that thing was so ephemeral."
+  +:la(Anjana, Ada)
+  Anjana: "But how?  Shouldn't that be impossible?\n<scale=0.75>or something?  I honestly don't know how it works."
+  +:ld(Ada, down)
+  Ada: "He had some kind of gem thing.  It gave me a splitting headache and..."
+  +:serious(Ada)
+  +:la(Ada, Anjana)
+  Ada: "Look it does not matter.  I <italic>need</> to get <color=YELLOW>Conscience</> back."
+  Ada: "Do you know how to get to the <color=LIGHTPURPLE>Housing Hub</>?"
+  Anjana: "Yeah sure.  It's on the 3rd floor..."
+  Ada: "Can you point me in the right direction?"
+  +:teardrop(Anjana)
+  Anjana: "Um... forgive me for being forward, but it sounds like you don't really have a plan."
+  Anjana: "I don't think you realize the kind of sway <color=LIGHTRED>Carl-Arnold</> has in this place."
+  Anjana: "If he took something from you here, then it's as good as gone."
+  +:angry(Ada)
+  Ada: "I am not going to stand here and do nothing."
+  Anjana: "Look.  I know your capable of handling yourself.  I've seen you do it."
+  Anjana: "But you're going to need some help if you want to take on <color=LIGHTRED>Carl-Arnold</>."
+  +:ld(Anjana, leftdown)
+  Anjana: "I suppose I could go with you for now.  It's not like I'm really doing anything else."
+  +:question(Ada)
+  Ada: "You want to help me?"
+  Anjana: "Yes.  I think I do..."
+  Anjana: "Let me make it official."
+  +:smallPause()
+  +walkToCharacter(Anjana, Ada, 4, -4)
+  +playSound(terminal_beep)
+  +:bumpZ(Anjana, 2)
+  +:smallPause()
+  +:addPartyMember(Anjana)
+  +acquireItem(TrWand, 0, true)
+  +equipWeaponOrArmor(TrWand, Anjana)
+  +walkToCharacter(Anjana, Ada, 16, -16)
+  +:la(Anjana, Ada)
+  Anjana: "There.  I may not have as much sway as <color=LIGHTRED>Carl-Arnold</>, but I'm decent at the battle system here."
+  Anjana: "I just... prefer to stand in the back."
+  +:surprised(Ada)
+  Ada: "I..."
+  +:ld(Ada, down)
+  +:blush(Ada)
+  Ada: "Thanks."
+  +stopSkipCutscene()
+  +:ld(Anjana, rightdown)
+  Anjana: "We need to get to the 3rd floor.  It's past the <color=LIGHTPURPLE>Caf8teria</>, so let's head that way."
+  +:none()
+  +completeQuestStep(MainQuest, 0)
+// +despawnPartyMembers();
+  +panCameraBackToPlayer()
+  +stopMusic()
+  +playMusic(music_floor2)
+  +endConversation()
+
+#floor2_NPC1
+  action,this
+@this
+  +setConversation(Ada)
+  +:la(floor2_NPC1, Ada)
+  floor2_NPC1: "In one of the conference rooms there's gonna be a symposium on time travel this week."
+  floor2_NPC1: "It's supposed to start in a few hours, but I wanted to get here early."
+  floor2_NPC1: "You know, <italic>just in case</> there's some kind of shenanigans going on."
+  +?func(inParty, Anjana):{
+    +:question(Anjana)
+    Anjana: "Like what?"
+    floor2_NPC1: "Oh you know.  Time travel stuff."
+    +:lightbulb(floor2_NPC1)
+    floor2_NPC1: "Maybe a time machine appears inside the building!  It makes a loud *CRASH*!"
+    floor2_NPC1: "And, like, somebody get stabbed or something, and it starts this whole crazy timeline!"
+    +:flat(Anjana)
+    Anjana: "You've got quite a far-fetched imagination."
+  }
+  +endConversation()
+
+#floor2_NPC2
+  action,this
+@this
+  +:la(floor2_NPC2, ada)
+  +setConversation(Ada)
+  floor2_NPC2: "Honestly this place seems a lot more like a hotel than an arcade."
+  floor2_NPC2: "I mean they've got conference rooms, rentable party areas, a full-sized eatery called the <color=LIGHTBLUE>Cafe8teria</>..."
+  floor2_NPC2: "I'll bet if you keep going up the'll have rooms to stay the night."
+  floor2_NPC2: "<cascade-letters color=LIGHTGREY>Although I haven't been up there yet."
+  floor2_NPC2: "What gives?"
+  +endConversation()
+
+#floor2_NPC3
+  action,this
+@this
+  +:la(floor2_NPC3, Ada)
+  +setConversation(Ada)
+  floor2_NPC3: "This is just a really nice place to come and chill out."
+  +endConversation()
+
+#floor2_NPC4
+  action,?once('faaec152'):this
+  action,floor2_NPC4_2
+@this
+  +:la(floor2_NPC4, Ada)
+  +setConversation(Ada)
+  floor2_NPC4: "It looks <italic>awfully empty</> over here don'tcha think?"
+  floor2_NPC4: "I feel like it would be a really good place for a couple of arcade cabinets."
+  floor2_NPC4: "I mean this is an arcade right!  What is the management thinking!"
+  +endConversation()
+@floor2_NPC4_2
+  +:la(floor2_NPC4, Ada)
+  +setConversation(Ada)
+  floor2_NPC4: "This spot looks <italic>awfully empty</> don'tcha think?"
+  +endConversation()
+
+// TODO Enable cafeteria when it is finished
+#floor2_toCafeteriaOpenDoors
+  step-first,floor2_southDoorToCafeteriaOpen
+  step-off,floor2_southDoorToCafeteriaClose
+@floor2_southDoorToCafeteriaOpen
+// +playSound(sliding_door_open);
+// +:openDoor(MarkerDoor2, RED_DOOR_BCKL);
+// +:openDoor(MarkerDoor1, RED_DOOR_BCKR);
+@floor2_southDoorToCafeteriaClose
+// +playSound(sliding_door_close);
+// +:closeDoor(MarkerDoor2, RED_DOOR_BCKL);
+// +:closeDoor(MarkerDoor1, RED_DOOR_BCKR);
+
+#floor2_Employee1
+  action,?once('25e1a1db'):this
+  action,?func(questActive, 'NiceTrySkye'):floor2_Employee1_ask
+  action,floor2_Employee1_2
+@this
+  +stopAi(floor2_Employee1)
+  +:la(floor2_Employee1, Ada)
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerNoDemoPass)
+  +:leach(Ada, floor2_Employee1)
+  +walkPartyToFormation()
+  floor2_Employee1: "Our premiere cafeteria is just through these doors."
+  +:jump(floor2_Employee1)
+  floor2_Employee1: "It's the <color=LIGHTBLUE>Cafe8teria</>!"
+  floor2_Employee1: "It's soooo great in there.  You'll love it!"
+  +none()
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "Ugh.  No matter how many times I see it, I still can't get over how these employees treat everyone like they're children."
+    +:la(Anjana, floor2_Employee1)
+  }
+  +:la(Ada, floor2_Employee1)
+  floor2_Employee1: "Just step through these doors for and you'll be on your way to a <italic>great time</>!"
+  +none()
+  +endConversation()
+// +:ld(floor2_Employee1, rightup);
+// +:bumpY(floor2_Employee1, 2);
+// +playSound(terminal_beep);
+// +:w(500);
+// +playSound(terminal_cancel);
+// +:w(100);
+// +:question(floor2_Employee1);
+// floor2_Employee1: "Huh?"
+// +:ld(Ada, down);
+// +setAnimation(ada, ada_headache);
+// Ada: "Seriously?  This again?  What could possibly have happened now?"
+// +:w(100);
+// +:question(floor2_Employee1);
+// floor2_Employee1: "Umm..."
+// +:ld(Ada, down);
+// +?func(inParty, Anjana):{
+//   +:la(Anjana, Ada);
+// }
+// +:la(floor2_Employee1, Ada);
+// +:shakeZ(floor2_Employee1);
+// floor2_Employee1: "It looks like I'm not allowed to let you in there..."
+// +:bored(Ada);
+// Ada: "Of course not."
+// Ada: "That makes <italic>total</> sense."
+// +setAnimationState(Ada, idle);
+// +:la(Ada, floor2_Employee1);
+// +?func(inParty, Anjana):{
+//   +:question(Anjana);
+//   Anjana: "I don't understand why <color=LIGHTGREY italic>an Employee</> has to open these doors.  I've always just walked through."
+//   +:leach(floor2_Employee1, Anjana);
+//   floor2_Employee1: "Um.  It's a new policy."
+//   Anjana: "I literally just came from the cafeteria though?  Did you start that policy right now?"
+//   +:happy(floor2_Employee1);
+//   floor2_Employee1: "YEP."
+//   +:wink(floor2_Employee1);
+//   floor2_Employee1: "You might call it a new 'development'."
+// }
+// +:ld(floor2_Employee1, rightup);
+// floor2_Employee1: "So... it looks like you're not authorized to access the rest of this floor."
+// floor2_Employee1: "It says there's some sort of flag on your account."
+// +:la(floor2_Employee1, Ada);
+// floor2_Employee1: "Something about how you're <italic>'playing the demo version'</>."
+// +:ld(floor2_Employee1, rightdown);
+// floor2_Employee1: "<color=LIGHTGREY />I don't think I've ever heard of that before."
+// // +:la(floor2_Employee1, Ada);
+// // floor2_Employee1: "There's a message here I need to show you.  Give me a sec."
+// // +none();
+// // +:ld(floor2_Employee1, rightup);
+// // +:bumpY(floor2_Employee1, 2);
+// // +playSound(terminal_beep);
+// // +:w(500);
+// // +playSound(chime);
+// // +:showDemoStop();
+// +:la(floor2_Employee1, Ada);
+// +:teardrop(floor2_Employee1);
+// floor2_Employee1: "So sorry to be a bother, but this is absolutely, positively non-negotiable."
+// floor2_Employee1: "You cannot proceed through these doors.  At least for the moment."
+// +:serious(Ada);
+// Ada: "Fine.  We will have to go somewhere else then."
+// +:la(floor2_Employee1, Ada);
+// floor2_Employee1: "Yes, you will.  Move along now, I've got a post to maintain."
+// +resetAi(floor2_Employee1);
+// +endConversation();
+@floor2_Employee1_2
+  +stopAi(floor2_Employee1)
+  +:la(floor2_Employee1, Ada)
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerNoDemoPass)
+  +:leach(Ada, floor2_Employee1)
+  +walkPartyToFormation()
+  floor2_Employee1: "Just step through these doors for and you'll be on your way to a <italic>great time</>!"
+  +endConversation()
+@floor2_Employee1_ask
+  +stopAi(floor2_Employee1)
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerNoDemoPass)
+  +:leach(Ada, floor2_Employee1)
+  +walkPartyToFormation()
+  floor2_Employee1: "Did you need something?"
+// +awaitChoice("About the vending machine...", "About the Caf8teria...");
+// +?eq(lastChoiceIndex, 0):{
+  +:ld(Ada, leftdown)
+  Ada: "The vending machine back there is not working correctly."
+  +:la(Ada, floor2_Employee1)
+  floor2_Employee1: "The vending machine?"
+  floor2_Employee1: "Oh that old thing is always acting up."
+  floor2_Employee1: "Give it a few good kicks and that should whip it into shape."
+  +:flat(Ada)
+  +:ld(Ada, leftdown)
+  Ada: "<italic color=lightgrey cascade-letters scale=0.75>well then."
+// }
+// +?eq(lastChoiceIndex, 1):{
+//   Ada: "I would like to access the Cafe8teria."
+//   +:teardrop(floor2_Employee1);
+//   floor2_Employee1: "So sorry to be a bother, but this is absolutely, positively non-negotiable."
+//   floor2_Employee1: "You cannot proceed through these doors.  At least for the moment."
+// }
+  +resetAi(floor2_Employee1)
+  +endConversation()
+
+@showDemoStop
+  +stopSkipCutscene()
+  +showUISection(Modal, INFO, 'Demo Version', 'You are playing the Demo Version of Regem Ludos.<br/><br/>  Unfortunately this means you are not allowed to proceed further.  You may continue to play through other accessible areas, but you will not be able to advance the story.  I hope you have enjoyed your time so far!<br/></br>~ Benjamin')
+
+#floor2BallroomALocked
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +panCameraRelativeToPlayer(0, 0, 1)
+  +:bumpX(Ada, -2)
+  +panCameraBackToPlayer(1)
+  +playSound('locked')
+  Ada: "This door is locked."
+  +endConversation()
+
+#floor2BallroomASign
+  action,?once('34f6b1b8'):this
+  action,floor2BallroomASign2
+@this
+  +setConversation(Ada)
+  +:ld(Ada, up)
+  +walkPartyToFormation()
+  Ada: "The sign says '<color=LIGHTGREY />Ballroom A is reserved this evening for a private event.</>'"
+  Ada: "It looks like some kind of competitive karaoke?"
+  +?func(inParty, Anjana):{
+    +:leach(Ada, Anjana)
+    +endConversation(1)
+    +setConversation2(Ada, Anjana)
+    Anjana: "Not that I think we should be distracted or anything but..."
+    Anjana: "If we entered as contestants we'd probably win."
+    +:question(Ada)
+    Ada: "You can sing?"
+    Anjana: "Of course.  It's not that hard, honestly."
+    +:blush(Ada)
+    Ada: "Yes well... <scale=0.75 />Good for you I suppose."
+    Ada: "My family has never been very keen on the musical arts."
+  }
+  +?func(inParty, Skye):{
+    +:leach(Ada, Skye)
+    +setConversation(Skye)
+    Skye: "You can count me out of that; I'm a terrible singer."
+    Skye: "...unless you wanna hear some screechy punk rock.  I can do that no problem."
+    Skye: "That used to be popular, you know."
+  }
+  +endConversation()
+@floor2BallroomASign2
+  +setConversation(Ada)
+  Ada: "The sign says '<color=LIGHTGREY />Ballroom A is reserved this evening for a private event.</>'"
+  +endConversation()
+
+#floor2BallroomAPiano
+  action,?once('8d33418a'):this
+  action,floor2BallroomAPiano
+@this
+  +setConversation(Ada)
+  Ada: "Oh, they have a piano here."
+  +?func(inParty, Anjana):{
+    +:leach(Ada, Anjana)
+    +endConversation(1)
+    +setConversation2(Ada, Anjana)
+    Anjana: "Do you play?"
+    Ada: "No, but I know somebody who does."
+    Anjana: "Are they any good?"
+    Ada: "I would certainly say so."
+    Ada: "Although she would probably tell you <cascade-letters color=LIGHTGREY>otherwise</>."
+    +?func(inParty, Skye):{
+      +:la(Skye, Ada)
+      +none()
+      +:w(100)
+      +:happy(Skye)
+    // +endConversation(1);
+      +setConversation(Skye)
+      Skye: "You mean <color=LIGHTBLUE>Iroha</>, right?  Ya she'd probably bail at the site of this thing."
+      +:la(Skye, Anjana)
+      +none()
+      +:w(100)
+      +setConversation2(Ada, Anjana)
+    }
+    Anjana: "I took lessons through middle school but I could probably still have gotten a degree if I kept going."
+    Anjana: "Just lost interest.  The piano is kind of a simple."
+    +:ld(Ada, left)
+    Ada: "Right.  <italic>Simple</>."
+  }
+  +?isnot(func(inParty, Anjana)):{
+    Ada: "I would not have expected something like this at an arcade."
+  }
+  +endConversation()
+@floor2BallroomAPiano2
+  +setConversation(Ada)
+  Ada: "Oh, they have a piano here."
+  Ada: "I would not have expected something like this at an arcade."
+  +endConversation()
+
+#floor2EmployeeBallroomDoorLocked
+  action,this
+@this
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerSignEmployeeDoor, 12, -12)
+  +panCameraRelativeToPlayer(0, 0, 1)
+  +:ld(Ada, leftup)
+  +:bumpX(Ada, -2)
+  +panCameraBackToPlayer(1)
+  +playSound('locked')
+  Ada: "This door is locked."
+  +lookAtMarker(Ada, MarkerSignEmployeeDoor)
+  Ada: "That sign says 'Employees Only.'"
+  +endConversation()
+
+#floor2SouthWestNarrowPassageFound
+  step,?once('bcca85a4'):this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, down)
+  Ada: "This hallway is rather small.  Is it okay to be here?"
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    Anjana: "Who cares...  If we can get in here when we aren't supposed to then it's their fault for not locking it off properly."
+  }
+  +endConversation()
+
+#transitionFromPreCafeteriaHallwayToFloor2South
+  step,this
+@this
+  +:utils-change-room(floor2South, MarkerFromPreCafeteriaHallway)
+
+#transitionFromFloor2SouthToPreCafeteriaHallway
+  step,this
+@this
+  +:utils-change-room(floor2PreCafeteriaHallway, MarkerFromFloor2South)
+
+#floor2-TransitionFromFloor2SouthToFloor2SouthEast
+  step,this
+@this
+  +:utils-change-room(floor2SouthEast, MarkerFromTransitionFromFloor2SouthToFloor2SouthEast)
+#floor2-TransitionFromFloor2SouthToFloor2SouthEast_doors
+  step-first,floor2-TransitionFromFloor2SouthToFloor2SouthEast_openDoors
+  step-off,floor2-TransitionFromFloor2SouthToFloor2SouthEast_closeDoors
+@floor2-TransitionFromFloor2SouthToFloor2SouthEast_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthToFloor2SouthEast1, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthToFloor2SouthEast2, RED_DOOR_FWDR)
+@floor2-TransitionFromFloor2SouthToFloor2SouthEast_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthToFloor2SouthEast1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthToFloor2SouthEast2, RED_DOOR_FWDR)
+
+#floor2-TransitionFromFloor2SouthEastToFloor2South
+  step,this
+@this
+  +:utils-change-room(floor2South, MarkerFromTransitionFromFloor2SouthEastToFloor2South)
+#floor2-TransitionFromFloor2SouthEastToFloor2South_doors
+  step-first,floor2-TransitionFromFloor2SouthEastToFloor2South_openDoors
+  step-off,floor2-TransitionFromFloor2SouthEastToFloor2South_closeDoors
+@floor2-TransitionFromFloor2SouthEastToFloor2South_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2South1, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2South2, RED_DOOR_FWDR)
+@floor2-TransitionFromFloor2SouthEastToFloor2South_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2South1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2South2, RED_DOOR_FWDR)
+
+#floor2-Floor2SouthEastInnerDoor1_doors
+  step-first,floor2-Floor2SouthEastInnerDoor1_openDoors
+  step-off,floor2-Floor2SouthEastInnerDoor1_closeDoors
+@floor2-Floor2SouthEastInnerDoor1_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorFloor2SouthEastInnerDoor11, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorFloor2SouthEastInnerDoor12, RED_DOOR_FWDR)
+@floor2-Floor2SouthEastInnerDoor1_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorFloor2SouthEastInnerDoor11, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorFloor2SouthEastInnerDoor12, RED_DOOR_FWDR)
+
+#floor2-Floor2SouthEastInnerDoor2_doors
+  step-first,floor2-Floor2SouthEastInnerDoor2_openDoors
+  step-off,floor2-Floor2SouthEastInnerDoor2_closeDoors
+@floor2-Floor2SouthEastInnerDoor2_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorFloor2SouthEastInnerDoor21, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorFloor2SouthEastInnerDoor22, RED_DOOR_FWDR)
+@floor2-Floor2SouthEastInnerDoor2_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorFloor2SouthEastInnerDoor21, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorFloor2SouthEastInnerDoor22, RED_DOOR_FWDR)
+
+#floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast
+  step,this
+@this
+  +:utils-change-room(floor2VREntrance, MarkerFromTransitionFromFloor2ChallengeEntranceToFloor2SouthEast)
+#floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast_doors
+  step-first,floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast_openDoors
+  step-off,floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast_closeDoors
+@floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorTransitionFromFloor2ChallengeEntranceToFloor2SouthEast1, RED_DOOR_BCKL)
+  +:openDoor(MarkerDoorTransitionFromFloor2ChallengeEntranceToFloor2SouthEast2, RED_DOOR_BCKR)
+@floor2-TransitionFromFloor2ChallengeEntranceToFloor2SouthEast_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorTransitionFromFloor2ChallengeEntranceToFloor2SouthEast1, RED_DOOR_BCKL)
+  +:closeDoor(MarkerDoorTransitionFromFloor2ChallengeEntranceToFloor2SouthEast2, RED_DOOR_BCKR)
+
+#floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance
+  step,this
+@this
+  +:utils-change-room(floor2ChallengeEntrance, MarkerFromTransitionFromFloor2SouthEastToFloor2ChallengeEntrance)
+
+#floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance_doors
+  step-first,floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance_openDoors
+  step-off,floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance_closeDoors
+@floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2ChallengeEntrance1, RED_DOOR_BCKL)
+  +:openDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2ChallengeEntrance2, RED_DOOR_BCKR)
+@floor2-TransitionFromFloor2SouthEastToFloor2ChallengeEntrance_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2ChallengeEntrance1, RED_DOOR_BCKL)
+  +:closeDoor(MarkerDoorTransitionFromFloor2SouthEastToFloor2ChallengeEntrance2, RED_DOOR_BCKR)
+
+#floor2SouthEast_LockedDoors
+  step-first,?is(access.OpenedFloor2SouthEastDoor):floor2SouthEast_LockedDoors_Open
+  step-off,?is(access.OpenedFloor2SouthEastDoor):floor2SouthEast_LockedDoors_Close
+@floor2SouthEast_LockedDoors_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorLocked1, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorLocked2, PINK_DOOR_BCKR)
+@floor2SouthEast_LockedDoors_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorLocked1, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorLocked2, PINK_DOOR_BCKR)
+
+#floor2SouthEast_LockedDoorsMessage
+  action,?isnot(access.OpenedFloor2SouthEastDoor):floor2SouthEast_LockedDoors_Action
+@floor2SouthEast_LockedDoors_Action
+  +:face(Ada, rightup)
+  +setConversation(Ada)
+  Ada: "This door is locked."
+  +endConversation()
+
+#floor2SouthEast_LockedDoorsTerminal
+  action,?isnot(access.OpenedFloor2SouthEastDoor):floor2SouthEast_LockedDoors_Terminal
+@floor2SouthEast_LockedDoors_Terminal
+  +:face(Ada, rightup)
+  +setConversation(Ada)
+  +:bumpY(Ada, -1)
+  +playSound(terminal_beep)
+  +:w(200)
+  +playSound(terminal_cancel)
+  Terminal: "Extended storage access not detected."
+  Terminal: "Please see on-duty employee in <color=LIGHTBLUE>Storage Solutions</> for extended locker access."
+  +endConversation()
+
+#floor2EastHallway_doors
+  step-first,floor2EastHallway_doorsOpen
+  step-off,floor2EastHallway_doorsClose
+@floor2EastHallway_doorsOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoor2, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoor1, PINK_DOOR_BCKR)
+@floor2EastHallway_doorsClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoor2, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoor1, PINK_DOOR_BCKR)
+
+#floor2SouthEast_storeEmployee
+  action,?func(questNotStarted, NiceTrySkye):floor2SouthEast_storeEmployee_1
+  action,?func(questStepEQ, NiceTrySkye, 1):floor2SouthEast_storeEmployee_1
+  action,?func(questStepEQ, NiceTrySkye, 2):floor2SouthEast_storeEmployee_2
+  action,floor2SouthEast_storeEmployee_3
+  load,?once('0fd7ab02'):floor2SouthEast_storeEmployee_setTicketCost
+@floor2SouthEast_storeEmployee_setTicketCost
+// this is basically a const value declared in one spot, and used in several other spots
+  +setStorage(vars.FlatheadScrewdriverCost, 350)
+@floor2SouthEast_storeEmployee_1
+  +stopAi(StoreEmployee)
+  +:leach(Ada, StoreEmployee)
+  +setConversation(Ada)
+  +walkToMarker(StoreEmployee, MarkerStoreEmployee1, 0, 0, true)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +:w(500)
+  +:la(StoreEmployee, Ada)
+  +?once('a7c538e8'):{
+    StoreEmployee: "Hello there!  Welcome to the <color=LIGHTPURPLE />Second Floor Store</>."
+    +:teardrop(StoreEmployee)
+    StoreEmployee: "You might've noticed, but this store is in the process of being restocked."
+    +:ld(StoreEmployee, rightup)
+    StoreEmployee: "We don't have a lot of stuff available. <scale=0.75 />Unless you want some <scale=0.75 italic>tools<scale=0.75 /> or something."
+    +:la(StoreEmployee, Ada)
+    StoreEmployee: "However, we have set up another temporary location on the other side of the <color=LIGHTPURPLE>Caf8teria</>!"
+    StoreEmployee: "They've got a lot of cool items over there!"
+    StoreEmployee: "But we are still able to sell potions and a few snacks."
+  }
+  StoreEmployee: "Did you want to buy something?"
+  +setStorage(vars.buySomething, true)
+  +?func(questStepEQ, NiceTrySkye, 1):{
+    +setStorage(vars.buySomething, false)
+    +:question(Ada)
+    Ada: "Did you mention that you have some tools?"
+    +:ld(StoreEmployee, up)
+    StoreEmployee: "Um... Yeah I've got a toolbox here.  That's it though."
+    +:la(StoreEmployee, Ada)
+    StoreEmployee: "You want to buy it?"
+    +:shakeZ(Ada)
+    Ada: "I just need a <color=LIGHTBLUE>flathead screwdriver</>. Can I borrow that from you?"
+    +:teardrop(StoreEmployee)
+    StoreEmployee: "Borrow?  No, I'm sorry I'm not allowed to let any patron borrow anything from the store."
+    StoreEmployee: "There's a clause in the employee handbook for specifically prohibiting that sort of thing."
+    StoreEmployee: "But I can of course let you buy it, <italic cascade-letters>for a price."
+    Ada: "How much?"
+    StoreEmployee: "For a <color=LIGHTBLUE>flathead screwdriver</>?  I have no idea why you would want that..."
+    StoreEmployee: "Let's say, <color=YELLOW>{vars.FlatheadScrewdriverCost} Tickets</>."
+    +?func(inParty, Anjana):{
+      +:la(Ada, Anjana)
+      +:exclaim(Anjana)
+      Anjana: "What?"
+      Anjana: "That's an absurd amount!"
+      Anjana: "I've seen rare armor for a quarter of that cost!"
+      +:la(Ada, StoreEmployee)
+      +:shrug(StoreEmployee)
+      StoreEmployee: "Well this is probably the only place you'll find one.  And you seem kind of desperate."
+      StoreEmployee: "I can also only assume you want to break something in here. So, if you want me to look the other way, I'd of course be entitled to some more."
+      +:la(Ada, Anjana)
+      +:shakeZ(Anjana)
+      Anjana: "<color=GREY scale=0.75>...tch."
+      Anjana: "And what about bribery, is there something about that in the <italic>employee handbook</>?"
+      Anjana: "You're all vultures."
+    }
+    +:la(Ada, StoreEmployee)
+    +:question(Ada)
+    Ada: "They are just tickets, why do you want them that much?"
+    +:smirk(StoreEmployee)
+    StoreEmployee: "You're new, eh?"
+    StoreEmployee: "I'm sure if you walk around here some more you wouldn't need to ask me that."
+    StoreEmployee: "Speak to me again if you're interested."
+    +completeQuestStep(NiceTrySkye, 1)
+  }
+  +?is(vars.buySomething):{
+    +showStore(SECOND_FLOOR_STORE)
+    +?once('e4bf0709'):{
+      +setConversation()
+      StoreEmployee: "Thanks for your business!"
+    }
+  }
+  +endConversation()
+  +resetAi(StoreEmployee)
+@floor2SouthEast_storeEmployee_2
+  +:floor2SouthEast_storeEmployee_setTicketCost()
+  +stopAi(StoreEmployee)
+  +:leach(Ada, StoreEmployee)
+  +setConversation(Ada)
+  +walkToMarker(StoreEmployee, MarkerStoreEmployee1, 0, 0, true)
+  +walkPartyToFormation()
+  // +:leach(Ada, StoreEmployee)
+  StoreEmployee: "Ah, you're the one who wants the <color=LIGHTBLUE>flathead screwdriver</>."
+  StoreEmployee: "Did you want to buy it for <color=YELLOW>{vars.FlatheadScrewdriverCost} Tickets</>?  Or are you here to buy something else?"
+  +awaitChoice('Yes (pay {vars.FlatheadScrewdriverCost} tickets)', 'No.', 'Buy something else.')
+  +?eq(lastChoiceIndex, 0):{
+    +?isnot(func(hasEnoughTickets, {vars.FlatheadScrewdriverCost})):{
+      +:teardrop(StoreEmployee)
+      StoreEmployee: "Umm, you don't have enough."
+      StoreEmployee: "Come back when you have <color=YELLOW>{vars.FlatheadScrewdriverCost} Tickets</>."
+    }
+    +?func(hasEnoughTickets, {vars.FlatheadScrewdriverCost}):{
+      +modifyTickets(-{vars.FlatheadScrewdriverCost})
+      +:happy(StoreEmployee)
+      StoreEmployee: "Wonderful!  And as promised here is your <color=LIGHTBLUE>flathead screwdriver</>."
+      +acquireQuestItem(FlatheadScrewdriver)
+      +completeQuestStep(NiceTrySkye, 2)
+      +?func(inParty, Anjana):{
+        +:ld(Anjana, down)
+        Anjana: "<color=LIGHTGREY scale=0.75>What a waste.  I hope that girl is worth the cost."
+      }
+    }
+  }
+  +?eq(lastChoiceIndex, 1):{
+    StoreEmployee: "Come back if you change your mind."
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +showStore(SECOND_FLOOR_STORE)
+  }
+  +resetAi(StoreEmployee)
+  +endConversation()
+@floor2SouthEast_storeEmployee_3
+  +stopAi(StoreEmployee)
+  +:leach(Ada, StoreEmployee)
+  +setConversation(Ada)
+  +walkToMarker(StoreEmployee, MarkerStoreEmployee1, 0, 0, true)
+  +walkPartyToFormation()
+  // +:leach(Ada, StoreEmployee)
+  +setConversation(Ada)
+  StoreEmployee: "Hello there!  Wares are limited as we are moving this store front, but we still have some stuff on clearance!"
+  +showStore(SECOND_FLOOR_STORE)
+  +resetAi(StoreEmployee)
+  +endConversation()
+
+#floor2SouthEast_npc123
+  action,this
+@this
+  +stopAi(floor2SouthEast_npc1)
+  +stopAi(floor2SouthEast_npc2)
+  +stopAi(floor2SouthEast_npc3)
+  +setConversation(Ada)
+  // +:la(Ada, floor2SouthEast_npc2)
+  +:shakeZ(floor2SouthEast_npc1)
+  floor2SouthEast_npc1: "Are you guys ready yet?"
+  +:la(floor2SouthEast_npc2, floor2SouthEast_npc1)
+  floor2SouthEast_npc2: "Yup!  What side do you think we should do first?"
+  +:worried(floor2SouthEast_npc3)
+  floor2SouthEast_npc3: "I'm kinda nervous."
+  +:la(floor2SouthEast_npc2, floor2SouthEast_npc3)
+  +:la(floor2SouthEast_npc1, floor2SouthEast_npc3)
+  +:shakeZ(floor2SouthEast_npc1)
+  floor2SouthEast_npc1: "Don't worry about it, you'll do fine!"
+  +:la(floor2SouthEast_npc1, floor2SouthEast_npc3)
+  floor2SouthEast_npc3: "Are there powerful monsters in there?  I don't really like fighting..."
+  +:happy(floor2SouthEast_npc2)
+  floor2SouthEast_npc2: "That's okay!  We got you covered!"
+  floor2SouthEast_npc1: "Just stand in the back and make sure to keep <color=LIGHTBLUE>channeling</> your spell."
+  +:la(floor2SouthEast_npc3, floor2SouthEast_npc1)
+  floor2SouthEast_npc3: "Alright, I guess I can do that..."
+  floor2SouthEast_npc1: "Don't underestimate <color=LIGHTBLUE>channeling</>, it can be really powerful as long as you maintain it."
+  +endConversation()
+  +resetAi(floor2SouthEast_npc1)
+  +resetAi(floor2SouthEast_npc2)
+  +resetAi(floor2SouthEast_npc3)
+
+#floor2SouthEast_npc4
+  action,this
+@this
+  +:face(floor2SouthEast_npc4, leftup)
+  +setConversation(Ada)
+  +:shakeZ(floor2SouthEast_npc4)
+  floor2SouthEast_npc4: "Where is it?!"
+  +:shakeZ(floor2SouthEast_npc4)
+  +:ld(floor2SouthEast_npc4, down)
+  floor2SouthEast_npc4: "I thought I put my lucky headband in here when I left the house!"
+  floor2SouthEast_npc4: "I won't be able to beat the <color=LIGHTPURPLE>Forest Swamp Challenge</> without it!"
+  +?all(func(inParty, Anjana), once('fcedc102')):{
+    +:leach(Ada, Anjana)
+    +:la(floor2SouthEast_npc4, Anjana)
+    Anjana: "A person makes their own luck."
+    Anjana: "Reliance on an irrelevant trinket is an obvious weakness."
+    +:la(floor2SouthEast_npc4, Anjana)
+    floor2SouthEast_npc4: "Geez, is everything a competition or something?"
+    floor2SouthEast_npc4: "Just let me do my thing."
+  }
+  +:face(floor2SouthEast_npc4, leftup)
+  +endConversation()
+
+#floor2SouthEast_npc5
+  action,this
+@this
+  +setConversation(Ada)
+  +:la(floor2SouthEast_npc5, Ada)
+  floor2SouthEast_npc5: "They just moved these red machines down here from an upper floor, probably because they aren't as popular."
+  floor2SouthEast_npc5: "It's just a spicier clone of that old game Asteroids, though, so that makes sense."
+  floor2SouthEast_npc5: "But you know, I think it's really because the game is <italic>too hard</>."
+  floor2SouthEast_npc5: "Back in the day, a hard game was a good game, but now people just expect to win."
+  +endConversation()
+
+#floor2SouthEast_instanceEmployee
+  action,?func(questCompleted, FLOOR2_INSTANCE1):floor2SouthEast_instanceEmployee_completed
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_instanceEmployee)
+  floor2SouthEast_instanceEmployee: "Ready to do the <color=LIGHTPURPLE>Forest Swamp Challenge</>?  Head right in!"
+  +endConversation()
+@floor2SouthEast_instanceEmployee_completed
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_instanceEmployee)
+  floor2SouthEast_instanceEmployee: "Congratulations on beating the <color=LIGHTPURPLE>Forest Swamp Challenge</>!"
+  +endConversation()
+
+#floor2SouthEast_instanceStep
+  step,?once('c58152ab'):this
+@this
+  +setConversation(Ada)
+  +panCameraToFitCharacters(1000, false, Ada, floor2SouthEast_instanceEmployee)
+  +:leach(Ada, floor2SouthEast_instanceEmployee)
+  +:jump(floor2SouthEast_instanceEmployee)
+  floor2SouthEast_instanceEmployee: "I sense a new player!! Come on over here, miss!"
+  +walkToCharacter(Ada, floor2SouthEast_instanceEmployee, 0, 24)
+  +:la(Ada, floor2SouthEast_instanceEmployee)
+  +walkPartyToFormation()
+  +panCameraBackToPlayer()
+  +:leach(Ada, floor2SouthEast_instanceEmployee)
+  +:shakeZ(floor2SouthEast_instanceEmployee)
+  floor2SouthEast_instanceEmployee: "Behind me is a room with a <color=LIGHTBLUE>Portal</> to an <color=LIGHTBLUE>Instance</>."
+  floor2SouthEast_instanceEmployee: "It's called the <color=LIGHTPURPLE>Forest Swamp Challenge</>!"
+  floor2SouthEast_instanceEmployee: "You'll find a few of these challenges around the arcade."
+  floor2SouthEast_instanceEmployee: "This one asks you to defeat the two bosses, one to the north and one to the south, and you'll receive today's <color=LIGHTBLUE>special prize</>."
+  +:question(Ada)
+  Ada: "What's the prize?"
+  +:wink(floor2SouthEast_instanceEmployee)
+  floor2SouthEast_instanceEmployee: "I don't know!  I'm just the <color=LIGHTBLUE shake>Instance Employee</>."
+  floor2SouthEast_instanceEmployee: "Somebody inside will give it to you when you complete the challenge."
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    +endConversation(100)
+    +setConversation2(Anjana, Ada)
+    Ada: "What do you think?  Is it worth it?"
+    +:shrug(Anjana)
+    Anjana: "I've never really been interested in the <color=LIGHTBLUE>Challenge Instances</> here, so I haven't done any."
+    Anjana: "It might make us more powerful, though."
+    Anjana: "Some training might be helpful if you hope to defeat <color=LIGHTRED>Carl-Arnold</>."
+    Ada: "Perhaps it is worth a try..."
+    +:la(Ada, floor2SouthEast_instanceEmployee)
+    +:la(Anjana, floor2SouthEast_instanceEmployee)
+  }
+  +startQuest(FLOOR2_INSTANCE1)
+  +?func(inParty, Skye):{
+    +:shakeZ(Skye)
+    +:la(Skye, Ada)
+    +setConversation(Skye)
+    Skye: "Me and my hammer are ready whenever!"
+  }
+  +?func(numPartyMembersEQ, 2):{
+    +:teardrop(floor2SouthEast_instanceEmployee)
+    floor2SouthEast_instanceEmployee: "I can't help but notice that there are only two of you."
+    floor2SouthEast_instanceEmployee: "This instance may be a bit hard if it's just you two.  It was designed for three or more."
+    floor2SouthEast_instanceEmployee: "You can still try if you want to though, you just might have a tough time."
+  }
+  +endConversation()
+
+#floor2-gobbler-machine
+  step-first,this
+  action,floor2-gobbler-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Gobbler.');
+@floor2-gobbler-machine-action
+  +?func(questNotStarted, GobblerGobbler):{
+    +:questGobbler_floor2SouthEast_gobblerPerson_beginQuest(true)
+  }
+  +setFacing(Ada, rightup)
+// +setCharacterText('');
+  +runArcadeCabinetGame(GOBBLER)
+  +setAtMarker(Ada, MarkerGobblerMachine)
+
+#floor2-vortex-machine
+  action,floor2-vortex-machine-action
+@floor2-vortex-machine-action
+  +setFacing(Ada, leftup)
+  +runArcadeCabinetGame(VORTEX)
+  +setAtMarker(Ada, MarkerVortexMachine)
+
+#floor2-elasticity-machine
+  action,floor2-elasticity-machine-action
+@floor2-elasticity-machine-action
+  +setFacing(Ada, rightup)
+  +runArcadeCabinetGame(ELASTICITY)
+  +setAtMarker(Ada, MarkerElasticityMachine)
+
+#floor2TransitionFromSouthEastToLongHallway
+  step,this
+@this
+  +:changeRoom(floor2SouthEastLongHallway, MarkerFromSouthEast)
+
+#floor2TransitionFromLoneHallwayToSouthEast
+  step,this
+@this
+  +:changeRoom(floor2SouthEast, MarkerFromLongHallway)
+  +?once('02cbfa0c'):{
+    +setConversation()
+    +walkPartyToFormation(false, 8)
+    +:w(500)
+    +playSound(terminal_beep)
+    +:ld(Party, rightup)
+    Narrator: "Detected access anomaly..."
+    Narrator: "Mitigation processes activated.  Access permanently granted."
+    +setStorage(access.OpenedFloor2SouthEastDoor)
+    +endConversation()
+  }
+
+#floor2LongHallwayBlackDoor1_enterRoom
+  step-first,floor2LongHallwayBlackDoor1_enterRoom_step
+  action,floor2LongHallwayBlackDoor1_enterRoom_go
+@floor2LongHallwayBlackDoor1_enterRoom_step
+// +setCharacterText('Press Action (X) to enter room');
+@floor2LongHallwayBlackDoor1_enterRoom_go
+  +walkToMarker(Ada, MarkerBlackDoor1, 22)
+  +:face(Ada, leftup)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlackDoor1, BLACK_DOOR_FWD)
+  +walkToOffset(Ada, -16, 0)
+  +waitMS(100)
+  +fadeOut(100)
+  +setAtMarker(Party, MarkerBlackDoor1_room, -22, 0)
+  +setPartyAtFormation(0)
+  +fadeIn(100)
+  +:closeDoor(MarkerBlackDoor1, BLACK_DOOR_FWD)
+
+#floor2LongHallwayBlackDoor1_leaveRoom
+  step-first,floor2LongHallwayBlackDoor1_leaveRoom_step
+  action,floor2LongHallwayBlackDoor1_leaveRoom_go
+@floor2LongHallwayBlackDoor1_leaveRoom_step
+// +setCharacterText('Press Action (X) to leave room');
+@floor2LongHallwayBlackDoor1_leaveRoom_go
+  +walkToMarker(Ada, MarkerBlackDoor1_room, -22)
+  +:face(Ada, rightdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlackDoor1_room, BLACK_DOOR_FWD)
+  +walkToOffset(Ada, 16, 0)
+  +waitMS(100)
+  +fadeOut(100)
+  +setAtMarker(Ada, MarkerBlackDoor1, 22, 0)
+  +setPartyAtFormation(0)
+  +fadeIn(100)
+  +:closeDoor(MarkerBlackDoor1_room, BLACK_DOOR_FWD)
+
+#floor2LongHallwayBlackDoor2_enterRoom
+  step-first,floor2LongHallwayBlackDoor2_enterRoom_step
+  action,floor2LongHallwayBlackDoor2_enterRoom_go
+@floor2LongHallwayBlackDoor2_enterRoom_step
+// +setCharacterText('Press Action (X) to enter room');
+@floor2LongHallwayBlackDoor2_enterRoom_go
+  +walkToMarker(Ada, MarkerBlackDoor2, 22)
+  +:face(Ada, leftup)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlackDoor2, BLACK_DOOR_FWD)
+  +walkToOffset(Ada, -16, 0)
+  +waitMS(100)
+  +fadeOut(100)
+  +setAtMarker(Ada, MarkerBlackDoor2_room, -22, 0)
+  +setPartyAtFormation(0)
+  +fadeIn(100)
+  +:closeDoor(MarkerBlackDoor2, BLACK_DOOR_FWD)
+
+#floor2LongHallwayBlackDoor2_leaveRoom
+  step-first,floor2LongHallwayBlackDoor2_leaveRoom_step
+  action,floor2LongHallwayBlackDoor2_leaveRoom_go
+@floor2LongHallwayBlackDoor2_leaveRoom_step
+// +setCharacterText('Press Action (X) to leave room');
+@floor2LongHallwayBlackDoor2_leaveRoom_go
+  +walkToMarker(Ada, MarkerBlackDoor2_room, -22)
+  +:face(Ada, rightdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlackDoor2_room, BLACK_DOOR_FWD)
+  +walkToOffset(Ada, 16, 0)
+  +waitMS(100)
+  +fadeOut(100)
+  +setAtMarker(Ada, MarkerBlackDoor2, 22, 0)
+  +setPartyAtFormation(0)
+  +fadeIn(100)
+  +:closeDoor(MarkerBlackDoor2_room, BLACK_DOOR_FWD)
+
+#floor2LongHallwayLockedDoor
+  step-first,floor2LongHallwayLockedDoor_step
+  action,floor2LongHallwayLockedDoor_action
+@floor2LongHallwayLockedDoor_step
+// +setCharacterText('Press Action (X) to enter room');
+@floor2LongHallwayLockedDoor_action
+  +setConversation(Ada)
+  +panCameraRelativeToPlayer(0, 0, 1)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +:bumpX(Ada, -2)
+  +playSound('locked')
+  Ada: "This door is locked."
+  +panCameraBackToPlayer(1)
+  +endConversation()
+
+#floor2TransitionFromFloor2SouthWestToNarrowHallwayRoom
+  step,this
+@this
+  +?func(questIsStarted, TheProphecyOfLance):{
+    +:changeRoom(floor2SouthWestNarrowHallwayRoom2, MarkerFromSouthWest2)
+  }
+  +?func(questNotStarted, TheProphecyOfLance):{
+    +:changeRoom(floor2SouthWestNarrowHallwayRoom, MarkerFromSouthWest)
+  }
+
+
+#floor2TransitionFromFloor2NarrowHallwayRoomToSouthWest
+  step,this
+@this
+  +:changeRoom(floor2SouthWest, MarkerFromNarrowHallwayRoom)
+
+#floor2SouthWest_oldWoman1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthWest_oldWoman1)
+  +:happy(floor2SouthWest_oldWoman1)
+  floor2SouthWest_oldWoman1: "I'm here waiting for my grand nephew's performance later this evening."
+  floor2SouthWest_oldWoman1: "Apparantly he's going to be playing on that old piano outside the ballroom."
+  +endConversation()
+
+#floor2SouthWest_guySuit1
+  action,?once('401a86cc'):floor2SouthWest_guySuit1_1
+  action,this
+@floor2SouthWest_guySuit1_1
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthWest_guySuit1)
+  floor2SouthWest_guySuit1: "That piano over there looks like it's out of tune.  There's a scratch two cents below the low C."
+  floor2SouthWest_guySuit1: "That kinda thing affects the sound by a lot more than you might think."
+  +endConversation()
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthWest_guySuit1)
+  floor2SouthWest_guySuit1: "I'm just chilling here until the ballroom opens."
+  +endConversation()
+
+#floor2SouthWest_girlSuit1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthWest_girlSuit1)
+  floor2SouthWest_girlSuit1: "I'm seriously bored.  I wish I could go out into the rest of the arcade."
+  floor2SouthWest_girlSuit1: "But my boss wants me to stay here and keep a spot for him in line."
+  +endConversation()
+
+#floor2_TransitionFromLongHallwayToSports
+  step,this
+@this
+  +:changeRoom(floor2SouthSports, MarkerFromLongHallway)
+
+#floor2_TransitionFromSportsToLongHallway
+  step,this
+@this
+  +:changeRoom(floor2SouthEastLongHallway, MarkerFromSports)
+
+#floor2_TransitionFromSportsToVr2Entrance
+  step,this
+@this
+  +:changeRoom(floor2VrEntrance, MarkerFromSports)
+
+#floor2_TransitionFromVr2EntranceToSports
+  step,this
+@this
+  +:changeRoom(floor2SouthSports, MarkerFromVr2Entrance)
+
+#floor2SouthSports_Sign
+  action,this
+@this
+  +:ld(Ada, up)
+  +setConversation()
+  Narrator: "<color=LIGHTGREY>The sign says:\n</>FLOOR 3 ACCESS: West\n FLOOR 2 STORE (RENOVATING): South\n\n If you would like access to a locker, please ask the nearest staff member."
+  +endConversation()
+
+#floor2Sports_Employee
+  action,this
+@this
+  +setConversation()
+  +:leach(Ada, floor2Sports_Employee)
+  +walkPartyToFormation()
+  floor2Sports_Employee: "Heading up to floor 3?  Go right on through."
+  +?once('c56c15a1'):{
+    +:shakeZ(Ada)
+    Ada: "You are not... going to try to stop me?"
+    +:question(floor2Sports_Employee)
+    floor2Sports_Employee: "Huh?  No.  Why would I do that?"
+    Ada: "I have no idea, honestly."
+    Ada: "This is... rather refreshing."
+    floor2Sports_Employee: "No, no.  I mean <italic>I</> won't stop you.  But if you don't have a <color=LIGHTBLUE>Floor 3 Access Key</> you won't be able to go up to the next floor."
+    Ada: "Of course..."
+  }
+  +endConversation()
+
+#floor2Sports_OutOfOrder
+  action,this
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "I think this machine is out of order."
+  Ada: "The screen is black and the buttons do not appear to do anything."
+  +endConversation()
+
+#floor2Sports_BasketballFreeThrow
+  action,this
+@this
+// +fadeOut(500);
+  +:ld(Ada, leftup)
+  +runArcadeCabinetGame(FREE_THROW)
+// +fadeIn(50);
+
+#floor2VRSports_CannotProceed
+  action,this
+@this
+  +setConversation()
+  +:ld(Ada, rightdown)
+  +walkPartyToFormation()
+  Ada: "This door does not seem to be functioning right now."
+  +endConversation()
+
+#floor2VREntrance_CannotProceed
+  action,this
+@this
+  +setConversation()
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  Ada: "This door does not seem to be functioning right now."
+  +endConversation()
+
+#floor2Sports_Player1
+  action,this
+@this
+  +setConversation()
+  +:ld(floor2Sports_Player1, leftup)
+  floor2Sports_Player1: "Don't bother me, I'm gonna win soon, I just know it!"
+  +endConversation()
+
+#floor2Sports_Player2
+  action,this
+@this
+  +setConversation()
+  +:la(floor2Sports_Player2, ada)
+  floor2Sports_Player1: "Having actual baseball skills doesn't translate well to this game."
+  +:ld(floor2Sports_Player2, rightup)
+  +endConversation()
+
+#floor2Sports_SportsGroup
+  action,this
+@this
+  +setConversation()
+  floor2Sports_SportsGroup1: "It doesn't look like they're letting anybody into the gym right now."
+  +:sad(floor2Sports_SportsGroup2)
+  floor2Sports_SportsGroup2: "Really?  Why not?"
+  floor2Sports_SportsGroup1: "Cleaning or something.  I dunno."
+  floor2Sports_SportsGroup3: "I was <italic>so ready</> to play though!"
+  +endConversation()
+
+#floor2North_openSouthDoorToPortal
+  step-first,floor2North_mainSouthDoorToPortalOpen
+  step-off,floor2North_mainSouthDoorToPortalClose
+@floor2North_mainSouthDoorToPortalOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorPortalSouth2, RED_DOOR_BCKL)
+  +:openDoor(MarkerDoorPortalSouth1, RED_DOOR_BCKR)
+@floor2North_mainSouthDoorToPortalClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorPortalSouth2, RED_DOOR_BCKL)
+  +:closeDoor(MarkerDoorPortalSouth1, RED_DOOR_BCKR)
+
+#floor2North_transitionFromNorthToPortal
+  step,this
+@this
+  +:utils-change-room(floor2VrEntrance, MarkerFromNorth)
+
+#floor2VrEntrance_openNorthDoor
+  step-first,floor2VrEntrance_northDoorOpen
+  step-off,floor2VrEntrance_northDoorClose
+@floor2VrEntrance_northDoorOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorNorth2, RED_DOOR_BCKL)
+  +:openDoor(MarkerDoorNorth1, RED_DOOR_BCKR)
+@floor2VrEntrance_northDoorClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorNorth2, RED_DOOR_BCKL)
+  +:closeDoor(MarkerDoorNorth1, RED_DOOR_BCKR)
+
+#floor2VrEntrance_transitionFromPortalToNorth
+  step,this
+@this
+  +:utils-change-room(floor2North, MarkerFromPortal)
+
+#floor2North_vipElevator
+  action,this
+@this
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerElevatorButton)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +:bumpY(Ada, -2)
+  +playSound(terminal_beep)
+  +:w(750)
+  +playSound(terminal_cancel)
+  Narrator: "This elevator is for <color=LIGHTPURPLE>VIP</> access only."
+  Narrator: "A <color=LIGHTPURPLE>VIP</> is not present in your current surroundings."
+  +?all(once('604cb549'), func(inParty, Anjana)):{
+    +:leach(Anjana, Ada)
+    Anjana: "I've never seen anybody actually use this elevator."
+    +:flat(Ada)
+    Ada: "Perhaps it is just for show."
+  }
+  +endConversation()
+
+// [ARG0] First Marker To Walk To
+// [ARG1] Second Marker To Walk To
+// [ARG2] Door Marker
+@floor2North_bathroom
+  +setUnskippableConversation(Ada)
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, {ARG0})
+  +lookAtMarker(Ada, {ARG2})
+  +walkPartyToFormation(false, 4)
+  +:w(200)
+  +playSound(sliding_door_open)
+  +:openDoor({ARG2}, WOOD_DOOR_FWD)
+  +walkToMarker(Party, {ARG1})
+  +lookAtMarker(Ada, {ARG2})
+  +walkPartyToFormation(false, 4)
+  +playSound(sliding_door_close)
+  +:closeDoor({ARG2}, WOOD_DOOR_FWD)
+  +setWallCollisionEnabled(true)
+  +endConversation()
+
+#floor2North_enterGirlsBathroom
+  action,this
+@this
+  +:floor2North_bathroom(MarkerGirlsOutside, MarkerGirlsInside, MarkerGirlsDoor)
+
+#floor2North_exitGirlsBathroom
+  action,this
+@this
+  +:floor2North_bathroom(MarkerGirlsInside, MarkerGirlsOutside, MarkerGirlsDoor)
+
+#floor2North_enterBoysBathroom
+  action,this
+@this
+  +:floor2North_bathroom(MarkerBoysOutside, MarkerBoysInside, MarkerBoysDoor)
+
+#floor2North_exitBoysBathroom
+  action,this
+@this
+  +:floor2North_bathroom(MarkerBoysInside, MarkerBoysOutside, MarkerBoysDoor)
+
+#floor2North_boxesNpc
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2North_boxesNpc)
+  floor2North_boxesNpc: "One of the employees asked me to stand here and look over this stack of boxes for him."
+  floor2North_boxesNpc: "He left a bit ago, but he said he would pay me <color=YELLOW italic>a lot</> of tickets; so I'm just going to stay here for now."
+  +endConversation()
+
+#floor2VrEntrance_gateway
+  action,?is(access.floor3):floor2VrEntrance_gateway_access
+  action,floor2VrEntrance_gateway_no_access
+@floor2VrEntrance_gateway_access
+  
+@floor2VrEntrance_gateway_no_access
+  +setConversation()
+  +walkToMarker(Ada, MarkerAccess1, 0, 16)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +:bumpY(Ada, -2)
+  +:w(100)
+  +playSound(terminal_cancel)
+  Narrator: "Access denied.  You do not have a <color=LIGHTBLUE>Floor 3 Access Key</>."
+  +?once('c393b182'):{
+    Ada: "Where are we supposed to get that?"
+    +?func(inParty, Anjana):{
+      +:la(Anjana, Ada)
+      Anjana: "You have to beat the <color=LIGHTPURPLE>Primary Instance</> on this floor."
+      +none()
+      +:ld(Party, leftdown)
+      +panCameraRelativeToPlayer(-100, 100)
+      Anjana: "Each floor has a different challenge that you have to beat to get to the next floor."
+      +none()
+      +panCameraBackToPlayer()
+      +:ld(Ada, down)
+      +:angry(Ada)
+      Ada: "<color=LIGHTGREY scale=0.8>Why is nothing ever easy?"
+    }
+  }
+  +endConversation()
+
+#floor2VREntrance_npc1
+  action,this
+@this
+  +setConversation(Ada)
+  +:feach(floor2VREntrance_npc1, Ada)
+  floor2VREntrance_npc1: "My friend has access to the 3rd floor, but I don't."
+  +:ld(floor2VREntrance_npc1, up)
+  floor2VREntrance_npc1: "He said he's just popping up there to grab something, then he'll be right back down."
+  +endConversation()
+
+#floor2VREntrance_npc2
+  action,this
+@this
+  +setConversation(Ada)
+  +:feach(floor2VREntrance_npc2, Ada)
+  floor2VREntrance_npc2: "Make sure to save before entering the <color=LIGHTPURPLE>Instance</>!"
+  +endConversation()
+
+#floor2VREntrance_corruptEmployee_talk
+  action,this
+@this
+  +setConversationGroup(Ada, floor2VREntrance_corruptEmployee)
+  +?is('vars.floor2InstanceReady'):{
+    +:leach(floor2VREntrance_corruptEmployee, Ada)
+    +walkPartyToFormation()
+    floor2VREntrance_corruptEmployee: "Approach the doors if you'd like to enter the <color=PURPLE>Primary Floor 2 Instance</>."
+    +endConversation()
+  }
+  +?isnot('vars.floor2InstanceReady'):{
+    +walkToMarker(Ada, MarkerAdaTalk1)
+    +:leach(floor2VREntrance_corruptEmployee, Ada)
+    +walkPartyToFormation()
+    +:floor2VREntrance_npc2_headingIntoInstance()
+  }
+
+#floor2VREntrance_corruptEmployee
+  action,this
+  step,?isnot('vars.floor2InstanceReady'):floor2VREntrance_npc2_first
+@this
+  +setConversationGroup(Ada, floor2VREntrance_corruptEmployee)
+  +:la(floor2VREntrance_corruptEmployee, Ada)
+  floor2VREntrance_corruptEmployee: "Approach the door if you'd like to go to the <color=PURPLE>Primary Floor 2 Instance</>."
+  +endConversation()
+@floor2VREntrance_npc2_first
+  +setConversationGroup(Ada, floor2VREntrance_corruptEmployee)
+  +walkToMarker(Ada, MarkerAdaTalk1)
+  +:leach(floor2VREntrance_corruptEmployee, Ada)
+  +walkPartyToFormation()
+  +:floor2VREntrance_npc2_headingIntoInstance()
+@floor2VREntrance_npc2_headingIntoInstance
+  floor2VREntrance_corruptEmployee: "Heading into the <color=PURPLE>Primary Floor 2 Instance</>?"
+  // +?once('9402a36a'):{
+  //   +:shakeZ(Ada)
+  //   Ada: "Yes.  That is this way, right?"
+  //   floor2VREntrance_corruptEmployee: "Sure is.  Through there you can get the <color=LIGHTBLUE>Floor 3 Access Key</>."
+  //   +:ld(floor2VREntrance_corruptEmployee, leftdown)
+  //   floor2VREntrance_corruptEmployee: "You have to battle your way through the <color=LIGHTPURPLE>Factory</> though."
+  //   +:la(floor2VREntrance_corruptEmployee, Ada)
+  //   +?func(inParty, Skye):{
+  //     Skye: "Got any tips?"
+  //   }
+  //   floor2VREntrance_corruptEmployee: "Just need to reach the end.  Not too complicated."
+  //   floor2VREntrance_corruptEmployee: "Might take some time though..."
+  //   floor2VREntrance_corruptEmployee: "So, are you going to go in?"
+  // }
+  // +awaitChoice('Yes, I would like to go into the Instance.', 'Not yet.')
+  // +?eq(lastChoiceIndex, 1):{
+  //   +:ld(floor2VREntrance_corruptEmployee, leftdown)
+  //   floor2VREntrance_corruptEmployee: "Oh, okay.  Well, come back if you change your mind."
+  //   +:la(floor2VREntrance_corruptEmployee, Ada)
+  //   +walkToOffset(Ada, 8, -4)
+  //   +walkPartyToFormation()
+  //   +panCameraBackToPlayer()
+  //   +endConversation()
+  //   +sbreak()
+  // }
+  // +setStorage(vars.floor2InstanceReady, true)
+  // floor2VREntrance_corruptEmployee: "Coolio..."
+  // floor2VREntrance_corruptEmployee: "By the way, what's your name?"
+  // Ada: "<cascade-letters>...Ada..."
+  // +:happy(floor2VREntrance_corruptEmployee)
+  // floor2VREntrance_corruptEmployee: "Ah yes.  <color=YELLOW>Ada</>.  Of course."
+  // Ada: "Why do you ask?"
+  // floor2VREntrance_corruptEmployee: "No reason.  Just curious."
+  // +none()
+  // +:ld(floor2VREntrance_corruptEmployee, leftdown)
+  // +:w(1000)
+  // +:bumpY(floor2VREntrance_corruptEmployee, 2)
+  // +playSound(terminal_beep)
+  // +:w(1000)
+  // +:la(floor2VREntrance_corruptEmployee, Ada)
+  // floor2VREntrance_corruptEmployee: "By all means, head right in."
+  // +?func(inParty, Anjana):{
+  //   +walkToOffset(Anjana, 0, -8)
+  //   +:angry(Anjana)
+  //   Anjana: "Wait a second!  What did you just do?"
+  //   floor2VREntrance_corruptEmployee: "What me?"
+  //   +:shakeZ(floor2VREntrance_corruptEmployee)
+  //   floor2VREntrance_corruptEmployee: "Nothing."
+  //   Anjana: "You just did something on the terminal."
+  //   +:ld(floor2VREntrance_corruptEmployee, leftdown)
+  //   floor2VREntrance_corruptEmployee: "Oh that."
+  //   +:la(floor2VREntrance_corruptEmployee, Anjana)
+  //   floor2VREntrance_corruptEmployee: "I'm just tallying up entrants. It's my job."
+  //   Anjana: "<cascade-letters>......"
+  //   +:ld(Anjana, rightdown)
+  //   Anjana: "<color=LIGHTGREY scale=0.75>They are always so suspicious."
+  //   floor2VREntrance_corruptEmployee: "Hmm?  Did you say something?"
+  //   +:la(Anjana, floor2VREntrance_corruptEmployee)
+  //   +:serious(Anjana)
+  //   Anjana: "No.  Nevermind."
+  // }
+  // +?func(numPartyMembersEQ, 2):{
+  //   +:teardrop(floor2VREntrance_corruptEmployee)
+  //   floor2VREntrance_corruptEmployee: "Hmm.  There's only two of you?"
+  //   floor2VREntrance_corruptEmployee: "Let me give you some advice.  You might want to find a third party member before entering."
+  //   floor2VREntrance_corruptEmployee: "This <color=LIGHTPURPLE>Instance</> can be pretty tough with just two."
+  //   +endConversation()
+  // }
+  +?func(numPartyMembersEQ, 3):{
+    +walkToMarker(Party, MarkerAdaWalk1)
+    // +:ld(Ada, leftdown)
+    // +walkPartyToFormation(false, 8)
+    +playSound(sliding_door_open)
+    +:openDoubleDoorsBck(MarkerBlueDoor1, BLUE_DOOR)
+    // +walkToOffset(Party, 0, 8)
+    // +:w(200)
+    +setSpeed(Party, 0.75)
+    +walkToOffset(Party, 0, 24)
+    +:w(100)
+    +panCameraBackToPlayer(1)
+    +setSpeed(Party)
+    +despawnPartyMembers()
+    +setPlayerVisibility(false)
+    +:w(500)
+    +playSound(sliding_door_close)
+    +:closeDoubleDoorsBck(MarkerBlueDoor1, BLUE_DOOR)
+    +:floor2VREntrance_npc2_bartoloInterrupts()
+  }
+@floor2VREntrance_npc2_bartoloInterrupts
+  +panCameraRelativeToCurrentPosition(30, -30, 200)
+  +playMusic(music_mischief)
+  +setWallCollisionEnabled(false)
+  +:w(100)
+  +playSound(single_door_open)
+  +:openDoor(MarkerInvisibleWall, DARK_BLOCK_BCK)
+  +:w(500)
+  +spawnCharacterAtMarker(Bartolo, MarkerInvisibleWall2)
+  +:face(Bartolo, rightdown)
+  +:w(1000)
+  +walkToOffset(Bartolo, 39, 0)
+  +:leach(floor2VREntrance_corruptEmployee, Bartolo)
+  +endConversation(100)
+  +setConversationGroup(Bartolo, floor2VREntrance_corruptEmployee)
+  Bartolo: "Well done."
+  +:shakeZ(floor2VREntrance_corruptEmployee)
+  floor2VREntrance_corruptEmployee: "You know I could get in a lot of trouble for this."
+  Bartolo: "Yeah yeah.  You can find your payment in the usual spot.  I'll make sure you get a little bonus."
+  floor2VREntrance_corruptEmployee: "Little?"
+  Bartolo: "Don't push it.  You know how this works.  <color=LIGHTRED>Carl-Arnold</> sends his regards."
+  +:angry(floor2VREntrance_corruptEmployee)
+  +:ld(floor2VREntrance_corruptEmployee, leftdown)
+  floor2VREntrance_corruptEmployee: "<scale=0.75>Little prick."
+  +:laughObnoxiously(Bartolo)
+  Bartolo: "You can set it back to the normal <color=LIGHTPURPLE>Instance</> after they go through."
+  +:none()
+  +walkToOffset(Bartolo, 8, 16)
+  +panCameraToFitCharacters(500, false, Bartolo)
+  +:ld(Bartolo, leftdown)
+  Bartolo: "The time for the robot has come."
+  +none()
+  +fadeOut()
+  +changeRoom(floor2VrEntrancePortal, MarkerPartySpawn)
+  +setPlayerVisibility(true)
+  +:floor2VR_entrance_once('ec6193d1')
+
+#floor2North_Alternate1
+  action,?once('7a42b82e'):floor2North_Alternate1_1
+  action,floor2North_Alternate1_2
+@floor2North_Alternate1_1
+  +setConversation()
+  +:leach(Ada, floor2North_Alternate1)
+  floor2North_Alternate1: "I much prefer the quiet of this room to the hustle and bustle of the <color=LIGHTBLUE>Caf8teria</>."
+  floor2North_Alternate1: "Although<cascade-letters>.....</>\nI do not like how <italic>cluttered</> it has become."
+  +panCameraRelativeToPlayer(150, 50, 1000, true)
+  floor2North_Alternate1: "Employees frequently leave their boxes of supplies in the hallways."
+  +panCameraBackToPlayer(700, true)
+  floor2North_Alternate1: "I wish the <italic>leadership</> would take more pride in their establishment."
+  Ada: "Are you referring to <color=LIGHTRED>Carl-Arnold</>?"
+  floor2North_Alternate1: "He has the power to change things, but he doesn't."
+  +endConversation()
+@floor2North_Alternate1_2
+  +setConversation()
+  +:leach(Ada, floor2North_Alternate1)
+  floor2North_Alternate1: "I wish the <italic>leadership</> would take more pride in their establishment."
+  +endConversation()
+
+#floor2Cafeteria_Alternate1
+  action,?once('476624b2'):floor2Cafeteria_Alternate1_1
+  action,floor2Cafeteria_Alternate1_2
+@floor2Cafeteria_Alternate1_1
+  +setConversation()
+  +:leach(Ada, floor2Cafeteria_Alternate1)
+  floor2Cafeteria_Alternate1: "If you listen to the patrons here you can hear what they think of the food."
+  floor2Cafeteria_Alternate1: "It is very clear that the standard is not so high."
+  floor2Cafeteria_Alternate1: "I have also never seen <color=LIGHTRED>Carl-Arnold</> himself come down here.  Perhaps he doesn't know of the subpar menu?"
+  Ada: "Surely <color=LIGHTRED>Carl-Arnold</> does not dictate the menu here, does he?"
+  floor2Cafeteria_Alternate1: "He is the <color=LIGHTRED>King of Games</>.  He can do whatever he wants.  And if he wishes, he can change the menu."
+  Ada: "I see..."
+  +?func(inParty, Anjana):{
+    +endConversation(100, true)
+    +setConversation2(Ada, Anjana)
+    +:leach(Anjana, Ada)
+    Ada: "Does <color=LIGHTRED>Carl-Arnold</> really have that much power?"
+    Anjana: "I mean... maybe?  The <color=LIGHTRED>King of Games</> is a pretty big deal, but I'm not sure how far that really extends."
+    Anjana: "At any rate, don't listen to the <color=PURPLE>Dwellers</>.  They're weird.  I told you to be careful around them."
+    +?func(inParty, Skye):{
+      +replaceConversationMember2(Skye, right)
+      +:leach(Skye, Ada)
+      Skye: "I don't know what he's talking about.  The pizza here smells delicious."
+      Ada: "Did you not just throw away a sub-par soda?"
+      +:teardrop(Skye)
+      Skye: "Well... yeah... I mean that soda was just kinda bland."
+    }
+  }
+  +endConversation()
+@floor2Cafeteria_Alternate1_2
+  +setConversation()
+  +:leach(Ada, floor2Cafeteria_Alternate1)
+  floor2Cafeteria_Alternate1: "It is very clear that the standard of the menu here is not so high."
+  +endConversation()
+
+#floor2Cafeteria_Dweller1
+  action,?once(floor2Cafeteria_Dweller1_spokenTo):this
+  step,?once(floor2Cafeteria_Dweller1_spokenTo):this
+  action, floor2Cafeteria_Dweller1_2
+@this
+  +setConversation()
+  +assert("+?func(inParty, Anjana)", "+endConversation()")
+  +:la(floor2Cafeteria_Dweller1, Ada)
+  +stopAi(floor2Cafeteria_Dweller1)
+  +:jump(floor2Cafeteria_Dweller1)
+  floor2Cafeteria_Dweller1: "You there!"
+  +none()
+  +walkToCharacter(Ada, floor2Cafeteria_Dweller1, 24, 24)
+  +:face(Ada, up)
+  +walkPartyToFormation()
+  +:ld(floor2Cafeteria_Dweller1, down)
+  floor2Cafeteria_Dweller1: "Just by your looks, you seem to have a decent head on your shoulders."
+  floor2Cafeteria_Dweller1: "Do you support the tyrannical reign of <color=LIGHTRED>Carl-Arnold</>?"
+  +:question(Ada)
+  Ada: "Do I... support what?"
+  floor2Cafeteria_Dweller1: "The <color=LIGHTRED>King of Games</>, girl!  The <color=LIGHTRED>King of Games</>!"
+  floor2Cafeteria_Dweller1: "He has <italic>almighty power</italic> in this arcade.  And, like all tyrants, he uses it for only his selfish gains."
+  Ada: "I am not sure what you are talking about."
+  +none()
+  +:ld(floor2Cafeteria_Dweller1, left)
+  +:w(250)
+  +:ld(floor2Cafeteria_Dweller1, right)
+  +:w(250)
+  +:la(floor2Cafeteria_Dweller1, Ada)
+  floor2Cafeteria_Dweller1: "Look around!  Do you not see the rotten fruit of his wicked deeds?"
+  +:ld(Ada, rightdown)
+  +:flat(Ada)
+  Ada: "This is a hallway.  There is nothing wrong with it."
+  floor2Cafeteria_Dweller1: "Use that brain of yours.  Read between the lines.  This place is rotten to the core."
+  +:leach(Ada, floor2Cafeteria_Dweller1)
+  +:sigh(Ada)
+  Ada: "If I tell you I am also not a particular fan of <color=LIGHTRED>Carl-Arnold</>, will you leave me alone?"
+  floor2Cafeteria_Dweller1: "You see truth!  This is good.  You are a <italic>smart one</>."
+  floor2Cafeteria_Dweller1: "Now you must preach it!  Spread the word of his wicked deeds!"
+  +:teardrop(Ada)
+  Ada: "Okay.  I will."
+  floor2Cafeteria_Dweller1: "Good.  Then I must attend my post."
+  floor2Cafeteria_Dweller1: "Good day to you!  Do not succumb to any doubts in this manner!"
+  +none()
+  +:ld(floor2Cafeteria_Dweller1, right)
+  +setSpeed(Party, 0.75)
+  +walkToOffset(Party, 16, 16)
+  Ada: "<cascade-letters>......</>  Please tell me that was a joke."
+  +endConversation(100)
+  +setConversation2(Anjana, Ada)
+  +:leach(Ada, Anjana)
+  Anjana: "That's a <color=PURPLE>Dweller</>.  Another faction.  They're... weird."
+  Ada: "Why is he... dressed like that, all in one color?"
+  Anjana: "It's what they think <color=PURPLE>Alternates</> look like. They sort of... try to emulate them."
+  Ada: "But that is not what <color=PURPLE>Alternates</> look like at all..."
+  Anjana: "I know.  Not everybody's like you, <color=YELLOW>Ada</>. Most of them have never seen one."
+  Anjana: "They... are called <color=PURPLE>Dwellers</> because they are attempting to <italic>live</> in the arcade."
+  +:exclaim(Ada)
+  Ada: "Live here?  Why on Earth would anybody want that?"
+  Anjana: "They have some warped idea of what the <color=PURPLE>Alternates</> are like."
+  Anjana: "And one thing they have in their heads is that they should live as much as possible in the arcade."
+  +:teardrop(Ada)
+  Ada: "That is... disturbing."
+  Anjana: "Like I said.  They're weird.  Just ignore them."
+  +:serious(Anjana)
+  Anjana: "And most definitely don't mention anything about <color=YELLOW>Conscience</> to them.  For obvious reasons."
+  +setSpeed(Party)
+  +endConversation()
+@floor2Cafeteria_Dweller1_2
+  +setConversation()
+  +:leach(Ada, floor2Cafeteria_Dweller1)
+  floor2Cafeteria_Dweller1: "Do not support the tyrannical reign of <color=LIGHTRED>Carl-Arnold</>!"
+  +endConversation()

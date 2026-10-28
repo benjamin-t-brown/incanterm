@@ -1,0 +1,124 @@
+@elevator_chooseFloor
+  +setStorage('break', false)
+  +none()
+  +?all(isnot(break), is(access.floor6)):{
+    +awaitChoiceEx('reverse', 'Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6')
+    +setStorage('break', true)
+  }
+  +?all(isnot(break), is(access.floor5)):{
+    +awaitChoiceEx('reverse', 'Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5')
+    +setStorage('break', true)
+  }
+  +?all(isnot(break), is(access.floor4)):{
+    +awaitChoiceEx('reverse', 'Floor 1', 'Floor 2', 'Floor 3', 'Floor 4')
+    +setStorage('break', true)
+  }
+  +?all(isnot(break), is(access.floor3)):{
+    +awaitChoiceEx('reverse', 'Floor 1', 'Floor 2', 'Floor 3')
+    +setStorage('break', true)
+  }
+  +?all(isnot(break), is(access.floor2)):{
+    +awaitChoiceEx('reverse', 'Floor 1', 'Floor 2')
+    +setStorage('break', true)
+  }
+  +stopMusic()
+  +fadeOut(1000, true)
+// Choices are 0 indexed, floors are 1 indexed
+  +?eq(lastChoiceIndex, 0):{
+    +:elevator_sendElevator(1)
+    +setStorage('access.elevatorRoomName', 'floor1Primary')
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +:elevator_sendElevator(2)
+    +setStorage('access.elevatorRoomName', 'floor2South')
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +:elevator_sendElevator(3)
+  }
+  +?eq(lastChoiceIndex, 3):{
+    +:elevator_sendElevator(4)
+  }
+  +?eq(lastChoiceIndex, 4):{
+    +:elevator_sendElevator(5)
+  }
+  +?eq(lastChoiceIndex, 5):{
+    +:elevator_sendElevator(6)
+  }
+  +?eq(lastChoiceIndex, 6):{
+    +:elevator_sendElevator(7)
+  }
+  +?eq(lastChoiceIndex, 7):{
+    +:elevator_sendElevator(8)
+  }
+  +?eq(lastChoiceIndex, 8):{
+    +:elevator_sendElevator(9)
+  }
+  +?eq(lastChoiceIndex, 9):{
+    +:elevator_sendElevator(10)
+  }
+
+@elevator_sendElevator
+  +playSound(move_wall)
+  +?gt(access.currentFloor, [ARG0]):{
+    +:elevator_sendElevatorDown()
+  }
+  +?lt(access.currentFloor, [ARG0]):{
+    +:elevator_sendElevatorUp()
+  }
+  +setStorage('access.currentFloor', [ARG0])
+
+@elevator_sendElevatorUp
+  +applyZTransform('Party', 64, 2000)
+@elevator_sendElevatorDown
+  +applyZTransform('Party', -64, 2000)
+@elevator_openDoors
+  +playSound(elevator_door_open)
+  +changeTileAtMarker(MarkerDoorElevator[ARG0], ELEVATOR_BCK_OPEN2)
+  +changeTileAtMarker(MarkerDoorElevator[ARG0], ELEVATOR_BCK_OPEN1, 16, 0)
+@elevator_closeDoors
+  +playSound(elevator_door_close)
+  +changeTileAtMarker(MarkerDoorElevator[ARG0], ELEVATOR_BCK_CLOSED2)
+  +changeTileAtMarker(MarkerDoorElevator[ARG0], ELEVATOR_BCK_CLOSED1, 16, 0)
+@elevator_enterInside
+  +walkToMarker(Party, MarkerElevatorInside[ARG0], 0, 48)
+  +walkToMarker(Party, MarkerElevatorInside[ARG0])
+  +setFacing('Party', leftdown)
+
+@elevator_call_step
+// +setCharacterText('Press Action (X) to call elevator.');
+@elevator_call_action
+  +setUnskippable(true)
+  +setStorage('vars.elevatorNumber', 'rand(1,3)')
+  +setConversation(Ada)
+  +setFacing(Ada, rightup)
+  +walkPartyToFormation()
+  +waitMS(100)
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -1)
+  +waitMS(100)
+  +walkToOffset(Ada, 0, 40)
+// +walkToMarker(Ada, MarkerDoorElevatorWait);
+  +setFacing(Ada, rightup)
+  +walkPartyToFormation()
+  +waitMS(600)
+  +playSound(vr_portal_beep)
+  +changePropAnim(PropElevatorLight{vars.elevatorNumber}, props_small_light_on)
+  +waitMS(300)
+  +:elevator_openDoors({vars.elevatorNumber})
+  +waitMS(200)
+  +:elevator_enterInside({vars.elevatorNumber})
+  +:w(300)
+// +walkPartyToFormation();
+  +:elevator_closeDoors({vars.elevatorNumber})
+  +changePropAnim(PropElevatorLight{vars.elevatorNumber}, props_small_light_off)
+  +:elevator_chooseFloor()
+  +playSound('change_room')
+  +waitMS(300, '', true)
+  +changeRoom('{access.elevatorRoomName}', 'MarkerElevatorInside{vars.elevatorNumber}')
+  +playSound(robot_clank)
+  +fadeIn(200)
+  +:elevator_openDoors({vars.elevatorNumber})
+  +walkToOffset(Party, 0, 48)
+  +walkPartyToFormation()
+  +:elevator_closeDoors({vars.elevatorNumber})
+  +endConversation()

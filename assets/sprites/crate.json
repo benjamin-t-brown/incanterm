@@ -1,0 +1,26 @@
+{
+  "format": "incanterm-sprite",
+  "version": 1,
+  "id": "crate",
+  "width": 5,
+  "height": 3,
+  "originX": 2,
+  "originY": 2,
+  "cells": [
+    { "ch": "+", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "+", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "|", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": " ", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "#", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": " ", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "|", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "+", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "-", "fg": "#e6c98a", "bg": "#4a341c" },
+    { "ch": "+", "fg": "#e6c98a", "bg": "#4a341c" }
+  ]
+}

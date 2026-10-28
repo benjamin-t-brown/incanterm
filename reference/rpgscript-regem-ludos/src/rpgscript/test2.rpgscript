@@ -1,0 +1,922 @@
+
+#floor1test
+  action,this
+@this
+  +setStorage('overworld', 'floor1')
+  +setCharacterAtMarker('Ada', 'MarkerPlayer')
+  +callScript('test2-closeDoorsAB-no-sound')
+
+#floor1-skyeIntro
+  action,floor1-Skye_intro
+
+#floor1-vendingPanel
+// step,?once('64ab946d'):floor1-Skye_pressSecretSwitchWithoutTool
+  action,floor1-Skye_pressSecretSwitchWithoutTool
+
+@floor1-intro
+
+@floor1-Skye_intro
+  +setConversation2('Ada', 'Skye')
+  Ada: "Skye?  What are you doing here?"
+  Skye: "Grr..."
+  Skye: "This DUMB! STUPID. BOX!"
+// Skye kicks the vending machine
+// Skye notices Ada
+  +setConversationSpeaker('none')
+  +shakeScreen(750)
+  +waitMS(1000)
+// +setConversation2('Ada', 'Skye');
+  Skye: "GAH! HYA!"
+  +setConversationSpeaker('none')
+  +shakeScreen(500)
+  +waitMS(500)
+// +setConversation2('Ada', 'Skye');
+  Skye: "Ouch, that stings!"
+  +setConversationSpeaker('none')
+  +waitMS(500)
+  +setFacing("Skye", "leftup_f")
+  +waitMS(500)
+  Skye: "Oh, hey Ada."
+  Skye: "I didn't know you liked to hang out at the Arcade."
+  Ada: "I don't really---"
+  Skye: "That's cool!  We've gotta go play some games!"
+  Ada: "..."
+  Skye: "Give me a second, though.  This stupid thing keeps eating my tokens!"
+  +setConversationSpeaker('none')
+  +waitMS(500)
+  +setFacing("Skye", "leftup")
+// Skye kicks the vending machine repeatedly, injuring her foot.
+  +waitMS(500)
+  +shakeScreen(750)
+  +waitMS(1000)
+  Skye: "Ouch!"
+  Ada: "Perhaps you should find a different machine."
+  Ada: "I am guessing that one is... broken?"
+  +setFacing("Skye", "leftup_f")
+  Skye: "What?"
+  Skye: "I can't let this thing steal from me!"
+  Skye: "I'm GOING to have a drink."
+  +setFacing("Skye", "leftup")
+  Skye: "Mark. My. Words."
+// Skye punches the vending machine.  It rattles but nothing happens.
+  +setConversationSpeaker('none')
+  +endConversation(1000)
+  +shakeScreen(750)
+  +waitMS(1000)
+  +setConversation2('Conscience', 'Ada')
+  +setFacing("Conscience", "up")
+  +setFacing("Ada", "down")
+  Conscience: "That looked like it hurt."
+  Ada: "Yes, well, she has always been stubborn."
+// NOTE: considering just dropping the next two lines, feels too cute
+  Conscience: "Kind of like a certain someone else."
+  Ada: "..."
+  Ada: "I have no doubt she would stand around and bloody her knuckles on that machine all day."
+  Ada: "However, I do doubt that she will ever get her tokens back."
+  Conscience: "Yeah you're probably right..."
+  +setConversationSpeaker('none')
+  +waitMS(2000)
+  Conscience: "We should help her!"
+  Ada: "Out of the question!"
+  Ada: "If she wants to be stupid, then let her be."
+  Conscience: "Come on!  It's not like you're in any hurry to go see C.A.R.L...A.R.N.O.L.D."
+  Conscience: "Bleh!"
+  +setConversationSpeaker('none')
+  +waitMS(1000)
+  Ada: "THAT, at least, I have to give you."
+  Conscience: "I don't even see why I have to convince you of this."
+  Conscience: "Skye is your friend.  You should be jumping out of your shoes to help her."
+  Ada: "Fine."
+  Ada: "But that machine appears broken."
+  Conscience: "So then find somebody who can fix it!"
+  Conscience: "There's bound to be somebody around here who can help."
+  +endConversation()
+
+@floor1-Skye_reject
+  +setConversation2('Ada', 'Skye')
+  Skye: "I am not leaving this spot until this stupid machine gives me a drink!"
+// Skye kicks the vending machine
+  Skye: "Grr.."
+  +endConversation()
+
+@floor1-Skye_pressSecretSwitchWithoutTool
+  +setConversation('Ada')
+  Ada: "It looks like there's a small compartment that can be opened on the side of this vending machine."
+  Ada: "But it needs some sort of tool to unlock it, and I do not have that."
+  +endConversation()
+
+@floor1-Skye_pressSecretSwitch
+  +setConversation('Ada')
+// Ada goes up to the vending machine, reaches behind it with the special tool, and hits the reset switch
+  Ada: "That should do it."
+  +endConversation()
+// The vending machine beeps
+  +setConversation('Ada')
+  Skye: "What the...?"
+  +endConversation()
+// The vending machine spits out a bunch of drinks in rapid succession
+  +setConversation2('Ada', 'Skye')
+  Ada: "Hmm. That was rather effective."
+  Skye: "How did you do that?"
+  Ada: "The floor manager told me how to fix it."
+  Skye: "Nice!"
+  +setConversationSpeaker('None')
+// Skye picks up a drink from the floor
+  Skye: "Hopefully this is good."
+  +setConversationSpeaker('None')
+// Skye pops open the drink and downs it.
+  Skye: "Nice."
+  Ada: "Aren't you going to get the rest of those drinks?"
+  Skye: "Nah, I only wanted one."
+  Ada: "How many tokens did you put in there, though?"
+  Skye: "I dunno.  Like a dozen.  Two dozen."
+  Ada: "And you are satisfied with one drink?"
+  Skye: "Yep!  At least it ended up working out."
+  Ada: "Okay then.  To each their own I suppose."
+  Skye: "So, did you want to hang out?"
+  Ada: "Not right now, Skye."
+  Ada: "I am actually supposed to be meeting with Carl-Arnold upstairs."
+  Ada: "He said he had something to show me."
+  Skye: "Ugh.  I hate that guy."
+  Ada: "You are not the only one."
+  Ada: "However, he sounded quite eager, so I am curious what he wants to show me."
+  Skye: "Well that settles that then.  I had better come with you."
+  Ada: "...what?"
+  Skye: "I don't trust him for a second.  We need to make sure he doesn't try something stupid."
+// Skye joins the party
+  +endConversation()
+  +setConversation2('Ada', 'Conscience')
+  Ada: "Somehow I doubt that."
+  Conscience: "Oh relax.  It can't hurt having her around."
+  +endConversation()
+
+#test-Mateo
+  action,this
+@this
+  +lookAtEachOther('Ada', 'Mateo')
+  +setConversation('Ada')
+  Mateo: "Hello there."
+  Mateo: "I am a test construct.  I exist to provide you with someone else to speak to."
+  Ada: "It is a pleasure to meet you."
+  Mateo: "You may speak to me again if you wish."
+  Ada: "I may do just that."
+  Mateo: "That is fine."
+  Mateo: "This is an example of me saying something rather long.  It's a big chunk of text alright, so be prepared to read a whole lot of nothing."
+  Ada: "Yes, you already told me."
+  +setConversationSpeaker('None')
+  +waitMS(1000)
+  Ada: "..."
+  Ada: "Have you nothing further to say?"
+  Mateo: "The conversation has concluded.  I bid you good day."
+  +endConversation()
+
+#test2-closeDoorsAB
+  step-off,this
+@this
+  +playSound(red_door_close)
+  +:test2-closeDoorsAB-no-sound()
+@test2-closeDoorsAB-no-sound
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_CLOSED2)
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_CLOSED1, 16, 0)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_CLOSED2)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_CLOSED1, 16, 0)
+
+#test2-openDoorA
+  step-first,this
+  step-off,test2-openDoorA_close
+@this
+  +playSound(red_door_open)
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_OPEN2)
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_OPEN1, 16, 0)
+@test2-openDoorA_close
+  +playSound(red_door_close)
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_CLOSED2)
+  +changeTileAtMarker(markerDoorA, RED_DOOR_BCK_CLOSED1, 16, 0)
+
+#test2-openDoorB
+  step-first,this
+  step-off,test2-openDoorB_close
+@this
+  +playSound(red_door_open)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_OPEN2)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_OPEN1, 16, 0)
+@test2-openDoorB_close
+  +playSound(red_door_close)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_CLOSED2)
+  +changeTileAtMarker(markerDoorB, RED_DOOR_BCK_CLOSED1, 16, 0)
+
+#test2-newDoorTest
+  step-first,test2-newDoorTest_open
+  step-off,test2-newDoorTest_close
+@test2-newDoorTest_open
+  +playSound(single_door_open)
+  +:openDoor(markerDoorNewDoorTest, CLASSROOM_DOOR_BCK)
+@test2-newDoorTest_close
+  +playSound(single_door_close)
+  +:closeDoor(markerDoorNewDoorTest, CLASSROOM_DOOR_BCK)
+
+#test-rho
+  action,this
+@this
+  +lookAtEachOther('Ada','Rho')
+  +setConversation2('Ada','Rho')
+  Rho: "..."
+  +setConversationSpeaker(none)
+  +waitMS(1000)
+  Rho: "Hey! Excuse me. Do you know what this place is?"
+  Ada: "I am not too sure."
+  Ada: "I have been here for a while now, wandering in circles. Not much seems to exist save for this floor."
+  Rho: "That's a little disconcerting.  How are we suppose to leave?"
+  Ada: "I do no believe anyone is leaving anytime soon.  You should probably find somewhere comfortable to persist."
+  Rho: "Ugh..."
+// +:rho
+  +:test_with_underlines()
+  +endConversation()
+
+@test_with_underlines
+  +:w(100)
+  +:sarcasm(Ada)
+
+#rho-look-area
+  step,this
+@this
+  +lookAtCharacter('Rho','Ada')
+
+#test2-vortex-machine
+  step-first,this
+  action,test2-vortex-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Vortex.');
+@test2-vortex-machine-action
+  +setFacing(Ada, leftup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +runArcadeCabinetGame(VORTEX)
+  // +fadeIn(50)
+  +setAtMarker(Ada, MarkerVortexMachine)
+
+#test2-scoundrel-machine
+  step-first,this
+  action,test2-scoundrel-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Vortex.');
+@test2-scoundrel-machine-action
+  +setFacing(Ada, leftup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +runArcadeCabinetGame(SCOUNDREL)
+  // +fadeIn(50)
+  +setAtMarker(Ada, MarkerScoundrelMachine)
+
+#test2-zag-machine
+  step-first,this
+  action,test2-zag-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Zag.');
+@test2-zag-machine-action
+  +setFacing(Ada, leftup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +runArcadeCabinetGame(ZAG)
+  // +fadeIn(50)
+  +setAtMarker(Ada, MarkerZagMachine)
+
+#test2-tt-machine
+  step-first,this
+  action,test2-tt-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Zag.');
+@test2-tt-machine-action
+  +setFacing(Ada, leftup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +setAtMarker(Ada, MarkerTTMachine)
+  +runArcadeCabinetGame(TEDIOUS_TILES)
+  // +fadeIn(50)
+
+#test2-gobbler-machine
+  step-first,this
+  action,test2-gobbler-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Gobbler.');
+@test2-gobbler-machine-action
+  +setFacing(Ada, rightup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +setAtMarker(Ada, MarkerGobblerMachine)
+  +runArcadeCabinetGame(GOBBLER)
+  // +fadeIn(50)
+
+#test2-blackjack-machine
+  step-first,this
+  action,test2-blackjack-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Zag.');
+@test2-blackjack-machine-action
+  +setFacing(Ada, leftup)
+// +setCharacterText('');
+  // +fadeOut(500)
+  +setAtMarker(Ada, MarkerBlackJackMachine)
+  +runArcadeCabinetGame(OEESEG)
+  // +fadeIn(50)
+
+#test2-tavernity-machine
+  step-first,this
+  action,test2-tavernity-machine-action
+@this
+// +setCharacterText('Press Action (X) to play Zag.');
+@test2-tavernity-machine-action
+  // +setUnskippableConversation(Ada)
+  +walkToMarker(Ada, MarkerTavernityMachine)
+  +setFacing(Ada, rightup)
+  +runArcadeCabinetGame(TAVERNITY)
+  +setAtMarker(Ada, MarkerTavernityMachine)
+  // +endConversation()
+
+#test-testDialogA
+  action,this
+@this
+  +lookAtEachOther('Ada', 'TestDialogA')
+  +setConversation('Ada')
+  TestDialogA: "Hello there."
+  TestDialogA: "<cascade-letters=50>............."
+  TestDialogA: "I will now test the case of delayed dialog."
+  TestDialogA: "<cascade=50> This text should cascade at 50 ms intervals."
+  TestDialogA: "<cascade=100 color=LIGHTBLUE> This text should cascade at 100 ms intervals."
+  TestDialogA: "<cascade=33 color=LIGHTPURPLE> This text should cascade at 33 ms intervals.  CAREFUL! It might look like it's zoooooming really really <shake>FAST< >."
+  TestDialogA: "This should appear first. <delay=500> Then this. <delay=500> Then this... <delay=1000> Then this after a while."
+  +endConversation()
+
+#test-testDialogB
+  action,this
+@this
+  +lookAtEachOther('Ada', 'TestDialogB')
+  +setConversation('Ada')
+  TestDialogB: "Hello there."
+  TestDialogB: "I will now test the case of colored dialog."
+  TestDialogB: "This should be normal. <color=LIGHTBLUE> This should be blue. <color=LIGHTRED> This should be red. <color=WHITE> And this last one should <color=YELLOW shake>SHAKE </>."
+  TestDialogB: "But what about something more <scale=2.0 color=ORANGE>BIGGER</>.<delay=500> Or perhaps <scale=0.5 color=LIGHTRED> smaller</>."
+  TestDialogB: "And now the big test..."
+  TestDialogB: "<cascade>Not that the game is stupid or anything, <delay=500 cascade=50> but it's just... <delay=750 scale=1.25 color=LIGHTBLUE cascade-letters=75>SO EASY<delay=500> to beat the AI."
+  TestDialogB: "<cascade>And this one should go <cascade-letters=100>one letter at a time."
+  +endConversation()
+
+#test-testDialogC
+  action,this
+@this
+  +lookAtEachOther(Ada, TestDialogC)
+  +setConversation(Ada)
+  +waitMS(100)
+  +:exclaim(TestDialogC)
+  TestDialogC: "Oh!  I recognize you!"
+  +:happy(TestDialogC)
+  TestDialogC: "<cascade>You're the protagonist of this <color=LIGHTBLUE>game</>, right!"
+  +:teardrop(Ada)
+  Ada: "I... do not believe I understand what you mean."
+  +:blush(TestDialogC)
+  TestDialogC: "Oh no!  I don't think I was supposed to tell you that."
+  +setFacing(TestDialogC, down)
+  +:question(TestDialogC)
+  TestDialogC: "<cascade>(Although I'm not sure why.  It's pretty obvious we are in a <color=LIGHTBLUE>game<cascade> right now.)"
+  +lookAtEachOther(Ada, TestDialogC)
+  +:lightbulb(TestDialogC)
+  TestDialogC: "Just pretend you didn't hear that, okay?"
+  +:bored(Ada)
+  Ada: "Sure.  Whatever."
+  +:heart(TestDialogC)
+  TestDialogC: "<cascade>Thank you thank you <scale=1.25> Thank you!"
+  +:sad(TestDialogC)
+  TestDialogC: "I'd be in a lot of trouble if I upset the developer, you know."
+  +:grumpy(Ada)
+  Ada: "Are you ever going to start making any sense?"
+  +:smirk(TestDialogC)
+  TestDialogC: "<cascade>You'll find out if you keep <color=LIGHTBLUE>playing."
+  +:surprised(TestDialogC)
+  TestDialogC: "Wait, did I just infer we were in a game again?"
+  +:nervous(TestDialogC)
+  Ada: "<cascade-letters>......"
+  Ada: "I am going to leave now."
+  +endConversation()
+
+#test-testDialogD
+  action,?func(questStepEQ, TestQuest1, 0):test-quest-db1
+  action,?func(questStepEQ, TestQuest1, 1):test-quest-db2
+  action,?func(questCompleted, TestQuest1):test-quest-db-complete
+  action,this
+@this
+  +lookAtEachOther(Ada, TestDialogD)
+  +setConversation(Ada)
+  testDialogD: "This is the test quest!!  Check your <color=LIGHTPURPLE>journal</> for details."
+  +startQuest(TestQuest1)
+  +endConversation()
+@test-quest-db-complete
+  +lookAtEachOther(Ada, TestDialogD)
+  +setConversation(Ada)
+  testDialogD: "The test has been completed."
+  +endConversation()
+@test-quest-db1
+  +lookAtEachOther(Ada, TestDialogD)
+  +setConversation(Ada)
+  testDialogD: "Since you have spoken to me, you have completed the first task."
+  +completeQuestStep(TestQuest1, 0)
+  +endConversation()
+@test-quest-db2
+  +lookAtEachOther(Ada, TestDialogD)
+  +setConversation(Ada)
+  testDialogD: "Since you have spoken to me, you have completed the second task."
+  +completeQuestStep(TestQuest1, 1)
+  +endConversation()
+
+
+#test-callScriptIntegration
+  action,this
+@this
+  +setConversation(ada)
+  +setFacing(ada, down)
+  Ada: "I will now test callScript shorthand."
+  Ada: "Regular jump."
+  +jump(ada)
+  Ada: "callScript jump."
+  +callScript(jump, ada)
+  Ada: "callScript shorthand."
+  +:jump(ada)
+  Ada: "The test is now concluded."
+  +endConversation()
+
+// This is me adding stuff ahahaha
+#test-ada-sigma-shopkeep
+  action,this
+@this
+  +walkToMarker(ada,MarkerAdaShopkeep)
+  +setConversation(ada)
+  +lookAtEachOther(ada,shopkeep)
+  Shopkeep: "Welcome to the <color=ORANGE scale=1.33>Regem Ludos </> prize counter!"
+  Shopkeep: "We have the largest prize pool of any arcade in the region!"
+  Shopkeep: "Perhaps a pretty girl such as yourself would like one of our charm bracelets!"
+  Shopkeep: "Or maybe you're a little rough around the edges and would enjoy a sharp, utility knife."
+  Shopkeep: "If you've got a bit of as sweet tooth, why not try our famous <delay=750 cascade-letters=50 color=LIGHTBLUE>cream pops</>!"
+  Ada: "<cascade-letters>......"
+  Sigma: "Moo?"
+  +lookAtCharacter(ada,sigma)
+  +lookAtCharacter(shopkeep,sigma)
+  +lookAtCharacter(ada,sigma)
+  +waitMS(500)
+  +:question(shopkeep)
+  +:question(ada)
+  +panCameraToFitCharacters(500,false,ada,sigma,shopkeep)
+  Shopkeep: "Excuse me young miss?"
+  +none()
+  +waitMS(500)
+  +:jump(sigma)
+  +setConversation(sigma)
+  Sigma: "Moo!"
+// Shopkeep looks back at the wall and then back at Sigma
+  +setFacing(shopkeep,rightup)
+  +waitMS(750)
+  +:teardrop(shopkeep)
+  +lookAtCharacter(shopkeep,sigma)
+  Shopkeep: "I am sorry, but I don't understand."
+  +:happy(sigma)
+  Sigma: "Moo. <scale=1.33> MOOoo!"
+  Shopkeep: "<cascade-letters>......"
+  +lookAtEachOther(shopkeep,ada)
+  +panCameraBackToPlayer(500,false)
+  Shopkeep: "<scale=0.85>That girl has been saying 'Moo' for the better part of an hour."
+  Shopkeep: "I have <shake>no idea</> what she wants!</>"
+  +endConversation()
+
+#test-ai-dot-log
+  action,this
+@this
+  +setConversation(Ada)
+// LOG: "<color=LIGHTRED cascade-letters>[ERROR] Code E857372 - E_PERMISSION_FAULT <color=YELLOW cascade-letters>\n[WARN] Manual override activated. "
+  +playSound(log_warn)
+  LOG: "<cascade-letters=10 color=LIGHTGREY>[TRACE] Revirtualis Connecter start - v1663794735481 <cascade-letters=10 color=YELLOW>\n[WARN] Deprecated input method detected.</> <cascade-letters=10 color=YELLOW>\nEntering compatibility mode... <cascade-letters=10 color=YELLOW>\n[WARN] Some features of this program may not </> <cascade-letters=10 color=YELLOW>\nfunction properly. See manual W3231."
+  +endConversation()
+
+#test-prop-light-anim
+  step-first,test-prop-light-anim-on
+  step-off,test-prop-light-anim-off
+@test-prop-light-anim-on
+  +changePropAnim(PropLight, props_small_light_alert)
+@test-prop-light-anim-off
+  +changePropAnim(PropLight, props_small_light_off)
+
+#test-testDialogE
+  action,this
+@this
+  +lookAtEachOther(Ada, TestDialogE)
+  +setConversation(Ada)
+  TestDialogE: "This script tests nested if statements."
+  +?once(test-testDialogE1):{
+    +setStorage('test-testDialogEVal', 5)
+    +?once(test-testDialogE2):{
+      testDialogE: "This should show up only once.  Speak to me again to verify."
+    }
+  }
+  TestDialogE: "The test has completed."
+  +endConversation()
+
+#test-testDialogF
+  action,this
+@this
+  +lookAtEachOther(Ada, TestDialogF)
+  +setConversation(Ada)
+  Ada: "<scale=0.75>This is a test to see just how far along the box the words will wrap."
+  Ada: "<cascade-letters>This is a test to see just how far along the box the words will wrap</>."
+  Ada: "</>This is a test to see just how far along the box the words will wrap</>."
+  +:teardrop(Ada)
+  +panCameraBackToPlayer()
+  +endConversation()
+
+#test-look-at-center
+  action,this
+@this
+  +lookAtCenterOfTrigger(Ada)
+
+#test-auto-speaker
+  action,this
+@this
+  +setConversation(Ada)
+  +spawnCharacterAtCharacter(Conscience, Ada, 0, 16)
+  Ada: "I am speaking."
+  Ada: "I am speaking further."
+  Ada: "And yet further."
+  Conscience: "I am speaking now."
+  Ada: "I started speaking."
+  Lotte: "I'm not in the room, but I'm speaking."
+  Rho: "I am speaking."
+  +endConversation(100)
+  +setConversation2(Ada, Conscience)
+  Ada: "I am speaking."
+  Conscience: "I am speaking."
+  Rho: "I started speaking now."
+  Lotte: "And now me."
+  +despawnCharacter(Conscience)
+  +endConversation()
+
+#test-bumpx
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This tests bumpX."
+  +:none()
+  +waitMS(100)
+  +:bumpX(Ada, -1)
+  +:bumpX(Ada, -1)
+  Ada: "I have bumped twice."
+  +endConversation()
+
+#test2-carl-arnold
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "Let us do this test."
+  +none()
+  +:la(Party, Carnold)
+  +:la(Carnold, Ada)
+  Ada: "The test is done."
+  +endConversation()
+
+#test-dialog-cascade-with-punctuation
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "Hello there, <color=ORANGE cascade-letters>Adalais</>."
+  +endConversation()
+
+#test-load-triggers
+  load,this
+@this
+  +changeTileAtMarker(MarkerLoadScript, FLOOR_GRASS)
+
+#test-icon-text
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This text has icon:help help icon."
+  +endConversation()
+
+@test-spawn-particle
+  +setConversation(Ada)
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PORTAL', 'Ada', 'normal')
+// Ada: "I will now spawn a particle."
+// +none();
+  +:w(1000)
+  +endConversation()
+
+@test-spawn-particle2
+  +setConversation(Ada)
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PURPLE_PORTAL', 'Ada', 'normal')
+// Ada: "I will now spawn a particle."
+// +none();
+  +:w(1000)
+  +endConversation()
+
+#test-store-with-items
+  action,this
+@this
+  +setConversation(Ada)
+  Shopkeep: "Please take a look at our wares."
+  +showStore(FLOOR1_PRIZE_COUNTER)
+  +endConversation()
+
+#test-portraits-with-emotions
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This is my default portrait."
+  Ada&2: "This is my old portrait."
+  Ada: "This is my default portrait."
+  Ada&2: "This is my default old portrait."
+  +endConversation(100, true)
+  +setConversation2(Ada, Conscience)
+  Ada: "This is my default portrait."
+  Conscience: "Hey there!"
+  Ada&2: "This is my old portrait."
+  Conscience: "Hey there again!"
+  Ada: "This is back to my default portrait."
+  +endConversation()
+
+#test-portraits-with-emotions2
+  action,this
+@this
+  +setConversation2(Ada, Conscience)
+  Ada: "This is my default portrait."
+  Conscience: "Hey there!"
+  Ada&2: "This is a portrait with blink."
+  Conscience: "Hey there again!"
+  Ada: "This is back to my default portrait."
+  Conscience: "Hey there again again!"
+  Ada&2: "This is back to my blink portrait."
+  Conscience: "Hey there again again again!"
+  +endConversation()
+
+#test-talk-with-jump-and-spin
+  action,this
+@this
+  +setConversation(Ada)
+  TestCutsceneSpeed: "This is a jump."
+  +:jump(TestCutsceneSpeed)
+  TestCutsceneSpeed: "This is a spin."
+  +:spin(TestCutsceneSpeed)
+  +endConversation()
+
+#test-setStorageCond
+  action,this
+@this
+  +setStorage('someValue', 1)
+  +setStorageCond('result', 'eq(someValue, 2)')
+  +setConversation(Ada)
+  +?is(result):{
+    Ada: "The result is true."
+  }
+  +?isnot(result):{
+    Ada: "The result is false."
+  }
+  +endConversation()
+
+@test-vr-portal-particles
+// +disableAnimationSounds();
+// +setConversationWithoutBars(Ada);
+// +fadeOutColor(255, 255, 255, 1000);
+// +changeRoom('black');
+// +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PORTAL', 'Ada', 'normal');
+// +playSound('vr_portal_zoom');
+// +fadeInColor(255, 255, 255, 1000);
+// +waitMS(2000, '', true);
+// +fadeOut();
+// +endConversation();
+// +setConversation(Ada);
+// +showUISection(Modal, TUTORIAL_USE_ITEMS);
+// +endConversation();
+  // +setConversation(Ada)
+  // +spawnParticleAtCharacter('EFFECT_TEMPLATE_CONSCIENCE_SPAWN_FIRST', 'Ada', 'normal', -32, 0)
+  // +:w(3432)
+  // +spawnCharacterAtCharacter('Conscience', 'Ada', -16, 16)
+  // +setConversation2('Conscience', 'Ada')
+  // +:shakeZ(Conscience)
+  // Conscience: "Whoah!  That was kind of intense."
+  // +endConversation();
+  +setConversation(Ada)
+  Asdf: "<scale=0.75> Well almost anything...</>  We are limited by the <color=PURPLE>Plugins</> that we have installed, of course."
+  // +panCameraRelativeToCurrentPosition(-32, -32, 500)
+  // +:ld(Ada, leftup)
+  +endConversation()
+
+#test2-store-2
+  action,this
+@this
+  +setConversation(Ada)
+  Shopkeep: "Please take a look at our wares."
+  +showStore(FLOOR1_PRIZE_COUNTER)
+  +endConversation()
+
+#test2_testConvo2
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "Hello Anjana."
+  Skye: "Hello Ada."
+  Anjana: "Hello Ada."
+  +endConversation()
+
+  // floor3EmployeeHub_DeskEmployee: "Look.  I've been working here longer than you honey, I know who's who and who <italic>ain't</>."
+  // +?func(inParty, Skye):{
+  //   +:angry(Skye)
+  //   +:jump(Skye)
+  //   Skye: "Why you..."
+  //   +?func(inParty, Anjana):{
+  //     // +setSpeed(Anjana, 2.5)
+  //     // +setSpeed(Skye, 2.5)
+  //     // +walkToCharacter(Anjana, Skye)
+  //     // +:w(100)
+  //     // +walkToOffset(Anjana, 48, 0, true)
+  //     // +:face(Ada, Anjana)
+  //     // +offsetCharacter(Skye, 8, 0)
+  //     // +:w(33)
+  //     // +loopExpr("+offsetCharacter(Skye, 4, 0)\n+playSound(knock)\n+:w(33)", 14)
+  //     // +:la(Ada, Anjana)
+  //     // +:shakeZ(Anjana)
+  //     Anjana: "Just shut up and let's move on."
+  //     Anjana: "She's dumb enough to think we are employees, after all."
+  //   }
+  //   +walkToOffset(Ada, 32, 0)
+  // }
+
+  // +walkPartyToFormation()
+  // Ada: "Hello Skye.  It's nice to see you again.  Did you have something to say?"
+  // Skye: "Hello Ada."
+  // Narrator: "This is the narrator."
+  // Person1: "This is some random person."
+  // +:lightbulb(Ada)
+  // Person1: "This is some random person again."
+  // +none();
+  // +waitMS(1000);
+  // Ada: "Ada is now talking."
+  // Person1: "Random again."
+  // Skye: "<cascade-letters>Skye is speaking now."
+  // +:leach(Ada, Skye)
+  // +replaceConversationMember2(Conscience, right)
+  // Conscience: "Hello Ada."
+  +endConversation()
+
+#test2_awaitChoiceExParsers
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This is a test of awaitChoiceExParers."
+  +awaitChoiceEx('array', 'choice1 +animChRoom:TestConvoReplace,Anders +anim:characters/guy-shadow_idle_down')
+  Ada: "I chose {lastChoiceText}."
+  +endConversation()
+
+#test2_notifTest
+  action,this
+@test2_notifTest
+  +showNotification("Test notification, don't parse")
+
+// ARG0 = marker
+// ARG1 = distance to apply z transform
+@testPlatform_tilesLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +log("Apply z transform MarkerPlatform1, {ARG0}, {ARG1}, {tmp.x}, {tmp.y}, 1000, true")
+  +applyZTransformTileAtMarkerEx({ARG0}, {ARG1}, {tmp.x}, {tmp.y}, 1000, true)
+
+// ARG0 = marker
+// ARG1 = tileLayerPrefix
+@testPlatform_tilesLayerLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +swapTileLayerTileAtMarker({ARG1}, {ARG0}, {tmp.x}, {tmp.y})
+
+@testPlatformDown_TilesLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +applyZTransformTileAtMarkerEx(MarkerPlatform1, -84, {tmp.x}, {tmp.y}, 1000, true)
+@testPlatformDown_TileLayerLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +swapTileLayerTileAtMarker('Default', MarkerPlatform1, {tmp.x}, {tmp.y})
+  
+#testPlatformDown
+  action,this
+@this
+  +setStorageEval('tmp.zFloor', -(64*2))
+  +setStorageEval('tmp.cameraOffset', '-({tmp.zFloor}/2)')
+  +setUnskippableConversation(Ada)
+  +walkToMarker(Party, MarkerPlatform1)
+  +:w(100)
+  +:ld(Ada, up)
+  +walkPartyToFormation(false, 8)
+  +panCameraRelativeToPlayer(0, {tmp.cameraOffset}, 1000, true)
+  +applyZTransform('Party', {tmp.zFloor}, 1000, false, true)
+  +setStorageEval(tmp.offsets, "[[0, 0], [16, 16], [16, -16], [-16, 16], [-16, -16], [16, 0], [0, 16], [-16, 0], [0, -16]]")
+  // +loop("testPlatformDown_TilesLoop", 9)
+  +loop("testPlatform_tilesLoop(MarkerPlatform1, {tmp.zFloor})", 9)
+  +:w(1000)
+  // +loop("testPlatformDown_TileLayerLoop", 9)
+  +loop("testPlatform_tilesLayerLoop(MarkerPlatform1, Default)", 9)
+  +setRoomTileLayer('Default')
+  +panCameraBackToPlayer(1)
+  +endConversation()
+  // +setStorageEval
+
+@testPlatformUp_TilesLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +applyZTransformTileAtMarkerEx(MarkerPlatform2, 84, {tmp.x}, {tmp.y}, 1000, true)
+@testPlatformUp_TileLayerLoop
+  +setStorageValueAt(tmp.x, tmp.offsets.{i}.0)
+  +setStorageValueAt(tmp.y, tmp.offsets.{i}.1)
+  +swapTileLayerTileAtMarker('Top', MarkerPlatform2, {tmp.x}, {tmp.y})
+
+#testPlatformUp
+  action,this
+@this
+  +setStorageEval('tmp.zFloor', (64*2))
+  +setStorageEval('tmp.cameraOffset', '-({tmp.zFloor}/2)')
+  +setUnskippableConversation(Ada)
+  +walkToMarker(Party, MarkerPlatform2)
+  +:w(100)
+  +:ld(Ada, up)
+  +walkPartyToFormation(false, 8)
+  +panCameraRelativeToPlayer(0, {tmp.cameraOffset}, 1000, true)
+  +applyZTransform('Party', {tmp.zFloor}, 1000, false, true)
+  +setStorageEval(tmp.offsets, "[[0, 0], [16, 16], [16, -16], [-16, 16], [-16, -16], [16, 0], [0, 16], [-16, 0], [0, -16]]")
+  // +loop("testPlatformUp_TilesLoop", 9)
+  // +:w(1000)
+  // +loop("testPlatformUp_TileLayerLoop", 9)
+    // +loop("testPlatformDown_TilesLoop", 9)
+  +loop("testPlatform_tilesLoop(MarkerPlatform2, {tmp.zFloor})", 9)
+  +:w(1000)
+  // +loop("testPlatformDown_TileLayerLoop", 9)
+  +loop("testPlatform_tilesLayerLoop(MarkerPlatform2, Top)", 9)
+  +setRoomTileLayer('Top')
+  +panCameraBackToPlayer(1)
+  +endConversation()
+
+#test2_weird_camera
+  action,this
+@this
+  +setConversationGroup(Ada, Test2TestWeirdCamera)
+  Ada: "Testing weird camera."
+  +none()
+  +walkToOffset(Party, 0, 16)
+  +:w(200)
+  +setSpeed(Party, 1.5)
+  +walkToOffset(Party, 0, 16)
+  +:w(100)
+  +panCameraBackToPlayer()
+  +despawnPartyMembers()
+  +setPlayerVisibility(false)
+  +:w(500)
+
+  +panCameraRelativeToCurrentPosition(30, -30, 1000)
+  
+  +spawnCharacterAtMarker(Bartolo, MarkerInvisibleWall2)
+  +:face(Bartolo, rightdown)
+  +:w(1000)
+  +walkToOffset(Bartolo, 39, 0)
+  +:leach(Test2TestWeirdCamera, Bartolo)
+  +endConversation(100)
+  +setConversationGroup(Bartolo, Test2TestWeirdCamera)
+  Bartolo: "Well done."
+  Test2TestWeirdCamera: "Did it work?"
+  +none()
+  +spawnPartyMembers(true)
+  +setPlayerVisibility(true)
+  +panCameraBackToPlayer()
+  +endConversation()
+
+#test2_testChangeLeader
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "Testing change leader."
+  +none()
+  +fadeOut(500)
+  +changeLeader(Conscience)
+  // +spawnCharacterAtMarker(Conscience, MarkerConscienceLeaderSpawn)
+  // +spawnPartyMembers(true)
+  +fadeIn(500)
+  +endConversation()
+
+#test2_connor
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "Testing Connor's portrait."
+  Connor: "Hello Ada."
+  +endConversation()
+
+
+
+#testZ_load
+  load,this
+@this
+  +log("LOADING TESTZ")
+  +createPropAtMarker(PropBattery, MarkerBattery0, props_small_144, 16, 8, 8)
+
+
+  // Mateo +anim:guy12_idle_down

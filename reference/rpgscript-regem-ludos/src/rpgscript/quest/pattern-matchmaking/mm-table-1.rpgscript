@@ -1,0 +1,327 @@
+#patternMatchmaking_Table1
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table1
+@patternMatchmaking_Table1
+  +:patternMatchmaking_Table1_SetupConv()
+  +setStorage(tmp.primaryCh, Stefani)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table1SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +log("Call Script patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh}")
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(1)
+  }
+
+@patternMatchmaking_Table1_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables0, 16, 0)
+  +:face(Ada, left)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table1_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 0)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 0)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 0)
+  }
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +endConversation()
+
+@patternMatchmaking_StefaniAndMateo
+  +setConversationGroup(Stefani, Mateo)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Mateo)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    +:shakeZ(Mateo)
+    Mateo: "Hey.  I'm <color=LIGHTBLUE>Mateo</>.  It's nice to meet you."
+    Stefani: "..."
+    Mateo: "So... nice day, huh?"
+    Stefani: "..."
+    +:ld(Stefani, leftdown)
+    Stefani: "That's it?  That's your opening?"
+    +:shakeZ(Mateo)
+    Mateo: "Well yeah.  I'm not really sure what to say to you."
+    Stefani: "Well, that was CERTAINLY the wrong thing to say."
+    Mateo: "Whoah, cool off.  I'm trying here."
+    +:ld(Stefani, left)
+    Stefani: "Well try harder.  Don't you even know who I am?"
+    +:question(Mateo)
+    Mateo: "...No?  That's why I don't know what to say to you."
+    +:ld(Stefani, down)
+    +:jump(Stefani)
+    Stefani: "I am <color=PINK>Stefani Gwen</>!"
+    Mateo: "...who?"
+    +:leach(Mateo, Stefani)
+    Stefani: "<cascade-letters=100>*tsk*<cascade-letters> I'm a big deal, bud.  If I sang for you right now I'm sure there'd be a crowd."
+    +:worried(Mateo)
+    Mateo: "Um... Oh yeah! Maybe I have... heard of you..?"
+    +:ld(Stefani, down)
+    Stefani: "<cascade-letters>Mmhmm."
+    +:ld(Stefani, leftdown)
+    +:jump(Stefani)
+    Stefani: "NEXT!"
+    +none()
+    +?func(inParty, Anjana):{
+      Anjana: "They sound like a <italic>great</> match."
+    }
+  }
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 3):{
+    Stefani: "Why are you still here?"
+    Mateo: "I umm... I think <color=PURPLE>Clara</> wanted us to talk some more."
+    Stefani: "Well I don't.  I'm done with you."
+    Mateo: "Hmph.  Fine.  I guess I'll just wait here then."
+  }
+  +:patternMatchmaking_Table1_EndConvo()
+
+
+// ---------------------------------------------------------------------------------------
+
+@patternMatchmaking_StefaniAndMordred
+  +setConversationGroup(Stefani, Mordred)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Mordred)
+  +:patternMatchmaking_pairingCount(Stefani, Mordred)
+  +?eq(tmp.pairingCount, 1):{
+    Mordred: "My lady, I am <color=LIGHTBLUE>Mordred</>."
+    Mordred: "Might I just take this opportunity to express my awe for your intense beauty?"
+    +:bored(Stefani)
+    Stefani: "Awe?  I'm beautiful?  Thats a <italic>totally</> new line I hadn't heard before."
+    +:smirk(Mordred)
+    Mordred: "I am quite serious, milady.  For the briefest of moments, I was struck dumb, but I have since recovered."
+    +:la(Stefani, Mordred)
+    Stefani: "Well, I'm glad you're back with us."
+    +:shakeZ(Stefani)
+    Stefani: "So what's with your shtick?  Are you acting or something?"
+    Mordred: "Acting?  Why would you think that? I always strive to be as true to myself as possible."
+    +:ld(Stefani, down)
+    Stefani: "A confident man of his word huh?  I can dig it."
+    +:la(Stefani, Mordred)
+    Stefani: "Can you sing?"
+    Mordred: "Certainly, my lady.  I have sung baritone in the highest of choirs all across the land."
+    +:serious(Stefani)
+    Stefani: "Eww.  <italic>Choir</>.  Nevermind."
+    Mordred: "Might I ask what you are expecting to find here?"
+    Stefani: "Isn't it obvious?  I want a partner.  Somebody who can keep up with me.  Somebody like that <color=LIGHTRED>Carl-Arnold</>."
+    Stefani: "I was half-hoping he'd show up here today, but I guess not."
+    Mordred: "'Tis okay, there are plenty of people here who are quite satisfactory."
+    Stefani: "<color=LIGHTGREY cascade-letters>Satisfactory?</>  Is that what you think of me?"
+    Mordred: "For the moment, yes, but I am sure that will change as we verbally spar some more."
+    +:flat(Stefani)
+    Stefani: "Alright look.  It's obvious you're not my type.  So I'm not interested."
+    Mordred: "I've sieged such walls before, my lady, especially glass ones like yours."
+    Stefani: "Glass?  What are you even talking about?"
+    +:smirk(Mordred)
+    Mordred: "I believe that I <scale=1.25 italic>am</> your 'type', as you so bluntly put it, and I want to show you."
+    +:serious(Stefani)
+    Stefani: "No you're not."
+    Mordred: "Yes I am."
+    +:angry(Stefani)
+    Stefani: "No. You're not.  I don't like knights."
+    Mordred: "I am not a knight.  I am a <italic>paladin</>."
+    Stefani: "Same difference."
+    +none()
+    +panCameraBackToPlayer()
+    +:ld(Ada, down)
+    Ada: "Maybe we should leave these two alone for now, they seem deep in conversation."
+    +?func(inParty, Skye):{
+      +:leach(Ada, Skye)
+      +:shrug(Skye)
+      Skye: "Well at least it's going better than the last one."
+    }
+  }
+  +?eq(tmp.pairingCount, 2):{
+    Mordred: "Do you not think it curious what our names have the same number of letters?"
+    Stefani: "No.  That's a coincidence."
+    Mordred: "Or perhaps it's <italic>fate</>?"
+    Stefani: "There's no such thing.  If you want something, you need to take it.  There's nothing predetermined about life."
+    Mordred: "I simply find it amusing.  I've always found that small things can add up in importance."
+    Stefani: "Okay.  I'll bite.  What other small things about me do you think add up to something important?"
+    Mordred: "Well, for one, your voice.  It's quite lovely."
+    Stefani: "Of course it is.  I'm a fabulous singer.  Keep going."
+    Mordred: "Your eyes.  They're quite striking."
+    Stefani: "If you put enough makeup on, anyone can look like this.  You're not saying anything new."
+    Mordred: "I've spoken with you for all of five minutes and you wish for me to give you some grand insight?"
+    Stefani: "Of course.  You told me that you're my 'type'.\m<cascade-letters LIGHTGREY>Why exactly is that,</> hmm?"
+    Mordred: "Very well.  It is because you would make a great <color=PURPLE>Queen</>."
+    Stefani: "I would?<delay=100>\nExplain."
+    Mordred: "Your confidence, your poise, your bluntness, and of course the fact that you want to be pursued."
+    Stefani: "Hmm.  You're not wrong..."
+    +:question(Stefani)
+    Stefani: "Do you find that attractive?"
+    Mordred: "I think you already know the answer."
+  }
+  +:patternMatchmaking_Table1_EndConvo()
+
+@patternMatchmaking_StefaniAndAnders
+  +setConversationGroup(Stefani, Anders)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Anders)
+  +:patternMatchmaking_pairingCount(Stefani, Anders)
+  Stefani: "What a scam.  I don't even get a partner for this?"
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_StefaniAndRandy
+  +setConversationGroup(Stefani, Randy)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Randy)
+  +:patternMatchmaking_pairingCount(Stefani, Randy)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Stefani, Randy)
+    Randy: "Um.  Hi.  I'm <color=LIGHTBLUE>Randy</>."
+    +:grumpy(Stefani)
+    Stefani: "..."
+    +:ld(Randy, down)
+    Randy: "Yeah.  Don't worry.  I'm not really trying to hit on you or anything."
+    +:la(Randy, Stefani)
+    Randy: "You can feel free to ignore me if you want."
+    +:serious(Stefani)
+    Stefani: "Fine.  Then I will."
+    Randy: "But I thought you should know that I think you're really pretty."
+    Randy: "And I know you're like a singer or something, and I really like your voice."
+    Stefani: "Hmm.  Thanks I guess."
+    Stefani: "But I'd probably be more interested if you weren't so meek."
+    Randy: "Okay..."
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "Could he be any more of a pushover?"
+      +?func(inParty, Skye):{
+        +:la(Skye, Anjana)
+        Skye: "Give him a break.  He's trying his best."
+      }
+    }
+    +:leach(Stefani, Randy)
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Stefani, Randy)
+    Stefani: "Oh.  It's you again?  Should I continue to ignore you?"
+    Randy: "I mean, if you want to, I guess."
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_StefaniAndScott
+  +setConversationGroup(Stefani, Scott)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Scott)
+  +:patternMatchmaking_pairingCount(Stefani, Scott)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Stefani, Scott)
+    Stefani: "What about you?  What's your angle?"
+    Scott: "My angle?  You mean like for this stupid event?"
+    Scott: "I'm not actually participating."
+    Stefani: "Then why are you sitting there across from me?"
+    Scott: "My friend just told me to save a spot for him.  I have no idea where he went."
+    +:ld(Stefani, down)
+    +:sigh(Stefani)
+    Stefani: "What a waste of time."
+    +:leach(Stefani, Scott)
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Stefani, Scott)
+    Stefani: "Still think you're friend's coming?"
+    Scott: "No.  I think he ditched me."
+    Stefani: "I guess you're not as dumb as you look."
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_StefaniAndJack
+  +setConversationGroup(Stefani, Jack)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Jack)
+  +:patternMatchmaking_pairingCount(Stefani, Jack)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Stefani, Jack)
+    +:bored(Stefani)
+    Stefani: "<cascade-letters>......"
+    Jack: "<cascade-letters>......"
+    Stefani: "You're not going to say anything?"
+    Jack: "Eh.  Not really.  You kind of look like you don't want to talk."
+    Stefani: "Of course I don't.  Why should I talk to you?"
+    Jack: "See?  I was right."
+    Stefani: "Hmph.  <color=LIGHTGREY>Why do I keep getting these losers</>?"
+    Jack: "Looks like I dodged a bullet."
+    +:leach(Stefani, Jack)
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Stefani, Jack)
+    Stefani: "<cascade-letters>......"
+    Jack: "<cascade-letters>......"
+    +:bored(Stefani)
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_StefaniAndLars
+  +setConversationGroup(Stefani, Lars)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Lars)
+  +:patternMatchmaking_pairingCount(Stefani, Lars)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Stefani, Lars)
+    Lars: "Hello.  I am <color=LIGHTBLUE>Lars</>."
+    +:ld(Stefani, down)
+    Stefani: "<color=LIGHTBLUE>Lars</>..."
+    +:la(Stefani, Lars)
+    Stefani: "I don't think I know anybody by that name."
+    Lars: "It is a family name.  Truth though, I do not much appreciate it."
+    Stefani: "You could always change it."
+    Lars: "My father would not approve."
+    Stefani: "Bah. Fathers.  They're the worst, aren't they?"
+    Lars: "I am very loving my father.  Are you not?"
+    +:serious(Stefani)
+    Stefani: "No.  I <italic>am not</>."
+    Stefani: "Family is overrated."
+    Lars: "Ah.  I see.  I am sorry to hear that."
+    Lars: "I think perhaps we would not make the best match."
+    +:flat(Stefani)
+    Stefani: "You said it, buddy, not me."
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Stefani, Lars)
+    Lars: "Even though we may not pair well, perhaps we can still have nice conversation?"
+    Stefani: "I'm not really in the mood."
+    Lars: "But you have such lovely voice?  I would like to hear you sing."
+    Stefani: "Hmm.  Since you asked nicely, maybe I will later."
+    Stefani: "Or maybe not.  We'll see."
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_StefaniAndBobby
+  +setConversationGroup(Stefani, Bobby)
+  +:patternMatchmaking_Table1_SetupConv()
+  +panCameraToFitCharacters(1000, false, Stefani, Bobby)
+  +:patternMatchmaking_pairingCount(Stefani, Bobby)
+  +log("check pairingCount: {tmp.pairingCount}")
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Stefani, Bobby)
+    +:doubt(Stefani)
+    Stefani: "What is that terrible smell?"
+    Stefani: "It smells like overcooked salt and burnt wood."
+    +:teardrop(Bobby)
+    Bobby: "Are you talking about my ramen?"
+    Stefani: "Ramen?  What kind of ramen smells like that?"
+    Stefani: "Do you have some penchant for raw sewage or something?"
+    Bobby: "Hey now, that's a bit much, don't you think?  It's just ramen.  If you don't like it, you don't have to eat it."
+    Stefani: "Eww.  Why did you carry that over here?  Get it away from me."
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Stefani, Bobby)
+    Stefani: "You're still here?"
+    Stefani: "Get that bowl away from me!"
+  }
+  +:patternMatchmaking_Table1_EndConvo()

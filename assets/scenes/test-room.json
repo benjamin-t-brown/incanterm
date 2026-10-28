@@ -1,0 +1,19 @@
+{
+  "format": "incanterm-scene",
+  "version": 1,
+  "id": "test-room",
+  "width": 32,
+  "height": 10,
+  "depthMode": "bottom-up",
+  "clear": { "ch": ".", "fg": "#5c6b63", "bg": "#14201c" },
+  "entities": [
+    {
+      "id": "crate",
+      "type": "Prop",
+      "sprite": "crate",
+      "x": 16,
+      "y": 6,
+      "depthOffset": 0
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+@adaVrConscienceIntro
+  +fadeOut(1)
+  +setFlashbackMode(true)
+  +setCharacterAtMarker(Ada, MarkerAda0)
+  +:face(Ada, leftup)
+  +:face(Jesse, leftup)
+  +:face(Skye, leftup)
+  +:face(Vivi, leftup)
+  +:face(Conscience, rightdown)
+  +setConversation(Ada)
+  +fadeIn(2000)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoor, WOOD_DOOR_BCK)
+  +panCameraRelativeToPlayer(-50, -50, 1000)
+  +spawnCharacterAtMarker(FlashBackTeacher, MarkerDoor)
+  +walkToOffset(Teacher, 0, 32, true)
+  +:w(500)
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoor, WOOD_DOOR_BCK)
+  Teacher: "Good morning, everyone."
+  +:ld(Teacher, rightdown)
+  Teacher: "Before we start today, I've been informed of something..."
+  Teacher: "<cascade-letters>...Err.  <delay=100 />Something <italic>unorthodox</> to share with you all."
+  +none()
+  +setAnimationState(Jesse, idle)
+  +walkToMarker(Teacher, MarkerPodium)
+  +:la(Teacher, Ada)
+  Teacher: "As you know, with the installation of the <color=PURPLE>Revirtualis in Erran Valley</>, we have been able to expand the teaching capabilities of our esteemed school."
+  Teacher: "And there's no better way than to make use of this technology than to introduce you to a new student."
+  Teacher: "A student for whom it would be impossible to attend class otherwise."
+  +:shakeZ(Teacher)
+  Teacher: "<color=YELLOW>Miss Eldridge</>, would you kindly come up here?"
+  +:bored(Ada)
+  Ada: "<cascade-letters>......"
+  +walkToMarker(Ada, MarkerAda1)
+  +:leach(Student1, Student2)
+  +:shakeZ(Student1)
+  Student1: "<italic color=LIGHTGREY cascade>That's the <color=ORANGE>Eldridge girl</>, isn't it?"
+  +:la(Student2, Student1)
+  +:smirk(Student2)
+  Student2: "<italic color=LIGHTGREY cascade>Yeah! Stay away though, she seems kinda mean."
+  Student2: "<italic color=LIGHTGREY cascade>She always just glares at you like you're some kind of idiot until you walk away."
+  +walkToMarker(Ada, MarkerAda1)
+  +:ld(Student1, leftup)
+  +:ld(Student2, leftup)
+  +walkToMarker(Ada, MarkerAdaGlare)
+  +:ld(Ada, rightup)
+  +:angry(Ada)
+  +:ld(Ada, leftup)
+  +:w(100)
+  +walkToMarker(Ada, MarkerAda2)
+  +walkToMarker(Ada, MarkerAda3)
+  +:ld(Ada, rightdown)
+  +:shakeZ(Teacher)
+  Teacher: "After much conversation between both Principal Eli and Ada's well-renowned father, it has been decided that..."
+  Teacher: "For this semester, <italic>Conscience</> will be joining us."
+  +:la(Teacher, Ada)
+  +:ld(Ada, leftdown)
+  Teacher: "I believe you can explain it better, Ada.  If you please."
+  +:ld(Ada, right)
+  Ada: "...tsk."
+  +stopSkipCutscene()
+  +:ld(Ada, rightup)
+  Ada: "<italic color=LIGHTGREY cascade-letters>so irritating...."
+  +none()
+  +walkToMarker(Ada, MarkerTerminal)
+  +:ld(Ada, rightup)
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -1, true)
+  +createPropAtMarker(PropProjector, MarkerPropProjector, tree1, 0, 0)
+  +changePropAnim(PropProjector, props-anims_projector)
+  +:w(1000)
+  +playSound(click)
+  +:bumpY(Ada, -1, true)
+  +addOverlay('overlays/flashback-classroom1', overlay)
+  +:ld(Ada, leftdown)
+  +:w(500)
+  +playSound(projector_slide)
+  +:w(100)
+  +playSound(pop)
+  +characterSetSortOffset(Conscience, 999999)
+  +:w(500)
+  +:lookAround(Conscience)
+  +:ld(Conscience, rightdown)
+  +:surprised(Conscience)
+  +:w(500)
+  +:ld(Ada, rightdown)
+  Ada: "Everyone, this is <color=YELLOW>Conscience</>."
+  Ada: "She is an <color=LIGHTGREEN>Alternate</>, created by my Father."
+  +:exclaim(Student2)
+  Student2: "No way!"
+  +:surprised(Student1)
+  Student1: "They look almost exactly the same!"
+  +none()
+  +:ld(Ada, leftdown)
+  Ada: "Please say 'hello', Conscience."
+  +:ld(Ada, down)
+  +:shakeZ(Conscience)
+  +:jump(Conscience)
+  Conscience: "Um.  Hello!"
+  Ada: "As with all <color=LIGHTGREEN>Alternates</>, she is normally only able to speak with her custodian; me in this case."
+  Ada: "However, Father has made the necessary changes so that she can attend the <color=LIGHTBLUE>Revirtualis in Erran Valley</> to allow you to see and communicate with her."
+  Ada: "Do not be surprised to see her there.  <color=YELLOW>Conscience</> is always with me."
+  +:none()
+  +:w(100)
+  +:happy(Conscience)
+  Conscience: "It's nice to meet--!"
+  +playSound(click)
+  +:bumpY(Ada, -1, true)
+  +characterSetSortOffset(Conscience, 0)
+  +removeOverlays()
+  +:w(100)
+  +changePropAnim(PropProjector, props-anims_projector_reverse)
+  +:exhale(Ada)
+  Ada: "There.  It is done."
+  +:la(Ada, Teacher)
+  Ada: "Does that suffice?"
+  +:teardrop(Teacher)
+  Teacher: "Err... Well I suppose so."
+  +:ld(Ada, rightdown)
+  +:ld(Teacher, rightdown)
+  +:question(Student2)
+  Student2: "Aren't <color=LIGHTGREEN>Alternates</> really, really rare?  How did you get one?"
+  +:shakeZ(Ada)
+  Ada: "Like I said.  <color=YELLOW>Conscience</> was created by my Father, and he has given custody of her to me."
+  Teacher: "I realize this might be somewhat unprecedented, but please try to keep an open mind."
+  Teacher: "Ada's father has asked that we introduce <color=YELLOW>Conscience</> so that there's general awareness of her presence here."
+  Teacher: "Simply think of her as your classmate."
+  Teacher: "At <color=LIGHTPURPLE>Erran Valley</> students are expected to take the unexpected in stride, and above all to treat others with respect."
+  +:la(Teacher, Ada)
+  Teacher: "This, of course, includes <color=YELLOW>Conscience</>; even if you cannot interact with her normally."
+  +:ld(Teacher, rightdown)
+  Teacher: "So please be nice to her, as you would any new student.  You're all in this class together, after all."
+  Teacher: "I think that's enough about that."
+  +:la(Teacher, Ada)
+  Teacher: "We've already cut well into class time for this.  Please return to your desk."
+  +:exhale(Ada)
+  +:w(200)
+  +:ld(Teacher, leftup)
+  +walkToMarker(Ada, MarkerAda2)
+  +walkToMarker(Ada, MarkerAda1, 0, 0, true)
+  +:w(200)
+  +:la(Jesse, Ada)
+  +:la(Vivi, Ada)
+  +:w(200)
+  +:la(Jesse, Ada)
+  +:la(Vivi, Ada)
+  +:w(1000)
+  +walkToMarker(Ada, MarkerAda0)
+  +panCameraToFitCharacters(500, false, Carnold)
+  +:ld(Carnold, leftdown)
+  +:exclaim(Carnold)
+  +:la(Ada, Carnold)
+  +:la(Jesse, Carnold)
+  +:la(Skye, Carnold)
+  +:la(Vivi, Carnold)
+  +:la(Student1, Carnold)
+  +:la(Student2, Carnold)
+  +:la(Student3, Carnold)
+  Carnold: "That's it?  That's all you have to say?"
+  +:ld(Ada, rightdown)
+  Ada: "<cascade-letters>......"
+  Carnold: "An <color=LIGHTGREEN>Alternate</> just for you?"
+  +:ld(Carnold, leftup)
+  Carnold: "Like she needs any <italic>more</> special treatment."
+  +panCameraToFitCharacters(500, false, Carnold, Teacher, Ada)
+  +:ld(Teacher, rightdown)
+  +:ld(Ada, leftup)
+  +:ld(Jesse, leftup)
+  +:ld(Skye, leftup)
+  +:ld(Vivi, leftup)
+  +:ld(Student1, leftup)
+  +:ld(Student2, leftup)
+  +:ld(Student3, leftup)
+  Teacher: "Mr. Carl-Arnold!  Please."
+  Teacher: "If you would like to ask Ada more about <color=YELLOW>Conscience</>, you may; but you <italic>may not</> do so during my class time."
+  +:ld(Carnold, down)
+  +:grumpy(Carnold)
+  Carnold: "<color=LIGHTGREY scale=0.7 /> She's not <italic color=LIGHTGREY scale=0.7>that<color=LIGHTGREY scale=0.7 /> special..."
+  +none()
+  +:ld(Carnold, leftup)
+  +fadeOut(2000)
+  +setFlashbackMode(false)

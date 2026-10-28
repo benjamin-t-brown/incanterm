@@ -1,0 +1,6 @@
+# Legacy painter working documents live here and are imported into assets/.
+data/*.json
+
+node_modules/
+*.log
+.DS_Store

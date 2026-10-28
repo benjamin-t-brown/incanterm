@@ -1,0 +1,120 @@
+#patternMatchmaking_Table7
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table7
+@patternMatchmaking_Table7
+  +:patternMatchmaking_Table7_SetupConv()
+  +setStorage(tmp.primaryCh, Robin)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table7SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(7)
+  }
+
+@patternMatchmaking_Table7_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables13, 0, -24)
+  +:face(Ada, leftdown)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table7_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 6)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 6)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 6)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_RobinAndMordred
+  +setConversationGroup(Robin, Mordred)
+  +:patternMatchmaking_Table7_SetupConv()
+  +panCameraToFitCharacters(1000, false, Robin, Mordred)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    +:ld(Robin, up)
+    +:smallPause()
+    +:ld(Robin, rightup)
+    +:smallPause()
+    +:ld(Robin, up)
+    +:smallPause()
+    +:ld(Robin, rightup)
+    +:teardrop(Mordred)
+    Mordred: "You said your name is <color=PINK>Robin</>, yes?"
+    +:lookAround(Robin)
+    Mordred: "If I may say so... you look a trifle <italic>fidgety</>."
+    +:la(Robin, Mordred)
+    Robin: "Yeah, yeah.  What of it?"
+    Mordred: "No doubt you are daunted by my\n<cascade-letters>illustrious presence."
+    Mordred: "Do not worry, milady.  I am merely <color=LIGHTBLUE>Mordred</>.  A humble man of the people."
+    +:la(Mordred, Robin)
+    Robin: "What are you talking about?  I'm not <italic>daunted</> by you."
+    +:ld(Robin, up)
+    Robin: "I don't even care about you at all.  I'm looking for the guy that stole all my tickets."
+    +:exclaim(Mordred)
+    Mordred: "A theft you say!  How dastardly!"
+    Mordred: "I cannot abide such a crime.  To do so would sully my kingly honor."
+    +:la(Robin, Mordred)
+    +:shakeZ(Robin)
+    Robin: "Listen bud.  Try to cool off a bit.  This is important."
+    Robin: "I don't know who, but someone in this room is a thief."
+    Robin: "I look away for two seconds, and my wallet is stolen.  But <color=LIGHTRED>the idiot</> left behind an invitation to this stupid event.  So I'm here to find him."
+    +:ld(Mordred, up)
+    Mordred: "Do you perchance have any suspects in this group?"
+    +:leach(Robin, Mordred)
+    Robin: "Besides that he's a guy?  No.  Not yet.  I've only been talking to you and it's clear you're not capable of stealing anything."
+    Mordred: "Of course not!  To insinuate such a thing is an insult to my honor!"
+    +:shakeZ(Robin)
+    Robin: "I never said you were a thief, bud.  Somebody else clearly is, though."
+    Robin: "I just have to talk to everyone here and figure out who did it."
+    +:ld(Robin, right)
+    Robin: "<color=LIGHTGREY />When is the next round gonna start?"
+    +:ld(Robin, rightup)
+    Robin: "<color=LIGHTGREY />I can't let him get away."
+    +:la(Mordred, Ada)
+    +:shakeZ(Mordred)
+    Mordred: "You, girl!"
+    +none()
+    +panCameraBackToPlayer()
+    +:la(Ada, Mordred)
+    +:surprised(Ada)
+    Ada: "Are you speaking to me?"
+    +:shakeZ(Mordred)
+    Mordred: "Indeed.  You seem to be somewhat of a <italic color=LIGHTGREY>servant</> around here."
+    Mordred: "Did you know that a theft has taken place right under your nose?"
+    +:la(Ada, Mordred)
+    Ada: "No.  I did not.  <scale=0.8 />And I am not a servant."
+    Mordred: "Then you best be on the lookout for such a ne'er-do-well."
+    +:la(Mordred, Robin)
+    Mordred: "This fine lady here requires your vigilance."
+    +:leach(Robin, Ada)
+    +:teardrop(Robin)
+    Robin: "I can handle myself.  I don't need a servant to watch my back."
+    +:la(Mordred, Ada)
+    +:confident(Mordred)
+    Mordred: "Very well then.  She and I shall embark on this quest together.  But you, servant, should be on your guard."
+    +:leach(Mordred, Robin)
+    +:ld(Robin, rightup)
+    +?func(inParty, Skye):{
+      +:la(Ada, Skye)
+      +:la(Skye, Ada)
+      Skye: "That guy reminds me of those nerds that hang out by the board game room on first floor."
+    }
+    +?func(inParty, Anjana):{
+      +:la(Ada, Anjana)
+      +:la(Anjana, Ada)
+      Anjana: "If we figure out how stole her tickets, maybe we can pair them up and see what happens?"
+    }
+  }
+  +:patternMatchmaking_Table7_EndConvo()

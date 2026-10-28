@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": []
+  },
+  "include": [
+    "src/browser/**/*.ts",
+    "src/protocol/messages.ts",
+    "src/editor/client/**/*.ts",
+    "src/editor/client/**/*.d.ts",
+    "src/editor/schema.ts",
+    "src/editor/palette.ts",
+    "src/editor/glyph.ts"
+  ]
+}

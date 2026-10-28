@@ -1,0 +1,817 @@
+#floor3Cards_EntranceToBar
+  step,this
+@this
+  +:utils-change-room(floor3CardsBar, MarkerFromEntrance)
+
+#floor3Cards_BarToEntrance
+  step,this
+@this
+  +:utils-change-room(floor3CardsEntrance, MarkerFromBar)
+
+#floor3Cards_EntranceToSouth
+  step,this
+@this
+  +:utils-change-room(floor3CardsSouth, MarkerFromEntrance)
+
+#floor3Cards_SouthToEntrance
+  step,this
+@this
+  +:utils-change-room(floor3CardsEntrance, MarkerFromSouth)
+
+#floor3Cards_EntranceToEmployeeHub
+  step,this
+@this
+  +:utils-change-room(floor3EmployeeHub, MarkerFromCards)
+
+#floor3Cards_SouthToNorth
+  step,this
+@this
+  +:utils-change-room(floor3CardsNorth, MarkerFromSouth)
+
+#floor3Cards_NorthToSouth
+  step,this
+@this
+  +:utils-change-room(floor3CardsSouth, MarkerFromNorth)
+
+#floor3Cards_BarToNorth
+  step,this
+@this
+  +:utils-change-room(floor3CardsNorth, MarkerFromBar)
+
+#floor3Cards_NorthToBar
+  step,this
+@this
+  +:utils-change-room(floor3CardsBar, MarkerFromNorth)
+
+#floorCards_EntranceOpenRedDoorsToEmployeeHub
+  step-first,floor3Cards_OpenRedDoorsToElevatorBCKOpen
+  step-off,floor3Cards_OpenRedDoorsToElevatorBCKClose
+@floor3Cards_OpenRedDoorsToElevatorBCKOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerRedDoorBCK2, RED_DOOR_BCKL)
+  +:openDoor(MarkerRedDoorBCK1, RED_DOOR_BCKR)
+@floor3Cards_OpenRedDoorsToElevatorBCKClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerRedDoorBCK2, RED_DOOR_BCKL)
+  +:closeDoor(MarkerRedDoorBCK1, RED_DOOR_BCKR)
+
+#floorCards_EntranceOpenSecretBlockDoorsIn
+  action,this
+@this
+  +setConversationWithoutBars()
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlockDoor1, DARK_BLOCK_BCK)
+  +:openDoor(MarkerBlockDoor2, DARK_BLOCK_BCK)
+  +walkToMarker(Party, MarkerBlockDoorIn)
+  +walkToMarker(Party, MarkerBlockDoorOut)
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerBlockDoor1, DARK_BLOCK_BCK)
+  +:closeDoor(MarkerBlockDoor2, DARK_BLOCK_BCK)
+  +endConversation()
+
+#floorCards_EntranceOpenSecretBlockDoorsOut
+  action,this
+@this
+  +setConversationWithoutBars()
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerBlockDoor1, DARK_BLOCK_BCK)
+  +:openDoor(MarkerBlockDoor2, DARK_BLOCK_BCK)
+  +walkToMarker(Party, MarkerBlockDoorOut)
+  +walkToMarker(Party, MarkerBlockDoorIn)
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerBlockDoor1, DARK_BLOCK_BCK)
+  +:closeDoor(MarkerBlockDoor2, DARK_BLOCK_BCK)
+  +endConversation()
+
+// BLACK JACK ----------------------------------------------------------------------------
+#floor3Cards_BlackJackDealer
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackDealer)
+  floor3Cards_BlackJackDealer: "Welcome to the <color=LIGHTBLUE>Black Jack</> table.  If you would like to play, please take a position opposite me."
+  +endConversation()
+
+#floor3Cards_BlackJackGame
+  action,this
+@this
+  +setSpeed(Ada, 1.5)
+  +setUnskippable(true)
+  +setWallCollisionEnabled(false)
+  +setConversation()
+  +setFacing(Ada, leftup)
+  +walkPartyToFormation(true)
+  +walkToMarker(Ada, MarkerBlackJackWalk)
+  +setFacing(Ada, leftup)
+  +:shakeZ(floor3Cards_BlackJackDealer)
+  floor3Cards_BlackJackDealer: "Welcome to the <color=LIGHTBLUE>Black Jack</> table.  Please place your bets."
+  +none()
+  +setConversationWithoutBars()
+  +fadeOut(750)
+  +setAtMarker(Ada, MarkerBlackJackWalk)
+  +runArcadeCabinetGame(BLACKJACK)
+  +setAtMarker(Ada, MarkerBlackJackWalk, 32, 0)
+  +fadeIn(50)
+  +setWallCollisionEnabled(true)
+  +setUnskippable(false)
+  +setSpeed(Ada)
+  +endConversation()
+
+#floor3Cards_BlackJackBob
+  action,?once('44d781d1'):floor3Cards_BlackJackBob1
+  action,floor3Cards_BlackJackBob2
+@floor3Cards_BlackJackBob1
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackBob)
+  floor3Cards_BlackJackBob: "Well, well, well.  A new challenger approaches?"
+  floor3Cards_BlackJackBob: "Come and join, honey, my streak's just getting started!"
+  +endConversation()
+@floor3Cards_BlackJackBob2
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackBob)
+  floor3Cards_BlackJackBob: "You playin' or what?"
+  +endConversation()
+
+#floor3Cards_BlackJackJoe
+  action,?once('373f69cd'):floor3Cards_BlackJackJoe1
+  action,floor3Cards_BlackJackJoe2
+@floor3Cards_BlackJackJoe1
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackJoe)
+  floor3Cards_BlackJackJoe: "If you're gonna play, make sure you know <italic>how</> to play."
+  floor3Cards_BlackJackJoe: "I don't like playing with incompetence at the table."
+  +endConversation()
+@floor3Cards_BlackJackJoe2
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackJoe)
+  floor3Cards_BlackJackJoe: "Step up or go away, and don't bother me.  I'm concentrating."
+  +endConversation()
+
+#floor3Cards_BlackJackWatcher
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_BlackJackWatcher)
+  floor3Cards_BlackJackWatcher: "I'm just watching.  These guys are really imposing, so I don't think I want to play with them."
+  +endConversation()
+
+@floor3Cards_onBlackJackGameCompleted
+  +?is(vars.cardz.BlackJackCheat):{
+    +?all(gt(vars.cardz.BlackJackPlays, 0), once('bd2f2bce')):{
+      +setConversationWithoutBars(Ada)
+      +?func(inParty, Anjana):{
+        Anjana: "Something's wrong here.  I think the dealer is cheating."
+        Ada: "How do you know?"
+        Anjana: "Haven't you noticed?  The dealer's cards never bust."
+        Anjana: "Neither do the other players' cards."
+      }
+      Ada: "Hmpf.  Perhaps I should take my tokens elsewhere."
+      +endConversation()
+    }
+  }
+
+// ECHO ----------------------------------------------------------------------------------
+
+#floor3Cards_EchoDealer
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_EchoDealer)
+  floor3Cards_EchoDealer: "Welcome to the <color=LIGHTBLUE>Echo</> table."
+  floor3Cards_EchoDealer: "Unfortunately at the moment there is not an open spot for you to play.  Please come back later."
+  +assert("+?func(inParty, Anjana)", "+endConversation()")
+  +?once('a3a9ab97'):{
+    Ada: "What is <color=LIGHTBLUE>Echo</>?  I do not believe I have heard of that game."
+    floor3Cards_EchoDealer: "You've played a version of it, I'm sure.  If you want to play I can explain."
+    +:leach(Anjana, Ada)
+    Anjana: "It's one of those games you have to announce when you have one card left."
+  }
+  +endConversation()
+
+#floor3Cards_EchoGame
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "It does not seem like there is a spot for me to play right now."
+  +endConversation()
+
+#floor3Cards_EchoWatcher1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_EchoWatcher1)
+  floor3Cards_EchoWatcher1: "I wish they would just ban the <color=LIGHTRED>Draw 4</> card.  It is so imbalanced!"
+  +endConversation()
+
+#floor3Cards_EchoWatcher2
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_EchoWatcher2)
+  floor3Cards_EchoWatcher2: "<color=YELLOW>Yellow</> is my lucky color.  If I get a whole hand of 'em, you won't stand a chance."
+  +endConversation()
+
+#floor3Cards_EchoWatcher3
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_EchoWatcher3)
+  floor3Cards_EchoWatcher3: "No need to tell me how many cards you have left.  I'm <italic>always watching</>.  <italic cascade-letters=70>Always watching...</>"
+  +endConversation()
+
+#floor3Cards_EchoWatcher4
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_EchoWatcher4)
+  floor3Cards_EchoWatcher4: "I could really use a pizza right now.  Too bad they don't sell any at the bar."
+  +endConversation()
+
+// PRESIDENT -----------------------------------------------------------------------------
+
+#floor3Cards_PresidentDealer
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentDealer)
+  floor3Cards_PresidentDealer: "Welcome to the <color=LIGHTBLUE>President</> table.  If you would like to play, please take a position opposite me."
+  +endConversation()
+
+#floor3Cards_PresidentPresident
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentPresident)
+  +stopAi(floor3Cards_PresidentBodyguard1)
+  +walkToCharacter(floor3Cards_PresidentBodyguard1, Ada)
+  +:ld(floor3Cards_PresidentBodyguard1, rightdown)
+  +loopExpr("+offsetCharacter(Ada, 4);\n+:w(33)", 4)
+  floor3Cards_PresidentBodyguard1: "Step back, miss.  No need to be so close."
+  +walkToMarker(floor3Cards_PresidentBodyguard1, MarkerBodyguard1)
+  +:ld(floor3Cards_PresidentBodyguard1, leftdown)
+  +:la(Ada, floor3Cards_PresidentBodyguard1)
+  Ada: "<cascade-letters>......"
+  +:shakeZ(floor3Cards_PresidentPresident)
+  +:la(Ada, floor3Cards_PresidentPresident)
+  floor3Cards_PresidentPresident: "Just a precaution, miss.  Please do not be alarmed.  It comes with my station, I'm afraid."
+  floor3Cards_PresidentPresident: "In this game, I am the <color=LIGHTRED>President</>.  No, really.  It's not <italic>that</> big of a deal, but still.  The station must be respected of course."
+  floor3Cards_PresidentPresident: "And before you ask, it is merely a <italic>simple coincidence</> that my name happens to also be <color=LIGHTBLUE>President</>."
+  +resetAi(floor3Cards_PresidentBodyguard1)
+  +endConversation()
+
+#floor3Cards_PresidentBodyguard1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentBodyguard1)
+  floor3Cards_PresidentBodyguard1: "Anyone in here could be a threat.  Move along and let me assess the situation."
+  +endConversation()
+
+#floor3Cards_PresidentBodyguard2
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentBodyguard2)
+  floor3Cards_PresidentBodyguard2: "If you try anything <italic>funny</>, just so you know, I can shriek at a nigh-impossible ear-piercing volume that is sure to cause permanent damage."
+  +endConversation()
+
+#floor3Cards_PresidentSally
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentSally)
+  floor3Cards_PresidentSally: "I can reliably place decently in this game, but I cannot for the life of me beat that President guy."
+  +endConversation()
+
+#floor3Cards_PresidentGeorge
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_PresidentGeorge)
+  floor3Cards_PresidentGeorge: "When you are at the bottom in this game, you stay at the bottom."
+  +endConversation()
+
+// HEARTS --------------------------------------------------------------------------------
+
+#floor3Cards_HeartsDealer
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_HeartsDealer)
+  floor3Cards_HeartsDealer: "Welcome to the <color=LIGHTBLUE>Hearts</> table.  If you would like to play, please take a position opposite me."
+  +endConversation()
+
+#floor3Cards_HeartsGame
+  action,this
+@this
+  +setSpeed(Ada, 1.5)
+  +setUnskippable(true)
+  +setWallCollisionEnabled(false)
+  +setConversation()
+  +setFacing(Ada, leftup)
+  +walkPartyToFormation(true)
+  +walkToMarker(Ada, MarkerHeartsWalk)
+  +setFacing(Ada, leftup)
+  +:shakeZ(floor3Cards_HeartsDealer)
+  floor3Cards_HeartsDealer: "Welcome to the <color=LIGHTRED>Hearts</> table.  Please place your bets."
+  +none()
+  +setConversationWithoutBars()
+  +fadeOut(750)
+  +setAtMarker(Ada, MarkerHeartsWalk)
+  +runArcadeCabinetGame(HEARTS)
+  +setAtMarker(Ada, MarkerHeartsWalk, 32, 0)
+  +fadeIn(50)
+  +setWallCollisionEnabled(true)
+  +setUnskippable(false)
+  +setSpeed(Ada)
+  +endConversation()
+
+#floor3Cards_HeartsWinifred
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_HeartsWinifred)
+  floor3Cards_HeartsWinifred: "So you think you have what it takes to win?  I'll be the judge of that."
+  +endConversation()
+
+#floor3Cards_HeartsCaroline
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_HeartsCaroline)
+  floor3Cards_HeartsCaroline: "This tip's on the house hun: having a lot of points in this game is <italic cascade-letters>undesirable</>."
+  +endConversation()
+
+#floor3Cards_HeartsMark
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor3Cards_HeartsMark)
+  floor3Cards_HeartsMark: "Watch out for the <color=LIGHTGREY>Queen of Spades</>.  If you prove difficult I might just send her your way."
+  +endConversation()
+
+#Floor3Cards_Waiter1
+  action,?isnot(with(CranberryMushroomSkewer)):Floor3Cards_Waiter1_1
+  action,Floor3Cards_Waiter1_2
+@Floor3Cards_Waiter1_1
+  +setConversation()
+  +:leach(Floor3Cards_Waiter1, Ada)
+  Floor3Cards_Waiter1: "Would you like some hors d'oeuvres?"
+  +acquireItem(CranberryMushroomSkewer)
+  +?once('6aa31164'):{
+    +?func(inParty, Skye):{
+      +:grumpy(Skye)
+      Skye: "That smells so bad.  I'll pass."
+    }
+    +?func(inParty, Anjana):{
+      Anjana: "Why can't they just serve buttered naan or something else normal?"
+    }
+  }
+  +endConversation()
+@Floor3Cards_Waiter1_2
+  +setConversation()
+  +:leach(Floor3Cards_Waiter1, Ada)
+  Floor3Cards_Waiter1: "Allow me to serve other customers for the time being."
+  +endConversation()
+
+// Help Desk -----------------------------------------------------------------------------
+
+#floor3Cards_SleepingEmployee
+  action,this
+@this
+  +setConversation()
+  floor3Cards_SleepingEmployee: "<cascade-letters>...zzzzz...zzzzz"
+  +?all(once('668eacc3'), func(inParty, Skye)):{
+    Skye: "He's all tuckered out, isn't he?"
+  }
+  +endConversation()
+
+// BAR -----------------------------------------------------------------------------------
+
+#Floor3Cards_Pachinko1
+  action,this
+@this
+  +setConversation()
+  Floor3Cards_Pachinko1: "I've only been here a few minutes, and I've already hit a bullseye!"
+  +endConversation()
+
+#Floor3Cards_Pachinko2
+  action,this
+@this
+  +setConversation()
+  Floor3Cards_Pachinko2: "I haven't won anything yet, but I'm sure it's just a skill issue.  Other people win at this all the time!"
+  +endConversation()
+
+#Floor3Cards_Pachinko3
+  action,this
+@this
+  +setConversation()
+  Floor3Cards_Pachinko3: "The little plastic flowers that open up when you win are so cute!"
+  +endConversation()
+
+#Floor3Cards_BarPatron1
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3Cards_BarPatron1, Ada)
+  Floor3Cards_BarPatron1: "The band is nice, but I wish they didn't have to wear employee uniforms.  It kinda kills the vibe, you know?"
+  +endConversation()
+
+#Floor3Cards_BarPatron2
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3Cards_BarPatron2, Ada)
+  Floor3Cards_BarPatron2: "Try the blue stuff, it's delicious!"
+  +endConversation()
+
+#Floor3Cards_BarPatron3
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, Floor3Cards_BarPatron3)
+  Floor3Cards_BarPatron3: "My husband went off somewhere to gamble.  Personally, I don't like that sort of thing. I'll bet he's losing all our tickets."
+  +?all(once('6cf5e0ef'), func(inParty, Anjana)):{
+    +:shakeZ(Ada)
+    Ada: "How much?"
+    +:leach(Ada, Floor3Cards_BarPatron3)
+    Floor3Cards_BarPatron3: "Beg pardon?"
+    Ada: "You said you would <italic>bet</> he's losing your tickets."
+    Ada: "How much would you bet?"
+    +:happy(Floor3Cards_BarPatron3)
+    Floor3Cards_BarPatron3: "Ha ha ha.  Oh, you're a card, aren't you!"
+    +:la(Anjana, Ada)
+    Anjana: "<cascade-letters>...is that your idea of a joke?"
+  }
+  +endConversation()
+
+#Floor3Cards_Bartender
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3Cards_Bartender, Ada)
+  Floor3Cards_Bartender: "If you want to order something, please go to the bar."
+  +endConversation()
+
+#Floor3Cards_BartenderShop
+  action,this
+@this
+  +setConversation()
+  +stopAi(Floor3Cards_Bartender)
+  +:ld(Ada, rightup)
+  +setSpeed(Floor3Cards_Bartender, 1.8)
+  +panCameraToFitCharacters(700, true, Ada, Floor3Cards_Bartender)
+  +walkToMarker(Floor3Cards_Bartender, MarkerBarServe1, 0, 0, true)
+  Floor3Cards_Bartender: "Welcome to the bar.  What can I get you?"
+  +panCameraBackToPlayer()
+  +:face(Floor3Cards_Bartender, leftdown)
+  +showStore(FLOOR3_BAR)
+  +setSpeed(Floor3Cards_Bartender)
+  +endConversation()
+  +startAi(Floor3Cards_Bartender)
+
+#floor3CardsBar_Solitaire
+  action,this
+@this
+  +setConversation(Ada)
+  +stopAi(Floor3Cards_Bartender)
+  +setFacing(Ada, rightup)
+  +:la(Floor3Cards_Bartender, Ada)
+  +:question(Floor3Cards_Bartender)
+  Floor3Cards_Bartender: "Wanna play a game of <color=LIGHTBLUE>Solitaire</>?"
+  +none()
+  +setSpeed(Floor3Cards_Bartender, 1.8)
+  +walkToMarker(Floor3Cards_Bartender, MarkerSolitaire, 0, -32)
+  +:la(Floor3Cards_Bartender, Ada)
+  Floor3Cards_Bartender: "I'll set up the cards for you."
+  +none()
+  +fadeOut(500)
+  +setSpeed(Floor3Cards_Bartender)
+  +setAtMarker(Ada, MarkerSolitaire)
+  +runArcadeCabinetGame(SOLITAIRE)
+  +fadeIn(50)
+  +endConversation()
+  +startAi(Floor3Cards_Bartender)
+
+@floor3CardsBar_SolitaireWonAGame
+  +setConversation(Ada)
+  +:face(Ada, rightup)
+  +walkPartyToFormation()
+  +spawnCharacterAtMarker(Floor3Cards_SolitaireTrophyGiver, MarkerFromNorth)
+  +stopAi(Floor3Cards_Bartender)
+  +walkToMarker(Floor3Cards_Bartender, MarkerSolitaire, 0, -32, true)
+  +:leach(Ada, Floor3Cards_SolitaireTrophyGiver)
+  +panCameraToFitCharacters(700, false, Ada, Floor3Cards_SolitaireTrophyGiver)
+  +:leach(Floor3Cards_SolitaireTrophyGiver, Ada)
+  +:shakeZ(Floor3Cards_SolitaireTrophyGiver)
+  Floor3Cards_SolitaireTrophyGiver: "Aha.  There you are!"
+  +walkToCharacter(Floor3Cards_SolitaireTrophyGiver, Ada, 16, 0, true)
+  +panCameraBackToPlayer(1000)
+  +:la(Party, Floor3Cards_SolitaireTrophyGiver)
+  Floor3Cards_SolitaireTrophyGiver: "Pardon me.  Do you happen to be the one who just won a game of <color=LIGHTBLUE>Solitaire</>?"
+  +:la(Party, Floor3Cards_SolitaireTrophyGiver)
+  +:face(Floor3Cards_Bartender, leftdown)
+  Ada: "Yes, that was me."
+  Floor3Cards_SolitaireTrophyGiver: "Great!  I'm in the right spot."
+  Floor3Cards_SolitaireTrophyGiver: "I have a <color=LIGHTBLUE>Trophy</> for you.  Here you go."
+  +none()
+  +walkToCharacter(Floor3Cards_SolitaireTrophyGiver, Ada, 8, 0)
+  +:la(Floor3Cards_SolitaireTrophyGiver, Ada)
+  +acquireItem(SolitaireTrophy)
+  +walkToCharacter(Floor3Cards_SolitaireTrophyGiver, Ada, 16, 0)
+  +:leach(Floor3Cards_SolitaireTrophyGiver, Ada)
+  Floor3Cards_SolitaireTrophyGiver: "Make sure to put it somewhere safe!"
+  Floor3Cards_SolitaireTrophyGiver: "Have a good day!"
+  +none()
+  +walkToMarker(Floor3Cards_SolitaireTrophyGiver, MarkerFromNorth)
+  +despawnCharacter(Floor3Cards_SolitaireTrophyGiver)
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "Um.  What was the point of that?"
+  }
+  +?func(inParty, Skye):{
+    +:leach(Skye, Ada)
+    Skye: "Do they give out trophies for everything around here?"
+  }
+  +:shakeZ(Floor3Cards_Bartender)
+  +:la(Party, Floor3Cards_Bartender)
+  Floor3Cards_Bartender: "That guy has been doing that ever since I've worked here."
+  +:question(Ada)
+  Ada: "You mean, this isn't something the Casino does?"
+  Floor3Cards_Bartender: "Nope.  He just likes to give out trophies, I guess."
+  +:ld(Ada, rightdown)
+  Ada: "Strange..."
+  +:ld(Ada, down)
+  Ada: "I bet <color=YELLOW>Conscience</> would have liked him."
+  +endConversation()
+  +startAi(Floor3Cards_Bartender)
+
+
+// STORE ---------------------------------------------------------------------------------
+
+#floor3CardsNorth_vipElevator
+  action,?once('f2a2de67'):floor3CardsNorth_vipElevator_1
+  action,?once('1fca3da9'):floor3CardsNorth_vipElevator_2
+  action,floor3CardsNorth_vipElevator_3
+@floor3CardsNorth_vipElevatorStart
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerElevatorButton)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +:bumpY(Ada, -2)
+  +playSound(terminal_beep)
+  +:w(750)
+  +playSound(terminal_cancel)
+  Narrator: "This elevator is for <color=LIGHTPURPLE>VIP</> access only."
+  Narrator: "A <color=LIGHTPURPLE>VIP</> is not present in your current surroundings."
+@floor3CardsNorth_vipElevator_1
+  +:floor3CardsNorth_vipElevatorStart()
+  +assert("+?all(func(inParty, Skye),func(inParty, Anjana))", "+endConversation()")
+  +:angry(Ada)
+  Ada: "How are we supposed to get out of this place?"
+  +:leach(Skye, Ada)
+  Skye: "We could ask to be VIPs?  I wouldn't mind that."
+  +:flat(Anjana)
+  Anjana: "I'd rather spare us the lecture we would get asking an employee about that."
+  +:ld(Anjana, down)
+  Anjana: "We'll have to go back the way we came."
+  +:la(Skye, Anjana)
+  Skye: "And face that huge robot?"
+  Skye: "I like to smash hunks of metal as much as the next girl, but I'm not sure we can take that thing."
+  +:bored(Ada)
+  +:la(Ada, Skye)
+  Ada: "I have to agree."
+  Anjana: "Well, that Alternate <color=LIGHTRED>Scout</> told us we could find a way through here.  Let's keep looking."
+  +:lightbulb(Anjana)
+  Anjana: "Maybe he meant we could find something in this Casino that would help us proceed."
+  +endConversation()
+@floor3CardsNorth_vipElevator_2
+  +:floor3CardsNorth_vipElevatorStart()
+  +assert("+?all(func(inParty, Skye),func(inParty, Anjana))", "+endConversation()")
+  +:leach(Anjana, Ada)
+  +:sarcasm(Anjana)
+  Anjana: "If you just sit here and keep pressing the button over and over, I'll start calling you <color=LIGHTBLUE>Stanley</>."
+  +:teardrop(Ada)
+  +:la(Ada, Anjana)
+  Ada: "<cascade-letters>Point taken."
+  +endConversation()
+@floor3CardsNorth_vipElevator_3
+  +:floor3CardsNorth_vipElevatorStart()
+  +endConversation()
+
+#Floor3_Thug1
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3_Thug1, Ada)
+  Floor3_Thug1: "We've got the muscle here."
+  +endConversation()
+
+#Floor3_Thug2
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3_Thug2, Ada)
+  Floor3_Thug2: "Boss told me to pace more 'cuz he thinks I don't think too good."
+  +endConversation()
+
+#Floor3_Thug3
+  action,this
+@this
+  +setConversation()
+  +:leach(Floor3_Thug3, Ada)
+  Floor3_Thug3: "These crates weren't here before we brought them up."
+  +endConversation()
+
+#Floor3_ThugLeader
+  action,?once('e1b177ae'):Floor3_ThugLeaderQuest_Start
+  action,?all(func(questStepEQ, FauxCasino, 3), with(BlueberrySwirl)): Floor3_ThugLeader_BringDrink
+  action,Floor3_ThugLeader_Generic
+@Floor3_ThugLeaderQuest_Setup
+  +walkToMarker(Party, MarkerSashes)
+  +:face(Party, rightup)
+  +walkPartyToFormation()
+  +setConversation(Ada)
+  +:la(Ada, Floor3_ThugLeader)
+  +stopAi(Floor3_Thug2)
+  +:face(Floor3_Thug2, rightdown)
+  +:face(Floor3_Thug1, leftup)
+  +:face(Floor3_Thug3, down)
+@Floor3_ThugLeaderQuest_Start
+  +:Floor3_ThugLeaderQuest_Setup()
+  +setConversationGroup(Ada, Floor3_ThugLeader)
+  Floor3_ThugLeader: "Well if it isn't the <italic>lost lamb</> from before."
+  +?func(inParty, Skye):{
+    +:la(Skye, Ada)
+    Skye: "You know these guys?"
+  }
+  +setConversationGroup(Ada, Floor3_ThugLeader)
+  +:la(Skye, Floor3_ThugLeader)
+  +:la(Ada, Floor3_ThugLeader)
+  Ada: "I have very little interest in speaking with you."
+  +setAnimationState(Floor3_ThugLeader, idle)
+  +:la(Floor3_ThugLeader, Ada)
+  Floor3_ThugLeader: "Yet you still walked up to <color=LIGHTBLUE>The Leader of the Sashes</> on your own."
+  Ada: "<cascade-letters>...... I am already regretting it."
+  +:la(Floor3_ThugLeader, Ada)
+  Floor3_ThugLeader: "Come to test your luck at this fine casino?"
+  Ada: "I am not here to gamble."
+  Floor3_ThugLeader: "That's surprising to hear."
+  Floor3_ThugLeader: "Did you see anything in the store here that caught your eye?  Something that might assist you against <color=LIGHTRED cascade-letters=33>a certain robot</>?"
+  +:exclaimShort(Anjana)
+  +:exclaimShort(Skye)
+  +:exclaim(Ada)
+  Ada: "How do you know about that?"
+  +?func(inParty, Anjana):{
+    Anjana: "Have you been following us?"
+  }
+  +setConversationGroup(Ada, Floor3_ThugLeader)
+  +:laughObnoxiously(Floor3_ThugLeader)
+  Floor3_ThugLeader: "When you're a big shot, you can learn a lot about the goings-on in this place."
+  +?func(inParty, Anjana):{
+    Anjana: "You wish you were a big shot, don't you?"
+    +:la(Floor3_ThugLeader, Anjana)
+    +:smirk(Floor3_ThugLeader)
+    Floor3_ThugLeader: "You tell me which one of us can use the VIP elevator."
+  }
+  +setConversationGroup(Ada, Floor3_ThugLeader)
+  +:la(Floor3_ThugLeader, Ada)
+  Floor3_ThugLeader: "That store is expensive and it only takes <color=YELLOW>Tokens</>.  It's designed to force you to gamble."
+  Floor3_ThugLeader: "You can win big, you know;\n<cascade-letters=50 italic>if you're in the club."
+  Ada: "What is that supposed to mean?"
+  Floor3_ThugLeader: "Have you noticed something odd about this <italic>casino</>."
+  +?is(vars.hasNoticedCasinoCheating):{
+    Ada: "Yes.  It seems like <italic>certain</> people win more than others."
+    Floor3_ThugLeader: "Bingo.  I'm guessing you haven't had much luck yourself?"
+  }
+  +?isnot(vars.hasNoticedCasinoCheating):{
+    Ada: "I told you.  I am not here to gamble."
+    Floor3_ThugLeader: "When you're in Rome, dear, sometimes you must do as the Romans do."
+  }
+  Ada: "It is clearly a waste of time to engage with the games here."
+  Floor3_ThugLeader: "Yet you need <color=YELLOW>Tokens</>.  A conundrum, wouldn't you say?"
+  +?func(inParty, Anjana):{
+    Anjana: "Just spill it already."
+  }
+  Floor3_ThugLeader: "I can tell you the secret to winning here.  Or at least, the secret to <italic>not losing</>."
+  Ada: "Yes?  What is it?"
+  Floor3_ThugLeader: "Tsk. Tsk.  Just because I can, doesn't mean I will."
+  Floor3_ThugLeader: "Without a little <italic>something</> in return, I don't think I can help you."
+  Ada: "What do you want?\n  <color=LIGHTGREY>And do not ask me to play some stupid game again."
+  +:ld(Floor3_ThugLeader, rightdown)
+  Floor3_ThugLeader: "I'm not really sure what I want<cascade-letters>....."
+  +:la(Floor3_ThugLeader, Ada)
+  Floor3_ThugLeader: "Well, right now I can tell you I'm parched."
+  Floor3_ThugLeader: "How about something to drink?  Would you be so kind?"
+  +?func(inParty, Anjana):{
+    +:leach(Ada, Anjana)
+    +:angry(Anjana)
+    Anjana: "Don't be this snake's servant.  You're way above that."
+  }
+  +:leach(Ada, Floor3_ThugLeader)
+  Ada: "If I get you a drink, will you tell me what I need to know?"
+  +:shrug(Floor3_ThugLeader)
+  Floor3_ThugLeader: "It would certainly help."
+  +:shakeZ(Floor3_ThugLeader)
+  Floor3_ThugLeader: "By the way, I'm partial to the <color=LIGHTBLUE>Blueberry Swirl</> they serve at the bar."
+  +none()
+  +startQuest(FauxCasino)
+  +startAi(Floor3_Thug2)
+  +panCameraBackToPlayer()
+  +endConversation()
+@Floor3_ThugLeader_BringDrink
+  +:Floor3_ThugLeaderQuest_Setup()
+  Ada: "I have your <italic>delicious</> drink for you."
+  Ada: "I am assuming you already know how much of a pain it was to get."
+  Floor3_ThugLeader: "Why, thank you so much! I never would have guessed!"
+  +:none()
+  +removeItem(BlueberrySwirl)
+  Floor3_ThugLeader: "Yum.  I'll enjoy some of that later."
+  Floor3_ThugLeader: "But I've also suddenly realized how hungry I am.  Though, not for anything normal. I could use something exotic."
+  Ada: "I am not your personal servant."
+  Floor3_ThugLeader: "Oh no, I'm not implying that at all!"
+  Floor3_ThugLeader: "But if you were to bring me some kind of fancy <color=LIGHTRED>Hors d'oeuvre</>, I might be persuaded to aid you in your <italic>quest</>."
+  +:angry(Ada)
+  Ada: "I am not on a quest!  And no more of these vagaries!  If I get you your stupid food, you <italic>will</> tell me what I need to know."
+  +walkToOffset(Ada, 0, -4)
+  Ada: "Got it?"
+  Floor3_ThugLeader: "<cascade-letters>Fine. <cascade-letters=75>Fine. </>This is the last thing I'll ask for."
+  Floor3_ThugLeader: "Hurry up though, I'm <italic>certain</> I'm going to starve."
+  +none()
+  +completeQuestStep(FauxCasino, 3)
+  +startAi(Floor3_Thug2)
+  +endConversation()
+
+@Floor3_ThugLeader_Generic
+  +:Floor3_ThugLeaderQuest_Setup()
+  Floor3_ThugLeader: "Come back when you have something to give me."
+  +startAi(Floor3_Thug2)
+  +endConversation()
+
+#Floor3Cards_Store1
+  action,this
+@this
+  +setConversation(Ada)
+  +stopAi(floor3Cards_StoreEmployee1)
+  +:face(floor3Cards_StoreEmployee1, leftdown)
+  +:face(Ada, rightup)
+  floor3Cards_StoreEmployee1: "Did you win some <color=YELLOW>Tokens</> in the Casino?  Spend them here!"
+  +panCameraBackToPlayer()
+  +showStore(FLOOR3_CASINO_STORE)
+  +endConversation()
+  +startAi(floor3Cards_StoreEmployee1)
+
+#Floor3Cards_Store2
+  action,this
+@this
+  +setConversation(Ada)
+  +stopAi(floor3Cards_StoreEmployee2)
+  +:face(floor3Cards_StoreEmployee2, rightup)
+  +:face(Ada, leftdown)
+  floor3Cards_StoreEmployee2: "Did you win some <color=YELLOW>Tokens</> in the Casino?  Spend them here!"
+  +panCameraBackToPlayer()
+  +showStore(FLOOR3_CASINO_STORE)
+  +endConversation()
+  +startAi(floor3Cards_StoreEmployee2)
+
+#Floor3Cards_northBystander1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Floor3Cards_northBystander1, Ada)
+  Floor3Cards_northBystander1: "Do you think <color=LIGHTRED>Carl-Arnold</> already has all the items from the store here?"
+  +endConversation()
+
+#Floor3Cards_northBystander2
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Floor3Cards_northBystander2, Ada)
+  Floor3Cards_northBystander2: "I think it's really odd that the <color=LIGHTBLUE>Casino Store</> only accepts <color=YELLOW>Tokens</>."
+  Floor3Cards_northBystander2: "Every other store in here takes <color=LIGHTBLUE>Tickets</>.  What's the deal with that?"
+  +endConversation()
+
+#Floor3Cards_northBystander3
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Floor3Cards_northBystander3, Ada)
+  Floor3Cards_northBystander3: "There's a lot of people in here who think they are hot shots, but they don't even come close <color=LIGHTRED>Carl-Arnold's</> status."
+  Floor3Cards_northBystander3: "I wish he would come down here and knock a few of these people down a peg."
+  +endConversation()
+
+#Floor3Cards_northBystander4
+  action,Floor3Cards_northBystander4And5
+#Floor3Cards_northBystander5
+  action,Floor3Cards_northBystander4And5
+@Floor3Cards_northBystander4And5
+  +setConversationGroup(Floor3Cards_northBystander5, Floor3Cards_northBystander4)
+  +:la(Ada, Floor3Cards_northBystander5)
+  +:leach(Floor3Cards_northBystander4, Floor3Cards_northBystander5)
+  Floor3Cards_northBystander5: "You said you lost all your <color=YELLOW>Tokens</>?  Why don't you go down to the first floor and grab the <color=LIGHTBLUE>welcome package</> again?"
+  Floor3Cards_northBystander5: "They'll give it to you every time you run out."
+  +:sad(Floor3Cards_northBystander4)
+  Floor3Cards_northBystander4: "I only have a <color=LIGHTBLUE>one-time VIP pass</>, so if I leave, I can't get back here."
+  +panCameraBackToPlayer(500, true)
+  +endConversation()

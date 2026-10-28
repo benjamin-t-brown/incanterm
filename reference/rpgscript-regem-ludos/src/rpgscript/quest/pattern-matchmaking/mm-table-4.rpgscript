@@ -1,0 +1,333 @@
+#patternMatchmaking_Table4
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table4
+@patternMatchmaking_Table4
+  +:patternMatchmaking_Table4_SetupConv()
+  +setStorage(tmp.primaryCh, Saiki)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table4SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(4)
+  }
+
+@patternMatchmaking_Table4_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables7, 0, -24)
+  +:face(Ada, leftdown)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table4_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 3)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 3)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 3)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_SaikiAndRandy
+  +setConversationGroup(Saiki, Randy)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Randy, Saiki)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    +:question(Saiki)
+    Saiki: "Your name is <color=LIGHTBLUE>Randy</>, right?"
+    +:ld(Randy, right)
+    Randy: "Yeah it is! How did you know?"
+    +:la(Saiki, Randy)
+    Saiki: "I heard the host say it.  I'm <color=LIGHTPURPLE>Saiki</>.  Nice to meet you."
+    +:la(Randy, Saiki)
+    +:shakeZ(Randy)
+    Randy: "So.  Um.  Are you here to find a date?"
+    Saiki: "Yeah, I guess so.  I was around when the event started, and it seemed interesting.  You're here for a date too I assume?"
+    +:sad(Randy)
+    Randy: "Yeah.  To be honest, I'm kinda desperate.  I'm not a very <italic>charismatic</> person."
+    Saiki: "No offense, but I can clearly see that.  You've probably never been on a date before, have you?"
+    +:jump(Randy)
+    Randy: "Nope! <scale=0.8 cascade-letters color=LIGHTGREY>Ha ha ha ha ha.</>"
+    +:confident(Saiki)
+    Saiki: "Well, I'm pretty good at it.  You want some help?"
+    +:la(Randy, Saiki)
+    Randy: "What?  Help? You can help me?"
+    Saiki: "Sure.  I can give you some advice.  I'm pretty good at reading people."
+    +:ld(Saiki, up)
+    +none()
+    Saiki: "For starters, since you lack confidence, I'd stay away from <color=YELLOW>blond ponytail</> over there."
+    +:ld(Stefani, leftdown)
+    +:w(100)
+    +:ld(Stefani, leftdown)
+    +:w(100)
+    Randy: "Yeah?  Why?"
+    Saiki: "Trust me.  Not your type."
+    +:ld(Saiki, leftup)
+    Saiki: "I think maybe somebody nicer and less intimidating.  Maybe that red head over there."
+    +:la(Saiki, Ada)
+    Saiki: "But definitely avoid this one behind me."
+    +:exclaim(Ada)
+    Ada: "What?  Me?"
+    Saiki: "I don't want things to get violent."
+    +:angry(Ada)
+    Ada: "What exactly is that supposed to mean?"
+    +:leach(Ada, Randy)
+    +:shakeZ(Randy)
+    Randy: "Whoah, you're right.  She does look scary."
+    +:leach(Saiki, Randy)
+    Saiki: "Anyway, for you, maybe somebody <color=PINK>who isn't too quiet</> would be optimal."
+    Saiki: "I can tell you don't like to carry the conversation."
+    +:la(Randy, Saiki)
+    Randy: "Um, okay. Thanks."
+    Randy: "I can scout around for you too as well if you want."
+    +:ld(Saiki, leftup)
+    Saiki: "Don't bother.  I can do it myself."
+    +:la(Saiki, Randy)
+    +none()
+    +panCameraBackToPlayer()
+    +:ld(Ada, right)
+    Ada: "Insufferable fool."
+    +?func(inParty, Skye):{
+      +:la(Skye, Ada)
+      Skye: "I mean you do have a scary face.  No need to take it personally."
+    }
+  }
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 3):{
+    +:leach(Saiki, Randy)
+    Randy: "Do you think I'll get paired up with somebody I'm compatible with?"
+    Saiki: "I can't say for sure.  But I can tell you that you should look for somebody <color=PINK>who isn't too quiet</>."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+//----------------------------------------------------------------------------------------
+
+@patternMatchmaking_SaikiAndAnders
+  +setConversationGroup(Saiki, Anders)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki)
+  +:patternMatchmaking_pairingCount(Saiki, Anders)
+  +?eq(tmp.pairingCount, 1):{
+    +:la(Saiki, Ada)
+    Saiki: "I get the feeling my partner would have been very interesting to talk to, but they aren't here."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:la(Saiki, Ada)
+    Saiki: "I'll have to find this <color=LIGHTBLUE>Anders</> after the event.  The suspense is killing me."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndMordred
+  +setConversationGroup(Saiki, Mordred)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Mordred)
+  +:patternMatchmaking_pairingCount(Saiki, Mordred)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Mordred)
+    +:surprised(Saiki)
+    Saiki: "Whoah!"
+    +:question(Mordred)
+    Mordred: "What is it?  Are you ill?"
+    Saiki: "No. No.  You surprised me is all.  I don't think I've met someone quite like you before."
+    Mordred: "Is that so?  Have you never met a <italic>paladin</>?"
+    Saiki: "I've never met a paladin before. <italic color=LIGHTGREY>(Or at least one who truly thinks they are so thoroughly, anyway.)"
+    Mordred: "What was that last think you said?"
+    Saiki: "<color=LIGHTGREY>Nothing, nevermind.</>  Gone on any good quests lately <italic>Mr. Paladin</>?"
+    Mordred: "Indeed I have!  I am on one now, looking for a thief who stole some tickets!"
+    Saiki: "Well I can tell you it wasn't anybody here."
+    Mordred: "How can you be so sure?"
+    Saiki: "Because I just know.  I'm good at reading people."
+    Mordred: "Are you perhaps a <italic>sorcerer</>?"
+    +:bored(Saiki)
+    Saiki: "Sure.  Let's go with that.  You won't burn me at the stake will you?"
+    Mordred: "Certainly not.  Sorcery is a gift to be coddled and respected, as it provides such a boon to the kingdom!"
+    Mordred: "I thank you for your assistance, kind sorcerer, but I have learned in my line of work to verify for myself."
+    Mordred: "I shall have to continue my search."
+    Saiki: "In that case you should probably find the <color=LIGHTBLUE>guy who's not supposed to be here</>."
+    +:leach(Saiki, Mordred)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    Saiki: "Still here <italic>Mr. Paladin</>?  How goes your quest?"
+    Mordred: "I have not found the thief yet.  I am still searching."
+    Mordred: "I find it difficult when the pairings are so... <italic>repetitive</>."
+    Saiki: "That tracks, I suppose.  Too bad, I was hoping you got a chance to talk to <color=PINK>Blonde Ponytail</> over there."
+    Saiki: "I can see you've been eyeing her."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndMateo
+  +setConversationGroup(Saiki, Mateo)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Mateo)
+  +:patternMatchmaking_pairingCount(Saiki, Mateo)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Mateo)
+    Saiki: "Hi there.  You seem like a pretty complex young fellow."
+    Mateo: "Oh, uh, thanks."
+    Saiki: "I didn't say that was a good thing."
+    +:sad(Mateo)
+    Mateo: "Oh.  <cascade-letters>Wait.  What?"
+    Saiki: "Nah I'm just messing with you.  I'm <color=LIGHTPURPLE>Saiki</>.  Nice to meet you."
+    +:teardrop(Mateo)
+    Mateo: "Nice to meet you too..."
+    Mateo: "Sorry, I wasn't expecting such a candid joke.  Everyone is so serious at these things."
+    Saiki: "I know right?  It's like they're all trying to be something they're not."
+    Saiki: "But I can tell pretty much right away what people are really like."
+    Mateo: "Oh yeah?  What about me?"
+    Saiki: "I already told you, didn't I?"
+    Saiki: "A complex fellow like you would probably do well with a partner who is a little more... <color=PINK>data-driven</>."
+    Mateo: "What?  Why?"
+    Saiki: "Just trust me."
+    +:la(Saiki, Ada)
+    Saiki: "But this girl listening in on our conversation... she's a <italic>certainly</> not your style."
+    Saiki: "She's a real piece of work."
+    +:angry(Ada)
+    Ada: "Stop saying that!  I am not!"
+    +:la(Saiki, Mateo)
+    +:shrug(Saiki)
+    Saiki: "See what I mean?"
+    +:surprised(Mateo)
+    Mateo: "Oh yeah.  I see it for sure."
+    +:ld(Ada, rightdown)
+    Ada: "<cascade-letters>Imbeciles..."
+    +:shakeZ(Saiki)
+    Saiki: "And she'll probably try to get the last word in too."
+    Ada: "<cascade-letters>......"
+    +:leach(Saiki, Mateo)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Saiki, Mateo)
+    Saiki: "Have you found a suitable date yet?"
+    Mateo: "No.  I'm not really sure what I'm looking for."
+    Saiki: "I told you already.  You need somebody who is <color=PINK>data-driven</>."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndJack
+  +setConversationGroup(Saiki, Jack)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Jack)
+  +:patternMatchmaking_pairingCount(Saiki, Jack)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Jack)
+    Saiki: "Hmm... I only need to see your face to tell that you've not been having a great time."
+    Jack: "Of course not.  I hate stuff like this."
+    Saiki: "Yeah, there's not anybody here who's worth talking to anyway."
+    Jack: "Don't patronize me.  I'm not that simple-minded."
+    Saiki: "Nah, I'm serious.  There's not a single person in this group that is compatible with you in any way."
+    Jack: "You don't know that."
+    Saiki: "I do.  I'm good at reading people."
+    +:grumpy(Jack)
+    Jack: "That's supposed to make me feel good?"
+    Saiki: "Nah, I'm just saying.  But you can hang out with me if you want.  I'm sure I can find somebody in your realm."
+    Jack: "Sure, whatever."
+    +:leach(Saiki, Jack)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Saiki, Jack)
+    Saiki: "You doing alright over there?"
+    Jack: "I'm fine.  Just waiting for this to be over."
+    Saiki: "I don't mind you hanging out with me.  I'm sure I can find somebody in your realm."
+    Saiki: "If not, the company is pleasant enough."
+    Jack: "Yeah, I guess so."
+    Jack: "At least you're not as annoying as the rest of these people."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndScott
+  +setConversationGroup(Saiki, Scott)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Scott)
+  +:patternMatchmaking_pairingCount(Saiki, Scott)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Scott)
+    Saiki: "You look kinda uncomfortable.  Are you okay?"
+    +:shakeZ(Scott)
+    Scott: "Yeah.  Look.  I keep telling everybody this but I'm not actually here for the dating event."
+    Saiki: "You're here for a friend?"
+    +:shakeZ(Scott)
+    Scott: "Yeah!  Have you heard already?"
+    +:ld(Saiki, down)
+    Saiki: "In a manner of speaking... yes."
+    +:la(Saiki, Scott)
+    Saiki: "Did you consider that maybe your friend manipulated you into coming here?"
+    Scott: "Nah.  They wouldn't do that.  I trust them."
+    Saiki: "Trust is a dangerous thing.  Better to know."
+    Scott: "Yeah yeah.  I know.  I'm not stupid.  I just don't think they'd do that."
+    +:shrug(Saiki)
+    Saiki: "Suit yourself.  But, hypothetically if you were to engage with this event, you should look for somebody <color=PINK>who lacks tickets</>."
+    Scott: "What?  Why?"
+    Saiki: "Just a vibe.  But I'm confident in my abilities."
+    +:leach(Saiki, Scott)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Saiki, Scott)
+    Scott: "I'm starting to think you were right about my friend.  I don't think he's coming back."
+    Saiki: "I hate to say it, but I told you so."
+    Saiki: "Might as well take my other advice too: look for somebody <color=PINK>who lacks tickets</>."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndLars
+  +setConversationGroup(Saiki, Lars)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Lars)
+  +:patternMatchmaking_pairingCount(Saiki, Lars)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Lars)
+    +:happy(Saiki)
+    Saiki: "Hey there.  Wanna know something interesting?"
+    Lars: "Certainly!"
+    Saiki: "I cannot read your mind.  Isn't that crazy?"
+    Lars: "<cascade-letters>Hahaha.</>  It is a thing of my family most likely.  We are all very strong willed."
+    Saiki: "It is a little unnerving, honestly."
+    Lars: "Are you so forward with your magic tricks with everyone?"
+    Saiki: "Yes, I usually make it known that I'm good at reading people.  Except for you apparantly."
+    Lars: "Oh.  Well I am very flattered, but I am also not seeking a magician for a date."
+    +:sad(Saiki)
+    Saiki: "That's too bad, you might be fun to hang around."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Saiki, Lars)
+    Lars: "Still trying to guess my thoughts?"
+    Saiki: "Nah, I've given up by now."
+  }
+  +:patternMatchmaking_Table4_EndConvo()
+
+@patternMatchmaking_SaikiAndBobby
+  +setConversationGroup(Saiki, Bobby)
+  +:patternMatchmaking_Table4_SetupConv()
+  +panCameraToFitCharacters(1000, false, Saiki, Bobby)
+  +:patternMatchmaking_pairingCount(Saiki, Bobby)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Saiki, Bobby)
+    Saiki: "Hmmm?  Is that ramen I smell?"
+    Bobby: "Yeah!  Want some?"
+    Saiki: "Thanks for the offer, but I'm not hungry.  Not yet anyway."
+    Bobby: "Oh.  Okay.  That's too bad."
+    Saiki: "You know, I think I know somebody who does like ramen."
+    +:ld(Saiki, up)
+    Saiki: "That <color=PINK>girl that was sitting alone</> before.  I bet she'd like some."
+    +:question(Bobby)
+    Bobby: "Really?  How do you know?"
+    Saiki: "You're telling me you don't notice she is basically screaming for ramen?"
+    Bobby: "I guess I didn't notice, no."
+    +:happy(Saiki)
+    Saiki: "Trust me.  She'll love it."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Saiki, Lars)
+    Saiki: "That ramen looks like it's getting cold"
+    Bobby: "I know!  I want to share it with somebody soon, but I don't know who."
+    Saiki: "Like I said, look for that <color=PINK>girl that was sitting alone</> before."
+  }
+  +:patternMatchmaking_Table4_EndConvo()

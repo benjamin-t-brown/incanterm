@@ -1,0 +1,107 @@
+{
+  "name": "rpgscript-vs",
+  "displayName": "rpgscript-vs",
+  "description": "Support for RPGScript",
+  "version": "0.0.1",
+  "engines": {
+    "npm": ">=11.10.0",
+    "vscode": "^1.64.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:rpgscript",
+    "onLanguage:plaintext"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "properties": {
+        "rpgscript.scriptsRoot": {
+          "type": "string",
+          "default": "${workspaceFolder}/src",
+          "description": "Path to root directory of rpgscript files in workspace."
+        },
+        "rpgscript.sceneCommandsPath": {
+          "type": "string",
+          "default": "${workspaceFolder}/src/scene-commands.ts",
+          "description": "Path to scene-commands module (.ts or .js). If the file is missing, the server tries the sibling .js / .ts."
+        },
+        "rpgscript.debug": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether debug mode is enabled."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "rpgscript",
+        "aliases": [
+          "RPGScript",
+          "rpgscript"
+        ],
+        "extensions": [
+          ".rpgscript"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./vs-icon.png",
+          "dark": "./vs-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rpgscript",
+        "scopeName": "source.rpgscript",
+        "path": "./syntaxes/rpgscript.tmLanguage"
+      }
+    ]
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "The extension requires workspace trust because it loads configuration files and code from the workspace and executes it."
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run package",
+    "build": "yarn build:client && yarn build:server",
+    "build:client": "webpack",
+    "build:server": "cd src/server && tsc -p ./tsconfig.json && node ../../scripts/cp_server_files.js",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map"
+  },
+  "devDependencies": {
+    "@types/babel__core": "7.20.5",
+    "@types/babel__traverse": "7.28.0",
+    "@types/glob": "^7.1.4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "14.x",
+    "@types/vscode": "^1.62.0",
+    "@typescript-eslint/eslint-plugin": "^3.1.0",
+    "@typescript-eslint/parser": "^3.1.0",
+    "@vscode/test-electron": "^1.6.2",
+    "eslint": "^6.6.0",
+    "eslint-config-prettier": "^6.4.0",
+    "eslint-plugin-babel": "^5.3.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "glob": "^7.1.7",
+    "mocha": "^9.1.3",
+    "prettier": "^2.2.1",
+    "string_decoder": "^1.3.0",
+    "ts-loader": "^9.2.5",
+    "typescript": "~5.8.3",
+    "webpack": "^5.52.1",
+    "webpack-cli": "^4.8.0"
+  },
+  "dependencies": {
+    "fs-extra": "^11.1.0",
+    "vscode-languageclient": "^7.0.0",
+    "vscode-languageserver": "^7.0.0",
+    "vscode-languageserver-textdocument": "^1.0.4"
+  }
+}

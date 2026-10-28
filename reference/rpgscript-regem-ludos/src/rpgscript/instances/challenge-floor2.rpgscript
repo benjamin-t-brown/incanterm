@@ -1,0 +1,756 @@
+#transitionFromFloor2InstanceVr1ToSouth
+  step,this
+@this
+  +:utils-change-room(floor2InstVrSouth, MarkerFromVr1)
+
+#transitionFromFloor2InstanceVr1ToNorth
+  step,this
+@this
+  +:utils-change-room(floor2InstVrNorth, MarkerFromVr1)
+
+#transitionFromFloor2VrInstance1North2ToNorth
+  step,this
+@this
+  +:utils-change-room(floor2InstVrNorth, MarkerFromNorth2)
+
+#transitionFromFloor2VrInstance1NorthToNorth2
+  step,this
+@this
+  +:utils-change-room(floor2InstVrNorth2, MarkerFromNorth)
+
+#transitionFromFloor2InstanceSouthToVr1
+  step,this
+@this
+  +:utils-change-room(floor2InstVr1, MarkerFromSouth)
+
+#transitionFromFloor2InstanceNorthToVr1
+  step,?all(once('5eca5bb5'),func(carryingProp, PropDisk)):transitionFromFloor2InstanceNorthToVr1Prop
+  step,this
+@this
+  +:utils-change-room(floor2InstVr1, MarkerFromNorth)
+@transitionFromFloor2InstanceNorthToVr1Prop
+  +setConversation(Ada)
+  Ada: "I think this disk needs to be taken north."
+  +none()
+  +walkToOffset(Ada, 0, -16)
+  +endConversation()
+
+#transitionFromFloor2InstEntranceToVr1
+  step-first,this
+  action,transitionFromFloor2InstEntranceToVr1-action
+@this
+  +callScript('utils-vr-step')
+@transitionFromFloor2InstEntranceToVr1-action
+  +setUnskippable(true)
+  +dropHeldProps()
+  +setConversation(Ada)
+  +:utils-transition-to-vr-fade-out()
+  +setConversationWithoutBars(Ada)
+  +waitMS(100)
+  +:utils-transition-to-vr-fade-in(floor2InstVr1, MarkerVRLanding, true)
+  +endConversation()
+
+#transitionFromFloor2ToVr1ToInstEntrance
+  step-first,this
+  action,transitionFromFloor2ToVr1ToInstEntrance-action
+@this
+  +callScript('utils-vr-step')
+@transitionFromFloor2ToVr1ToInstEntrance-action
+  +setUnskippable(true)
+  +dropHeldProps()
+  +setConversation(Ada)
+  +:utils-transition-to-vr-fade-out()
+  +modifyPartyRESV(99999)
+  +modifyPartyHP(99999)
+  +setConversationWithoutBars(Ada)
+  +waitMS(100)
+  +:utils-transition-to-vr-fade-in(floor2ChallengeEntrance, MarkerVRLanding, true)
+  +endConversation()
+
+#Floor2InstVr1Sign
+  action,this
+@this
+  +setConversation(ada)
+  +:ld(Ada, up)
+  +walkPartyToFormation()
+  Narrator: "Welcome to <color=LIGHTPURPLE>Regem Ludos Instance 1</>!  Your task is to defeat both bosses in this area."
+  Narrator: "One is to the north, and one is to the south."
+  Narrator: "Once you have defeated both of them and collected their <color=LIGHTBLUE>idols</>, please return to the dispenser here and deposit them for your reward."
+  +endConversation()
+
+#floor2InstVR1_NPC1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2InstVR1_NPC1)
+  floor2InstVR1_NPC1: "Before this day, I kinda liked most woodland critters."
+  floor2InstVR1_NPC1: "But now I've decided that I <shake>HATE</> them."
+  floor2InstVR1_NPC1: "Bears in particular."
+  +endConversation()
+
+#floor2InstVR1_NPC2
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2InstVR1_NPC2)
+  floor2InstVR1_NPC2: "The boss in the north is giving our party a lot of problems."
+  floor2InstVR1_NPC2: "None of us has a weapon with a PIERCE attack that can get rid of its armor!"
+  floor2InstVR1_NPC2: "They all went back into the arcade to see if they could buy something."
+  +endConversation()
+
+#floor2InstVR1_NPC3
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2InstVR1_NPC3)
+  floor2InstVR1_NPC3: "I have no idea how they make the mud in here actually feel so gross to walk through."
+  +endConversation()
+
+#floor2InstVR1_NPC4
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, floor2InstVR1_NPC4)
+  floor2InstVR1_NPC4: "I've got a little advice for ya."
+  floor2InstVR1_NPC4: "Make sure you're stocked up on items before heading on into the areas."
+  floor2InstVR1_NPC4: "Items can be quite helpful when you're in a bind."
+  +endConversation()
+
+#Floor2InstVr1SignNorth
+  action,this
+@this
+  +setConversation(ada)
+  +:ld(Ada, up)
+  +walkPartyToFormation()
+  Narrator: "The <color=LIGHTPURPLE>Pillars of Power</> to the north can be charged by transporting a <color=LIGHTBLUE>Disk of Power</> to its rightful resting spot."
+  +endConversation()
+
+@Floor2Inst1DiskBroke
+  +?once('aee20ef6'):{
+    +setStorage(vars.Floor2Inst1DiskBrokeCtr, 0)
+  }
+  +?eq(vars.Floor2Inst1DiskBrokeCtr, 0):{
+    +log("This is in the script")
+  }
+  +?func(carryingProp, PropDisk):{
+    +changePropAnim(PropDisk, invisible)
+    +setConversation(ada)
+    +?eq(vars.Floor2Inst1DiskBrokeCtr, 2):{
+      +:ld(Ada, down)
+      Ada: "The disk is gone again..."
+    }
+    +?eq(vars.Floor2Inst1DiskBrokeCtr, 1):{
+      +:ld(Ada, down)
+      +:exclaim(Ada)
+      Ada: "The disk vanished again!"
+      +setStorage(vars.Floor2Inst1DiskBrokeCtr, 2)
+    }
+    +?eq(vars.Floor2Inst1DiskBrokeCtr, 0):{
+      +:ld(Ada, down)
+      +:exclaim(Ada)
+      Ada: "The disk vanished after we got attacked!"
+      +?func(inParty, Skye):{
+        +:la(Skye, Ada)
+        Skye: "The terminal said it was fragile."
+      }
+      +?func(inParty, Anjana):{
+        +:la(Anjana, Ada)
+        Anjana: "So what? We have to go get another one now?"
+        Anjana: "What a stupid mechanic..."
+      }
+      +setStorage(vars.Floor2Inst1DiskBrokeCtr, 1)
+    }
+
+  // Stupid quirk of rpgscript: This conditional gets HOISTED so it cannot happen first.
+  // If you put it first, the func(carryingProp, PropDisk) condition resolves to false
+  // for each subsequent check and this block essentially "breaks"
+    +removeProp(PropDisk)
+  }
+  +endConversation()
+
+#Floor2InstVr1NorthDiskDispenser
+  action,this
+@this
+  +setUnskippable(true)
+  +setConversation(ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +panCameraRelativeToPlayer(0, 0, 1)
+  +:bumpX(Ada, -1)
+  +playSound(terminal_beep)
+  +:w(100)
+  +playSound(monitor_talk)
+  +:w(500)
+  Narrator: "This terminal can create a <color=LIGHTBLUE>Disk of Power</>.  Would you like to create one? <color=LIGHTGREY>(Limit one per party.)</>"
+  +awaitChoice('Yes.', 'No.')
+  +?eq(lastChoiceIndex, 0):{
+    +none()
+    +?func(roomHasProp, PropDisk):{
+      +removeProp(PropDisk)
+    }
+    +createPropAtMarker(PropDisk, MarkerDiskSpawn, props_small_131, 16, 8, 8)
+    +playSound(spawn_enemy)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerDiskSpawn, 'normal', 8, 8)
+    +?once('341bfcf5'):{
+      +:w(1500)
+      Narrator: "Take care.  The disk is fragile."
+    }
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +none()
+  }
+  +panCameraBackToPlayer(1)
+  +endConversation()
+
+@Floor2InstVr1_DiskDeposit_hint
+  +setConversation(Ada)
+  Ada: "It looks like some sort of disk can be placed here."
+  +endConversation()
+
+@Floor2InstVr1_DiskDeposit_placed
+  +setConversation(Ada)
+  Ada: "I already placed a disk here."
+  +endConversation()
+
+// [ARG0] itemName
+// [ARG1] storageName
+// [ARG2] markerNameToSpawn
+// [ARG3] markerNameOfPlacedDisk
+// [ARG4] camX
+// [ARG5] camY
+// [ARG6] SKIP PAN
+@Floor2InstVr1_SpawnItemFromDisk
+  +setStorage([ARG1])
+  +setConversation(Ada)
+  +walkToMarker(Ada, [ARG3], 0, -16)
+  +:ld(Ada, leftdown)
+  +walkPartyToFormation()
+  +dropHeldProps([ARG3])
+  +changeTileAtMarker([ARG3], DISK_INSERTED)
+  +playSound(robot_clank)
+  +:w(200)
+  +playSound(vr_portal_buzz)
+  +:w(500)
+  +panCameraRelativeToPlayer([ARG4], [ARG5])
+  +:w(100)
+  +playSound(robot_clank4)
+  +lookAtMarker(party, [ARG2])
+  +:w(100)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, [ARG2], 'normal', 0, 0)
+  +createPropAtMarker([ARG0], [ARG2], '')
+  +:w(500)
+  Ada: "It worked!"
+  +?isnot([ARG6]):{
+    +panCameraBackToPlayer(500)
+    +endConversation()
+  }
+
+#Floor2InstVr1_DiskDeposit1
+  action,?all(once('472aa5a2'),func(carryingProp, PropDisk)):this
+  action,?isnot(vars.Floor2InstVr1_diskDeposited1):Floor2InstVr1_DiskDeposit_hint
+  action,Floor2InstVr1_DiskDeposit_placed
+  load,Floor2InstVr1_DiskDeposit1_load
+@this
+  +:Floor2InstVr1_SpawnItemFromDisk(ItemTicketCache25, vars.Floor2InstVr1_diskDeposited1, MarkerDiskDeposit1, MarkerDiskPlacement1, 25, -25)
+@Floor2InstVr1_DiskDeposit1_load
+  +?is(vars.Floor2InstVr1_diskDeposited1):{
+    +changeTileAtMarker(MarkerDiskPlacement1, DISK_INSERTED)
+  }
+  +createPropAtMarker(PropDisk, MarkerTest1, props_small_131, 16, 8, 8)
+
+#Floor2InstVr1_DiskDeposit2
+  action,?all(once('9af8281e'),func(carryingProp, PropDisk)):this
+  action,?isnot(vars.Floor2InstVr1_diskDeposited2):Floor2InstVr1_DiskDeposit_hint
+  action,Floor2InstVr1_DiskDeposit_placed
+  load,Floor2InstVr1_DiskDeposit2_load
+@this
+  +:Floor2InstVr1_SpawnItemFromDisk(ItemRegDoubleHammer, vars.Floor2InstVr1_diskDeposited2, MarkerDiskDeposit2, MarkerDiskPlacement2, -50, 50)
+@Floor2InstVr1_DiskDeposit2_load
+  +?is(vars.Floor2InstVr1_diskDeposited2):{
+    +changeTileAtMarker(MarkerDiskPlacement2, DISK_INSERTED)
+  }
+
+#Floor2InstVr1_DiskDeposit3
+  action,?all(once('47939c9d'),func(carryingProp, PropDisk)):this
+  action,?isnot(vars.Floor2InstVr1_diskDeposited3):Floor2InstVr1_DiskDeposit_hint
+  action,Floor2InstVr1_DiskDeposit_placed
+  load,Floor2InstVr1_DiskDeposit3_load
+@this
+  +:Floor2InstVr1_SpawnItemFromDisk(ItemCapOfDiligence, vars.Floor2InstVr1_diskDeposited3, MarkerDiskDeposit3, MarkerDiskPlacement3, 50, 30)
+@Floor2InstVr1_DiskDeposit3_load
+  +?is(vars.Floor2InstVr1_diskDeposited3):{
+    +changeTileAtMarker(MarkerDiskPlacement3, DISK_INSERTED)
+  }
+
+#Floor2InstVr1_DiskDeposit4
+  action,?all(once('7aa8dff8'),func(carryingProp, PropDisk)):this
+  action,?isnot(vars.Floor2InstVr1_diskDeposited4):Floor2InstVr1_DiskDeposit_hint
+  action,Floor2InstVr1_DiskDeposit_placed
+  load,Floor2InstVr1_DiskDeposit3_load
+@this
+  +:Floor2InstVr1_SpawnItemFromDisk(ItemUrsaIdol, vars.Floor2InstVr1_diskDeposited4, MarkerDiskDeposit4, MarkerDiskPlacement4, 0, 50, true)
+  +?once('ca6ccab3'):{
+    +:Floor2InstVr1_North2Boss()
+  }
+@Floor2InstVr1_DiskDeposit4_load
+  +?is(vars.Floor2InstVr1_diskDeposited4):{
+    +changeTileAtMarker(MarkerDiskPlacement4, DISK_INSERTED)
+  }
+
+@Floor2InstVr1_North2Boss
+// +setConversation(Ada);
+  Ada: "Is that the item we are supposed to retrieve?"
+  +?func(inParty, Anjana):{
+    Anjana: "This seems... too simple."
+  }
+  +?func(inParty, Skye):{
+    +:la(Skye, Ada)
+    Skye: "Aww we don't need to fight anything else?"
+  }
+  +none()
+  +panCameraRelativeToCurrentPosition(-20, -20)
+  +:w(1000)
+  +playSound(deep_siren)
+  +:w(500)
+  +playSound(deep_siren)
+  +:w(750)
+  +playSound(deep_roar)
+  +:w(100)
+  +lookAtMarker(Party, MarkerBossSpawn)
+  +:jump(Party, true)
+  +:w(1000)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 0, 0)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 7, 0)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 13, 11)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 6, 17)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 11, 3)
+  +waitMS(300)
+  +playMusic(music_pre_tense_battle)
+  +playSound(robot_staggered_damaged)
+  +spawnCharacterAtMarker(Floor2InstanceVRBossNorth, MarkerBossSpawn)
+  +none()
+  +:w(1000)
+  +?func(inParty, Skye):{
+    +:confident(Skye)
+    Skye: "Now <italic>that's</> more like it."
+  }
+// +stopMusic(500, true);
+  +endConversation(500, true)
+  +despawnCharacter(Floor2InstanceVRBossNorth)
+  +enterCombat(INSTANCE1_BOSS1)
+
+@Floor2InstVr1_North2BossWin
+  +setConversation(Ada)
+  +:w(500)
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    +:exhale(Anjana)
+    Anjana: "Battles like that always make me weary."
+  }
+  +:ld(Party, down)
+  +setStorage(vars.Floor2InstVr1_NorthBossDefeated, true)
+  +?is(vars.Floor2InstVr1_SouthBossDefeated):{
+    +completeQuestStep(FLOOR2_INSTANCE1, 0)
+  }
+  Ada: "Look!"
+  +none()
+  +panCameraRelativeToPlayer(0, 75)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerTerminal, normal)
+  +changeTileAtMarker(MarkerTerminal, TERMINAL_TUT_RIGHT_DOWN)
+  +playSound(spawn_enemy)
+  +:w(100)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerTerminal3, normal)
+  +changeTileAtMarker(MarkerTerminal3, FLOOR_TUT_MOVE_PLATFORM)
+  +playSound(spawn_enemy)
+  +:w(100)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerTerminal4, normal)
+  +changeTileAtMarker(MarkerTerminal4, FLOOR_TUT_MOVE_PLATFORM)
+  +playSound(spawn_enemy)
+  +:w(100)
+  Ada: "What is that?"
+  +panCameraBackToPlayer()
+  +endConversation()
+
+#Floor2InstVr1_TeleportBackFromNorth
+// action,?all(func(carryingProp, PropDisk), is(vars.Floor2InstVr1_NorthBossDefeated)):Floor2InstVr1_TeleportBackFromNorth3
+  action,?is(vars.Floor2InstVr1_NorthBossDefeated):Floor2InstVr1_TeleportBackFromNorth2
+  action,Floor2InstVr1_TeleportBackFromNorth1
+@Floor2InstVr1_TeleportBackFromNorth1
+  +setConversation(Ada)
+  Ada: "This is a rather strange-looking structure."
+  +?all(func(inParty, Anjana), once('d94c72d0')):{
+    +:bored(Anjana)
+    Anjana: "If you hadn't noticed, most places in a <color=LIGHTBLUE>Revirtualis</> are strange."
+  }
+  +endConversation()
+@Floor2InstVr1_TeleportBackFromNorth2
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +:lockCamera()
+  +:bumpX(Ada, -1)
+  +playSound(terminal_beep)
+  +:unlockCamera()
+  +:w(500)
+  +playSound(phone_beep)
+  +:w(500)
+  +?once('7985fc6b'):{
+    Narrator: "Congratulations on beating the boss of this area."
+  }
+  Narrator: "If you would like, you may use this terminal to teleport back to the starting room."
+  +awaitChoice('Yes, teleport back.', 'No, stay here.')
+  +?eq(lastChoiceIndex, 0):{
+    Narrator: "Teleportation commencing."
+    +none()
+    +:w(500)
+    +playSound(spawn_enemy)
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, normal)
+    +fadeOut(500)
+    +playSound('change_room')
+    +waitMS(400)
+    +changeRoom(floor2InstVr1, MarkerFromNorth)
+    +walkPartyToFormation()
+    +:ld(Ada, leftdown)
+    +fadeIn(250, true)
+    +:w(100)
+    +playSound('vr_portal_landed')
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, Party, 'normal')
+    +:w(150)
+  }
+  +?eq(lastChoiceIndex, 1):{
+    Narrator: "You may continue to explore at your leisure."
+  }
+  +endConversation()
+// Don't think this restriction is necessary anymore
+// @Floor2InstVr1_TeleportBackFromNorth3
+// +setConversation(Ada);
+// +:ld(Ada, leftup);
+// +:lockCamera();
+// +:bumpX(Ada, -1);
+// +playSound(terminal_beep);
+// +:unlockCamera();
+// +:w(500);
+// +playSound(terminal_cancel);
+// +:w(500);
+// Narrator: "Please drop the item you are carrying before interacting with this terminal."
+// +endConversation();
+
+#Floor2InstVr1_North_SpawnBossItem
+  load,this
+@this
+  +?all(is(vars.Floor2InstVr1_NorthBossDefeated),isnot(with(UrsaIdol))):{
+    +createPropAtMarker(ItemUrsaIdol, MarkerDiskDeposit4, '')
+  }
+
+#Floor2InstVr1_South_Sign
+  action,this
+@this
+  +setConversation(ada)
+  +:ld(Ada, up)
+  +walkPartyToFormation()
+  Narrator: "<color=LIGHTGREY>The sign says: </>Seek the pillars.\n\n<scale=0.75/>Please watch your step on the force platforms."
+  +endConversation()
+
+// ARG0 = The name of the marker to spawn a bridge at
+// ARG1 = The name of the marker where the button is
+@Floor2InstVr1_South_ClickButtonAndSpawnBridge
+  +changeTileAtMarker([ARG1], DUNGEON_BLUE_BUTTON_SPAWN)
+  +playSound('click')
+  +:w(40)
+  +playSound('click')
+  +:w(40)
+  +playSound('click')
+  +:w(500)
+  +panCameraToFitCharacters(1000, false, Invisible)
+  +:w(500)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, [ARG0], normal)
+  +changeTileAtMarker([ARG0], DUNGEON_BRIDGE_SPAWN_NORTH_SOUTH)
+  +playSound(spawn_enemy)
+  +:w(1000)
+  +panCameraBackToPlayer()
+
+#Floor2InstVr1_SouthButton1
+  action,?is(vars.Floor2InstVr1_SouthButton1Pressed):Floor2InstVr1_SouthButton1_AlreadyPressed
+  step-first,?isnot(vars.Floor2InstVr1_SouthButton1Pressed):this
+  load,Floor2InstVr1_SouthButton1_Load
+@this
+  +setStorage(vars.Floor2InstVr1_SouthButton1Pressed)
+  +setConversation(Ada, 50)
+  +:Floor2InstVr1_South_ClickButtonAndSpawnBridge(MarkerBridge1, MarkerButton1)
+  +endConversation()
+@Floor2InstVr1_SouthButton1_AlreadyPressed
+  +setConversation(Ada)
+  Ada: "This button is already pressed."
+  +endConversation()
+@Floor2InstVr1_SouthButton1_Load
+  +?isnot(vars.Floor2InstVr1_SouthButton1Pressed):{
+    +changeTileAtMarker(MarkerBridge1, INVISIBLE_WALL)
+  }
+  +?is(vars.Floor2InstVr1_SouthButton1Pressed):{
+    +changeTileAtMarker(MarkerButton1, DUNGEON_BLUE_BUTTON_SPAWN)
+  }
+
+#Floor2InstVr1_SouthButton2
+  action,?is(vars.Floor2InstVr1_SouthButton2Pressed):Floor2InstVr1_SouthButton2_AlreadyPressed
+  step-first,?isnot(vars.Floor2InstVr1_SouthButton2Pressed):this
+  load,Floor2InstVr1_SouthButton2_Load
+@this
+  +setStorage(vars.Floor2InstVr1_SouthButton2Pressed)
+  +setConversation(Ada, 50)
+  +:Floor2InstVr1_South_ClickButtonAndSpawnBridge(MarkerBridge2, MarkerButton2)
+  +endConversation()
+@Floor2InstVr1_SouthButton2_AlreadyPressed
+  +setConversation(Ada)
+  Ada: "This button is already pressed."
+  +endConversation()
+@Floor2InstVr1_SouthButton2_Load
+  +?isnot(vars.Floor2InstVr1_SouthButton2Pressed):{
+    +changeTileAtMarker(MarkerBridge2, INVISIBLE_WALL)
+  }
+  +?is(vars.Floor2InstVr1_SouthButton2Pressed):{
+    +changeTileAtMarker(MarkerButton2, DUNGEON_BLUE_BUTTON_SPAWN)
+  }
+
+#Floor2InstVr1_SouthButton3
+  action,?is(vars.Floor2InstVr1_SouthButton3Pressed):Floor2InstVr1_SouthButton3_AlreadyPressed
+  step-first,?isnot(vars.Floor2InstVr1_SouthButton3Pressed):this
+  load,Floor2InstVr1_SouthButton3_Load
+@this
+  +setStorage(vars.Floor2InstVr1_SouthButton3Pressed)
+  +setConversation(Ada, 50)
+  +:Floor2InstVr1_South_ClickButtonAndSpawnBridge(MarkerBridge3, MarkerButton3)
+  +endConversation()
+@Floor2InstVr1_SouthButton3_AlreadyPressed
+  +setConversation(Ada)
+  Ada: "This button is already pressed."
+  +endConversation()
+@Floor2InstVr1_SouthButton3_Load
+  +?isnot(vars.Floor2InstVr1_SouthButton3Pressed):{
+    +changeTileAtMarker(MarkerBridge3, INVISIBLE_WALL)
+  }
+  +?is(vars.Floor2InstVr1_SouthButton3Pressed):{
+    +changeTileAtMarker(MarkerButton3, DUNGEON_BLUE_BUTTON_SPAWN)
+  }
+
+#Floor2InstVr1_SouthBoss
+  step-first,?once('93d15fae'):this
+@this
+  +setConversation(Ada)
+  +panCameraRelativeToCurrentPosition(20, -20)
+  +:w(1000)
+  +playSound(deep_siren)
+  +:w(500)
+  +playSound(deep_siren)
+  +:w(750)
+  +playSound(projector_close)
+  +:w(100)
+  +lookAtMarker(Party, MarkerBossSpawn)
+  +:jump(Party, true)
+  +:w(1000)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 0, 0)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 7, 0)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 13, 11)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 6, 17)
+  +waitMS(100)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossSpawn, 'normal', 11, 3)
+  +waitMS(300)
+  +playMusic(music_pre_tense_battle)
+  +spawnCharacterAtMarker(Floor2InstanceVRBossSouth, MarkerBossSpawn)
+  +none()
+  +:w(1000)
+  +?func(inParty, Anjana):{
+    Anjana: "Seems like we need to fight."
+  }
+// +stopMusic(500, true);
+  +endConversation(500, true)
+  +despawnCharacter(Floor2InstanceVRBossSouth)
+  +enterCombat(INSTANCE1_BOSS2)
+
+@Floor2InstVr1_SouthBossWin
+  +setStorage(vars.Floor2InstVr1_SouthBossDefeated)
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerBossDefeated)
+  +walkPartyToFormation()
+  +:w(1000)
+  +playSound(vr_portal_buzz)
+  +:w(100)
+  +playSound(robot_clank4)
+  +lookAtMarker(party, MarkerBossItemSpawn)
+  +:w(100)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerBossItemSpawn, 'normal', 0, 0)
+  +createPropAtMarker(ItemCubIdol, MarkerBossItemSpawn, '')
+  +:w(1000)
+  +?func(inParty, Anjana):{
+    Anjana: "I suppose that's what we're here to retrieve."
+  }
+  +?is(vars.Floor2InstVr1_NorthBossDefeated):{
+    +completeQuestStep(FLOOR2_INSTANCE1, 0)
+  }
+  +?func(inParty, Anjana):{
+    +:leach(Skye, Ada)
+    +:happy(Skye)
+    Skye: "Looks like I get to tell everyone I wrestled a couple of bears today!"
+    // Ada: "Doesn't your brother play football?"
+    // +?func(inParty, Anjana):{
+    //   +:ld(Anjana, down)
+    //   +:smirk(Anjana)
+    //   Anjana: "There are a lot of bears there, for sure."
+    //   +:la(Anjana, Skye)
+    // }
+    // +:angry(Skye)
+    // Skye: "Pft.  I could pop a dude as hard as any of the dudes on that team."
+    // Skye: "We fought actual <italic>Bears</>."
+    // Skye: "He'll be mad for sure."
+  }
+  +endConversation()
+
+#Floor2InstVr1_South_SpawnBossItem
+  load,this
+@this
+  +?all(is(vars.Floor2InstVr1_SouthBossDefeated),isnot(with(CubIdol))):{
+    +createPropAtMarker(ItemCubIdol, MarkerBossItemSpawn, '')
+  }
+
+#Floor2InstVr1_DiskDepositSouth
+  action,?all(once('16da5079'),func(carryingProp, PropDisk)):this
+  action,?isnot(vars.Floor2InstVr1_diskDepositedSouth):Floor2InstVr1_DiskDeposit_hint
+  action,Floor2InstVr1_DiskDeposit_placed
+  load,Floor2InstVr1_DiskDepositSouth_load
+@this
+  +:Floor2InstVr1_SpawnItemFromDisk(ItemPowerCardigan, vars.Floor2InstVr1_diskDepositedSouth, MarkerDiskDepositSouth, MarkerDiskPlacementSouth, 25, -25)
+@Floor2InstVr1_DiskDepositSouth_load
+  +?is(vars.Floor2InstVr1_diskDepositedSouth):{
+    +changeTileAtMarker(MarkerDiskPlacementSouth, DISK_INSERTED)
+  }
+
+#Floor2InstVr1Dispenser
+  action,?all(with(CubIdol), with(UrsaIdol), once('11ba78ec')):Floor2InstVr1_CompletedChallenge
+  action,?all(with(CubIdol), with(UrsaIdol)):Floor2InstVr1_AlreadyCompletedChallenge
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, rightup)
+  Ada: "I do not have the required items to put in this dispenser yet."
+  +endConversation()
+@Floor2InstVr1_AlreadyCompletedChallenge
+  +setConversation(Ada)
+  +:ld(Ada, rightup)
+  Ada: "I have already used this dispenser to complete the challenge."
+  +endConversation()
+@Floor2InstVr1_CompletedChallenge
+  +setConversation(Ada)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  Ada: "I assume we are supposed to deposit the <color=LIGHTBLUE>Ursa Idol</> and the <color=LIGHTBLUE>Cub Idol</> into here?"
+  +none()
+  +:lockCamera()
+  +:bumpY(Ada, -1)
+  +playSound(knock)
+  +:w(50)
+  +removeItem(UrsaIdol)
+  +:none()
+  +:w(500)
+  +:bumpY(Ada, -1)
+  +playSound(knock)
+  +:w(50)
+  +removeItem(CubIdol)
+  +:none()
+  +:w(500)
+  +:w(1000)
+  +playSound(chime)
+  +:w(200)
+  +:unlockCamera()
+  +:ld(Party, right)
+  +panCameraRelativeToPlayer(10, 0)
+  +spawnCharacterAtMarker(GreenGuy, MarkerGreenGuy)
+  +:face(GreenGuy, left)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerGreenGuy, 'normal', 8, 8)
+  +:w(500)
+  +:exclaim(GreenGuy)
+  GreenGuy: "Congratulations!  You have completed the challenge in this instance."
+  +:teardrop(Ada)
+  Ada: "Who exactly are you?"
+  +?func(inParty, Anjana):{
+    Anjana: "And why are you so <color=LIGHTGREEN>Green</>?"
+  }
+  +:shakeZ(GreenGuy)
+  GreenGuy: "I am the <color=LIGHTGREEN>Alternate</> who resides in this area.  I have been tracking your progress ever since you teleported in here."
+  Ada: "You are an <color=LIGHTGREEN>Alternate</>?  Do you... work here?"
+  GreenGuy: "Work?  No, I simply reside here."
+  +:teardrop(Ada)
+  Ada: "Then why have you been tracking us?"
+  GreenGuy: "I am a <color=LIGHTGREEN>Watcher</>.  I watch."
+  +?func(inParty, Skye):{
+    Skye: "That's kinda creepy."
+  }
+  GreenGuy: "I see you've defeated the <italic>evil monsters</> in this area!"
+  GreenGuy: "I feel compelled to give you a reward."
+  GreenGuy: "I'll let you chose what you want though."
+  GreenGuy: "Would you like a <color=ORANGE>Powerful Weapon</> or a <color=LIGHTPURPLE>Protective Vestment</>?"
+  +awaitChoice('Powerful Weapon.', 'Protective Vestment.')
+  +?eq(lastChoiceIndex, 0):{
+    GreenGuy: "You choose the <color=ORANGE>Powerful Weapon</>?  Then I shall grant you one."
+    +setStorage(vars.ItemChosen, SpeedyDagger)
+  }
+  +?eq(lastChoiceIndex, 1):{
+    GreenGuy: "You choose the <color=LIGHTPURPLE>Protective Vestment</>?  Then I shall grant you one."
+    +setStorage(vars.ItemChosen, RockVest)
+  }
+  +none()
+  +walkToCharacter(GreenGuy, Ada, 8, 0)
+  +:w(100)
+  +playSound(terminal_beep)
+  +:bumpZ(GreenGuy, 1)
+  +acquireItem({vars.ItemChosen})
+  +walkToMarker(GreenGuy, MarkerGreenGuy)
+  +:ld(GreenGuy, left)
+  GreenGuy: "Enjoy your prize."
+  +:happy(GreenGuy)
+  +:ld(GreenGuy, down)
+  +:w(500)
+  +despawnCharacter(GreenGuy)
+  +playSound(spawn_enemy)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerGreenGuy, 'normal', 8, 8)
+  +:w(500)
+  +panCameraBackToPlayer()
+  +?func(inParty, Anjana):{
+    Skye: "That was kinda strange..."
+    Skye: "I mean he was obviously working for the arcade.  Why else would he give us a prize?"
+  }
+  +:la(Ada, Skye)
+  Ada: "I assume that was the <italic>prize</> that the employee outside mentioned?"
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    Anjana: "Are all <color=LIGHTGREEN>Alternates</> so eccentric?"
+    Anjana: "I mean.  Why was he so green?"
+    +:la(Ada, Anjana)
+    Ada: "I would not know.  I am only familiar with <color=YELLOW>Conscience</>.  And I would not say she is particularly eccentric."
+    +:ld(Ada, rightdown)
+    Ada: "Not compared to that."
+  }
+  +:ld(Ada, right)
+  Ada: "I am certain father would be interested in this application of an <color=LIGHTGREEN>Alternate</>."
+  Ada: "<scale=0.8 color=LIGHTGREY />I am not certain he would approve, though."
+  +none()
+  +completeQuestStep(FLOOR2_INSTANCE1, 1)
+  +endConversation()

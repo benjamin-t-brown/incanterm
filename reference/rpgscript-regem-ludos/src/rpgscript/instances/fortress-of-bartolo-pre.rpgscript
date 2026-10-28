@@ -1,0 +1,424 @@
+#RevirtualisBartolo_test
+  action,RevirtualisBartoloFirstFight
+  load,this
+@this
+  +?once('01b2060c'):{
+    +:RevirtualisBartoloFirstFight()
+  }
+
+@RevirtualisBartoloFirstFight
+  +setConversation(Ada)
+  +fadeOut(1)
+  +panCameraBackToPlayer(1)
+
+  +:w(500)
+  +playSound('vr_portal_landed')
+  +:w(200)
+  +playSound('spawn_enemy')
+  +setAtMarker(Party, MarkerPortal)
+  +:face(Ada, down)
+  +walkPartyToFormation()
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  +setPlayerVisibility(true)
+  +fadeIn(500)
+//wait for the spawn particles to finish
+  +waitMS(300)
+  +setAnimationState('Ada', 'idle')
+  +enableAnimationSounds()
+
+  +:w(1000)
+  +:lookAround(Ada)
+  Ada: "This is... different."
+  +:ld(Ada, leftup)
+  +:ld(Anjana, leftup)
+  +:ld(Skye, up)
+  +none()
+  // +panCameraRelativeToPlayer(-100, -50, 2000, true)
+  // +:w(500)
+  +?func(inParty, Anjana):{
+    +walkToOffset(Anjana, -24, 0)
+    Anjana: "Something isn't right."
+    +none()
+    +:ld(Anjana, left)
+    +panCameraRelativeToCurrentPosition(-70, -15)
+    Anjana: "Are we locked in here?"
+  }
+  +none()
+  +walkToOffset(Ada, -62, 0, true)
+  +walkToOffset(Anjana, -42, -12, true)
+  +walkToMarker(Skye, MarkerSkyeWalk1)
+  +:ld(Ada, left)
+  +:ld(Anjana, left)
+  +:ld(Skye, leftup)
+  +none()
+  +:bumpX(Skye, -2)
+  +playSound(thunk)
+  +:angry(Skye)
+  Skye: "Hey! Anybody out there?"
+  +none()
+  +:bumpX(Skye, -2)
+  +playSound(thunk)
+  Skye: "We could really use some <shake>HELP</> here!"
+  +none()
+  +:w(1000)
+  +:la(Skye, Ada)
+  +:sad(Skye)
+  Skye: "I don't see anybody coming."
+  +none()
+  // +panCameraBackToPlayer()
+  +walkToMarker(Anjana, MarkerPortal)
+  +:ld(Anjana, down)
+  +:jump(Anjana)
+  +:smallPause()
+  +:serious(Anjana)
+  Anjana: "The portal is deactivated..."
+  +:la(Ada, Anjana)
+  +:flat(Ada)
+  Ada: "<cascade-letters=100>Great."
+  +walkToOffset(Anjana, -62, -12, true)
+  +:ld(Anjana, down)
+  Anjana: "Damn it! That employee must have done something to put us here."
+  +:la(Anjana, Ada)
+  Anjana: "There has to be some way out.  It's not as if they can keep us here forever."
+  Anjana: "We can figure this out."
+  // +:la(Ada, Anjana)
+  +:ld(Ada, down)
+  Ada: "Can something please just go right today!  For once?"
+  +:none()
+  +walkToOffset(Skye, 38, 0, true)
+  +stopMusic()
+  +:w(500)
+  +:RevirtualisBartolo_bartoloAppears()
+
+// #floor2Cafeteria_openPinkDoor2
+//   step-first,floor2Cafeteria_openPinkDoor2_Open
+//   step-off,floor2Cafeteria_openPinkDoor2_Close
+// @floor2Cafeteria_openPinkDoor2_Open
+//   +playSound(sliding_door_open)
+//   +:openDoor(MarkerPinkDoor2East1, PINK_DOOR_FWDL)
+//   +:openDoor(MarkerPinkDoor2East2, PINK_DOOR_FWDR)
+// @floor2Cafeteria_openPinkDoor2_Close
+//   +playSound(sliding_door_close)
+//   +:closeDoor(MarkerPinkDoor2East1, PINK_DOOR_FWDL)
+//   +:closeDoor(MarkerPinkDoor2East2, PINK_DOOR_FWDR)
+
+@RevirtualisBartolo_bartoloAppears
+  +setConversation()
+  +panCameraToMarker(MarkerBartoloWalk2)
+
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerRedDoor1, RED_DOOR_FWDL)
+  +:openDoor(MarkerRedDoor2, RED_DOOR_FWDR)
+  +:w(100)
+  +playMusic(music_mischief)
+  // +setWallCollisionEnabled(false)
+  +spawnCharacterAtMarker(Bartolo, MarkerBartoloSpawn)
+  +:w(1000)
+  +walkToMarker(Bartolo, MarkerBartoloWalk1)
+  +walkToMarker(Bartolo, MarkerBartoloWalk2)
+
+
+  // +offsetCharacter(Bartolo, 500, 500)
+  // +:w(500)
+  // +:face(Bartolo, down)
+  // +setCharacterAtMarker(Bartolo, MarkerPortal)
+  // +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Bartolo, normal)
+  // +playSound(spawn_enemy)
+
+  // +:w(500)
+  // +:jump(Bartolo)
+  // +walkToOffset(Bartolo, -64, 0)
+  // +:la(Ada, Bartolo)
+  // +?func(inParty, Anjana):{
+  //   +:la(Anjana, Bartolo)
+  // }
+  // +?func(inParty, Skye):{
+  //   +:la(Skye, Bartolo)
+  // }
+  // +setWallCollisionEnabled(true)
+  +:smirk(Bartolo)
+  Bartolo: "<cascade-letters=33 italic>Hola."
+  +:face(Ada, leftup)
+  +:face(Anjana, leftup)
+  +:face(Skye, up)
+  +panCameraToFitCharacters(500, true, Bartolo, Ada)
+  +none()
+  // +?func(inParty, Anjana):{
+  //   // +walkToOffset(Anjana, 16, 0)
+  //   +:la(Anjana, Bartolo)
+  //   +:jump(Anjana)
+  //   Anjana: "You!  What are <italic>you</> doing here?"
+  //   +:ld(Bartolo, rightdown)
+  //   Bartolo: "Hmmmm..."
+  //   Bartolo: "Is that you <color=LIGHTBLUE>Anjana</>?"
+  //   +:la(Bartolo, Ada)
+  //   Bartolo: "I didn't account for a <italic>liar</> like you being here."
+  //   +:none()
+  //   +:la(Ada, Anjana)
+  //   +:question(Ada)
+  //   Ada: "What is that supposed to mean?"
+  //   +:la(Anjana, Ada)
+  //   +:bored(Anjana)
+  //   Anjana: "He wishes I was a liar."
+  //   Anjana: "I caught him copying my homework one time; told the teacher about it, and he's denied it ever since."
+  //   Anjana: "Typical of a cheat like him. I hate <italic>cheats</>."
+  //   +:ld(Anjana, leftup)
+  //   +:ld(Ada, leftup)
+  //   +:angry(Bartolo)
+  //   +:shakeZ(Bartolo)
+  //   Bartolo: "<italic cascade-letters=45 color=LIGHTGREY>If you call me that one more time..."
+  //   +:ld(Bartolo, rightdown)
+  //   Bartolo: "Ahem..."
+  //   +:ld(Bartolo, down)
+  //   +:smirk(Bartolo)
+  //   Bartolo: "No matter!  You'll get your comeuppance soon enough."
+  //   // +walkToOffset(Bartolo, 16, -16)
+  //   +:ld(Bartolo, leftup)
+  //   // +:ld(Anjana, rightdown)
+  //   +:serious(Anjana)
+  // }
+  +:worried(Ada)
+  Ada: "Let me guess. You are behind our current circumstance?"
+  +:la(Bartolo, Ada)
+  Bartolo: "Of course I am."
+  Bartolo: "<color=LIGHTRED>Carl-Arnold</> can't have you meddling in his affairs right now."
+  +:serious(Ada)
+  Ada: "He kidnapped <color=YELLOW>Conscience</>. I would say <italic>his affairs</> are now <italic>my affairs</>."
+  Bartolo: "He just needs your little <color=LIGHTGREEN>Alternate</> for a while."
+  +:question(Ada)
+  Ada: "For what?"
+  Bartolo: "That's his business.  And I'm just doing him a favor."
+  +:jump(Ada)
+  +:angry(Ada)
+  Ada: "Let us out of here! I need to get <color=YELLOW>Conscience</> back."
+  +:smirk(Bartolo)
+  Bartolo: "Can't do that. <cascade-letters=50>Lo siento."
+  +:la(Bartolo, Ada)
+  Bartolo: "At least not until I've gotten a chance to... show you my worth."
+  // Bartolo: "This arcade is too easy for students from <color=PURPLE>Erran Valley</> like ourselves."
+  // Bartolo: "I've made a few <italic shake />modifications</> to this Instance.  It's customized for people like us!"
+  // +:ld(Bartolo, down)
+  // +:shakeZ(Bartolo)
+  // Bartolo: "This is my <color=LIGHTRED>Fortress</>!  The <color=LIGHTBLUE>infamous impenetrable knot</> right in the middle of the <color=LIGHTPURPLE>Regem Ludos Revirtualis</>!"
+  // Bartolo: "I would wish you luck on your way through, but even that won't help you."
+  // +?func(inParty, Anjana):{
+  //   +:bored(Anjana)
+  //   Anjana: "I should have known a place as boring as this was your creation, <color=ORANGE>Bartolo</>."
+  // }
+// +stopSkipCutscene();
+  // Bartolo: "<color=LIGHTRED>Carl-Arnold</> thought the normal instance might have been too easy, so on his behalf I made some modifications."
+  +:ld(Bartolo, leftdown)
+  Bartolo: "Behold: my newest creation!"
+  +:none()
+  +panCameraRelativeToCurrentPosition(-40, 0)
+  +:w(500)
+  +setAnimation(Bartolo, ch_bartolo_beep)
+  +:w(1000)
+  +playSound(click)
+  +:w(500)
+  +changeTileAtMarker(MarkerJail0, JAIL_OPENED_SLOW)
+  +changeTileAtMarker(MarkerJail1, JAIL_OPENED_SLOW)
+  +changeTileAtMarker(MarkerJail2, JAIL_OPENED_SLOW)
+  +changeTileAtMarker(MarkerJail3, JAIL_OPENED_SLOW)
+  +changeTileAtMarker(MarkerJail4, JAIL_OPENED_SLOW)
+  +playSound(sliding_door_close)
+  +playSound(shing)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(battle_fireball_explosion2)
+  +playSound(stone_bass)
+  +spawnCharacterAtMarker(RevirtualisBartoloGundam1, MarkerGundamSpawn)
+  +playSound(spawn_enemy)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, RevirtualisBartoloGundam1, normal)
+  +:w(500)
+  +playSound(robot_staggered_damaged)
+  +:w(200)
+  +setAnimationState(Bartolo, idle)
+  +:la(Bartolo, Ada)
+  Bartolo: "It's work in progress, but I need somebody to give it a test run."
+  +:la(Bartolo, Ada)
+  +:jump(Bartolo)
+  Bartolo: "Try to give me some valuable data."
+  +:shakeZ(Ada)
+  // Ada: "I suppose we have to fight now, right?"
+  Ada: "<cascade-letters scale=0.75 color=LIGHTGREY>Let us get this over with."
+  +none()
+  +stopSkipCutscene()
+  +stopMusic(100, true)
+  +:w(100)
+  +endConversation(500, true)
+  +despawnCharacter(RevirtualisBartoloGundam1)
+  +enterCombat(REVIRTUALIS_BARTOLO_BOSS_ENTRANCE)
+
+@RevirtualisBartolo_spawnFrontGate
+  +none()
+  +:face(Ada, leftup)
+  +?func(inParty, Anjana):{
+    +:face(Anjana, leftup)
+  }
+  +?func(inParty, Skye):{
+    +:face(Skye, leftup)
+  }
+  +:w(1000)
+  +playSound(despawn)
+  +setStorage(vars.tmp.particleName, EFFECT_TEMPLATE_BOMB_EXPL)
+  +setStorage(vars.tmp.particlePause, 150)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SMOKE, MarkerWall1, rise, -16, -74)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -16)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -16)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -32)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -32)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -48)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -48)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -64)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -64)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -80)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -80)
+  +spawnParticleAtMarker({vars.tmp.particleName}, MarkerWall1, normal, 0, -96)
+  +:w({vars.tmp.particlePause})
+  +playSound(despawn_tut_wall)
+  +changeTileAtMarker(MarkerWall1, TUT_GATE, 0, -96)
+
+@RevirtualisBartolo_Battle1Completed
+  +?func(inParty, Skye):{
+    +setCharacterAtCharacter(Skye, Ada, 0, 16)
+    +:face(Skye, rightdown)
+  }
+  +offsetCharacter(Ada, -8, 0)
+  +setConversation(Ada)
+  +playMusic(music_c_ambience)
+  +walkToOffset(Bartolo, -8, 0)
+  +panCameraToFitCharacters(1000, false, Bartolo, Ada)
+  +:leach(Bartolo, Ada)
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Bartolo)
+  }
+  +?func(inParty, Skye):{
+    +:la(Skye, Bartolo)
+    Skye: "He talked a big game for such an easy fight."
+  }
+  +:jump(Bartolo)
+  Bartolo: "Well! That test gave <italic>unexpected</> results."
+  +walkToOffset(Bartolo, -16, 0)
+  Bartolo: "I may need a little more time to fine tune..."
+  +:ld(Bartolo, leftdown)
+  Bartolo: "That means a further change of plans."
+  Bartolo: "I'll have to leave you here for now.  Try not to break anything further."
+  +:ld(Bartolo, down)
+  +none()
+  +:w(500)
+  +setAnimation(Bartolo, ch_bartolo_beep)
+  +:w(1000)
+  +playSound(click)
+  +:w(500)
+  +panCameraRelativeToCurrentPosition(-40, 0, 200)
+  +changeTileAtMarker(MarkerJail0, JAIL_CLOSED_SLOW)
+  +changeTileAtMarker(MarkerJail1, JAIL_CLOSED_SLOW)
+  +changeTileAtMarker(MarkerJail2, JAIL_CLOSED_SLOW)
+  +changeTileAtMarker(MarkerJail3, JAIL_CLOSED_SLOW)
+  +changeTileAtMarker(MarkerJail4, JAIL_CLOSED_SLOW)
+  +playSound(sliding_door_close)
+  +playSound(shing)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(move_wall)
+  +:w(200)
+  +playSound(battle_fireball_explosion2)
+  +playSound(stone_bass)
+  +panCameraToFitCharacters(500, false, Ada, Bartolo)
+  // +
+  // +walkToOffset(Ada, 8, 0)
+  +:exclaim(Ada)
+  Ada: "Oh no.  No no, you have to let us out of here!"
+  +:none()
+  +walkToMarker(Bartolo, MarkerBartoloWalk1)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerRedDoor1, RED_DOOR_FWDL)
+  +:openDoor(MarkerRedDoor2, RED_DOOR_FWDR)
+  +:w(100)
+  +walkToMarker(Bartolo, MarkerBartoloSpawn)
+  +despawnCharacter(Bartolo)
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerRedDoor1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerRedDoor2, RED_DOOR_FWDR)
+  +:w(100)
+  +panCameraBackToPlayer()
+  +:jump(Ada)
+  Ada: "So that is it then?  We are stuck?"
+  +walkToMarker(Skye, MarkerSkyeWalk1)
+  +:face(Skye, leftup)
+  +:bumpX(Skye, -2)
+  +playSound(thunk)
+  +:w(500)
+  +:ld(Skye, right)
+  Skye: "Looks like it."
+  +none()
+  +stopMusic(1000)
+  +fadeOut(2000)
+  +changeRoom(floor2ThroneRoomAlt)
+  // Bartolo: "Ah yes, it is this button right here..."
+  // +:none()
+  // +:w(500)
+  // +setAnimation(Bartolo, ch_bartolo_beep)
+  // +:w(1000)
+  // +playSound(click)
+  // +:w(1000)
+  // +:la(Bartolo, Ada)
+  // +playSound(battle_robot_charge_up)
+  // +playSound(robot_clank)
+  // +applyZTransform(Ada, -400, 500, true, true)
+  // +:exclaim(Ada)
+  // +?func(inParty, Anjana):{
+  //   +playSound(battle_robot_charge_up)
+  //   +playSound(robot_clank)
+  //   +applyZTransform(Anjana, -400, 500, true, true)
+  //   +:exclaim(Anjana)
+  // }
+  // +?func(inParty, Skye):{
+  //   +playSound(battle_robot_charge_up)
+  //   +playSound(robot_clank)
+  //   +applyZTransform(Skye, -400, 500, true, true)
+  //   +:exclaim(Anjana)
+  // }
+  // +setSpeed(Bartolo, 1.5)
+  // +walkToOffset(Bartolo, -64, 0)
+  // +panCameraToFitCharacters(1000, true, Bartolo)
+  // +:shakeZ(Bartolo)
+  // Bartolo: "That should give me some more setup time."
+  // +:ld(Bartolo, up)
+  // Bartolo: "And it also seems I'm running out of remotes."
+  // +none()
+  // +stopMusic(1000)
+  // +fadeOut(2000)
+  // +panCameraBackToPlayer(1)
+  // +changeRoom(floor2ThroneRoomConscience)

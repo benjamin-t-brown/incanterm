@@ -1,0 +1,97 @@
+#floor2-jesse-cafeteria-spotted
+  step-first,?once('40837fef'):this
+@this
+  +:la(Ada, Jesse)
+  +setConversation(Ada)
+  +:surprised(Ada)
+  +panCameraToFitCharacters(800, false, Ada, Jesse)
+  Ada: "Is that... <color=LIGHTBLUE>Jesse</>?"
+  +:grumpy(Ada)
+  Ada: "Why do so many students hang out in this accursed place?"
+  +panCameraBackToPlayer(700)
+  +endConversation()
+
+// EPHELY
+#jesseDate_start
+  action,?func(questNotStarted, JesseDate):floor2-jesse-cafeteria-ada1
+  action,floor2-jesse-cafeteria-ada2
+@floor2-jesse-cafeteria-ada1
+  +setAnimationState(Jesse, idle)
+  // +lookAtEachOther(Ada, Jesse)
+  // +walkPartyToFormation()
+  +setConversation2(Jesse, Ada)
+  +:la(Party, Jesse)
+  +:la(Jesse, Ada)
+  +:surprised(Jesse)
+  Jesse: "<color=YELLOW>Ada</>?  I'd never expect you to show up here."
+  Jesse: "Don't you have to... like... study or something?"
+  Ada: "Very funny.  I can go where I please, can I not?"
+  Jesse: "Of course you can.  I'm just surprised that 'where you please' is some place fun, and not... you know... dreadfully boring."  
+  Ada: "For your information, I am not here for <italic>fun</>.\n<cascade-letters>I was... sort of...</> tricked into coming here."
+  Jesse: "Oh yeah?  Is this <color=YELLOW>Conscience's</> doing?  Did she finally talk some sense into you?"
+  Ada: "No.  It was <color=LIGHTRED>Carl-Arnold</>.  He lured me here and trapped <color=YELLOW>Conscience</> in his instance."
+  Ada: "I am now forced to play his stupid games to get her back."
+  Jesse: "Oh.  That's... surprising, I guess.  I didn't realize you two were friends."
+  +:angry(Ada);
+  Ada: "We are not friends."
+  +:teardrop(Jesse)
+  Jesse: "Ahh, well, I'm sure you'll make up soon."
+  +setStorage(vars.hasSpokenToJesseFirstTime)
+  +:floor2-jesse-cafeteria-ada1-startQuest()
+@floor2-jesse-cafeteria-ada1-startQuest
+  Jesse: "I'm actually supposed to be on a <color=LIGHTBLUE>blind date</> right now."
+  +?func(inParty, Skye):{
+    +:leach(Jesse, Skye)
+    +:question(Skye)
+    +replaceConversationMember2(Skye, right)
+    Skye: "Sitting alone at a table is your idea of a date?"
+  }
+  +:leach(Jesse, Ada)
+  Jesse: "I can't seem to find the guy I'm supposed to meet."
+  Jesse: "He messaged me when he entered the arcade. He said he'd come up to the <color=LIGHTPURPLE>Caf8teria</>... But I haven't seen him."
+  +?func(inParty, Anjana):{
+    +:leach(Jesse, Anjana)
+    +:question(Anjana)
+    +replaceConversationMember2(Anjana, right)
+    Anjana: "Wait.  You're not part of that <color=LIGHTBLUE>dating event</> are you?"
+    Jesse: "Oh.  No.  I saw that though.  It looked kind of fun."
+    Jesse: "I actually came back here to get away from that crowd, just in case he got confused or something."
+    +:leach(Ada, Jesse)
+    +replaceConversationMember2(Ada, right)
+  }
+  Ada: "Well then perhaps he is lost."
+  Ada: "Or perhaps he is in the <color=ORANGE>tutorial</>?  I had somewhat of an adventure there."
+  +:flat(Jesse)
+  +:ld(Jesse, leftdown)
+  Jesse: "Or he stood me up."
+  +:leach(Ada, Jesse)
+  Ada: "I find that highly unlikely."
+  Jesse: "Yeah, yeah, I don't actually think he did.  He keeps messaging me that he's on his way."
+  +:la(Jesse, Ada)
+  Jesse: "Apparently he's coming from work or something?  It's all very vague."
+  Ada: "What does he do?"
+  Jesse: "<cascade-letters=45>No idea..."
+  +:teardrop(Jesse)
+  Jesse: "Anyway, if you see him, would you mind pointing him my way?"
+  +:bored(Ada)
+  Ada: "I suppose.  What is his name?"
+  Jesse: "He didn't tell me."
+  +:jump(Ada)
+  Ada: "You never asked his name?  What is the <italic>matter</> with you?"
+  Jesse: "It's a <italic>blind date</>. I'm not supposed to know who he is."
+  Ada: "You are taking this way too seriously."
+  +:heart(Jesse)
+  Jesse: "Who knows?  Maybe we're <italic>compatible</>.  I'm not going to ruin it by asking his name before the time is right."
+  +stopSkipCutscene()
+  +startQuest(JesseDate)
+  Jesse: "Based on his messages, I'm pretty sure he's in the arcade somewhere.  Maybe he's lost?"
+  Jesse: "I doubt he's on the first floor or this one, so he's probably on the third floor or higher."
+  Ada: "If I find some random, lost-looking school-boy, I will be sure to send him your way."
+  +setAnimation(Jesse, characters/jesse_phone_idle)
+  +endConversation()
+
+@floor2-jesse-cafeteria-ada2
+  +lookAtEachOther(Ada, Jesse)
+  +setConversation(Jesse)
+  Jesse: "If you see my date, make sure to send him my way."
+  +endConversation()

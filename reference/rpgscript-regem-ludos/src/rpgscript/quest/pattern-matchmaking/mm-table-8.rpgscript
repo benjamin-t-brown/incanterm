@@ -1,0 +1,76 @@
+#patternMatchmaking_Table8
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table8
+@patternMatchmaking_Table8
+  +:patternMatchmaking_Table8_SetupConv()
+  +setStorage(tmp.primaryCh, Millie)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table8SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(8)
+  }
+
+@patternMatchmaking_Table8_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables14, -16, 16)
+  +:face(Ada, right)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table8_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 7)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 7)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 7)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_MillieAndBobby
+  +setConversationGroup(Millie, Bobby, Ada)
+  +:patternMatchmaking_Table8_SetupConv()
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    +panCameraToFitCharacters(1000, false, Bobby)
+    // +:bumpX(Bobby, 1)
+    // +:ld(Bobby, rightdown)
+    // +:smallPause()
+    // +:teardrop(Bobby)
+    +:face(Bobby, down)
+    +:w(33)
+    +:face(Bobby, leftdown)
+    +:w(33)
+    +:ld(Bobby, leftup)
+    +:la(Bobby, Ada)
+    +:exclaim(Bobby)
+    +:shakeZ(Bobby)
+    Bobby: "Oh hello! Are you my replacement?  My name is <color=LIGHTBLUE>Bobby</>!"
+    Ada: "Um.  I do not believe so."
+    +:teardrop(Bobby)
+    Bobby: "Oh.  Well.  I guess I'll just wait for the next round then..."
+    Ada: "Why do you need a replacement?  What about the person sitting directly across from you?"
+    +:la(Bobby, Ada)
+    Bobby: "Oh.  That's <color=PINK>Millie.</> She told me that she doesn't like ramen, which is kind of a deal breaker."
+    +:bored(Ada)
+    Ada: "I see...."
+    Bobby: "Yeah it kinda sucks.  I was gonna share some of my ramen with her, but she's not interested."
+    +:ld(Bobby, leftdown)
+    Bobby: "I found these extra tickets just lying on the ground and I really like the ramen here, so I thought it might be nice to share a meal, you know?"
+    +:la(Millie, Ada)
+    Millie: "<color=LIGHTGREY />(Psst!  Hurry up and get me out of here!  I HATE RAMEN!)"
+    +:face(Bobby, rightdown)
+    +:sigh(Ada)
+  }
+  +panCameraBackToPlayer()
+  +:patternMatchmaking_Table8_EndConvo()

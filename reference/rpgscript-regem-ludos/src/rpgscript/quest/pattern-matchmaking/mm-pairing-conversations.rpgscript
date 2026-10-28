@@ -1,0 +1,380 @@
+
+// Mateo -> Jill
+// Anders -> Liv
+// Jack -> Saiki
+// Randy -> Bernie
+// Lars -> Millie
+// Scott -> Robin
+// Mordred -> Stefani
+// Bobby -> Junlia
+
+@patternMatchmaking_confirmPairing
+  +awaitChoice("Yes, keep them together.", "No, change the pairing.", "Your opinion?", "Actually, go back.")
+  +?eq(lastChoiceIndex, 0):{
+    +setStorage(tmp.confirmPairingResult, 'yes')
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +setStorage(tmp.confirmPairingResult, 'no')
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +setStorage(tmp.confirmPairingResult, 'again')
+  }
+  +?eq(lastChoiceIndex, 3):{
+    +setStorage(tmp.confirmPairingResult, 'back')
+  }
+
+@patternMatchmaking_confirmPairing2
+  +awaitChoice("Un-pair these two for now.", "Pair with somebody else.", "Your opinion?", "Actually, go back.")
+  +?eq(lastChoiceIndex, 0):{
+    +setStorage(tmp.confirmPairingResult, 'unset')
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +setStorage(tmp.confirmPairingResult, 'no')
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +setStorage(tmp.confirmPairingResult, 'again')
+  }
+  +?eq(lastChoiceIndex, 3):{
+    +setStorage(tmp.confirmPairingResult, 'back')
+  }
+
+@patternMatchmaking_confirmPairing3
+  +awaitChoice("Pick a new pairing.", "Your opinion?", "Actually, go back.")
+  +?eq(lastChoiceIndex, 0):{
+    +setStorage(tmp.confirmPairingResult, 'no')
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +setStorage(tmp.confirmPairingResult, 'again')
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +setStorage(tmp.confirmPairingResult, 'back')
+  }
+
+// Check if secondaryCh is available for the given round and table.  They are available
+// if they haven't previously been paired to a different table.
+// [ARG0] the round (2 or 3)
+// [ARG1] name of the secondary
+// [ARG2] table number - 1
+// {tmp.isSecondaryAvailable} result
+@patternMatchmaking_isSecondaryAvailable
+  +setStorage(tmp.tableNumber, [ARG2])
+  // tables are 1 indexed, but inc loop is 0 indexed
+  +incrementStorage(tmp.tableNumber, 1)
+  +?isnot(tmp.isSecondaryAvailable):{
+    +sbreak()
+  }
+  +?eq(quest.aux.PatternMatchmaking.Table{tmp.tableNumber}_Round{ARG0}_SecondaryCh, {ARG1}):{
+    // +log('setting {ARG1} to false because quest.aux.PatternMatchmaking.Table{tmp.tableNumber}_Round{ARG0}_SecondaryCh is {ARG1}')
+    +setStorage(tmp.key, quest.aux.PatternMatchmaking.Table{tmp.tableNumber}_Round{ARG0}_SecondaryCh)
+    +setStorage(tmp.isSecondaryAvailable, false)
+  }
+
+// Go through each secondary ch and check if they are available for the given round.
+// A secondary is available if they haven't previously been paired to a different table.
+// [ARG0] what round of pairing we're on: 2 or 3
+// [ARG1] character to omit for sure
+@patternMatchmaking_generateAvailableSecondaries
+  // "Mateo,Jack,Randy,Lars,Scott,Mordred,Bobby,Anders"
+  +setStorage(tmp.availableSecondaries, '')
+  +setStorage(tmp.roundNumber, [ARG0])
+  +setStorage(tmp.omitCharacter, [ARG1])
+  // +log("patternMatchmaking_generateAvailableSecondaries({ARG0}, {ARG1})")
+  +?eq([ARG0], 2):{
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Mateo', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Mateo'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Mateo +animChRoom:Mateo")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Anders', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Anders'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Anders +anim:characters/guy-shadow_idle_down")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Jack', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Jack'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Jack +animChRoom:Jack")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Randy', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Randy'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Randy +animChRoom:Randy")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Lars', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Lars'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Lars +animChRoom:Lars")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Scott', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Scott'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Scott +animChRoom:Scott")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Mordred', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Mordred'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Mordred +animChRoom:Mordred")
+    }
+
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, 'Bobby', \{vars.loopIndex\})", 8)
+    +?all(is(tmp.isSecondaryAvailable), isnot(eq({tmp.omitCharacter}, 'Bobby'))):{
+      +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Bobby +animChRoom:Bobby")
+    }
+
+    +setStorage(tmp.availableSecondaries, "{tmp.availableSecondaries},Nevermind...")
+  }
+
+// [ARG0] what round of pairing we're on: 2 or 3
+// [ARG1] what table we are on 1 - 8
+@patternMatchmaking_selectPairingActionForTable
+  +setStorage(tmp.roundNumber, [ARG0])
+  +setStorage(tmp.tableNumber, [ARG1])
+  +setStorage(tmp.onFirstSelection, '')
+  +setStorage(tmp.onYes, '')
+  +setStorage(tmp.onNo, '')
+  +setStorage(tmp.nextSecondaryKey, "quest.aux.PatternMatchmaking.Table{tmp.tableNumber}_Round{tmp.roundNumber}_SecondaryCh")
+  +setStorageValueAt(tmp.secondaryCh, quest.aux.PatternMatchmaking.Table{tmp.tableNumber}SecondaryCh)
+
+  // Stefani, Junlia, Jill, Saiki, Bernie, Liv, Robin, Millie
+  +?eq(tmp.tableNumber, 1):{
+    +setStorage(tmp.primaryCh, "Stefani")
+  }
+  +?eq(tmp.tableNumber, 2):{
+    +setStorage(tmp.primaryCh, "Junlia")
+  }
+  +?eq(tmp.tableNumber, 3):{
+    +setStorage(tmp.primaryCh, "Jill")
+  }
+  +?eq(tmp.tableNumber, 4):{
+    +setStorage(tmp.primaryCh, "Saiki")
+  }
+  +?eq(tmp.tableNumber, 5):{
+    +setStorage(tmp.primaryCh, "Bernie")
+  }
+  +?eq(tmp.tableNumber, 6):{
+    +setStorage(tmp.primaryCh, "Liv")
+  }
+  +?eq(tmp.tableNumber, 7):{
+    +setStorage(tmp.primaryCh, "Robin")
+  }
+  +?eq(tmp.tableNumber, 8):{
+    +setStorage(tmp.primaryCh, "Millie")
+  }
+
+  // +?eq(tmp.roundNumber, 2):{
+  //   +?all(eq(tmp.primaryCh, 'Stefani'), eq(tmp.secondaryCh, 'Mateo')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_StefaniMateoOnFirst)
+  //     +setStorage(tmp.onYes, patternMatchmaking_pairingRound2_StefaniMateoOnYes)
+  //     +setStorage(tmp.onNo, patternMatchmaking_pairingRound2_StefaniMateoOnNo)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Junlia'), eq(tmp.secondaryCh, 'Anders')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_JunliaAndersOnFirst)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Jill'), eq(tmp.secondaryCh, 'Jack')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_JillAndJackOnFirst)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Saiki'), eq(tmp.secondaryCh, 'Randy')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_SaikiAndRandyOnFirst)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Bernie'), eq(tmp.secondaryCh, 'Lars')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_BernieAndLarsOnFirst)
+  //     +setStorage(tmp.onNo, patternMatchmaking_pairingRound2_BernieAndLarsOnNo)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Liv'), eq(tmp.secondaryCh, 'Scott')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_LivAndScottOnFirst)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Robin'), eq(tmp.secondaryCh, 'Mordred')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_RobinAndMordredOnFirst)
+  //   }
+  //   +?all(eq(tmp.primaryCh, 'Millie'), eq(tmp.secondaryCh, 'Bobby')):{
+  //     +setStorage(tmp.onFirstSelection, patternMatchmaking_pairingRound2_MillieAndBobbyOnFirst)
+  //   }
+  // }
+  +panCameraToFitCharacters(600, false, {tmp.primaryCh}, {tmp.secondaryCh})
+  Matchmaker: "At this table is <color=PINK>{tmp.primaryCh}</> and <color=LIGHTBLUE>{tmp.secondaryCh}</>."
+  +:patternMatchmaking_selectPairingActionForTable_continue({ARG0}, {ARG1})
+
+@patternMatchmaking_selectPairingActionForTable_continue
+  +?is(tmp.onFirstSelection):{
+    +callScript({tmp.onFirstSelection})
+  }
+  +?is({tmp.nextSecondaryKey}):{
+    +setStorageValueAt(tmp.nextSecondaryToSelect, {tmp.nextSecondaryKey})
+    Matchmaker: "For the next round, you are suggesting that we pair <color=PINK>{tmp.primaryCh}</> with <color=LIGHTBLUE>{tmp.nextSecondaryToSelect}</>."
+    Matchmaker: "Do you think we should pair <color=PINK>{tmp.primaryCh}</> and <color=LIGHTBLUE>{tmp.nextSecondaryToSelect}</> together?"
+    +:patternMatchmaking_confirmPairing2()
+  }
+  +?isnot({tmp.nextSecondaryKey}):{
+    +setStorage(tmp.isSecondaryAvailable, true)
+    +loop("patternMatchmaking_isSecondaryAvailable({tmp.roundNumber}, {tmp.secondaryCh}, \{vars.loopIndex\})", 8)
+    +?is(tmp.isSecondaryAvailable):{
+      Matchmaker: "Do you think we should keep <color=PINK>{tmp.primaryCh}</> and <color=LIGHTBLUE>{tmp.secondaryCh}</> together?"
+      +:patternMatchmaking_confirmPairing()
+    }
+    +?isnot(tmp.isSecondaryAvailable):{
+      Matchmaker: "We already have <color=LIGHTBLUE>{tmp.secondaryCh}</> paired with someone else, so who should be the next pairing?"
+      +:patternMatchmaking_confirmPairing3()
+    }
+  }
+  +log('CONFIRM PAIRING RESULT {tmp.confirmPairingResult}')
+  +?eq(tmp.confirmPairingResult, 'yes'):{
+    +?is(tmp.onYes):{
+      +callScript({tmp.onYes})
+    }
+    Matchmaker: "Okay, let's keep them together."
+    +setStorage({tmp.nextSecondaryKey}, {tmp.secondaryCh})
+    +setStorage(tmp.confirmPairingResult, 'confirm')
+  }
+  +?eq(tmp.confirmPairingResult, 'no'):{
+    +?is(tmp.onNo):{
+      +callScript({tmp.onNo})
+    }
+    Matchmaker: "Which of these participants would be a better match for <color=PINK>{tmp.primaryCh}</>?"
+    +:patternMatchmaking_generateAvailableSecondaries({tmp.roundNumber}, {tmp.secondaryCh})
+    +awaitChoiceEx('array', "{tmp.availableSecondaries}")
+    +setStorageValueAt(tmp.previousSecondary, tmp.secondaryCh)
+    +setStorageValueAt({tmp.nextSecondaryKey}, lastChoiceText)
+    +setStorageValueAt(tmp.nextSecondary, lastChoiceText)
+    +log("Made choice participant {lastChoiceText} {tmp.nextSecondaryKey}={lastChoiceText} tmp.previousSecondary={tmp.previousSecondary}")
+    +?eq({tmp.nextSecondary}, "Nevermind..."):{
+      Matchmaker: "Let's go back."
+      +setStorage(tmp.nextSecondary, '')
+      +setStorage({tmp.nextSecondaryKey}, {tmp.previousSecondary})
+      +sbreak()
+    }
+    +log("Made choice participant2 {lastChoiceText} {tmp.nextSecondary}")
+    Matchmaker: "Okay, next round let's pair up <color=PINK>{tmp.primaryCh}</> and <color=LIGHTBLUE>{tmp.nextSecondary}</>."
+  }
+  +?eq(tmp.confirmPairingResult, 'again'):{
+    Matchmaker: "You want to hear my opinion again?"
+    +log("Confirm pairing result again yes={tmp.onYes} no={tmp.onNo} first={tmp.onFirstSelection}")
+    // +?is(tmp.onYes):{
+    //   +setStorage({tmp.onYes}_once, false, true)
+    // }
+    // +?is(tmp.onNo):{
+    //   +setStorage({tmp.onNo}_once, false, true)
+    // }
+    +?is(tmp.onFirstSelection):{
+      +setStorage({tmp.onFirstSelection}_once, false, true)
+    }
+    +:patternMatchmaking_selectPairingActionForTable_continue({ARG0}, {ARG1})
+    +sbreak()
+  }
+  +?eq(tmp.confirmPairingResult, 'unset'):{
+    Matchmaker: "I'll un-pair them for now."
+    +setStorage({tmp.nextSecondaryKey}, '')
+  }
+
+@patternMatchmaking_pairingRound2_StefaniMateoOnFirst
+  +?once('patternMatchmaking_pairingRound2_StefaniMateoOnFirst_once'):{
+    Matchmaker: "To be honest, this one's kind of a reach of a pairing."
+    Matchmaker: "<color=LIGHTBLUE>Mateo</> is a bit... um... <italic>unremarkable...</> for her, but I thought there might have been a chance."
+    Matchmaker: "<color=LIGHTGREY />(Admittedly a small chance.)"
+    +?func(inParty, Skye):{
+      Skye: "I'm not so sure about her.  Is anybody here really up to her standards?"
+      +?func(inParty, Anjana):{
+        Anjana: "I have to agree.  At the very least, this pairing won't work."
+      }
+    }
+    Matchmaker: "Perhaps <color=LIGHTBLUE>Mateo</> deserves a more <italic>down-to-earth</> partner."
+  }
+@patternMatchmaking_pairingRound2_StefaniMateoOnYes
+  +?once('patternMatchmaking_pairingRound2_StefaniMateoOnYes_once'):{
+    Matchmaker: "Wow... are you sure?  I mean, I'm not sure, but if you're sure..."
+  }
+@patternMatchmaking_pairingRound2_StefaniMateoOnNo
+  +?once('patternMatchmaking_pairingRound2_StefaniMateoOnNo_once'):{
+    Matchmaker: "That makes sense.  Perhaps I should have known better."
+    +?func(inParty, Skye):{
+      Skye: "I don't think <italic>anybody</> in here is up to that girl's standards."
+      Matchmaker: "Nonsense!  There's always somebody.  You just might have to be creative."
+    }
+  }
+
+@patternMatchmaking_pairingRound2_JunliaAndersOnFirst
+  +?once('patternMatchmaking_pairingRound2_JunliaAndersOnFirst_once'):{
+    Ada: "Who is <color=LIGHTBLUE>Anders</>?  He is not at that table."
+    Matchmaker: "Oh yeah, I forgot.  He's always late to my events."
+    +?func(inParty, Anjana):{
+      Anjana: "Does he come to <italic>all</> your events?"
+    }
+    Matchmaker: "Don't worry about him.  He'll show up eventually."
+    Matchmaker: "Just match him up last.  It doesn't really matter for him."
+    +?func(inParty, Anjana):{
+      Anjana: "If it doesn't matter, then why is he even supposed to be here?"
+    }
+    Matchmaker: "He's a friend of mine.  I can guarantee that he will match perfectly with anybody you choose.  Trust me."
+    Ada: "He must be quite the catch."
+    Matchmaker: "You could say that... Anyway, let's talk about <color=PINK>Junlia</>."
+    Ada: "She was speaking to herself.  I honestly do not think she noticed that nobody was sitting across from her."
+    Matchmaker: "Hmmm...  That's a tough one.  Might have to see if somebody here can distract her from herself."
+    +?all(func(inParty, Skye),once('0f980115')):{
+      Skye: "Heh.  Why don't we put that one 'quiet' girl with her?"
+      Matchmaker: "Let's try to stay productive here..."
+    }
+  }
+
+@patternMatchmaking_pairingRound2_JillAndJackOnFirst
+  +?once('patternMatchmaking_pairingRound2_JillAndJackOnFirst_once'):{
+    Matchmaker: "I gotta be honest, this was a shot in the dark, and it doesn't seem to have hit."
+    Ada: "<color=LIGHTBLUE>Jack</> does not seem to want to be here."
+    Matchmaker: "Then I guess we should change it.  Not sure about where though!  You'll have to figure it out."
+  }
+
+@patternMatchmaking_pairingRound2_SaikiAndRandyOnFirst
+  +?once('patternMatchmaking_pairingRound2_SaikiAndRandyOnFirst_once'):{
+    Matchmaker: "That <color=PURPLE>Saiki</> gives off a very strong aura.  I only noticed it after I set the pairings."
+    Matchmaker: "I'm not sure if it's a good thing or a bad thing."
+  }
+
+@patternMatchmaking_pairingRound2_BernieAndLarsOnFirst
+  +?once('patternMatchmaking_pairingRound2_BernieAndLarsOnFirst_once'):{
+    Matchmaker: "It seems <color=PINK>Bernie</> is having trouble finding her voice.  I've seen it before.  She needs somebody to break her out of her shell."
+    +?func(inParty, Anjana):{
+      Anjana: "These two are good they way they are."
+      Ada: "What makes you so certain?"
+      Anjana: "<color=PINK>Lars</> is a foreigner, right?  I would have thought it obvious to pair him with the mute one."
+      +?func(inParty, Skye):{
+        Skye: "How is that <italic>obvious</>?"
+      }
+      Ada: "I do not understand."
+      Anjana: "Well if you can't pick it up, then I can't explain it to you."
+    }
+  }
+@patternMatchmaking_pairingRound2_BernieAndLarsOnNo
+  +?once('patternMatchmaking_pairingRound2_BernieAndLarsOnNo_once'):{
+    Anjana: "I'm telling you, you're making a mistake by changing this pairing."
+  }
+
+@patternMatchmaking_pairingRound2_LivAndScottOnFirst
+  +?once('patternMatchmaking_pairingRound2_LivAndScottOnFirst_once'):{
+    Matchmaker: "Now this is interesting.  I think that <color=LIGHTBLUE>Scott</>'s friend signed him up as a sort of joke."
+    Ada: "So... should I discount him?"
+    Matchmaker: "Nope!"
+    Matchmaker: "I just know for a fact there's a soul mate in here for him!"
+    +?func(inParty, Skye):{
+      Skye: "What if he already has one?"
+      Matchmaker: "Then we'll find him another one!"
+    }
+  }
+
+@patternMatchmaking_pairingRound2_RobinAndMordredOnFirst
+  +?once('patternMatchmaking_pairingRound2_RobinAndMordredOnFirst_once'):{
+    Matchmaker: "I tried really hard to get those one of those 'larpers' down on floor 1 to come up here today, but they were all busy."
+    Matchmaker: "I think <color=LIGHTBLUE>Mordred</> would have liked that, although he seems unphased by others judging him for his eccentricity."
+    Matchmaker: "However, even so, <color=PINK>Robin</> may be best suited with whomever she thinks stole her tickets."
+  }
+
+@patternMatchmaking_pairingRound2_MillieAndBobbyOnFirst
+  +?once('patternMatchmaking_pairingRound2_MillieAndBobbyOnFirst_once'):{
+    Matchmaker: "So apparantly <color=PINK>Millie</> does not like ramen.  Can't say I knew that!"
+    Ada: "So then, who should we pair her with?"
+    Matchmaker: "Somebody else who doesn't like ramen?"
+  }

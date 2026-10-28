@@ -1,0 +1,338 @@
+#patternMatchmaking_Table2
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table2
+@patternMatchmaking_Table2
+  +:patternMatchmaking_Table2_SetupConv()
+  +setStorage(tmp.primaryCh, Junlia)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table2SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(2)
+  }
+
+@patternMatchmaking_Table2_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables3, -4, -16)
+  +:face(Ada, left)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table2_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 1)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 1)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 1)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_JunliaAndAnders
+  +setConversationGroup(Junlia, Anders)
+  +:patternMatchmaking_Table2_SetupConv()
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    Ada: "Her name-tag says 'Junlia'."
+    +:flat(Ada)
+    Ada: "She's sitting here, alone...?"
+    +panCameraToFitCharacters(1000, false, Junlia)
+    Junlia: "So I really like apple pies, that's one thing about me you really should know."
+    +:ld(Junlia, down)
+    Junlia: "I used to go apple picking with my grandmother when I was a kid, and we'd make pies together.  They were <shake>soooooo</> yummy.  You have no idea."
+    +:ld(Junlia, right)
+    Junlia: "Oh!  And also hiking.  Love that.  I like to get out early.  Like, <italic>really</> early.  Like, before the sun comes up.  I like to watch the sun rise over the mountains."
+    Junlia: "Soooooo</> pretty."
+    +:ld(Junlia, rightdown)
+    Junlia: "Like I have no idea how the sun can look that way, you know?"
+    +:ld(Junlia, down)
+    Junlia: "It really puts into perspective how small we are in the universe."
+    +:ld(Junlia, rightdown)
+    Junlia: "Have you ever just sat down on the carpet and had a good cry?</>  I mean, like, really let it all out?"
+    +:ld(Junlia, rightdown)
+    Junlia: "I'm trying to meet somebody who has.  I've never done it myself.  But I think it would be a good experience.</>"
+    +:worried(Ada)
+    Ada: "<color=LIGHTGREY />(Is she just sitting here and talking to herself?)"
+  }
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    Junlia: "I don't have a very good singing voice, or so I've been told."
+    Junlia: "But I like to sing anyway.  I think it's good for the soul."
+    Junlia: "La, la, la, la, laaaaaa.  See?  Not very good. Hehehe."
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+// ---------------------------------------------------------------------------------------
+
+// @patternMatchmaking_JunliaAndMordred
+//   +setConversationGroup(Junlia, Mordred)
+//   +:patternMatchmaking_Table2_SetupConv()
+//   +panCameraToFitCharacters(1000, false, Junlia, Mordred)
+//   +:patternMatchmaking_pairingCount(Junlia, Mordred)
+//   +?eq(tmp.pairingCount, 1):{
+//     +:leach(Junlia, Mordred)
+//     Junlia: "Is it cold in here?  I'm cold.  But I'm, like always cold, so that's not a good judgment of if it's actually cold."
+//     +:ld(Junlia, down)
+//     Junlia: "You ever notice static buildup when it's cold?  Like, you take off your sweater and your hair is all sticking up?"
+//     +:ld(Junlia, right)
+//     Junlia: "I hate that.  I usually go flick the fridge just to get rid of it."
+//     Junlia: "But then I get hungry and I have to go back and get something to eat."
+//     Junlia: "And then I get cold again.  It's a vicious cycle."
+//     Mordred: "<cascade-letters>......"
+//     +?func(inParty, Anjana):{
+//       +walkToCharacter(Anjana, Mordred, 16, -16)
+//       +:la(Anjana, Mordred)
+//       +:shakeZ(Anjana)
+//       +:leach(Anjana, Mordred)
+//       Anjana: "Aren't you even going to try to talk to her?"
+//       Mordred: "I would not wish to interrupt her a kind maiden such as herself."
+//       +:la(Anjana, Ada)
+//       +:bored(Anjana)
+//       Anjana: "This is such a lost cause."
+//     }
+//     +:leach(Junlia, Mordred)
+//     +panCameraBackToPlayer()
+//   }
+//   +:patternMatchmaking_pairingCount(Junlia, Mordred)
+//   +?eq(tmp.pairingCount, 2):{
+//     Junlia: "Did you know there's no way a bee should be able to fly, based on all known laws of aviation?"
+//     Junlia: "But the bee doesn't care what humans think is impossible.  It just flies anyway."
+//     +?func(inParty, Anjana):{
+//       +:bored(Anjana)
+//       +:la(Anjana, Ada)
+//       Anjana: "Tell me why you wanted to pair them up again?"
+//     }
+//   }
+//   +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndMateo
+  +setConversationGroup(Junlia, Mateo)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Mateo)
+  +:patternMatchmaking_pairingCount(Junlia, Mateo)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Mateo)
+    Junlia: "I don't much care for flowers.  I mean they're nice and all, but I don't like the smell."
+    Junlia: "But if somebody did get me flowers I wouldn't be mad.  How could I?  That would be so rude."
+    Junlia: "I'd probably just put them in a vase and then give them to somebody else."
+    Junlia: "Although maybe it would be good to put the flowers in a garden somewhere."
+    Junlia: "I saw the most beautiful garden in a greenhouse once.  The best part was it was in the winter time!  Crazy!"
+    Mateo: "<cascade-letters color=LIGHTGREY>Can you hear me?"
+    +?func(inParty, Anjana):{
+      +:leach(Anjana, Ada)
+      Anjana: "She's still basically talking to herself."
+    }
+    +:ld(Ada, down)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Junlia, Mateo)
+    Junlia: "What do you think about sand?  It's course, rough, and irritating, and it gets everywhere."
+    Junlia: "Where did it all come from?  There's so much of it!"
+    +?func(inParty, Anjana):{
+      +:bored(Anjana)
+      +:la(Anjana, Ada)
+      Anjana: "Tell me why you wanted to pair them up again?"
+    }
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndJack
+  +setConversationGroup(Junlia, Jack)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Jack)
+  +:patternMatchmaking_pairingCount(Junlia, Jack)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Jack)
+    Junlia: "What's your favorite holiday?  Mine is paper bag day!  It's so funny, you're supposed to wear paper bags on your head the whole day."
+    +:ld(Junlia, down)
+    Junlia: "I mean, I don't do it, but I think it's funny that other people do."
+    +:ld(Junlia, right)
+    Junlia: "Putting a bag on your head for that long seems like it would be really uncomfortable."
+    +:flat(Jack)
+    Jack: "<color=LIGHTGREY />(Could she be more self-absorbed?)"
+    +:leach(Junlia, Jack)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Junlia, Jack)
+    Junlia: "I don't really like music.  Unless it's classical.  Or maybe like old jazz.  Or maybe like some pop music."
+    Junlia: "But I don't like it when it's too loud.  Or too quiet.  Or too fast.  Or too slow."
+    Jack: "<color=LIGHTGREY />(I wonder what it's like to be her?  To be so... awful?)"
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndRandy
+  +setConversationGroup(Junlia, Randy)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Randy)
+  +:patternMatchmaking_pairingCount(Junlia, Randy)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Randy)
+    Randy: "Um hi.  I'm <color=LIGHTBLUE>Randy</>."
+    Junlia: "I have this thing where I get older but I just not that wiser."
+    Junlia: "Like, I stay up all night and wake up late still, you know."
+    Randy: "<cascade-letters>Haha yeah.  Me too."
+    Junlia: "Sometimes I like to read when it's that late.  Usually I read Romeo and Juliet.  I've read it like six million times!"
+    Randy: "<cascade-letters>Haha yeah.  That sure is a lot."
+    Junlia: "I like to eat too, when I'm reading.  But if I'm eating something sticky sometimes I have to put the book down with my hand and shake it off."
+    Randy: "<cascade-letters>Haha yeah.  I do that too."
+    +?func(inParty, Anjana):{
+      +:flat(Anjana)
+      +:la(Anjana, Ada)
+      Anjana: "This is truly awful."
+    }
+    +:leach(Junlia, Randy)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Junlia, Randy)
+    Junlia: "I like to watch movies.  But I don't like to watch them in the theater.  I like to watch them at home."
+    Randy: "<cascade-letters>Haha yeah.  Me too."
+    +?func(inParty, Skye):{
+      +:la(Skye, Ada)
+      Skye: "If I poke him, do you think he'll respond differently."
+    }
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndScott
+  +setConversationGroup(Junlia, Scott)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Scott)
+  +:patternMatchmaking_pairingCount(Junlia, Scott)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Scott)
+    +:shakeZ(Junlia)
+    Junlia: "So I'm totally down to go to theme parks, you know, but I'm terrified of anything that goes upside down."
+    Junlia: "I just can't do it.  I'm sorry.  I just can't."
+    Junlia: "And merry-go-rounds?  Forget about it.  Way too romantic.  Too much pressure."
+    Junlia: "I'm just not ready for that kind of commitment."
+    Scott: "Uh, okay."
+    +:shakeZ(Junlia)
+    Junlia: "Have you ever had one of those chili dogs with the cheese and the onions and the mustard?  They sell them at theme parks a lot."
+    Junlia: "Like, you really need to try it with peanut butter if you can.  Soooo good."
+    Junlia: "I mean, I know it sounds weird, but it's really good."
+    Junlia: "But sometimes I don't ask for it because the vendor looks scary.  You know the type.  Like they don't like grape juice or something."
+    +:question(Scott)
+    Scott: "Are you... talking to me?"
+    +:ld(Junlia, down)
+    Junlia: "But I mean I don't like that stuff much either."
+    +:la(Junlia, Scott)
+    Junlia: "When I was a kid my brother gave me purple chalk water and told me it was grape juice."
+    Junlia: "Totally scarred me for life.  I won't even touch wine now."
+    +:ld(Scott, down)
+    Scott: "Alright, then.  I'll just continue to look out for my friend."
+    +none()
+    +panCameraBackToPlayer()
+    +:ld(Ada, down)
+    +?func(inParty, Anjana):{
+      +:leach(Anjana, Ada)
+      Anjana: "Fascinating.  It's like nothing has changed."
+      Anjana: "She's still basically talking to herself."
+    }
+  }
+  +?eq(tmp.pairingCount, 2):{
+    Junlia: "Did you know there's no way a bee should be able to fly, based on all known laws of aviation?"
+    Junlia: "But the bee doesn't care what humans think is impossible.  It just flies anyway."
+    +?func(inParty, Anjana):{
+      +:bored(Anjana)
+      +:la(Anjana, Ada)
+      Anjana: "Tell me why you wanted to pair them up again?"
+    }
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndLars
+  +setConversationGroup(Junlia, Lars)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Lars)
+  +:patternMatchmaking_pairingCount(Junlia, Lars)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Lars)
+    Junlia: "I'm not really a fan of the color green.  I mean, it's okay, but I don't like it when it's on me."
+    Junlia: "I think it's because I have green eyes.  There's probably something scientific about that."
+    Junlia: "Maybe it would look different if I wore different color contacts?  I don't know, I've never tried."
+    Junlia: "Contacts really dry out my eyes.  But I guess they do for everybody else, too."
+    +:leach(Lars, Ada)
+    +:shakeZ(Lars)
+    Lars: "Pardon.  I have question."
+    Lars: "Can you translate what she is saying?  I am having difficulty understanding."
+    Ada: "To be honest, I am having trouble keeping up myself."
+    +?func(inParty, Skye):{
+      +:leach(Skye, Anjana)
+      Anjana: "It's mostly nonsense anyway."
+    }
+    Lars: "Oh..."
+    +:leach(Junlia, Lars)
+    +:ld(Ada, down)
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Ada, Lars)
+    Lars: "I am still not understanding her very well..."
+    +:leach(Junlia, Lars)
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndMordred
+  +setConversationGroup(Junlia, Mordred)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Mordred)
+  +:patternMatchmaking_pairingCount(Junlia, Mordred)
+  +?eq(tmp.pairingCount, 1):{
+    Junlia: "You know how like everybody likes the metric system and hates imperial?  Like why?  Isn't that constricting yourself to base-ten thinking?"
+    Junlia: "Binary computers might like a different system that's more like base-two.  Nobody asked them!"
+    Junlia: "Heck, even base-sixteen would be preferable, probably."
+    Junlia: "I'm just saying, belittling the imperial system is just as narrow minded as using the metric system in the first place."
+    +:leach(Ada, Mordred)
+    Mordred: "This lovely patron would do quite well with the silent monks of the abbey by the castle."
+    Mordred: "They particularly enjoy this sort of philosophical-mathematical debate."
+    Mordred: "Although, they typically read about them more than engage in them..."
+    +:leach(Junlia, Mordred)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Ada, Mordred)
+    Mordred: "My partner is quite interesting, but I do wish to experience others in this room."
+    +:leach(Junlia, Mordred)
+  }
+  +:patternMatchmaking_Table2_EndConvo()
+
+@patternMatchmaking_JunliaAndBobby
+  +setConversationGroup(Junlia, Bobby)
+  +:patternMatchmaking_Table2_SetupConv()
+  +panCameraToFitCharacters(1000, false, Junlia, Bobby)
+  +:patternMatchmaking_pairingCount(Junlia, Bobby)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Junlia, Bobby)
+    +:heart(Junlia)
+    Junlia: "Omigawd do you have ramen?!  I love ramen!  I could eat ramen every day!"
+    Bobby: "Really? Me too!  I've been trying to figure out somebody to share this with."
+    Junlia: "Would you... um... consider sharing that with me?"
+    +:jump(Bobby)
+    Bobby: "Of course!"
+    Bobby: "It's spicy though, is that okay?"
+    Junlia: "The spicier the better!"
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "I think we have a match made in heaven."
+    }
+    +:leach(Junlia, Bobby)
+    +:ld(Ada, down)
+    +panCameraBackToPlayer()
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Junlia, Bobby)
+    +:heart(Junlia)
+    Junlia: "Oh, this is just the best ramen ever!  I'm so glad you shared this with me!"
+    Bobby: "I'm glad you like it!  I was worried it might be too spicy."
+    Junlia: "No way!  It's perfect!  I could eat this every day!"
+    Bobby: "Wanna go get some more after this?"
+    Junlia: "Sure!"
+  }
+  +:patternMatchmaking_Table2_EndConvo()

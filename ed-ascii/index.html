@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ED/ASCII — character art editor</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">▣</span> ED<span class="brand-slash">/</span>ASCII <small>CHARACTER ART EDITOR</small></div>
+      <div class="top-right"><span class="live-indicator"></span> LOCAL WORKSPACE <span class="top-divider">│</span> <button id="theme-toggle" class="text-button" title="Toggle light and dark mode">☼ LIGHT MODE</button></div>
+    </header>
+    <nav class="menubar" aria-label="Main menu">
+      <details class="menu"><summary>FILE</summary><div class="menu-panel">
+        <button data-action="new">New document <kbd>Ctrl+N</kbd></button>
+        <button data-action="browse">Browse files... <kbd>Ctrl+O</kbd></button>
+        <button data-action="save">Save <kbd>Ctrl+S</kbd></button>
+        <button data-action="save-as">Save as...</button>
+        <hr><button data-action="export">Export ANSI (.ans)</button>
+      </div></details>
+      <details class="menu"><summary>EDIT</summary><div class="menu-panel">
+        <button data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
+        <button data-action="redo">Redo <kbd>Ctrl+Y</kbd></button>
+        <button data-action="resize">Resize canvas...</button>
+        <hr><button data-action="copy">Copy selection <kbd>Ctrl+C</kbd></button>
+        <button data-action="paste">Paste <kbd>Ctrl+V</kbd></button>
+        <button data-action="clear">Clear selection <kbd>Del</kbd></button>
+      </div></details>
+      <details class="menu"><summary>VIEW</summary><div class="menu-panel">
+        <button data-action="zoom-in">Zoom in <kbd>+</kbd></button>
+        <button data-action="zoom-out">Zoom out <kbd>−</kbd></button>
+        <button data-action="fit">Fit canvas</button>
+      </div></details>
+      <details class="menu"><summary>HELP</summary><div class="menu-panel help-menu">
+        <p><strong>QUICK REFERENCE</strong></p>
+        <p>Left drag to paint or select. Right click to pick a tile; right drag to make a stamp. Middle drag or Space + drag to pan. Wheel to zoom.</p>
+        <p>B / F / E: full brush, fill or erase. Ctrl+key: FG mode; Ctrl+Shift+key: BG mode. S select · [ FG color · ] BG color.</p>
+        <p>Tap Alt, then press a key to pick a drawing character. Hold Shift with that key for its shifted version. Esc cancels.</p>
+      </div></details>
+      <span class="menu-spacer"></span>
+      <span id="document-title" class="document-title">UNTITLED.ART <span class="dirty-mark">●</span></span>
+    </nav>
+
+    <main class="editor">
+      <aside class="sidebar">
+        <div class="sidebar-heading"><span>CONTROL PANEL</span><span class="tiny-box">01 / EDIT</span></div>
+        <section class="panel">
+          <div class="section-title"><span>01</span> TOOLS</div>
+          <div class="tools" role="group" aria-label="Drawing tools">
+            <button class="tool active" data-tool="brush" title="Full brush: character, foreground and background (B)"><span class="tool-icon">✎</span><span>BRUSH</span><kbd>B</kbd></button>
+            <button class="tool" data-tool="fg-brush" title="FG brush: character and foreground, keep the target background (Ctrl+B)"><span class="tool-icon">✒</span><span>FG BRUSH</span><kbd>^B</kbd></button>
+            <button class="tool" data-tool="bg-brush" title="BG brush: background only, keep the target character and foreground (Ctrl+Shift+B)"><span class="tool-icon">▥</span><span>BG BRUSH</span><kbd>^⇧B</kbd></button>
+            <button class="tool" data-tool="fill" title="Flood fill (F)"><span class="tool-icon">▨</span><span>FILL</span><kbd>F</kbd></button>
+            <button class="tool" data-tool="fg-fill" title="Fill connected cells with the same foreground color (Ctrl+F)"><span class="tool-icon">A</span><span>FG FILL</span><kbd>^F</kbd></button>
+            <button class="tool" data-tool="bg-fill" title="Fill connected cells with the same background color (Ctrl+Shift+F)"><span class="tool-icon">▤</span><span>BG FILL</span><kbd>^⇧F</kbd></button>
+            <button class="tool" data-tool="erase" title="Erase entire tile (E)"><span class="tool-icon">⌫</span><span>ERASE</span><kbd>E</kbd></button>
+            <button class="tool" data-tool="fg-erase" title="Erase character and foreground, keep background (Ctrl+E)"><span class="tool-icon">A̸</span><span>FG ERASE</span><kbd>^E</kbd></button>
+            <button class="tool" data-tool="bg-erase" title="Erase background, keep character and foreground (Ctrl+Shift+E)"><span class="tool-icon">▧</span><span>BG ERASE</span><kbd>^⇧E</kbd></button>
+            <button class="tool" data-tool="select" title="Rectangle select (S)"><span class="tool-icon">▣</span><span>SELECT</span><kbd>S</kbd></button>
+            <button class="tool color-tool" data-tool="fg" title="Recolor foreground ([) without changing the character or background"><span class="tool-icon">A</span><span>FG COLOR</span><kbd>[</kbd></button>
+            <button class="tool color-tool" data-tool="bg" title="Recolor background (]) without changing the character or foreground"><span class="tool-icon">▧</span><span>BG COLOR</span><kbd>]</kbd></button>
+          </div>
+          <div class="field-head"><label for="brush-size">BRUSH SIZE</label><span id="brush-size-label">1 × 1</span></div>
+          <div class="size-row"><input id="brush-size" type="range" min="1" max="64" value="1"><input id="brush-number" type="number" min="1" max="64" value="1" aria-label="Brush size"></div>
+          <div class="size-presets" aria-label="Brush size presets"><button data-size="1" class="active">1</button><button data-size="2">2</button><button data-size="3">3</button><button data-size="8">8</button><button data-size="16">16</button><button data-size="32">32</button><button data-size="64">64</button></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title"><span>02</span> INK & PAPER</div>
+          <div class="color-targets"><button id="fg-target" class="color-target active"><span id="fg-chip" class="color-chip"></span><span>FG <small>INK</small></span></button><button id="bg-target" class="color-target"><span id="bg-chip" class="color-chip"></span><span>BG <small>PAPER</small></span></button><button id="swap-colors" title="Swap foreground and background">⇄</button></div>
+          <div id="palette" class="palette" aria-label="16 color palette"></div>
+          <div class="palette-note">ANSI / 16 COLOR PALETTE</div>
+        </section>
+
+        <section class="panel">
+          <div class="section-title"><span>03</span> CHARACTER</div>
+          <div class="char-entry"><input id="character" value="█" maxlength="2" aria-label="Drawing character" spellcheck="false"><div><label for="character">ACTIVE GLYPH</label><small>Type any character</small></div><div id="glyph-preview" class="glyph-preview">█</div></div>
+          <div class="field-head"><span>QUICK GLYPHS</span><span class="muted">CLICK TO USE</span></div>
+          <div id="glyph-list" class="glyph-list" aria-label="Common drawing characters"></div>
+          <button id="reset-stamp" class="subtle-button" hidden>✕ &nbsp; CLEAR STAMP / USE GLYPH</button>
+        </section>
+
+        <div class="sidebar-foot">ED/ASCII <span>© 2026 · LOCAL EDITION</span></div>
+      </aside>
+
+      <section class="workspace" aria-label="Drawing workspace">
+        <div class="workspace-toolbar"><div class="workspace-label"><span class="workspace-icon">▦</span> CANVAS <span class="toolbar-separator">/</span> <span id="dimensions">120 × 40 CELLS</span> <span id="key-mode-hint" hidden>ALT → PRESS KEY TO PAINT</span></div><div class="workspace-controls"><span class="pan-hint">SPACE + DRAG TO PAN</span><button id="zoom-out" title="Zoom out">−</button><span id="zoom-label">100%</span><button id="zoom-in" title="Zoom in">+</button><button id="fit" title="Fit canvas">FIT</button></div></div>
+        <div id="canvas-wrap" class="canvas-wrap"><canvas id="canvas" tabindex="0" aria-label="Character art canvas"></canvas><div class="canvas-corner">ED / 01</div></div>
+        <div class="workspace-footer"><span>RIGHT CLICK <b>PICK TILE</b> <i>·</i> RIGHT DRAG <b>MAKE STAMP</b></span><span>SCROLL <b>ZOOM</b> <i>·</i> MIDDLE DRAG <b>PAN</b></span></div>
+      </section>
+    </main>
+    <dialog id="file-dialog" aria-labelledby="file-dialog-title">
+      <div class="dialog-heading"><span id="file-dialog-title">▤ &nbsp; FILE BROWSER</span><button id="close-files" aria-label="Close file browser" title="Close">×</button></div>
+      <section class="panel files-panel">
+        <div class="section-title"><span>04</span> SAVED DOCUMENTS <button id="refresh-files" title="Refresh files" aria-label="Refresh files">↻</button></div>
+        <div class="file-actions"><button data-action="new">+ NEW DOCUMENT</button><button data-action="save">↓ SAVE CURRENT</button></div>
+        <div id="file-list" class="file-list"><div class="empty-files">NO SAVED FILES YET</div></div>
+        <p class="file-hint">Select a file to open it. Files are stored on this server as .json</p>
+      </section>
+    </dialog>
+    <dialog id="size-dialog" aria-labelledby="size-dialog-title">
+      <div class="dialog-heading"><span id="size-dialog-title">▦ &nbsp; RESIZE CANVAS</span><button id="close-size" type="button" aria-label="Close size dialog" title="Close">×</button></div>
+      <form id="size-form">
+        <p id="size-description">Existing cells stay at the top-left. Shrinking clips cells outside the new canvas.</p>
+        <div class="size-fields">
+          <label for="canvas-width">WIDTH <small>1–256 CELLS</small><input id="canvas-width" type="number" min="1" max="256" step="1" required></label>
+          <span>×</span>
+          <label for="canvas-height">HEIGHT <small>1–128 CELLS</small><input id="canvas-height" type="number" min="1" max="128" step="1" required></label>
+        </div>
+        <div class="size-dialog-actions"><button id="cancel-size" type="button">CANCEL</button><button id="apply-size" type="submit">RESIZE CANVAS</button></div>
+      </form>
+    </dialog>
+    <div id="toast-stack" class="toast-stack" role="status" aria-live="polite" aria-relevant="additions"></div>
+    <footer class="statusbar"><div><span class="status-led"></span><span id="status">READY TO DRAW</span></div><div><span id="tool-status">BRUSH / 1 × 1</span><span class="status-separator">│</span><span id="cursor-status">X: -- &nbsp; Y: --</span><span class="status-separator">│</span><span>ED/ASCII V1.0</span></div></footer>
+  </div>
+</body>
+</html>

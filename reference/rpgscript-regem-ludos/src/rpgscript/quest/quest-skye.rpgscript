@@ -1,0 +1,590 @@
+
+#floor2_skyeFirstEncounter
+step,?all(func(questIsNotStarted, NiceTrySkye), func(inParty, Anjana)):this
+@this
++setConversation('Ada');
++:la(Ada, skye);
++panCameraToFitCharacters(2000, false, Skye);
+Skye: "Grr..."
+Skye: "This DUMB! STUPID. BOX!"
++none();
++:bumpX(Skye, -2);
++playSound(thunk);
++shakeScreen(250);
++waitMS(1000);
+Skye: "GAH! HYA!"
++none();
++:bumpX(Skye, -2);
++playSound(thunk);
++shakeScreen(250);
++waitMS(500);
+// +setConversation2('Ada', 'Skye');
++:ld(Skye, rightup);
+Skye: "Ouch, <color=LIGHTGREY scale=0.75 cascade-letters>that stings..."
++walkToMarker(Anjana, MarkerSkye0, 22, 0, true);
++walkToMarker(Ada, MarkerSkye0, 0, 0, false);
++walkToMarker(Anjana, MarkerSkye1, 32, 0, true);
++walkToMarker(Ada, MarkerSkye1, 0, 0, false);
++:la(Ada, Skye);
++:la(Anjana, Skye);
++:la(Skye, Ada);
++panCameraToFitCharacters(1000, false, Skye, Ada);
++:lightbulb(Skye);
+Skye: "Oh, hey <color=ORANGE>Ada</>!"
++:shakeZ(Skye);
+Skye: "Haven't seen <italic>you</> around here before."
+Skye: "Come to blow off some steam or something?"
+Skye: "I slipped out of detention to come here."
++:smirk(Skye);
+Skye: "Went right out the window.  <color=LIGHTBLUE>Mr. Ralgo</> was actually cursing at me as I ran away."
++:teardrop(Ada);
++:teardrop(Anjana);
++:la(Skye, Anjana);
++:shakeZ(Skye);
+Skye: "Who's that with you?"
++none();
++walkToOffset(Skye, 24, 0);
++:leach(Skye, Anjana);
++:la(Skye, Ada);
++:la(Skye, Anjana);
+Skye: "I don't think I know you."
+Skye: "Are you here with <color=ORANGE>Ada</>?"
+Skye: "I'm Skye."
++:bumpZ(Skye, -2);
++:teardrop(Anjana);
+Anjana: "<cascade-letters>......"
+Anjana: "Anjana."
++:question(Anjana);
+Anjana: "<italic>You</> are a friend of Ada's?"
+Skye: "Yeah. We both go to <color=LIGHTPURPLE>Erran Valley</>.  Classmates.  We sit next to each other."
+Anjana: "I see..."
++:doubt(Ada);
+Ada: "Why are you hitting that vending machine?"
++:ld(Skye, leftup);
+Skye: "What?  This dumpster?"
++:none();
++walkToMarker(Skye, MarkerSkye2);
++:bumpX(Skye, -2);
++playSound(thunk);
++:w(500);
++:la(Skye, Ada);
++:angry(Skye);
+Skye: "It keeps eating my tickets!"
+Skye: "I've given like 1000 and it still doesn't work!"
++:la(Anjana, Skye);
++:smirk(Anjana);
+Anjana: "You could try hitting the machine a bit harder?"
++:ld(Skye, leftup);
+Skye: "I've already given it a few good whomps..."
++:leach(Skye, Ada);
++:shakeZ(Ada);
+Ada: "Look, Skye, do you know about this place?  This arcade?"
+Ada: "I have suddenly found myself in need of getting to the 10th floor."
+Skye: "Huh?  Can't you just take an elevator up there?"
+Ada: "Apparantly not.  Supposedly one must fight through the arcade's <color=LIGHTBLUE>Revirtualis</> in order to advance in floors."
+Skye: "Ya?  I haven't really been there a lot.  Seems kinda like you need to grind through it."
+Skye: "I did the tutorial though!"
++:lightbulb(Skye);
+Skye: "Couldn't you have <color=ORANGE>Conscience</>, like, hack the elevator or something?"
++:ld(Ada, left);
++:worried(Ada);
+Ada: "<color=LIGHTGREY scale=0.8 />If only it were that easy."
++:la(Ada, Skye);
+Ada: "Conscience is... trapped.  In the <color=LIGHTBLUE>Revirtualis</> here."
+Ada: "It was <color=LIGHTRED>Carl-Arnold</>.  He did something to prevent her from coming with me."
+Ada: "I am trying to get her out."
+Skye: "I always knew that guy was a tool."
+Skye: "Okay.  If you want, I can help you out.  I got some time to kill."
++:teardrop(Anjana);
++:blush(Ada);
+Ada: "You would?"
+Skye: "Yeah! I owe you anyway; you've always helped me a ton."
++:ld(Skye, leftup);
+Skye: "But first..."
++:ld(Skye, leftup);
+Skye: "<cascade-letters italic>I need a drink."
++:bumpX(Skye, -2);
++playSound(thunk);
++:teardrop(Ada);
+Ada: "Perhaps you should find a different machine."
+Ada: "I am guessing that one is... broken?"
++:la(Skye, Ada);
+Skye: "No way.  I can't let this thing steal from me!"
+Skye: "It's become <italic>personal</>."
++:ld(Skye, left);
+Skye: "And besides, the other one is broken or something."
++:ld(Skye, leftup);
+Skye: "I'll go with you as soon as I've beaten a drink out of this trash can."
++:teardrop(Ada);
++stopSkipCutscene();
++walkToOffset(Ada, 32, 32, true);
++walkToOffset(Anjana, 32, 32);
++setConversation2(Ada, Anjana);
++:leach(Ada, Anjana);
++panCameraBackToPlayer();
+Anjana: "So.  Is it true?"
+Ada: "Is what true?"
+Anjana: "Are you really friends with that girl?"
+Ada: "Yes.  Why do you ask?"
++:teardrop(Anjana);
+Anjana: "She seems somewhat <italic>beneath</> you."
+Anjana: "Honestly I doubt she'll last another semester at <color=LIGHTPURPLE>Erran Valley</>."
+Anjana: "I can already tell."
++:serious(Ada);
+Ada: "I <italic>assure</> you that Skye is indeed capable of being a good student, if that is what you are implying."
++:ld(Ada, up);
+Ada: "Now.  How do we go about fixing that vending machine?"
++:exhale(Anjana);
+Anjana: "You could try asking an employee."
++:la(Ada, Anjana);
++:flat(Ada);
+Ada: "Considering the incompetence I have seen on display here, I am not keen on that idea.  What else?"
+Anjana: "Then you need to fix it yourself."
++startQuest(NiceTrySkye);
++:ld(Anjana, up);
++:shakeZ(Anjana);
+Anjana: "Let's go examine the machine."
++endConversation();
+
+#floor2_vendingMachineSkyePanel
+action,?all(func(questStepEQ, NiceTrySkye, 0)):floor2_vendingMachineSkyePanel_NoScrewdriver
+action,?all(func(questIsStarted, NiceTrySkye), isnot(with(FlatheadScrewdriver))):floor2_vendingMachineSkyePanel_NoScrewdriver2
+action,?all(func(questIsStarted, NiceTrySkye), with(FlatheadScrewdriver), once('42befee3')):floor2_vendingMachineSkyePanel_WithScrewdriver
+action,this
+@floor2_vendingMachineSkyePanel
++setConversation(Ada);
+Ada: "I do not think I want to use this vending machine.  Not after what happened with <color=ORANGE>Skye</>."
++endConversation();
+@floor2_vendingMachineSkyePanel_NoScrewdriver
++setConversation(Ada);
++walkToMarker(Ada, MarkerMachine1);
++walkToMarker(Ada, MarkerMachine2);
++?func(inParty, Anjana):{
+  +walkToMarker(Anjana, MarkerMachine2, 22);
+  +:la(Anjana, Ada);
+}
++:la(Ada, Skye);
+Ada: "Let me take a look at this."
++:ld(Ada, leftdown);
+Ada: "It seems like just a normal vending machine."
+Ada: "There is an access panel over here, but I cannot open it without a <color=LIGHTBLUE>Flathead Screwdriver</>."
++?func(inParty, Anjana):{
+  +:shakeZ(Anjana);
+  Anjana: "There's got to be one around here somewhere, right?"
+}
+Ada: "I might be able to fix it if I can see inside."
++completeQuestStep(NiceTrySkye, 0);
++endConversation();
+@floor2_vendingMachineSkyePanel_NoScrewdriver2
++setConversation(Ada);
++walkToMarker(Ada, MarkerMachine1);
++walkToMarker(Ada, MarkerMachine2);
++?func(inParty, Anjana):{
+  +walkToMarker(Anjana, MarkerMachine2, 22);
+  +:la(Anjana, Ada);
+}
++:ld(Ada, leftdown);
+Ada: "There is an access panel over here, but I cannot open it without a <color=LIGHTBLUE>Flathead Screwdriver</>."
++?func(inParty, Anjana):{
+  +:shakeZ(Anjana);
+  Anjana: "There's got to be one around here somewhere, right?"
+}
++endConversation();
+@floor2_vendingMachineSkyePanel_WithScrewdriver
++stopAi(floor2_Employee1);
++setConversation(Ada);
++walkToMarker(Ada, MarkerMachine1);
++walkToMarker(Ada, MarkerMachine2);
++?func(inParty, Anjana):{
+  +walkToMarker(Anjana, MarkerMachine2, 22);
+  +:la(Anjana, Ada);
+}
++:ld(Skye, up);
++:ld(Ada, leftdown);
+Ada: "I should be able to open this access panel with the <color=LIGHTBLUE>Flathead Screwdriver</>."
++:none();
++panCameraRelativeToPlayer(0, 0, 1);
++:bumpY(Ada, 2);
++playSound(robot_clank3);
++:w(75);
++playSound(robot_clank);
++:w(500);
+Ada: "There we go.  Now let me see..."
++?func(inParty, Anjana):{
+  +:la(Anjana, Ada);
+  Anjana: "Do you actually know what you're doing in there?"
+  +:shakeZ(Ada);
+  Ada: "Yes.  <color=ORANGE>Father</> has me deconstruct electronics all the time."
+  Ada: "Although, I am not particularly skilled at it.  Not like he is."
+}
+Ada: "Oh.  The problem is actually obvious."
+Ada: "One of these wires got disconnected somehow....  Looks like maybe the machine got jostled and it came undone."
++?func(inParty, Anjana):{
+  +:la(Anjana, Skye);
+  +:bored(Anjana);
+  Anjana: "I <italic cascade-letters>wonder how that happened...</>"
+  +:la(Anjana, Ada);
+  Anjana: "Can it be fixed?"
+}
+Ada: "Yes, it just needs to be wound back on."
+Ada: "Give me a second..."
++none();
++:bumpY(Ada, 2);
++playSound(zap_quiet);
++:w(500);
++?func(inParty, Anjana):{
+  +:la(Anjana, Ada);
+  +:teardrop(Anjana);
+  Anjana: "Shouldn't you turn off the power first?"
+  Ada: "It will be fine."
+  +none();
+  +:w(100);
+}
++:bumpY(Ada, 2);
++playSound(zap_quiet);
++:w(100);
++:bumpY(Ada, 2);
++playSound(zap_quiet);
++:w(1000);
++:happy(Ada);
+Ada: "I think that should do it."
++none();
++walkToMarker(Ada, MarkerMachine2);
++:la(Ada, Skye);
++?func(inParty, Anjana):{
+  +walkToMarker(Anjana, MarkerMachine2, 32);
+  +:la(Anjana, Skye);
+}
+Ada: "Try pressing the button again, Skye."
++:ld(Skye, leftup);
++:bumpX(Skye, -2);
++playSound(beep);
++:w(500);
++playSound(make_purchase);
++:w(1000);
+Skye: "Oh hey look!  My drink!"
++playSound(click);
++:bumpX(Skye, -3);
++:ld(Skye, rightup);
++:w(1000);
++:face(Skye, leftup);
++:face(Ada, leftdown);
++:face(Anjana, left);
++shakeScreen(100);
++playSound(thunk);
++:w(50);
++playSound(thunk);
++:w(50);
++playSound(move_wall);
++:w(1000);
++panCameraToFitCharacters(500, false, Ada, Skye, Anjana);
++:exclaim(Ada);
+Ada: "What was that?"
++none();
++shakeScreen(100);
++playSound(thunk);
++:w(250);
++:face(Ada, down);
++:face(Anjana, leftdown);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:face(Skye, up);
++offsetCharacter(Skye, 20, 20);
++waitMS(33);
++offsetCharacter(Skye, 6, 6);
++waitMS(33);
++offsetCharacter(Skye, 4, 4);
++waitMS(33);
++offsetCharacter(Skye, 2, 2);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:teardrop(Ada);
++:surprised(Skye);
++:w(1000);
++playSound(thunk);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++waitMS(33);
++:face(Skye, rightup);
++offsetCharacter(Skye, 4, 8);
++waitMS(33);
++offsetCharacter(Skye, 2, 4);
++:w(200);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(200);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(200);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:exclaim(Ada);
+Ada: "Um, Skye?  Exactly how many did you buy?"
++none();
++:w(100);
++playSound(thunk);
++:w(250);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(100);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(50);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(33);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(1000);
++playSound(knock);
++spawnParticleAtMarker(EFFECT_TEMPLATE_TRANSFORM_SKYE_SODA_CAN, MarkerDrinkDispenser, normal);
++:w(1000);
++:teardrop(Skye);
+Skye: "Wow I didn't realize I had bought that many."
++:ld(Skye, down);
+Skye: "Well whatever.  I got my drink now.  Let me take a sip."
++none();
+// skye sip animation.
++playSound(snap);
++:bumpZ(Skye, 2);
++playSound(snip);
++:bumpZ(Skye, 2);
++:w(1000);
++playSound(knock);
++:bumpZ(Skye, 2);
++:w(500);
+Skye: "Meh.  Tastes kind of bland."
+Skye: "Not really worth it."
++none();
++:w(500);
++walkToMarker(Skye, MarkerSkyeTrash);
++:ld(Skye, rightup);
++:la(Ada, Skye);
++:la(Anjana, Skye);
++:bumpY(Skye, -1);
++playSound(rustle);
++:w(500);
++:la(Skye, Ada);
++:shakeZ(Ada);
+Ada: "Did you just... throw that away?"
+
++setAnimation(Anjana, 'characters/anjana_battle_flourish');
+Anjana: "<cascade-letters>......"
++setAnimationState(Anjana, idle);
++walkToMarker(floor2_Employee1, MarkerSkyeEmployee, 0, 0);
++panCameraToFitCharacters(500, false, floor2_Employee1, Ada, Skye);
+floor2_Employee1: "What on Earth are you kids doing in here?"
++:teardrop(Ada);
++:teardrop(Anjana);
++:question(Skye);
++:ld(floor2_Employee1, rightdown);
++:jump(floor2_Employee1);
++:exclaim(floor2_Employee1);
+floor2_Employee1: "Ugh.  What a mess!  Move out of the way, I need to get this cleaned up."
++setSpeed(floor2_Employee1, 0.25);
++walkToOffset(floor2_Employee1, 8, 8, true);
++fadeOut(1000);
++stopSkipCutscene();
+Employee: "Geez.  I didn't even know we had this much soda available to buy..."
+Employee: "It's so sticky!"
++none();
++:w(500);
++setAtMarker(floor2_Employee1, MarkerSkyeEmployee4);
++:ld(floor2_Employee1, rightup);
++:la(Skye, floor2_Employee1);
++fadeIn(2000);
+floor2_Employee1: "I think this should go without saying, but..."
+floor2_Employee1: "Whatever it is you did, <scale=1.2>DON'T DO IT AGAIN</>."
++:ld(floor2_Employee1, down);
+floor2_Employee1: "Sheesh."
++:none();
++setSpeed(floor2_Employee1);
++:shakeZ(floor2_Employee1);
++:ld(floor2_Employee1, leftup);
+floor2_Employee1: "Wait a second.  What's this?"
++:none();
++walkToMarker(floor2_Employee1, MarkerSkyeEmployee3);
++panCameraRelativeToCurrentPosition(-50, 0);
+floor2_Employee1: "I thought I told them to put this on the far right vending machine."
+floor2_Employee1: "Do I have to do everything around here?"
++:bumpZ(floor2_Employee1, 2);
++playSound(knock);
++movePropToOffset(PropOutOfOrder, 500, 500);
++setStorage(vars.props.PreCafeteriaOutOfOrder);
++walkToOffset(floor2_Employee1, 0, -32);
++:ld(floor2_Employee1, leftup);
++:w(100);
++:ld(floor2_Employee1, leftup);
++playSound(knock);
++movePropToOffset(PropOutOfOrder, -500, -500);
++movePropToOffset(PropOutOfOrder, 0, -32);
++:w(500);
++:sigh(floor2_Employee1);
++walkToMarker(floor2_Employee1, MarkerSkyeEmployee);
++walkToMarker(floor2_Employee1, MarkerSkyeEmployee2);
++:ld(floor2_Employee1, down);
++panCameraBackToPlayer();
++walkToOffset(Skye, -16, 0);
++:smirk(Skye);
+Skye: "Well that was pretty weird, huh."
++:teardrop(Anjana);
+Anjana: "I can't believe you just threw away all that soda."
++:la(Skye, Anjana);
+Skye: "Whatever! It was crap anyway."
++:la(Skye, Ada);
+Skye: "We still have to save, <color=ORANGE>Conscience</>, right?  Let's do it!"
++none();
++walkToCharacter(Skye, Ada, 16, 0);
++playSound(terminal_beep);
++:bumpX(Skye, -2);
++:w(200);
++playSound(rez);
++addPartyMemberToActiveParty(Skye);
++acquireItem(TrHammer, 0, true);
++equipWeaponOrArmor(TrHammer, Skye);
+Narrator: "<color=ORANGE>Skye</> has joined the party."
++none();
++:w(1000);
+Skye: "What are we waiting for? Let's go!"
+Skye: "Just let me run at stuff with my hammer, I can cause a lot of chaos."
+Skye: "You can also have the rest of my leftover tickets, I don't really need 'em anymore."
++completeQuestStep(NiceTrySkye, 3);
++:la(Anjana, Skye);
+Anjana: "<scale=0.75 />I really hope Ada's right about you."
++:ld(Anjana, down);
+Anjana: "<scale=0.5 />The last thing I need is a liability."
++resetAi(floor2_Employee1);
++endConversation();
+
+#floor2_OutOfOrderMachine
+load,floor2_OutOfOrderMachineLoad
+action,?is(vars.props.PreCafeteriaOutOfOrder):floor2_OutOfOrderMachine2
+action,this
+@this
+// +:floor2_vendingMachineSkyePanel_WithScrewdriver();
++setConversation(Ada);
++:ld(Ada, leftup);
+Ada: "The note says 'out of order'."
++endConversation();
+@floor2_OutOfOrderMachine2
++?once('695104ca'):{
+  +setConversation(Ada);
+  +:ld(Ada, leftup);
+  Ada: "I suppose this machine was working all along..."
+  +endConversation();
+}
++showStore(FLOOR2_SODA_VENDING_MACHINE);
+@floor2_OutOfOrderMachineLoad
++?is(vars.props.PreCafeteriaOutOfOrder):{
+  +movePropToOffset(PropOutOfOrder, 0, -32);
+}
++?isnot(func(questCompleted, NiceTrySkye)):{
+  +spawnCharacterAtMarker(Skye, MarkerSkye2);
+}

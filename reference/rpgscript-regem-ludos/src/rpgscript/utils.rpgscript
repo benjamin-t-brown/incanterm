@@ -1,0 +1,940 @@
+// this exists because of the number of times I've accidentally written +:none()
+@none
+  +none()
+
+// ARG0 = name of map to transition to
+// ARG1 = name of marker to place player at
+// ARG2 = boolean, whether or not to skip the fade in
+@utils-change-room
+  +setConversationWithoutBars(Ada)
+  +setAnimationState('Ada', 'idle')
+  +fadeOut(250, true)
+  +panCameraBackToPlayer(1)
+  +waitMS(50, '', true)
+  +playSound('change_room')
+  +waitMS(200)
+  +changeRoom([ARG0], [ARG1])
+  +?isnot([ARG2]):{
+    +fadeIn(300, true)
+    +endConversation(100)
+  }
+
+@changeRoom
+  +callScript(utils-change-room,[ARG0],[ARG1],[ARG2])
+
+// ARG0 = boolean: skip the walkOffset
+@utils-start-Conscience-dialogue
+  +setConversation()
+  // +setFacing('Ada', down)
+  // +spawnCharacterAtCharacter('Conscience', 'Ada')
+  +?isnot([ARG0]):{
+    // +waitMS(250)
+    // +walkToOffset('Conscience', 16, 16)
+    +lookAtEachOther('Ada', 'Conscience')
+    +endConversation(100, true)
+    +setConversation2('Ada', 'Conscience')
+  }
+  +?is([ARG0]):{
+    +endConversation(100, true)
+    +setConversation2('Ada', 'Conscience', 0)
+  }
+
+@utils-start-Conscience-dialogue-reverse
+  +setConversation()
+  // +setFacing('Ada', down)
+  // +spawnCharacterAtCharacter('Conscience', 'Ada')
+  +?isnot([ARG0]):{
+    // +waitMS(250)
+    // +walkToOffset('Conscience', 16, 16)
+    +lookAtEachOther('Ada', 'Conscience')
+    +setConversation2(Conscience, Ada)
+  }
+  +?is([ARG0]):{
+    +setConversation2(Conscience, Ada, 0)
+  }
+
+// ARG0 = boolean: skip the walkOffset
+@utils-start-Conscience-dialogue-single
+  // +setFacing('Ada', down)
+  // +waitMS(250)
+  // +spawnCharacterAtCharacter('Conscience', 'Ada')
+  // +?isnot([ARG0]):{
+  //   +walkToOffset('Conscience', 16, 16)
+  // }
+  +lookAtEachOther('Ada', 'Conscience')
+
+@utils-stop-Conscience-dialogue
+  +setConversationSpeaker("none")
+  // +walkToCharacter("Conscience", "Ada")
+  // +despawnCharacter("Conscience")
+  // +waitMS(750)
+
+#utils-kiosk-stats-activate
+  step-first,?with(HapticBracer):this
+  action,?with(HapticBracer):utils-kiosk-status-activate-action
+@this
+  +changeTileAtMarker(MarkerKioskStats, KIOSK_STATS_ACTIVE)
+@utils-kiosk-status-activate-action
+  +pauseOverworld()
+  +playSound(menu_choice_open)
+  +showUISection(CharacterStatus)
+
+#utils-kiosk-stats-deactivate
+  step,this
+@this
+  +changeTileAtMarker(MarkerKioskStats, KIOSK_STATS_PASSIVE)
+
+#utils-kioskStats
+  step-first,?with(HapticBracer):utils-kioskStats_on
+  step-off,?with(HapticBracer):utils-kioskStats_off
+  action,?with(HapticBracer):utils-kioskStats_action
+  step-first,utils-kioskStats_no_bracer
+  action,utils-kioskStats_action_cancel
+@utils-kioskStats_on
+  +changeTileAtMarker(MarkerKioskStats, KIOSK_STATS_ACTIVE)
+// +setCharacterText('Press Action (X) to access this kiosk.');
+@utils-kioskStats_off
+  +changeTileAtMarker(MarkerKioskStats, KIOSK_STATS_PASSIVE)
+@utils-kioskStats_action
+  +pauseOverworld()
+  +playSound(menu_choice_open)
+  +showUISection(CharacterStatus)
+@utils-kioskStats_no_bracer
+// +setCharacterText('This kiosk requires a Haptic Bracer.');
+@utils-kioskStats_action_cancel
+  +playSound(terminal_cancel)
+
+#utils-kioskSavePoint
+  step-first,utils-kioskSavePoint_on
+  step-off,utils-kioskSavePoint_off
+  action,utils-kioskSavePoint_action
+@utils-kioskSavePoint_on
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_ACTIVE)
+// +setCharacterText('Press Action (X) to access this kiosk.');
+@utils-kioskSavePoint_off
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_PASSIVE)
+@utils-kioskSavePoint_action
+  +pauseOverworld()
+// +playSound(menu_choice_open);
+  +showUISection(Save)
+
+#utils-kioskSavePoint2
+  step-first,utils-kioskSavePoint2_on
+  step-off,utils-kioskSavePoint2_off
+  action,utils-kioskSavePoint2_action
+@utils-kioskSavePoint2_on
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_ACTIVE)
+// +setCharacterText('Press Action (X) to access this kiosk.');
+@utils-kioskSavePoint2_off
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_PASSIVE)
+@utils-kioskSavePoint2_action
+  +pauseOverworld()
+// +playSound(menu_choice_open);
+  +showUISection(Save)
+
+#utils-kioskInfoStats
+  step-first,utils-kioskInfoStats_on
+  action,utils-kioskInfoStats_action
+@utils-kioskInfoStats_on
+// +setCharacterText('Press Action (X) to access this kiosk.');
+@utils-kioskInfoStats_action
+  +pauseOverworld()
+// +playSound(menu_choice_open);
+  +showUISection(InfoStats)
+
+#utils-save-point-activate
+  step,this
+  action,utils-save-point-activate-action
+@this
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_ACTIVE)
+@utils-save-point-activate-action
+  +pauseOverworld()
+  +playSound(menu_choice_open)
+  +showUISection(Save)
+
+#utils-save-point-deactivate
+  step,this
+@this
+  +changeTileAtMarker(MarkerSavePoint, SAVE_POINT_PASSIVE)
+
+@utils-vr-step
+// +playSound(beep);
+// +setCharacterText('The Haptic Bracer is vibrating.');
+
+// ARG0 = name of map to transition to
+// ARG1 = name of marker to place player at
+// ARG2 = boolean: should spawn party members?
+@utils-transition-to-vr
+  +:utils-transition-to-vr-fade-out()
+  +:utils-transition-to-vr-fade-in([ARG0], [ARG1], [ARG2])
+
+// like utils-transition-to-vr but only emits a fade out
+@utils-transition-to-vr-fade-out
+  +setConversation(Ada)
+  +stopMusic(500)
+// +setCharacterText('');
+  +walkToMarker('Ada', MarkerVRLanding)
+  +setFacing('Ada', 'down')
+  +walkPartyToFormation()
+  +playSound('vr_portal_buzz')
+  +waitMS(500, '', true)
+  +playSound('vr_portal_focus')
+  +setAnimation('Ada', 'ada_enter_vr_portal')
+  +waitMS(225, '', true)
+  +playSound('vr_portal_start')
+  +waitMS(850, '', true)
+  +playSound('battle_jump')
+  +waitMS(150, '', true)
+  +playSound('battle_jump')
+  +waitMS(250, '', true)
+  +playSound('battle_jump')
+  +waitMS(750, '', true)
+  +playSound('battle_encountered')
+  +disableAnimationSounds()
+  +setConversationWithoutBars(Ada)
+  +fadeOutColor(255, 255, 255, 1000)
+  +changeRoom('black')
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PORTAL', 'Ada', 'normal')
+  +playSound('vr_portal_zoom')
+  +fadeInColor(255, 255, 255, 1000)
+  +waitMS(2000, '', true)
+  +fadeOut()
+
+// ARG0 = name of map to transition to
+// ARG1 = name of marker to place player at
+// ARG2 = boolean: should spawn party members?
+@utils-transition-to-vr-fade-in
+  +playSound('vr_portal_landed')
+  +changeRoom([ARG0], [ARG1])
+  +?is([ARG2]):{
+  // +spawnPartyMembersInFormation();
+    +walkPartyToFormation()
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, Party, 'normal')
+  }
+  +?isnot([ARG2]):{
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, 'Ada', 'normal')
+  }
+  +fadeIn()
+//wait for the spawn particles to finish
+  +waitMS(300)
+  +setAnimationState('Ada', 'idle')
+  +enableAnimationSounds()
+
+@utils-transition-to-instance-fade-out
+  +setConversation(Ada)
+  +none()
+  +stopMusic(500)
+  +walkToMarker('Ada', MarkerVRLanding)
+  +setFacing('Ada', 'down')
+  +walkPartyToFormation()
+  +playSound('vr_portal_buzz')
+  +:w(500)
+  +setPlayerVisibility(false)
+  +playSound('spawn_enemy')
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  +despawnCharacter(Party)
+  +:w(1000)
+  +fadeOut(500)
+
+@utils-transition-to-instance-fade-in
+  +playSound('vr_portal_landed')
+  +changeRoom([ARG0], [ARG1])
+  +:w(200)
+  +playSound('spawn_enemy')
+  +?is([ARG2]):{
+  // +spawnPartyMembersInFormation();
+    +walkPartyToFormation()
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  }
+  +?isnot([ARG2]):{
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  }
+  +setPlayerVisibility(true)
+  +fadeIn(500)
+//wait for the spawn particles to finish
+  +waitMS(300)
+  +setAnimationState('Ada', 'idle')
+  +enableAnimationSounds()
+
+#utils-show-ticket-token-exchange
+  action,this
+@this
+  +setConversation(Ada)
+  +:lm(Party, MarkerTicketMachine)
+  Narrator: "Would you like to exchange tickets or sell items?"
+  +awaitChoice("Exchange Tickets.", "Sell Items.")
+  +?eq(lastChoiceIndex, 0):{
+    +showStore(TICKET_EXCHANGE_MACHINE)
+  }
+  +?eq(lastChoiceIndex, 1):{
+    +showStore(SELL)
+  }
+  +endConversation()
+
+// ARG0 = name of character to spawn particles at
+@utils-character-jump
+  +setConversationSpeaker(none)
+  +jump([ARG0])
+@jump
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +callScript(utils-character-jump,[ARG0])
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:unlockCamera()
+  }
+
+// ARG0 = name of character to spawn particles at
+@utils-character-giggle
+  +setConversationSpeaker(none)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_GIGGLE, [ARG0], 'weighted')
+  +waitMS(200)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_GIGGLE, [ARG0], 'weighted')
+  +waitMS(200)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_GIGGLE, [ARG0], 'weighted')
+  +waitMS(1000)
+@giggle
+  +callScript(utils-character-giggle,[ARG0])
+
+// ARG0 = name of character to spawn particles at
+@utils-character-sigh
+  +setConversationSpeaker(none)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SIGH, [ARG0], 'rise')
+  +waitMS(800)
+@sigh
+  +callScript(utils-character-sigh,[ARG0])
+
+// ARG0 = name of character to spawn particles at
+@utils-character-shrug
+  +setConversationSpeaker(none)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SHRUG, [ARG0], 'rise')
+  +waitMS(800)
+@shrug
+  +callScript(utils-character-shrug,[ARG0])
+
+// ARG0 = name of character to look around
+@utils-character-look-around
+  +setConversationSpeaker(none)
+  +setFacing([ARG0], 'down')
+  +waitMS(500)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(100)
+  +setFacing([ARG0], 'right')
+  +waitMS(500)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(100)
+  +setFacing([ARG0], 'down')
+  +waitMS(500)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(100)
+  +setFacing([ARG0], 'left')
+  +waitMS(500)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(100)
+  +setFacing([ARG0], 'down')
+@lookAround
+  +callScript(utils-character-look-around,[ARG0])
+
+// ARG0 = name of character to look around
+@lookAroundFast
+  +setConversationSpeaker(none)
+  +setFacing([ARG0], 'down')
+  +waitMS(100)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'right')
+  +waitMS(100)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+  +waitMS(100)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'left')
+  +waitMS(100)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+
+// ARG0 = name of character to look around
+@lookAroundQuestion
+  +setConversationSpeaker(none)
+  +setFacing([ARG0], 'down')
+  +waitMS(100)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'right')
+  +waitMS(200)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+  +waitMS(100)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'left')
+  +waitMS(200)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+
+// ARG0 = name of character to spin
+@utils-character-spin
+  +setConversationSpeaker(none)
+  +setFacing([ARG0], 'down')
+  +waitMS(500)
+  +playSound('woosh')
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'right')
+  +waitMS(33)
+  +setFacing([ARG0], 'rightup')
+  +waitMS(33)
+  +setFacing([ARG0], 'up')
+  +waitMS(33)
+  +setFacing([ARG0], 'leftup')
+  +waitMS(33)
+  +setFacing([ARG0], 'left')
+  +waitMS(33)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+@spin
+  +callScript(utils-character-spin,[ARG0])
+
+// ARG0 = name of character to spin
+@utils-character-shake-z
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +setConversationSpeaker(none)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 0)
+  +waitMS(300)
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:unlockCamera()
+  }
+@shakeZ
+  +callScript(utils-character-shake-z,[ARG0])
+@shakeZExtended
+  +setConversationSpeaker(none)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 0)
+  +waitMS(300)
+
+@utils-character-shake-x
+  +setConversationSpeaker(none)
+  +offsetCharacter([ARG0], 2, 0, 0)
+  +waitMS(33)
+  +offsetCharacter([ARG0], -2, 0, 0)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 2, 0, 0)
+  +waitMS(33)
+  +offsetCharacter([ARG0], -2, 0, 0)
+  +waitMS(33)
+  +offsetCharacter([ARG0], 0, 0, 0)
+  +waitMS(300)
+@shakeX
+  +callScript(utils-character-shake-x,[ARG0])
+
+// ARG0 = ch template name
+// ARG1 = marker name
+@utils-spawn-character-at-marker
+  +setConversationSpeaker(none)
+  +playSound('spawn_enemy')
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, [ARG1], 'normal')
+  +waitMS(200)
+  +spawnCharacterAtMarker([ARG0], [ARG1])
+@spawnAtMarker
+  +callScript(utils-spawn-character-at-marker,[ARG0],[ARG1])
+
+// ARG0 = ch template name
+@utils-despawn-character
+  +setConversationSpeaker(none)
+  +playSound('spawn_enemy')
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, [ARG0], 'normal')
+  +waitMS(200)
+  +despawnCharacter([ARG0])
+@despawn
+  +callScript(utils-despawn-character,[ARG0])
+
+// ARG0 = item template name
+@utils-get-treasure
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_TREASURE, 'Ada', 'rise')
+  +playSound('get_item')
+  +setConversation('Ada')
+  +acquireItem([ARG0])
+  +endConversation()
+
+// This function called by acquirable items when you pick them up.
+// ARG0 = number of tickets to modify
+@utils-get-acquirable-tickets
+  +setConversation(Ada)
+  +modifyTickets([ARG0])
+
+// This function called by acquirable items when you pick them up.
+// ARG0 = number of tokens to modify
+@utils-get-acquirable-tokens
+  +setConversation(Ada)
+  +modifyTokens([ARG0])
+
+// ARG0 = item template name
+@utils-get-treasure-cutscene
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_TREASURE, 'Ada', 'rise')
+  +playSound('get_item')
+  +setConversation('Ada')
+  +acquireItem([ARG0])
+
+// ARG0 = item template name
+@utils-get-quest-treasure-cutscene
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_TREASURE, 'Ada', 'rise')
+  +playSound('get_item')
+  +setConversation('Ada')
+  +acquireQuestItem([ARG0])
+
+// ARG0 = marker where left-most door is
+// ARG1 = door sprite, eg RED_DOOR_BCK
+@openDoubleDoors
+  +changeTileAtMarker([ARG0], [ARG1]_OPEN2)
+  +changeTileAtMarker([ARG0], [ARG1]_OPEN1, 16, 0)
+@closeDoubleDoors
+  +changeTileAtMarker([ARG0], [ARG1]_CLOSED2)
+  +changeTileAtMarker([ARG0], [ARG1]_CLOSED1, 16, 0)
+
+// ARG0 = marker where left-most door is
+// ARG1 = door sprite, eg RED_DOOR
+@openDoubleDoorsBck
+  +changeTileAtMarker([ARG0], [ARG1]_BCK_OPEN2)
+  +changeTileAtMarker([ARG0], [ARG1]_BCK_OPEN1, 16, 0)
+@closeDoubleDoorsBck
+  +changeTileAtMarker([ARG0], [ARG1]_BCK_CLOSED2)
+  +changeTileAtMarker([ARG0], [ARG1]_BCK_CLOSED1, 16, 0)
+
+// ARG0 = marker where the left-most door is
+// ARG1 = door sprite, eg FANCY_DOOR
+@openDoubleDoorsFwd
+  +changeTileAtMarker([ARG0], [ARG1]_FWD_OPEN1)
+  +changeTileAtMarker([ARG0], [ARG1]_FWD_OPEN2, 0, -16)
+@closeDoubleDoorsFwd
+  +changeTileAtMarker([ARG0], [ARG1]_FWD_CLOSED1)
+  +changeTileAtMarker([ARG0], [ARG1]_FWD_CLOSED2, 0, -16)
+
+// ARG0 = marker where the door is
+// ARG1 = door sprite, eg TALL_RED_DOOR_BCK
+@openDoor
+  +changeTileAtMarker([ARG0], [ARG1]_OPEN)
+@closeDoor
+  +changeTileAtMarker([ARG0], [ARG1]_CLOSED)
+
+// ARG0 = name of character to bump
+// ARG1 = negative or positive px value to bump
+@bumpX
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +setConversationSpeaker(none)
+  +waitMS(100)
+  +offsetCharacter([ARG0], [ARG1]/2, 0, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], [ARG1]/2, 0, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], -[ARG1]/2, 0, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], -[ARG1]/2, 0, 0)
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +?isnot([ARG2]):{
+      +:unlockCamera()
+    }
+  }
+
+// ARG0 = name of character to bump
+// ARG1 = negative or positive px value to bump
+@bumpY
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +setConversationSpeaker(none)
+  +waitMS(100)
+  +offsetCharacter([ARG0], 0, [ARG1]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, [ARG1]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, -[ARG1]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, -[ARG1]/2, 0)
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +?isnot([ARG2]):{
+      +:unlockCamera()
+    }
+  }
+
+// ARG0 = name of character to bump
+// ARG1 = negative or positive px value to bump
+// ARG2 = don't unlock
+@bumpZ
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +setConversationSpeaker(none)
+  +waitMS(100, '', true)
+  +offsetCharacter([ARG0], 0, 0, [ARG1])
+  +waitMS(100, '', true)
+  +offsetCharacter([ARG0], 0, 0, -[ARG1])
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +?isnot([ARG2]):{
+      +:unlockCamera()
+    }
+  }
+
+// ARG0 = name of character to bump
+// ARG1 = negative or positive px value to bump x
+// ARG2 = negative or positive px value to bump y
+@bumpXY
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +:lockCamera()
+  }
+  +setConversationSpeaker(none)
+  +waitMS(100)
+  +offsetCharacter([ARG0], [ARG1]/2, [ARG2]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], [ARG1]/2, [ARG2]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], -[ARG1]/2, -[ARG2]/2, 0)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], -[ARG1]/2, -[ARG2]/2, 0)
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +?isnot([ARG3]):{
+      +:unlockCamera()
+    }
+  }
+
+@exclaim
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], exclaim)
+  +waitMS({emotionMs})
+@exclaim_short
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], exclaim)
+  +waitMS(200)
+@exclaimShort
+  +:exclaim_short([ARG0])
+@question
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], question)
+  +waitMS({emotionMs})
+@teardrop
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], teardrop)
+  +waitMS({emotionMs})
+@lightbulb
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], lightbulb)
+  +waitMS({emotionMs})
+@heart
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], heart)
+  +waitMS({emotionMs})
+@happy
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], happy)
+  +waitMS({emotionMs})
+@smirk
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], smirk)
+  +waitMS({emotionMs})
+@bored
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], bored)
+  +waitMS({emotionMs})
+@surprised
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], surprised)
+  +waitMS({emotionMs})
+@sad
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], sad)
+  +waitMS({emotionMs})
+@grumpy
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], grumpy)
+  +waitMS({emotionMs})
+@blush
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], blush)
+  +waitMS({emotionMs})
+@angry
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], angry)
+  +waitMS({emotionMs})
+@wink
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], wink)
+  +waitMS({emotionMs})
+@flat
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], flat)
+  +waitMS({emotionMs})
+@yawn
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], yawn)
+  +waitMS({emotionMs})
+@serious
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], serious)
+  +waitMS({emotionMs})
+@exhale
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], exhale)
+  +waitMS({emotionMs})
+@sarcasm
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], sarcasm)
+  +waitMS({emotionMs})
+@confident
+  +:sarcasm([ARG0])
+@worried
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], worried)
+  +waitMS({emotionMs})
+@doubt
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], doubt)
+  +waitMS({emotionMs})
+@startled
+  +none()
+  +playSound(emotion)
+  +spawnEmotionParticleAtCharacter([ARG0], startled)
+  +waitMS({emotionMs})
+@minorPause
+  +none()
+  +waitMS({emotionMs})
+@smallPause
+  +:minorPause()
+@nervous
+  +setConversationSpeaker(none)
+  +playSound('jump_cutscene')
+  +setFacing([ARG0], 'down')
+  +waitMS(100)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'right')
+  +waitMS(33)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+  +waitMS(33)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'left')
+  +waitMS(100)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +playSound('jump_cutscene')
+  +setFacing([ARG0], 'down')
+  +waitMS(33)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'right')
+  +waitMS(100)
+  +setFacing([ARG0], 'rightdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+  +waitMS(33)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'left')
+  +waitMS(33)
+  +setFacing([ARG0], 'leftdown')
+  +waitMS(33)
+  +setFacing([ARG0], 'down')
+  +none()
+
+// ARG0 = name of first character
+// ARG1 = name of other character
+// returns tmp.shouldLockCamera
+@checkShouldLockCamera
+  +setStorage(tmp.shouldLockCamera, false)
+  +?isnot(func(isCameraOnPlayer)):{
+    +sbreak()
+  }
+  +?any(eq([ARG0], Ada), eq([ARG0], ada)):{
+    +setStorage(tmp.shouldLockCamera, true)
+  }
+  +?any(eq([ARG0], Party), eq([ARG0], party)):{
+    +setStorage(tmp.shouldLockCamera, true)
+  }
+
+// ARG0 = name of first character
+// ARG1 = name of other character
+// returns tmp.shouldLockCamera
+@checkShouldLockCameraLeach
+  +setStorage(tmp.shouldLockCamera, false)
+  +?isnot(func(isCameraOnPlayer)):{
+    +sbreak()
+  }
+  +?any(eq([ARG0], Ada), eq([ARG0], ada), eq([ARG1], Ada), eq([ARG1], ada)):{
+    +setStorage(tmp.shouldLockCamera, true)
+  }
+  +?any(eq([ARG0], Party), eq([ARG0], party), eq([ARG1], Party), eq([ARG1], party)):{
+    +setStorage(tmp.shouldLockCamera, true)
+  }
+
+// alias for setFacing
+@face
+  +setFacing([ARG0], [ARG1])
+// alias for look direction
+@ld
+  +:checkShouldLockCamera([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:lockCamera(true)
+  }
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +setFacing([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:unlockCamera(true)
+  }
+
+//alias for lookAtCharacter
+@la
+  +:checkShouldLockCamera([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:lockCamera(true)
+  }
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +lookAtCharacter([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:unlockCamera(true)
+  }
+
+// alias for lookAtMarker
+@lm
+  +:checkShouldLockCamera([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:lockCamera(true)
+  }
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +lookAtMarker([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:unlockCamera(true)
+  }
+
+//alias for lookAtEachOther
+@leach
+  +:checkShouldLockCameraLeach([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:lockCamera(true)
+  }
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, -2)
+  +waitMS(33, '', true)
+  +offsetCharacter([ARG0], 0, 0, 2)
+  +lookAtEachOther([ARG0], [ARG1])
+  +?is(tmp.shouldLockCamera):{
+    +:unlockCamera(true)
+  }
+
+@feach
+  +lookAtEachOther([ARG0], [ARG1])
+
+@w
+  +waitMS([ARG0])
+
+// ARG0 = party member name
+@removePartyMember
+  +playSound(lose_item)
+  +removePartyMemberFromActiveParty([ARG0])
+  Narrator: "<color=ORANGE>{ARG0}</> has been removed from the party."
+
+// ARG0 = party member name
+@addPartyMember
+  +playSound(rez)
+  +addPartyMemberToActiveParty([ARG0])
+  Narrator: "<color=ORANGE>{ARG0}</> has joined the party."
+
+@lockCamera
+  +lockCamera([ARG0])
+  // +panCameraRelativeToCurrentPosition(0, 0, 1, true)
+
+@unlockCamera
+  +unlockCamera([ARG0])
+  // +panCameraBackToPlayer(1)
+
+// ARG0 = chName
+@laughObnoxiously
+  +none()
+  +:ld([ARG0], down)
+  +playSound(boy_laugh)
+  +waitMS(100)
+  +:ld([ARG0], down)
+  +playSound(boy_laugh)
+  +waitMS(100)
+  +:ld([ARG0], down)
+  +playSound(boy_laugh)
+  +waitMS(100)
+  +:ld([ARG0], down)
+  +playSound(boy_laugh)
+  +waitMS(150)
+  +:ld([ARG0], down)
+  +playSound(boy_laugh)
+  +waitMS(350)
+
+
+// [ARG0] Marker Name
+// [ARG1] Facing Direction
+// [ARG2?] Party offset
+@walkPartyToMarker
+  +walkToMarker(Ada, [ARG0], 16, 0)
+  +:ld(Ada, [ARG1])
+  +walkPartyToFormation(false, [ARG2])

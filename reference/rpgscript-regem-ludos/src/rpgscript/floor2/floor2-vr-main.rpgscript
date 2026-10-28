@@ -1,0 +1,88 @@
+#floor2VR_entrance
+  step-first,floor2VR_entrance_step
+  action,?once('90c9ef39'):floor2VR_entrance_once
+  action,floor2VR_transitionFrom_Entrance_to_VR1
+@floor2VR_entrance_step
+  +callScript('utils-vr-step')
+@floor2VR_transitionFrom_Entrance_to_VR1
+  +setUnskippable(false)
+  +setConversation(Ada)
+  +:utils-transition-to-vr-fade-out()
+  +setConversationWithoutBars(Ada)
+  +waitMS(100)
+// +:utils-transition-to-vr-fade-in(floor2InstVr1, MarkerVRLanding, true);
+  +endConversation()
+@floor2VR_entrance_once
+  +walkToMarker(Ada, MarkerAdaWalk1)
+  +panCameraBackToPlayer(1)
+  +fadeIn()
+  // +setConversation()
+  // +walkToMarker(Ada, MarkerVRLanding)
+  +:ld(Ada, up)
+  +walkPartyToFormation()
+  +:la(Party, Ada)
+  +:ld(Ada, down)
+  Ada: "So to get to the 3rd floor we need to find a <color=LIGHTBLUE>3rd Floor Access Key</> from this instance?"
+  +?func(inParty, Anjana):{
+    Anjana: "That's how this place works.  You need to find the key to the next floor."
+    +:serious(Ada)
+    Ada: "I hope this is not time-consuming..."
+  }
+  +?func(inParty, Skye):{
+    +:shakeZ(Skye)
+    Skye: "Whatever it is we need to do in there, we can handle it, no problem."
+    +:la(Ada, Skye)
+    +:smirk(Ada)
+    Ada: "Your confidence is <italic>quite</> inspiring."
+  }
+  +:ld(Ada, down)
+  Ada: "Shall we go?"
+  +none()
+  +:floor2VR_entrance_once_fake_transition_to_vr()
+  +fadeOut()
+  +setPlayerVisibility(true)
+  +:w(400)
+  +enableAnimationSounds()
+  +changeRoom(revirtualisBartolo1)
+  // +changeRoom(floor2ThroneRoomAlt)
+
+@floor2VR_entrance_once_fake_transition_to_vr
+  +stopSkipCutscene()
+  +setUnskippable(true)
+  +setConversation(Ada)
+  +stopMusic(500)
+  // +:lockCamera()
+  +setFacing('Ada', 'down')
+  +walkPartyToFormation()
+  +playSound('vr_portal_buzz')
+  +waitMS(500, '', true)
+  +playSound('vr_portal_focus')
+  +setAnimation('Ada', 'ada_enter_vr_portal')
+  +waitMS(225, '', true)
+  +playSound('vr_portal_start')
+  +waitMS(850, '', true)
+  +playSound('battle_jump')
+  +waitMS(150, '', true)
+  +playSound('battle_jump')
+  +waitMS(250, '', true)
+  +playSound('battle_jump')
+  +waitMS(750, '', true)
+  +playSound('battle_encountered')
+  +disableAnimationSounds()
+  +playSound(spawn_enemy)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, normal)
+  +setPlayerVisibility(false)
+  +despawnCharacter(Party)
+  +:w(1000)
+  +setUnskippable(false)
+
+
+
+// +setConversationWithoutBars(Ada);
+// +fadeOutColor(255, 255, 255, 1000);
+
+// +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_PORTAL', 'Ada', 'normal');
+// +playSound('vr_portal_zoom');
+// +fadeInColor(255, 255, 255, 1000);
+// +waitMS(2000, '', true);
+// +fadeOut();

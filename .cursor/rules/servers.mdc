@@ -1,0 +1,19 @@
+---
+description: Leave the game server and asset editor for the user to run
+alwaysApply: true
+---
+
+# Servers and the editor
+
+The user starts and stops the game server and the asset editor. Do not launch them while testing a change.
+
+Leave these commands alone:
+
+- `npm run dev` (game server on 7101/7102 and the Vite game client on 7103)
+- `npm start`
+- `npm run editor` (asset editor on 7104)
+- `npm run client`
+
+Vitest, typecheck, lint, and format checks are fine. They do not start those processes.
+
+When a check needs a live server or the editor and that process is not already running, ask the user to start it. Do not start it yourself.

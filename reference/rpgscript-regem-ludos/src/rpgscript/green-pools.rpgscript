@@ -1,0 +1,22 @@
+#green-pool-floor1TutVR3West2
+  load,?is(vars.green-pool-floor1TutVR3West2-pool):green-pool-floor1TutVR3West2-load
+  action,?once('41bd594b'):green-pool-floor1TutVR3West2-action
+  action,green-pool-floor1TutVR3West2-action2
+@green-pool-floor1TutVR3West2-action
+  +setStorage(vars.green-pool-floor1TutVR3West2-pool, true)
+  +setConversation(Ada)
+  Narrator: "The bubbly liquid appears to have a distinct healing property."
+  +none()
+  +playSound(rez)
+  +modifyPartyHP(99999)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_BUFF, Party, normal)
+  +:green-pool-floor1TutVR3West2-load()
+  +waitMS(1000)
+  +endConversation()
+@green-pool-floor1TutVR3West2-action2
+  +setConversation(Ada)
+  Narrator: "The liquid has ben all used up."
+  +none()
+  +endConversation()
+@green-pool-floor1TutVR3West2-load
+  +changeTileAtMarker(MarkerHealPool, HEAL_POOL_INACTIVE)

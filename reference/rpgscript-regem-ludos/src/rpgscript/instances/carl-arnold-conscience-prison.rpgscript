@@ -1,0 +1,257 @@
+#flashback_ConscienceThroneRoomCage
+  load,?once('d1f21c2f'):this
+@this
+  +spawnCharacterAtMarker(Conscience, MarkerConscience0)
+  +:face(Conscience, down)
+  +createPropAtMarker(PropCageTop, MarkerConscience0, 'dynamic-props/cage_0', 99, 24, 24)
+  +createPropAtMarker(PropCageFront, MarkerConscience0, 'dynamic-props/cage_1', 0, 24, 24)
+  +createPropAtMarker(PropCageBack, MarkerConscience0, 'dynamic-props/cage_2', -20, 24, 24)
+  +setCharacterAtMarker(Party, MarkerParty)
+  +setAtMarker(Ada, MarkerPlayer)
+  +:flashback_ConscienceBreakOut1()
+
+#flashback_ConscienceBreakOut1
+  action,this
+@this
+  +fadeOut(1)
+  +playMusic(music_carl_arnold_theme)
+  +setConversation(Conscience)
+  +setCharacterAtMarker(Ada, MarkerConscience0)
+  +setCharacterAtMarker(Conscience, MarkerConscience0)
+  +setPlayerVisibility(false)
+  +fadeIn(2000, true)
+  +panCameraToFitCharacters(3000, false, Conscience)
+  +playSound(pop)
+  +:bumpXY(Conscience, 2, 2)
+  +:w(75)
+  +playSound(pop)
+  +:bumpXY(Conscience, 2, 2)
+  +:w(1000)
+  +playSound(pop)
+  +:bumpXY(Conscience, 2, 2)
+  +:w(100)
+  +:teardrop(Conscience)
+  +:w(1000)
+  +:face(Conscience, left)
+  +:w(100)
+  +:face(Conscience, leftup)
+  +:w(100)
+  Conscience: "<cascade-letters>So....</> Do you ever plan to let me out of this thing?"
+  +none()
+  +panCameraToFitCharacters(1000, false, Conscience, Carnold)
+  +:la(Carnold, Conscience)
+  Carnold: "Is that cage uncomfortable?  I wasn't sure if you would care."
+  +:yawn(Conscience)
+  Conscience: "Well, it's pretty boring.  There's not much to do in here."
+  Conscience: "I liked it better when we were doing stuff.  You know fighting monsters, talking to people, exploring..."
+  +:la(Conscience, Carnold)
+  Carnold: "I see."
+  +:none()
+  +:ld(Carnold, leftup)
+  +:bumpX(Carnold, -2)
+  +playSound(terminal_beep)
+  +changePropAnim(PropTerminal, props_terminal1_right_off)
+  +:w(500)
+  +walkToMarker(Carnold, MarkerConscience0, -32, 0)
+  +:la(Carnold, Conscience)
+  +panCameraToFitCharacters(500, false, Conscience, Carnold)
+  +endConversation(100, true)
+  +setConversation2(Carnold, Conscience)
+  Carnold: "I'm surprised you're not being more of a handful."
+  +:question(Conscience)
+  Conscience: "What?"
+  Carnold: "You've been relatively quiet this whole time; your only complaint is that you are <italic>bored</>."
+  +:shakeZ(Carnold)
+  Carnold: "And you haven't even <italic>tried</> to escape."
+  Conscience: "Escape?  I mean there's a huge cage in the way.  I'm not sure how I'd get through that."
+  Carnold: "We are in a <color=LIGHTPURPLE>Revirtualis</>.  I was certain you would try <italic>something</> creative."
+  Conscience: "Yeah, still not sure what you mean...  The cage is solid enough to keep me inside it."
+  Conscience: "Besides, I'm used to being stuck around <color=YELLOW>Ada</>.  I'm always with her, you know?"
+  +:question(Conscience)
+  Conscience: "Speaking of... what exactly did you do to <color=YELLOW>Ada</>?  She looked a little worse for wear."
+  +:ld(Conscience, rightup)
+  Conscience: "Does it have something to do with that weird stone over there?"
+  +none()
+  +panCameraRelativeToCurrentPosition(50, -50)
+  +:ld(Carnold, rightup)
+  Carnold: "'That weird stone' is what's preventing you from leaving this place."
+  Carnold: "The cage is just for show."
+  +none()
+  +panCameraRelativeToCurrentPosition(-50, 50)
+  +waitMS(100)
+  +none()
+  +waitMS(600)
+  +setAnimation(Carnold, ch_carl-arnold_gesture_right)
+  +waitMS(799)
+  +playSound(snap)
+  +setAnimation(Carnold, ch_carl-arnold_snap_right)
+  +waitMS(500)
+  +playSound(failure)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_FLASH, MarkerConscience0, normal, 0, 0)
+  +waitMS(300)
+  +playSound(despawn_tut_wall)
+  +removeProp(PropCageTop)
+  +removeProp(PropCageFront)
+  +removeProp(PropCageBack)
+  +setAnimationState(Carnold, idle)
+  +:leach(Carnold, Conscience)
+  +:serious(Carnold)
+  Carnold: "Have you not noticed that you've been separated from <color=YELLOW>Ada</>?  If she were to leave the <color=LIGHTPURPLE>Revirtualis</>, you would be left behind."
+  +:teardrop(Conscience)
+  Conscience: "Oh... really?  That's possible?"
+  Conscience: "That's awesome!  I didn't even know you could do that."
+  Conscience: "But... if she doesn't come back to get me then I might miss school tomorrow..."
+  +:la(Conscience, Carnold)
+  Carnold: "You are much different than I expected."
+  +:happy(Conscience)
+  Conscience: "A lot of people tell me that when they first meet me."
+  +:shakeZ(Carnold)
+  Carnold: "One of the reasons I brought you here was for you to meet somebody."
+  Conscience: "Oh yeah?  Who?"
+  Carnold: "You'll see.  They aren't here yet, obviously.  In fact I'm not sure where they are."
+  Carnold: "But until they do show up, perhaps I can provide you with better accommodations."
+  Carnold: "I wouldn't want you thinking I'm a bad host."
+  +:ld(Carnold, down)
+  Carnold: "Walk in front of me, if you don't mind.  I'll tell you where to go."
+  Conscience: "I'll do whatever you tell me to, I promise."
+  Carnold: "I'm sure you will..."
+  Carnold: "However, this place can be very dangerous to someone as seemingly... <italic>delicate</> as you."
+  Carnold: "Some of the monsters roaming around are quite vicious."
+  Carnold: "I haven't had the time to clean them up yet, so I need to keep you safe."
+  +:teardrop(Conscience)
+  // Conscience: "I doubt she's worried about finding me.  She generally gets what she wants."
+  // Carnold: "So you're saying she doesn't care about you?"
+  // Conscience: "You're overestimating me."
+  // Conscience: "The most I do for <color=ORANGE>Ada</> is annoy her enough to do anything other than homework."
+  // +:teardrop(Conscience)
+  // +:ld(Conscience, down)
+  // Conscience: "That's not what I mean..."
+  // +:la(Conscience, Carnold)
+  // Conscience: "You don't know a lot about <color=LIGHTBLUE italic>Ada</> do you?"
+  // +:smirk(Carnold)
+  // Carnold: "I know enough."
+  // Carnold: "You don't really <italic>know</> a person unless you see them when they are <italic>truly alone</>."
+  // +:confused(Conscience)
+  // Conscience: "Yeah, I don't get it..."
+  // +:exhale(Conscience)
+  // Conscience: "Well whatever.  Ada will free me without any issue.  You can count on it."
+  // Carnold: "So says you."
+  // Carnold: "<color=LIGHTRED>Bartolo</> has spent a good while setting up a challenge.  He's quite ingenuitive you know."
+  // Carnold: "I wonder if your little <italic>accomplice</> will be able to overcome it..."
+  // +:smirk(Carnold)
+  +stopSkipCutscene()
+  +:smirk(Carnold)
+  Carnold: "Now let's get walking, shall we?"
+  +:none()
+  +:ld(Conscience, down)
+  +:flat(Conscience)
+  +setSpeed(Conscience, 1)
+  +setSpeed(Carnold, 1)
+  +walkToOffset(Conscience, 64, 64, true)
+  +walkToOffset(Carnold, 27, 0)
+  +walkToOffset(Carnold, 64, 64, true)
+  +endConversation(300)
+  +fadeOut(1000)
+  +setSpeed(Conscience)
+  +setSpeed(Carnold)
+  +setPlayerVisibility(true)
+  // +changeRoom(revirtualisBartolo1, MarkerPortal)
+  // +:RevirtualisBartolo_firstCutscene()
+
+#flashback_ConscienceThroneRoomSideRoom
+  load,?once('061bc504'):this
+@this
+  +fadeOut(1)
+  +stopMusic(1)
+  +setWallCollisionEnabled(false)
+  +setCharacterAtMarker(Party, MarkerParty)
+  +setAtMarker(Ada, MarkerPlayer)
+  +setPlayerVisibility(false)
+  +setConversation(Conscience)
+  +fadeIn(2000, true)
+  +:w(500)
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerFancyDoorBck_1, FANCY_DOOR)
+  +:w(100)
+  +spawnCharacterAtMarker(Carnold, MarkerFancyDoorBck_1, 0, -16)
+  +spawnCharacterAtMarker(Conscience, MarkerFancyDoorBck_1)
+  +setSpeed(Conscience, 0.8)
+  +setSpeed(Carnold, 0.8)
+  +walkToOffset(Conscience, 0, 32, true)
+  +walkToOffset(Carnold, 0, 32, true)
+  +:w(2000)
+  +:leach(Carnold, Conscience)
+  +setConversation2(Conscience, Carnold)
+  Carnold: "You can stay in here until I find some suitable entertainment for you."
+  +:question(Conscience)
+  Conscience: "I'm not saying this will happen, but what if I just disconnect right now?"
+  Conscience: "What would you do then?"
+  +:serious(Carnold)
+  Carnold: "I don't know.  You tell me."
+  Carnold: "What does happen if you disconnect with <color=YELLOW>Ada</> still in the <color=LIGHTPURPLE>Revirtualis</>?"
+  +:lightbulb(Conscience)
+  Conscience: "I hadn't considered that.  I'm not used to being without <color=YELLOW>Ada</>."
+  Conscience: "I imagine that the system would not let me fully disconnect."
+  Conscience: "Perhaps it would turn me dormant."
+  Conscience: "<color=LIGHTGREY />Goodness that would be inconvenient."
+  +:happy(Carnold)
+  Carnold: "Then it seems like you need to make yourself comfortable, doesn't it?"
+  Conscience: "<cascade-letters=50>............"
+  +none()
+  +:carlArnoldLaugh()
+  Carnold: "Ah.  There it is.  So you <italic>can</> look as irritated as <color=YELLOW>Ada</> always does."
+  Carnold: "That's good to know."
+  +:ld(Carnold, rightup)
+  Carnold: "If you'll excuse me, I have some work to do."
+  +none()
+  +walkToOffset(Carnold, 0, -8)
+  Carnold: "And if you could fix that terminal in the corner, I'd really appreciate it."
+  Carnold: "It hasn't worked for ages."
+  +none()
+  +walkToOffset(Carnold, 0, -24)
+  +endConversation(300, true)
+  +despawnCharacter(Carnold)
+  +setConversation(Conscience)
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerFancyDoorBck_1, FANCY_DOOR)
+  +:w(1000)
+  +:shakeZ(Conscience)
+  +setSpeed(Conscience)
+  +walkToMarker(Conscience, MarkerFancyDoorBck_1, 0, 12)
+  +playSound(locked)
+  +:bumpY(Conscience, 2)
+  +:shakeZ(Conscience)
+  +:lookAround(Conscience)
+  +walkToMarker(Conscience, MarkerTerminal)
+  +:w(100)
+  +playSound(terminal_beep)
+  +:bumpX(Conscience, -2)
+  +:w(500)
+  +playSound(pop)
+  +changePropAnim(PropTerminal, props_terminal2_green_right)
+  +:w(500)
+  +playSound(static)
+  +changePropAnim(PropTerminal, props_terminal2_red_right)
+  +:w(500)
+  +playSound(pop)
+  +playSound(terminal_cancel)
+  +changePropAnim(PropTerminal, props_terminal2_black_right)
+  +:w(500)
+  +:sad(Conscience)
+  +walkToMarker(Conscience, MarkerPlayer)
+  +:ld(Conscience, down)
+  +stopSkipCutscene()
+  +setUnskippable(true)
+  Conscience: "<cascade-letters>Hmm......"
+  +:sigh(Conscience)
+  Conscience: "<scale=0.85 />Why is <color=YELLOW scale=0.85 />Ada<scale=0.85 /> always the one who gets to have all the fun?"
+  +none()
+  +fadeOut(2000)
+  +setPlayerVisibility(true)
+  +setWallCollisionEnabled(true)
+  +setUnskippable(false)
+  +changeRoom(junkyardSewer1, MarkerParty)
+
+  // +:credits_part1()
+
+

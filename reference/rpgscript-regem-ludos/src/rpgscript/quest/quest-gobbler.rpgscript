@@ -1,0 +1,53 @@
+#floor2SouthEast_gobblerPerson
+  action,?func(questNotStarted, GobblerGobbler):questGobbler_floor2SouthEast_gobblerPerson_beginQuest
+  action,?func(questActive, GobblerGobbler):floor2SouthEast_gobblerPerson_duringQuest
+  action,?func(questCompleted, GobblerGobbler):floor2SouthEast_gobblerPerson_questOver
+// ARG0 - boolean, skipEndConversation
+@questGobbler_floor2SouthEast_gobblerPerson_beginQuest
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_gobblerPerson)
+  +setStorage(vars.gobblerQuestScore, 50)
+  floor2SouthEast_gobblerPerson: "Hey there!  I'm <color=YELLOW>Rusty</>.  I like SIMPLE games."
+  floor2SouthEast_gobblerPerson: "These machines have one of the BEST games in the whole arcade."
+  floor2SouthEast_gobblerPerson: "It's <shake>GOBBLER</>."
+  floor2SouthEast_gobblerPerson: "You gotta eat the pellets to pass the level, and keep going and going until you're overwhelmed!"
+  floor2SouthEast_gobblerPerson: "I love this game so much I'd be willing to give a <italic>reward</> to whoever can beat my high score: <color=LIGHTRED>{vars.gobblerQuestScore} points</>."
+  floor2SouthEast_gobblerPerson: "I'm not as good as the king, <color=LIGHTRED>Carl-Arnold</>, who got a score of <color=LIGHTRED>{vars.HighScore_GobblerCA}</> points! But I've never seen anybody else even get close to that."
+  +startQuest(GobblerGobbler)
+  floor2SouthEast_gobblerPerson: "It's pretty tough, but I'm sure you can do it."
+  +none()
+  +?isnot([ARG0]):{
+    +endConversation()
+  }
+@floor2SouthEast_gobblerPerson_duringQuest
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_gobblerPerson)
+  floor2SouthEast_gobblerPerson: "Still haven't beaten my high score of <color=LIGHTRED>{vars.gobblerQuestScore}</> yet?"
+  floor2SouthEast_gobblerPerson: "Keep tryin', I'm sure you'll get it eventually!"
+  +endConversation()
+@floor2SouthEast_gobblerPerson_questOver
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_gobblerPerson)
+  floor2SouthEast_gobblerPerson: "I like SIMPLE games.  Isn't Gobbler really fun?"
+  +endConversation()
+@floor2SouthEast_gobblerPerson_gameComplete
+  +setStorage(tmp.result, [ARG0])
+  +?is(func(questStepEQ, GobblerGobbler, 0)):{
+    +?gt(tmp.result, vars.gobblerQuestScore):{
+      +:floor2SouthEast_gobblerPerson_beatHighScore()
+    }
+    +?isnot(gt(tmp.result, vars.gobblerQuestScore)):{
+      floor2SouthEast_gobblerPerson: "Still haven't beaten my high score of <color=LIGHTRED>{vars.gobblerQuestScore}</> yet?"
+      floor2SouthEast_gobblerPerson: "Keep tryin', I'm sure you'll get it eventually!"
+    }
+  }
+
+@floor2SouthEast_gobblerPerson_beatHighScore
+  +setConversation(Ada)
+  +:leach(Ada, floor2SouthEast_gobblerPerson)
+  +:jump(floor2SouthEast_gobblerPerson)
+  floor2SouthEast_gobblerPerson: "Hey! You did it!  You got higher than my score <color=LIGHTRED>{vars.gobblerQuestScore}</>!  That's super impressive!"
+  floor2SouthEast_gobblerPerson: "As promised, here is your reward.  I'm giving you some tickets and a garment I won when I won a big Gobbler tournament back in the day.  It's got some good stats for what it's worth."
+  +completeQuestStep(GobblerGobbler, 0)
+  floor2SouthEast_gobblerPerson: "Simple games can be enjoyable too, you know."
+  +endConversation()

@@ -1,0 +1,225 @@
+@floor2SouthWestNarrowHallwayRoom2
+// +?func(questIsStarted, TheProphecyOfLance):{
+//   +changeTileAtMarker(MarkerPillar1, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar2, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar3, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar4, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar5, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar6, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar7, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar8, FLOOR_GRASS);
+// }
+  +?all(func(questIsStarted, TheProphecyOfLance), once('ab9dc5d1')):{
+    +setConversation(Ada)
+    +walkToMarker(Ada, MarkerAdaWalkNorth1)
+    +:ld(Ada, up)
+    +walkPartyToFormation()
+    +:surprised(Ada)
+    Ada: "A different room?"
+    +?func(inParty, Anjana):{
+      +:ld(Anjana, up)
+      Anjana: "I'm not convinced this was here the whole time and we hallucinated what was here before."
+    }
+    +?func(inParty, Skye):{
+      +:ld(Skye, up)
+      Skye: "Where did that green dude go?"
+    }
+    +endConversation()
+  }
+
+@floor2SouthWestNarrowHallwayRoom
+// +?func(questIsStarted, TheProphecyOfLance):{
+//   +changeTileAtMarker(MarkerPillar1, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar2, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar3, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar4, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar5, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar6, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar7, FLOOR_GRASS);
+//   +changeTileAtMarker(MarkerPillar8, FLOOR_GRASS);
+// }
+  +?all(func(questIsStarted, TheProphecyOfLance), once('ab9dc5d1')):{
+    +setConversation(Ada)
+    +walkToMarker(Ada, MarkerAdaWalkNorth1)
+    +:ld(Ada, up)
+    +walkPartyToFormation()
+    +:surprised(Ada)
+    Ada: "A different room?"
+    +?func(inParty, Anjana):{
+      +:ld(Anjana, up)
+      Anjana: "I'm not convinced this was here the whole time and we hallucinated what was here before."
+    }
+    +endConversation()
+  }
+  +?once('2079af59'):{
+    +setConversation(Ada)
+    +setSpeed(Ada, 0.75)
+    +walkToMarker(Ada, MarkerAda1)
+    +:ld(Ada, leftdown)
+    +walkPartyToFormation()
+    Ada: "This room seems a bit strange."
+    +:question(Ada)
+    Ada: "Is this... the <color=LIGHTBLUE>Revirtualis</>?"
+    +?func(inParty, Anjana):{
+      +walkToCharacter(Anjana, Ada, 16, -4)
+      +:leach(Ada, Anjana)
+      Anjana: "We never went through a portal..."
+      Anjana: "What are these pillars for?  They don't seem to be holding anything up."
+    }
+    +walkToOffset(Ada, -4, 4)
+    +:ld(Ada, left)
+    +:shakeZ(Ada)
+    Ada: "Is there anyone in here?"
+    +none()
+    +spawnCharacterAtMarker(GreenGuy, MarkerGreenGuySpawn)
+    +:w(500)
+    +panCameraToFitCharacters(2000, false, Ada, GreenGuy)
+    GreenGuy: "As a matter of fact, yes."
+    +walkToOffset(GreenGuy, 16, -16)
+    GreenGuy: "<cascade-letters=50>I am here."
+    +partyLookAtCharacter(GreenGuy)
+    +?func(inParty, Anjana):{
+      +:exclaim(Anjana)
+      Anjana: "Bleh! What <italic>happened</> to you?"
+    }
+    +?func(inParty, Skye):{
+      +:smirk(Skye)
+      Skye: "Geez dude, did you just climb out of a pool of slime?"
+    }
+    +:surprised(Ada)
+    Ada: "Who are you?"
+    +:ld(GreenGuy, right)
+    GreenGuy: "I am the <color=LIGHTGREEN cascade-letters=40>Green Guy</>."
+    GreenGuy: "You have discovered my location.  This is good.  How shall we proceed?"
+    +:question(Ada)
+    Ada: "Um.  What are you talking about?"
+    +none()
+    +:ld(GreenGuy, right)
+    +:w(100)
+    +:ld(GreenGuy, rightdown)
+    GreenGuy: "Hmmm..."
+    +:ld(GreenGuy, right)
+    GreenGuy: "I apologize.  It appears that I have mistaken you for someone else."
+    GreenGuy: "You do not know of <color=ORANGE cascade-letters=40>The Prophecy of Lance</>."
+    +:doubt(Ada)
+    Ada: "The <italic>prophecy</> of what?"
+    +?func(inParty, Skye):{
+      +:jump(Skye)
+      +:angry(Skye)
+      Skye: "Listen, buddy, you <italic>better</> start making some sense soon or I'm gonna start tipping these weird pillars."
+    }
+    +:confident(GreenGuy)
+    GreenGuy: "I would not want this rare opportunity to be wasted."
+    +none()
+    +walkToOffset(GreenGuy, 14, -14)
+    +panCameraToFitCharacters(1000, false, Ada, GreenGuy)
+    GreenGuy: "Tell me, do you seek to increase your <italic>power</> in this arcade?"
+    +:jump(Ada)
+    Ada: "Who, me?"
+    +:la(GreenGuy, Ada)
+    GreenGuy: "Yes.  I sense a purpose in you that I haven't felt for quite some time."
+    GreenGuy: "You came to this arcade seeking something, and you need <cascade-letters color=LIGHTPURPLE>power</> to get it."
+    +:ld(Ada, down)
+    Ada: "Well..."
+    +:serious(Ada)
+    Ada: "Actually, that is only partially correct."
+    +:la(Ada, GreenGuy)
+    Ada: "But <italic>why</> I came here does not actually matter.  Suppose I do require some kind of power.  What of it?"
+    +?func(inParty, Anjana):{
+      +:exhale(Anjana)
+      Anjana: "You can't seriously be considering this <italic>literal</> slimeball, can you?"
+    }
+    GreenGuy: "I can grant you power.  Great power."
+    Ada: "Power enough to beat <color=LIGHTRED>Carl-Arnold</> in a duel?"
+    +:wink(GreenGuy)
+    GreenGuy: "Of course."
+    GreenGuy: "Though his strength is considerable, it is but a spec of what I'm capable of giving you."
+    +?func(inParty, Anjana):{
+      +:bored(Anjana)
+      Anjana: "Pure posturing."
+    }
+    +?func(inParty, Skye):{
+      Skye: "This guy talks a lot, Ada.  I don't like him."
+    }
+    +:la(Ada, GreenGuy)
+    Ada: "What would I need to do?"
+    +:ld(GreenGuy, right)
+    GreenGuy: "You can do nothing now.  You are not ready."
+    GreenGuy: "<cascade-letters=75>Soon, though."
+    +:ld(GreenGuy, down)
+    GreenGuy: "When you find me again, be sure to <color=LIGHTGREY cascade-letters=40>possess the proper knowledge."
+    GreenGuy: "I will leave something behind which points you in the right direction."
+    +none()
+    +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, 'GreenGuy', 'normal')
+    +:w(250)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar1, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar2, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar3, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar4, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar5, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar6, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar7, 'normal')
+    +:w(100)
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_PORTAL_SPAWN, MarkerPillar8, 'normal')
+    +:w(100)
+    +despawnCharacter(GreenGuy)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar1, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar2, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar3, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar4, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar5, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar6, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar7, FLOOR_GRASS)
+    +:w(100)
+    +changeTileAtMarker(MarkerPillar8, FLOOR_GRASS)
+    +:w(1000)
+    +panCameraBackToPlayer()
+    +setSpeed(Ada)
+    +walkToMarker(Ada, MarkerItem)
+    +:shakeZ(Ada)
+    Ada: "There is a small, green gem here."
+    +startQuest(TheProphecyOfLance)
+    +:ld(Ada, down)
+    +?func(inParty, Anjana):{
+      +:bored(Anjana)
+      Anjana: "This is so absurd.  I've never seen anything like it."
+    }
+    +?func(inParty, Skye):{
+      +:question(Skye)
+      Skye: "Where did all those pillars go?"
+    }
+    Ada: "I suppose... maybe we will see him again?"
+  // This convo should probably happen anyway, not just as part of this quest.
+  // +?func(inParty, Anjana):{
+  //   +:leach(Anjana, Ada);
+  //   +:shakeZ(Anjana);
+  //   Anjana: "Something's bothering me."
+  //   Anjana: "How come you seem so unphased by this weird room?"
+  //   Anjana: "I mean, I've been around here; I'm used to this sort of thing."
+  //   Anjana: "But you only got here today."
+  //   +:shakeZ(Ada);
+  //   Ada: "It is very important that I get <color=YELLOW>Conscience</> back."
+  //   Ada: "That is my sole goal."
+  //   +:ld(Ada, down);
+  //   Ada: "Dumb things happen all the time - apparantly this is especially the case in here - but I need to remain focused."
+  //   Ada: "I must consider things as they come, with little expectation."
+  //   Ada: "It is something my Father taught me."
+  //   +:lightbulb(Anjana);
+  //   Anjana: "I see.  I like your discipline.  It reminds me... well of <italic>me</>."
+  //   Anjana: "I don't have any further problems with pursuing this with you."
+  // }
+    +endConversation()
+  }

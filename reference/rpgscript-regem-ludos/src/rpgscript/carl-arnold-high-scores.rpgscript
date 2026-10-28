@@ -1,0 +1,12 @@
+@setupHighScores
+// Terminal: "Vortex: 153429, Gobbler: {vars.HighScoreGobblerCA}, Elasticity: 13665, Invaderz: 4208, Skyborne: 1024, Zag: 70681, Planet Offline: 4012041, Realm 404: 872"
+  +setStorage(vars.HighScore_GobblerCA, 150)
+  +setStorage(vars.HighScore_VortexCA, 153429)
+  +setStorage(vars.HighScore_ElasticityCA, 13665)
+  +setStorage(vars.HighScore_InvaderzCA, 4208)
+  +setStorage(vars.HighScore_ZagCA, 70681)
+  +setStorage(vars.HighScore_PlanetOfflineCA, 4012041)
+  +setStorage(vars.HighScore_Realm404CA, 4012041)
+  +setStorage(vars.HighScore_SkyborneCA, 1024)
+  +setStorage(vars.HighScore_TTCA, 5190)
+  +setStorage(vars.HighScore_TavernityCA, 214)

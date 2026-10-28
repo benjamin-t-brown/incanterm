@@ -1,0 +1,711 @@
+#junkyardSewer1_load
+  load,this
+@this
+  +?is(vars.junkyardSewer1.leverPulled):{
+    +removeWallAtMarker(MarkerGate1)
+    +removeWallAtMarker(MarkerGate2)
+    +changePropAnim(PropLever, props_small_lever_on)
+  }
+  +?once('4a26621e'):{
+    +:junkyardSewer1_firstCutscene()
+  }
+
+@junkyardSewer1_firstCutscene
+  // +assert("+?all(func(inParty, Skye), func(inParty, Anjana))");
+  +fadeOut(1)
+  +setConversation(Ada)
+  +setAtMarker(Ada, MarkerParty)
+  +setPartyAtFormation(19)
+  +:face(Party, left)
+  +setAnimationState(Party, battle_dead)
+  +fadeIn(2000)
+  +:w(1000)
+  // +:teardrop(Ada)
+  +:shakeZ(Skye)
+  Skye: "Not my best landing..."
+  +:shakeZ(Ada)
+  Ada: "Ugh...  What happened?"
+  +none()
+  +:w(100)
+  +setAnimationState(Ada, battle_revive)
+  +:w(500)
+  +setAnimationState(Ada, idle)
+  +setAnimationState(Skye, battle_revive)
+  +:w(500)
+  +setAnimationState(Skye, idle)
+  +:la(Skye, Ada)
+  +setAnimationState(Anjana, battle_revive)
+  +:w(500)
+  +setAnimationState(Anjana, idle)
+  +:la(Anjana, Ada)
+  +:w(500)
+  +:leach(Anjana, Ada)
+  Anjana: "That <italic>snake</>!"
+  Anjana: "He sent us down here!"
+  +:lookAround(Ada)
+  Ada: "Where <italic>exactly</> is here?"
+  +none()
+  +:ld(Skye, leftdown)
+  +panCameraRelativeToPlayer(-30, 30)
+  Skye: "Looks like some kind of sewer...?"
+  +:shakeZ(Anjana)
+  Anjana: "<cascade-letters scale=0.8 italic>Gross."
+  Skye: "I guess we should look for a way out?"
+  +none()
+  +panCameraBackToPlayer()
+  +:lockCamera()
+  +:jump(Ada)
+  +:angry(Ada)
+  +setAnimation(ada, ada_tantrum_single)
+  Ada: "Why is nothing ever <italic>straightforward</> with this stupid arcade!"
+  +:la(Skye, Ada)
+  +setAnimation(ada, ada_tantrum)
+  Ada: "I <shake>NEED</> to get <color=YELLOW>Conscience</> back!"
+  +:jump(Ada)
+  Ada: "<cascade-letters=50 scale=1.25>Right now!!!"
+  +:teardrop(Skye)
+  Skye: "Whoah. Chill out.  That's what we're trying to do, remember?"
+  +endConversation(100)
+  +setConversation2(Ada, Anjana)
+  +setAnimation(ada, ada_tantrum_single)
+  +:la(Anjana, Ada)
+  +:question(Anjana)
+  Anjana: "What's so urgent about it?"
+  Anjana: "If it's such a big deal why don't you leave the arcade and get somebody else to help out?"
+  Anjana: "<color=LIGHTRED>Carl-Arnold</> can't keep her in here forever."
+  +setAnimationState(Ada, idle)
+  +:w(500)
+  +:la(Ada, Anjana)
+  Ada: "I cannot just leave with <color=YELLOW>Conscience</> still in here."
+  Ada: "For one thing, she will think I abandoned her, and will be insufferable about it."
+  Ada: "And for another..."
+  +walkToOffset(Ada, -8, 0)
+  Ada: "<color=ORANGE>Father</> would be <italic>furious</> if I lost her."
+  +:teardrop(Anjana)
+  Anjana: "Well, you did lose her, didn't you?"
+  +lookAtCharacter(Ada, Anjana)
+  +:angry(Ada)
+  // NOTE: Intended rare instance of Ada using a contraction
+  Ada: "<cascade-letters=65 italic>He doesn't need to know that!"
+  +:serious(Anjana)
+  Anjana: "So it's obvious what to do then.  We deal with all this nonsense as efficiently as possible."
+  Anjana: "No use throwing a tantrum about it."
+  +:ld(Ada, leftdown)
+  Ada: "<italic scale=0.85>I am not throwing a tantrum..."
+  // Ada rubs head
+  Ada: "I just... have a headache..."
+  +endConversation(100)
+  +setConversation(Skye)
+  +:leach(Skye, Anjana)
+  +:la(Ada, Skye)
+  Skye: "So <color=YELLOW>Anjana</>... Do you know who that guy was?  <color=YELLOW>Bartolo</>?"
+  +:ld(Anjana, down)
+  +:shakeZ(Anjana)
+  Anjana: "Yes.  He is my...\n<cascade-letters lightblue italic>classmate</>."
+  +:la(Anjana, Ada)
+  Anjana: "He's a rat of a person.  Always trying to get ahead by cheating."
+  +:leach(Skye, Anjana)
+  Skye: "What is so bad about him?  <color=LIGHTGREY />Other than the obvious fact that he is friends with <color=LIGHTRED>Carl-Arnold<color=LIGHTGREY>."
+  +:ld(Anjana, down)
+  Anjana: "Just trust me, okay.  He's a bad person."
+  Anjana: "He is always finding ways to cheat at school to get ahead."
+  Anjana: "I have to keep him in check."
+  Anjana: "And he has this thing for robots, if you can't already tell."
+  Skye: "Why's that bad?"
+  Anjana: "He's just obsessed with them.  It's creepy.  I think he want's the world to be run by robots."
+  +:la(Anjana, Ada)
+  Anjana: "Come on, let's go.  We need to get back up there if we expect to be able to get <color=YELLOW>Conscience</> back into <color=YELLOW>Ada's</> hands."
+  +panCameraBackToPlayer(500)
+  +endConversation()
+
+#junkyardSewer1_pullLever
+  action,?once('dae17d70'):this
+  action,junkyardSewer1_pullLever2
+@this
+  +setConversation(Ada)
+  +:bumpZ(Ada, 1)
+  +playSound(robot_clank2)
+  +changePropAnim(PropLever, props_small_lever_on)
+  +panCameraRelativeToPlayer(-25, -25)
+  +playSound(robot_clank3)
+  +playSound(despawn_tut_wall)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_BOMB_EXPL, MarkerGate1, normal)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_BOMB_EXPL, MarkerGate2, normal)
+  +:w(100)
+  +removeWallAtMarker(MarkerGate1)
+  +removeWallAtMarker(MarkerGate2)
+  +:w(400)
+  +panCameraBackToPlayer()
+  +endConversation()
+  +setStorage(vars.junkyardSewer1.leverPulled)
+@junkyardSewer1_pullLever2
+  +setConversation(Ada)
+  Ada: "I already pulled that lever."
+  +endConversation()
+
+#junkyardSewer1_transitionTo2
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2, MarkerFrom1)
+
+#junkyardSewer2_transitionTo1
+  step,this
+@this
+  +:utils-change-room(junkyardSewer1, MarkerFrom2)
+
+#junkyardSewer2_load
+  load,this
+@this
+  +?is(vars.junkyardSewer2.leverPulled):{
+    +removeWallAtMarker(MarkerGate1)
+    +removeWallAtMarker(MarkerGate2)
+    +changePropAnim(PropLever, props_small_lever_on)
+  }
+
+#junkyardSewer2_pullLever
+  action,?func(carryingProp, PropGrease):junkyardSewer2_pullLever_greased
+  action,?is(vars.junkyardSewer2.leverPulled):junkyardSewer2_wallOpen
+  action,?once('fc71f9a0'):junkyardSewer2_pullLever_broken
+  action,junkyardSewer2_pullLever_brokenRepeat
+@junkyardSewer2_wallOpen
+  +setConversation(Ada)
+  Ada: "I have already pulled this lever."
+  +endConversation()
+@junkyardSewer2_pullLever_greased
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerLeverPull)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "Maybe this grease will get it unstuck."
+  +none()
+  +setAnimationState(Ada, propdrop)
+  +playSound(thunk)
+  +dropHeldProps(MarkerLeverPull, -16, -12)
+  +:w(100)
+  +playSound(oil)
+  +:w(200)
+  +playSound(robot_clank4)
+  +setAnimationState(Ada, idle)
+  +:w(100)
+  Ada: "Seems like that did the trick."
+  +none()
+  +:w(100)
+  +:bumpZ(Ada, 1)
+  +playSound(robot_clank2)
+  +changePropAnim(PropLever, props_small_lever_on)
+  +:w(500)
+  +panCameraRelativeToPlayer(-175, 70)
+  +playSound(robot_clank3)
+  +playSound(despawn_tut_wall)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_BOMB_EXPL, MarkerGate1, normal)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_BOMB_EXPL, MarkerGate2, normal)
+  +:w(100)
+  +removeWallAtMarker(MarkerGate1)
+  +removeWallAtMarker(MarkerGate2)
+  +:w(400)
+  +panCameraBackToPlayer()
+  +?func(inParty, Skye):{
+    +:happy(Skye)
+    Skye: "Nice work!"
+  }
+  +setStorage(vars.junkyardSewer2.leverPulled, true)
+  +endConversation()
+@junkyardSewer2_pullLever_broken
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerLeverPull)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +:bumpX(Ada, -1)
+  +playSound(click)
+  +:w(33)
+  +playSound(click)
+  +:w(33)
+  +playSound(thunk)
+  +:w(500)
+  +:angry(Ada)
+  Ada: "This lever is stuck!"
+  +none()
+  +panCameraRelativeToPlayer(-175, 70)
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "I guess we have to go around then. Not unless you want to go for a swim."
+  }
+  +panCameraBackToPlayer()
+  +endConversation()
+@junkyardSewer2_pullLever_brokenRepeat
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "This lever is stuck."
+  +endConversation()
+
+#junkyardSewer2_transitionToPuzzleN
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2Puzzle, MarkerFromNorth)
+
+#junkyardSewer2_transitionToPuzzleW
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2Puzzle, MarkerFromWest)
+
+#junkyardSewer2Puzzle_transitionTo2N
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2, MarkerFromPuzzleNorth)
+
+#junkyardSewer2Puzzle_transitionTo2W
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2, MarkerFromPuzzleWest)
+
+#junkyardSewer2Puzzle_load
+  load,this
+@this
+  +?is(vars.junkyardSewer2ToolboxOpen):{
+    +changePropAnim(PropToolbox, props_large_toolbox_open)
+  }
+
+#junkyardSewer2Puzzle_terminal
+  action,?isnot(vars.junkyardSewer2ToolboxOpen):junkyardSewer2Puzzle_terminal_closed
+  action,junkyardSewer2Puzzle_terminal_open
+@junkyardSewer2Puzzle_terminal_closed
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation(false, 8)
+  +lookAtMarker(Party, MarkerTerminal)
+  +:bumpX(Ada, -1)
+  +playSound(terminal_beep)
+  +:w(300)
+  +playSound(terminal_cancel)
+  Narrator: "Toolbox locked.  Please enter the password."
+  +showUISection(Modal, INPUT_DIGITS, "Input Password", "", 4)
+  +setStorageCond(tmp.pwCorrect, 'eq(MODAL_OUTPUT, "3,3,2,4")')
+  +?is(tmp.pwCorrect):{
+    +setStorage(vars.junkyardSewer2ToolboxOpen, true)
+    +playSound(chime)
+    Narrator: "<cascade-letters>Password correct!\nToolbox unlocked."
+    +changePropAnim(PropToolbox, props_large_toolbox_open)
+  }
+  +?isnot(tmp.pwCorrect):{
+    +playSound(terminal_cancel)
+    Narrator: "<cascade-letters>Password incorrect."
+  }
+  +endConversation()
+@junkyardSewer2Puzzle_terminal_open
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "The toolbox has already been opened."
+  +endConversation()
+
+#junkyardSewer2Puzzle_toolbox
+  action,?all(once('1e609a95'), is(vars.junkyardSewer2ToolboxOpen)):junkyardSewer2Puzzle_toolbox_open
+  action,?is(vars.junkyardSewer2ToolboxOpen):junkyardSewer2Puzzle_toolbox_alreadyOpen
+  action,junkyardSewer2Puzzle_toolbox_closed
+@junkyardSewer2Puzzle_toolbox_open
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerToolbox, 16, 0)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation(false, 16)
+  +lookAtMarker(Party, MarkerToolbox)
+  +:flat(Ada)
+  Ada: "Ostensibly the levers down here get stuck often.  There is a massive can of grease in here."
+  +none()
+  +playSound(click)
+  +:bumpX(Ada, -1)
+  +playSound(robot_clank3)
+  +:bumpX(Ada, -1)
+  +playSound(click)
+  +:bumpX(Ada, -1)
+  +:ld(Ada, leftdown)
+  +setAnimationState(Ada, propdrop)
+  +:w(300)
+  +createPropAtMarker(PropGrease, MarkerToolbox, props_small_160, 16, 34, 34)
+  +playSound(thunk)
+  +setAnimationState(Ada, idle)
+  +:w(500)
+  +endConversation()
+@junkyardSewer2Puzzle_toolbox_alreadyOpen
+  +setConversation(Ada)
+  Ada: "I already pulled the can of grease out of there."
+  +endConversation()
+@junkyardSewer2Puzzle_toolbox_closed
+  +setConversation(Ada)
+  Ada: "There is a toolbox here, but it looks like it is locked.  The opening is sealed shut."
+  +endConversation()
+
+#junkyardSewer2Puzzle_notes
+  action,this
+@this
+  +setConversation(Ada)
+  +walkPartyToFormation(false, 8)
+  +lookAtMarker(Party, MarkerNotes)
+  Ada: "There are some papers here."
+  +?all(once('da91c20f'),func(inParty, Anjana)):{
+    +:la(Anjana, Ada)
+    Anjana: "They look like blueprints or layouts of some kind."
+  }
+  +lookAtMarker(Party, MarkerNotes)
+  Ada: "There is a sticky note here..."
+  Narrator: "<italic color=LIGHTBLUE>Password Hint!</> 'My passwords are always <italic>accountably symbolic</>.'"
+  +endConversation()
+
+#junkyardSewer2_transitionTo3
+  step,this
+@this
+  +:utils-change-room(junkyardSewer3, MarkerFrom2)
+
+#junkyardSewer3_transitionTo2
+  step,this
+@this
+  +:utils-change-room(junkyardSewer2, MarkerFrom3)
+
+#junkyardSewer3Load
+  load,this
+@this
+  +:junkyardSewer3Load_setupBatteryTerminals()
+  +?is(vars.junkyardSewer3.doorOpen):{
+    +removeWallAtMarker(MarkerDoor1)
+    +removeWallAtMarker(MarkerDoor2)
+  }
+
+#junkyardSewer3_DoorTerminal
+  action,this
+@this
+  +setConversation(Ada)
+  +:walkPartyToMarker(MarkerTerminal, leftup, 16)
+  +playSound(terminal_beep)
+  Terminal: "<cascade-letters color=LIGHTBLUE italic>DOOR TERMINAL:\n</> <color=YELLOW cascade-letters>Please select an option</>."
+  +awaitChoice("-> Open Junkyard Doors", "-> Bartolo's Notes", "Leave.")
+  +?all(eq(lastChoiceIndex, 0)):{
+    +:junkyardSewer3_DoorTerminal_OpenDoor()
+    +sbreak()
+  }
+  +?all(eq(lastChoiceIndex, 1)):{
+    +:junkyardSewer3_DoorTerminal_Notes()
+    +sbreak()
+  }
+  +?all(eq(lastChoiceIndex, 2)):{
+    +endConversation()
+    +sbreak()
+  }
+@junkyardSewer3_DoorTerminal_CLANK
+  +playSound(robot_clank4)
+  +:w(100)
+@junkyardSewer3_DoorTerminal_OpenDoor
+  +?is(vars.junkyardSewer3.doorOpen):{
+    Ada: "The door is already open."
+    +:junkyardSewer3_DoorTerminal()
+    +sbreak()
+  }
+  +?all(isnot(tmp.skipRest), is(vars.junkyardSewer3.batt0), is(vars.junkyardSewer3.batt1)):{
+    Narrator: "<color=YELLOW>Now Commencing door opening sequence</>:"
+    +none()
+    +setStorage(vars.junkyardSewer3.doorOpen, true)
+    +panCameraRelativeToPlayer(-75, -60)
+    +playSound(robot_clank3)
+    +:w(100)
+    +applyZTransformTileAtMarker(MarkerDoor1, -228, 1000, true)
+    +applyZTransformTileAtMarker(MarkerDoor2, -228, 1000, true)
+    +loop("junkyardSewer3_DoorTerminal_CLANK()", 8)
+    +playSound(lightswitch_echo)
+    +playSound(robot_clank2)
+    +:w(100)
+    +removeWallAtMarker(MarkerDoor1)
+    +removeWallAtMarker(MarkerDoor2)
+    +:w(1000)
+    +panCameraBackToPlayer()
+    +endConversation()
+    +sbreak()
+  }
+  +?all(isnot(tmp.skipRest),isnot(all(is(vars.junkyardSewer3.batt0, vars.junkyardSewer3.batt1)))):{
+    Narrator: "<color=ORANGE>ERROR: Power failure.  Please connect sufficient power.</>"
+  }
+  +:junkyardSewer3_DoorTerminal()
+@junkyardSewer3_DoorTerminal_Notes
+  Narrator: "<italic color=LIGHTBLUE>Bartolo's Notes:</> The room to the south is copied and pasted from the original Instance on Floor 2."
+  Narrator: "I liked how it was laid out, but the robots inside kept misplacing my carefully-procured batteries."
+  Narrator: "I'm leaving it down by the sewers so they won't cause any more trouble."
+  Narrator: "Maybe I'll find a use for it later."
+  +:junkyardSewer3_DoorTerminal()
+
+@junkyardSewer3Load_setupBatteryTerminals
+  +setStorageIfNotSet(vars.junkyardSewer3.batt0, false)
+  +setStorageIfNotSet(vars.junkyardSewer3.batt1, false)
+  +?is(vars.junkyardSewer3.batt0):{
+    +:junkyardSewer_applyBattery(MarkerBatt0, MarkerBatt0Floors, false)
+  }
+  +?is(vars.junkyardSewer3.batt1):{
+    +:junkyardSewer_applyBattery(MarkerBatt1, MarkerBatt1Floors, true)
+  }
+  +createPropAtMarker(PropBattery, MarkerBattery0, props_small_144, 16, 8, 8)
+
+// ARG0 MarkerForBattery
+// ARG1 MarkerForTiles
+// ARG2 direction 'true' or 'false' where 'true' is up
+@junkyardSewer_applyBattery
+  +setStorage(vars.direction,[ARG2])
+  +createPropAtMarker(PropBattery1, [ARG0], BatteryAlt, 16, 8, 8)
+  +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_LEFT_RIGHT_BLOCK, -16, 0)
+  +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_LEFT_RIGHT_BLOCK, -32, 0)
+  +changeTileAtMarker([ARG1], TERMINAL_ACTIVE_RIGHT, 16, 0)
+  +?is(vars.direction):{
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, -16)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, -32)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, -48)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, -64)
+  }
+  +?isnot(vars.direction):{
+    +addOrReplaceTileAtMarkerEx([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, 16)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, 32)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, 48)
+    +changeTileAtMarker([ARG1], DUNGEON_GREEN_LINE_UP_DOWN_BLOCK, 0, 64)
+  }
+
+#junkyardSewer3_terminal0
+  action,?is(vars.junkyardSewer3.batt0):junkyardSewer3_terminal0_powered
+  action,junkyardSewer3_terminal0_unpowered
+@junkyardSewer3_terminal0_powered
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "This terminal is powered up and printing information."
+  +?once('090f6c8c'):{
+    +?func(inParty, Anjana):{
+      +:la(Anjana, Ada)
+      Anjana: "That is an awfully large battery for such a simple terminal."
+    }
+  }
+  +endConversation()
+@junkyardSewer3_terminal0_unpowered
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "This terminal is not powered."
+  +endConversation()
+
+#junkyardSewer3_terminal1
+  action,?is(vars.junkyardSewer3.batt1):junkyardSewer3_terminal1_powered
+  action,junkyardSewer3_terminal1_unpowered
+@junkyardSewer3_terminal1_powered
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "This terminal is powered up and printing information."
+  +?once('18c6fbf7'):{
+    +?func(inParty, Skye):{
+      +:la(Skye, Ada)
+      Skye: "Why do computers do that?  Does anybody actually read all that?"
+      +:la(Ada, Skye)
+      Ada: "It is potentially useful for later analysis.  Perhaps something broke and you need to know why."
+      Skye: "Why print it all out here then?  Just to look cool?"
+      +:flat(Ada)
+      Ada: "Apparantly so."
+    }
+  }
+  +endConversation()
+@junkyardSewer3_terminal1_unpowered
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "This terminal is not powered."
+  +endConversation()
+
+#junkyardSewer3_placeBattery0
+  action,?all(once('8b68ceea'),func(carryingProp, PropBattery)):junkyardSewer3_placeBattery0_putBattery
+  action,?is(vars.junkyardSewer3.batt0):junkyardSewer3_placeBattery0_batteryAlreadyThere
+  action,junkyardSewer3_placeBattery0_batteryNotThere
+@junkyardSewer3_placeBattery0_batteryNotThere
+  +setConversation(Ada)
+  Ada: "It looks like I can place something in here to power it up."
+  +endConversation()
+@junkyardSewer3_placeBattery0_batteryAlreadyThere
+  +setConversation(Ada)
+  Ada: "A battery is in there and powering the terminal."
+  +endConversation()
+@junkyardSewer3_placeBattery0_putBattery
+  +setConversation(Ada)
+  // +walkToMarker(Ada, MarkerPlace0);
+  +lookAtMarker(Ada, MarkerBatt0Floors)
+  +removeTriggerNotifierAtMarker(MarkerBatt0Floors, 0, 16)
+  +dropHeldProps(MarkerNull)
+  +playSound(robot_clank)
+  +:junkyardSewer_applyBattery(MarkerBatt0, MarkerBatt0Floors, false)
+  +:w(500)
+  Ada: "It appears to have worked.  The terminal is now powered."
+  +setStorage(vars.junkyardSewer3.batt0)
+  +endConversation()
+
+#junkyardSewer3_placeBattery1
+  action,?all(once('7bb98ac7'),func(carryingProp, PropBattery)):junkyardSewer3_placeBattery1_putBattery
+  action,?is(vars.junkyardSewer3.batt1):junkyardSewer3_placeBattery1_batteryAlreadyThere
+  action,junkyardSewer3_placeBattery1_batteryNotThere
+@junkyardSewer3_placeBattery1_batteryNotThere
+  +setConversation(Ada)
+  Ada: "It looks like I can place something in here to power it up."
+  +endConversation()
+@junkyardSewer3_placeBattery1_batteryAlreadyThere
+  +setConversation(Ada)
+  Ada: "A battery is in there and powering the terminal."
+  +endConversation()
+@junkyardSewer3_placeBattery1_putBattery
+  +setConversation(Ada)
+  // +walkToMarker(Ada, MarkerPlace0);
+  +lookAtMarker(Ada, MarkerBatt1Floors)
+  +removeTriggerNotifierAtMarker(MarkerBatt1Floors, 0, 16)
+  +dropHeldProps(MarkerNull)
+  +playSound(robot_clank)
+  +:junkyardSewer_applyBattery(MarkerBatt1, MarkerBatt1Floors, true)
+  +:w(500)
+  Ada: "It worked!"
+  +setStorage(vars.junkyardSewer3.batt1)
+  +endConversation()
+
+#junkyardSewer4Load
+  load,this
+@this
+  +:junkyardSewer4Load_setupToggleWalls()
+  +:junkyardSewer4Load_setupBatteries()
+
+@junkyardSewer4Load_setupToggleWalls
+  +addMarkersToTiles(floors_dungeon_63, GeneratedToggleDoor)
+  +setStorageIfNotSet(vars.junkyardSewer4.wall0, true)
+  +setStorageIfNotSet(vars.junkyardSewer4.wall1, true)
+  +setStorageIfNotSet(vars.junkyardSewer4.wall2, true)
+  +setStorageIfNotSet(vars.junkyardSewer4.wall3, true)
+  +setStorageIfNotSet(vars.junkyardSewer4.wall6, true)
+  +loop("junkyardSewer4_renderWallAtIndex(\{vars.loopIndex\})", 8)
+
+@junkyardSewer4Load_setupBatteries
+  +setStorageIfNotSet(vars.junkyardSewer4.battery0, true)
+  +setStorageIfNotSet(vars.junkyardSewer4.battery1, true)
+  +?is(vars.junkyardSewer4.battery0):{
+    +createPropAtMarker(PropBattery, MarkerBattery0, props_small_144, 16, 8, 8)
+    +setStorage(vars.junkyardSewer4.battery0, false)
+  }
+  +?is(vars.junkyardSewer4.battery1):{
+    +createPropAtMarker(PropBattery, MarkerBattery1, props_small_144, 16, 8, 8)
+    +setStorage(vars.junkyardSewer4.battery1, false)
+  }
+ 
+@junkyardSewer4_toggleWallAtIndex
+  +setStorage(vars.key, vars.junkyardSewer4.wall[ARG0])
+  +?is({vars.key}):{
+    +setStorage({vars.key}, false)
+    +sbreak()
+  }
+  +?isnot({vars.key}):{
+    +?isnot(func(tileAtMarkerIsOccupied, MarkerGeneratedToggleDoor[ARG0])):{
+      +setStorage({vars.key}, true)
+    // +sbreak();
+    }
+  // +setStorage({vars.key}, true);
+  }
+
+@junkyardSewer4_renderWallAtIndex
+  +setStorage(vars.key, vars.junkyardSewer4.wall[ARG0])
+// +log("Toggle Wall {vars.key}");
+  +?is(vars.key):{
+    +addOrReplaceTileAtMarkerEx(MarkerGeneratedToggleDoor[ARG0], DUNGEON_WALL1_ON)
+  }
+  +?isnot(vars.key):{
+    +addOrReplaceTileAtMarkerEx(MarkerGeneratedToggleDoor[ARG0], DUNGEON_WALL1_FLOOR_TILE)
+  }
+
+#junkyardSewer_transitionFrom4To3
+  step,this
+@this
+  +:utils-change-room(junkyardSewer3, MarkerFrom4)
+
+#junkyardSewer_transitionFrom3To4
+  step,this
+@this
+  +:utils-change-room(junkyardSewer4, MarkerFrom3)
+
+#junkyardSewer4_pressButton
+  step-first,junkyardSewer4_pressButton
+  step-off,junkyardSewer4_pressButton_off
+@junkyardSewer4_pressButton
+  // +forceSetUpdateKeysEnabled()
+  +playSound('blip')
+  // +addOrReplaceTileAtPositionEx({vars.triggerActivator.x}, {vars.triggerActivator.y}, DUNGEON_BUTTON1)
+  // +changeTileAtPosition({vars.triggerActivator.x}, {vars.triggerActivator.y}, DUNGEON_BUTTON1)
+  +log("Button Pressed")
+  +changePropAnim(PropLight, props_small_light_alert)
+  +changeTileAnim({vars.triggerActivator.x}, {vars.triggerActivator.y}, 'floors_dungeon_anim_button1')
+  // +loop("junkyardSewer4_toggleWallAtIndex(\{vars.loopIndex\})", 8)
+  // +loop("junkyardSewer4_renderWallAtIndex(\{vars.loopIndex\})", 8)
+  // +:w(25)
+  // +playSound('despawn_tut_wall')
+@junkyardSewer4_pressButton_off
+  +changePropAnim(PropLight, props_small_light_off)
+
+@RoamerCart_TURNLEFT_LEFTUP_collision
+  +setConversation(Ada)
+  +:face(Party, left)
+  +setAnimationState(Party, battle_staggered)
+  +playSound(battle_staggered1)
+  +fadeOut(500)
+  +setAtMarker(Party, MarkerRespawnHit)
+  +fadeIn(500)
+  +setAnimationState(Party, idle)
+  +endConversation()
+
+#junkyardSewer_ScoutFirst
+  action,this
+@this
+  +assert("+?all(func(inParty, Anjana), func(inParty, Skye))")
+  +setConversation2(Ada, Anjana)
+  Anjana: "Is that a <color=PURPLE>Dweller</>?"
+  Anjana: "What is one of <italic>them</> doing down here?"
+  +:la(Anjana, Ada)
+  Anjana: "We need to be careful."
+  // walk up to bars
+  Anjana: "Hey!  Buddy!  Can we talk?"
+  +:leach(Scout, Ada)
+  Scout: "Oh.  Hello there.  I didn't hear you come in."
+  // walk to Anjana
+  Scout: "Are you here to check on me?"
+  +:leach(Scout, Ada)
+  Ada: "No.  Who are you?"
+  Scout: "Oh.  So you are not one of <color=ORANGE>Bartolo's</> robots?"
+  Ada: "I would think that is obvious."
+  Scout: "I am <color=PURPLE>Scout</>.  As you can see, I'm locked in here."
+  Scout: "If you're not a robot, then could you help me out?"
+  +:leach(Scout, Anjana)
+  +:serious(Anjana)
+  Anjana: "That depends.  How did you get in there?"
+  Scout: "Simple.  I was snooping around and got caught."
+  +:leach(Scout, Ada)
+  Ada: "Did <color=ORANGE>Bartolo</> do that?"
+  Scout: "Yes, in fact, he did."
+  +replaceConversationMember2(Skye, left)
+  +:leach(Scout, Skye)
+  Skye: "I mean, that's what he did to us.  The guy seems to like locking people up."
+  +:leach(Scout, Anjana)
+  Scout: "I take it that you are not his friends?"
+  Anjana: "No.  We are not.  That doesn't make us your friends though."
+  Scout: "Ahh.  So then you aren't interested in freeing me?"
+  Anjana: "You have your goals, and we have ours.  Maybe they coincide.  What can you do for us?"
+  Scout: "If your goal is to leave, I know a way out of here."
+  Anjana: "Tell us."
+  Scout: "Through that door and and across the hall is the robot barracks."
+  Scout: "Inside is a particularly nasty robot: a <color=LIGHTRED>Guardibot</>.  It has the key to this cage, and a way out of here."
+  Scout: "But it's quite dangerous. Might be too much for you."
+  +:smirk(Skye)
+  Skye: "We can handle it."
+  +:teardrop(Scout)
+  Scout: "I'm sure you're tougher than you look."
+  Scout: "But in case you do have some difficulty, there is a detour you could take."
+  Anjana: "What do you mean?"
+  Scout: "Back in the sewers, there is an old maintenance area with a teleporter that leads to a somewhat secret part of the arcade."
+  Scout: "I'm sure if you go there, you might find something to help you defeat the <color=LIGHTRED>Guardibot</>."
+  +replaceConversationMember2(Ada, left)
+  +:leach(Scout, Ada)
+  Ada: "What do you mean, exactly?"
+  Scout: "You'll have to find out for yourself.  I can't tell you everything."
+  +:leach(Scout, Ada)
+  Anjana: "This isn't some kind of trap?"
+  Scout: "Of course not.  I just want to get out of here."
+  Scout: "If you want, go defeat the <color=LIGHTRED>Guardibot</> first and come back for me, it will have the key to this cage."
+  +:leach(Anjana, Ada)
+  Anjana: "What do you think?  Do you want to trust him?"
+  Ada: "Anything that gets us out of here is worth a shot."
+  Anjana: "Fine.  Then let's see if his information is correct."
+  // begin quest
+  +endConversation()

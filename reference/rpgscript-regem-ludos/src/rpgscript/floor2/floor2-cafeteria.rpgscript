@@ -1,0 +1,480 @@
+@floor2cafeteria
+  +:patternMatchmaking_setupMatchmaking()
+
+@floor2cafeteriafood
+  +:patternMatchmaking_placeMillieCafeteriaFood()
+
+// TRANSITIONS
+
+@floor2Cafeteria_transitionEffect
+  +setConversationWithoutBars(Ada)
+  +setAnimationState('Ada', 'idle')
+  +fadeOut(500, true)
+  +panCameraBackToPlayer(1)
+  +waitMS(500, '', true)
+  +fadeIn(500, true)
+  +playSound('change_room')
+  +playSound('move_wall')
+  +changeRoom(black)
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_VR_WHITE_PORTAL', 'Ada', 'normal')
+  +:w(100)
+  +playSound('purple_portal')
+  +:w(900)
+
+#floor2Cafeteria_transitionFromSouthToCafeteria
+  step,this
+@this
+  // +:floor2Cafeteria_transitionEffect()
+  +:utils-change-room(floor2CafeteriaHallway, MarkerDoorSouth)
+
+#floor2Cafeteria_transitionFromNorthToCafeteria
+  step,this
+@this
+  // +:floor2Cafeteria_transitionEffect()
+  +:utils-change-room(floor2CafeteriaHallway, MarkerDoorNorth, false)
+
+#floor2Cafeteria_transitionFromCafeteriaToSouth
+  step,this
+@this
+  // +:floor2Cafeteria_transitionEffect()
+  +:utils-change-room(floor2PreCafeteriaHallway, MarkerDoorCafeteria)
+
+// #floor2Cafeteria_transitionFromCafeteriaToNorth
+//   step,this
+// @this
+
+#floor2Cafeteria_transitionFromCafeteriaToNorth
+  step,this
+@this
+  +:utils-change-room(floor2North, MarkerDoorFromCafeteria)
+
+#floor2Cafeteria_transitionFromMainToFood
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaFood, MarkerFromMain)
+
+#floor2Cafeteria_transitionFromFoodToMain
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaHallway, MarkerFromFood)
+
+#floor2North_openSouthDoor
+  step-first,floor2North_mainSouthDoorOpen
+  step-off,floor2North_mainSouthDoorClose
+@floor2North_mainSouthDoorOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorSouth2, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorSouth1, PINK_DOOR_BCKR)
+@floor2North_mainSouthDoorClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorSouth2, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorSouth1, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_openSouthDoor
+  step-first,floor2Cafeteria_mainSouthDoorOpen
+  step-off,floor2Cafeteria_mainSouthDoorClose
+@floor2Cafeteria_mainSouthDoorOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorSouth2, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorSouth1, PINK_DOOR_BCKR)
+@floor2Cafeteria_mainSouthDoorClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorSouth2, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorSouth1, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_openNorthDoor
+  step-first,floor2Cafeteria_mainNorthDoorOpen
+  step-off,floor2Cafeteria_mainNorthDoorClose
+@floor2Cafeteria_mainNorthDoorOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorNorth2, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorNorth1, PINK_DOOR_BCKR)
+@floor2Cafeteria_mainNorthDoorClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorNorth2, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorNorth1, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_openPinkDoor1
+  step-first,floor2Cafeteria_openPinkDoor1_Open
+  step-off,floor2Cafeteria_openPinkDoor1_Close
+@floor2Cafeteria_openPinkDoor1_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerPinkDoor1East1, PINK_DOOR_FWDL)
+  +:openDoor(MarkerPinkDoor1East2, PINK_DOOR_FWDR)
+@floor2Cafeteria_openPinkDoor1_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerPinkDoor1East1, PINK_DOOR_FWDL)
+  +:closeDoor(MarkerPinkDoor1East2, PINK_DOOR_FWDR)
+
+#floor2Cafeteria_openPinkDoor2
+  step-first,floor2Cafeteria_openPinkDoor2_Open
+  step-off,floor2Cafeteria_openPinkDoor2_Close
+@floor2Cafeteria_openPinkDoor2_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerPinkDoor2East1, PINK_DOOR_FWDL)
+  +:openDoor(MarkerPinkDoor2East2, PINK_DOOR_FWDR)
+@floor2Cafeteria_openPinkDoor2_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerPinkDoor2East1, PINK_DOOR_FWDL)
+  +:closeDoor(MarkerPinkDoor2East2, PINK_DOOR_FWDR)
+
+#floor2Cafeteria_openPinkDoor3
+  step-first,floor2Cafeteria_openPinkDoor3_Open
+  step-off,floor2Cafeteria_openPinkDoor3_Close
+@floor2Cafeteria_openPinkDoor3_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerPinkDoor3East1, PINK_DOOR_BCKL)
+  +:openDoor(MarkerPinkDoor3East2, PINK_DOOR_BCKR)
+@floor2Cafeteria_openPinkDoor3_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerPinkDoor3East1, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerPinkDoor3East2, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_transitionFromHallwayToMain1
+  step,this
+@this
+  +:utils-change-room(floor2Cafeteria, MarkerFromHallway1)
+
+#floor2Cafeteria_transitionFromHallwayToMain2
+  step,this
+@this
+  +:utils-change-room(floor2Cafeteria, MarkerFromHallway2)
+
+#floor2CafeteriaHallway_PinkDoor1
+  step-first,floor2CafeteriaHallway_PinkDoor1_Open
+  step-off,floor2CafeteriaHallway_PinkDoor1_Close
+@floor2CafeteriaHallway_PinkDoor1_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerPinkDoorCafe1, PINK_DOOR)
+@floor2CafeteriaHallway_PinkDoor1_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerPinkDoorCafe1, PINK_DOOR)
+
+#floor2CafeteriaHallway_PinkDoor2
+  step-first,floor2CafeteriaHallway_PinkDoor2_Open
+  step-off,floor2CafeteriaHallway_PinkDoor2_Close
+@floor2CafeteriaHallway_PinkDoor2_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerPinkDoorCafe3, PINK_DOOR)
+@floor2CafeteriaHallway_PinkDoor2_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerPinkDoorCafe3, PINK_DOOR)
+
+#floor2Cafeteria_transitionFromMainToHallway1
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaHallway, MarkerFromCafeteria1)
+
+#floor2Cafeteria_transitionFromMainToHallway2
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaHallway, MarkerFromCafeteria2)
+
+#floor2CafeteriaMain_PinkDoor1
+  step-first,floor2CafeteriaMain_PinkDoor1_Open
+  step-off,floor2CafeteriaMain_PinkDoor1_Close
+@floor2CafeteriaMain_PinkDoor1_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerPinkDoorHallway1, PINK_DOOR)
+@floor2CafeteriaMain_PinkDoor1_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerPinkDoorHallway1, PINK_DOOR)
+
+#floor2CafeteriaMain_PinkDoor2
+  step-first,floor2CafeteriaMain_PinkDoor2_Open
+  step-off,floor2CafeteriaMain_PinkDoor2_Close
+@floor2CafeteriaMain_PinkDoor2_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerPinkDoorHallway2, PINK_DOOR)
+@floor2CafeteriaMain_PinkDoor2_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerPinkDoorHallway2, PINK_DOOR)
+
+#floor2Cafeteria_transitionFromMainToEast1
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaEast1, MarkerFromMain)
+
+#floor2Cafeteria_transitionFromEast1ToMain
+  step,this
+@this
+  +:utils-change-room(floor2Cafeteria, MarkerFromEast1)
+
+#floor2Cafeteria_transitionFromEast1ToEast1.5
+  step,this
+@this
+  +:utils-change-room('floor2CafeteriaEast1.5', MarkerFromEast1)
+
+#floor2Cafeteria_transitionFromEast2ToEast1.5
+  step,this
+@this
+  +:utils-change-room('floor2CafeteriaEast1.5', MarkerFromEast2)
+
+#floor2Cafeteria_transitionFromEast1.5ToEast1
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaEast1, 'MarkerFromEast1.5')
+
+#floor2Cafeteria_transitionFromEast1.5ToEast2
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaEast2, 'MarkerFromEast1.5')
+
+#floor2Cafeteria_transitionFromEast2ToEast1
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaEast1, MarkerFromEast2)
+
+#floor2Cafeteria_transitionFromMainToEast2
+  step,this
+@this
+  +:utils-change-room(floor2CafeteriaEast2, MarkerFromMain)
+
+#floor2Cafeteria_transitionFromEast2ToMain
+  step,this
+@this
+  +:utils-change-room(floor2Cafeteria, MarkerFromEast2)
+
+#floor2Cafeteria_east1MainDoors
+  step-first,floor2Cafeteria_east1MainDoors_Open
+  step-off,floor2Cafeteria_east1MainDoors_Close
+@floor2Cafeteria_east1MainDoors_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorMain1, PINK_DOOR_FWDL)
+  +:openDoor(MarkerDoorMain2, PINK_DOOR_FWDR)
+@floor2Cafeteria_east1MainDoors_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorMain1, PINK_DOOR_FWDL)
+  +:closeDoor(MarkerDoorMain2, PINK_DOOR_FWDR)
+
+#floor2Cafeteria_east1EDoors
+  step-first,floor2Cafeteria_east1EDoors_Open
+  step-off,floor2Cafeteria_east1EDoors_Close
+@floor2Cafeteria_east1EDoors_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorE1, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorE2, PINK_DOOR_BCKR)
+@floor2Cafeteria_east1EDoors_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorE1, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorE2, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_east2MainDoors
+  step-first,floor2Cafeteria_east2MainDoors_Open
+  step-off,floor2Cafeteria_east2MainDoors_Close
+@floor2Cafeteria_east2MainDoors_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorMain1, PINK_DOOR_FWDL)
+  +:openDoor(MarkerDoorMain2, PINK_DOOR_FWDR)
+@floor2Cafeteria_east2MainDoors_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorMain1, PINK_DOOR_FWDL)
+  +:closeDoor(MarkerDoorMain2, PINK_DOOR_FWDR)
+
+#floor2Cafeteria_east2EDoors
+  step-first,floor2Cafeteria_east2EDoors_Open
+  step-off,floor2Cafeteria_east2EDoors_Close
+@floor2Cafeteria_east2EDoors_Open
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorE1, PINK_DOOR_BCKL)
+  +:openDoor(MarkerDoorE2, PINK_DOOR_BCKR)
+@floor2Cafeteria_east2EDoors_Close
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorE1, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerDoorE2, PINK_DOOR_BCKR)
+
+#floor2Cafeteria_east1_5DoorsA
+  step-first,floor2Cafeteria_east1_5DoorsA_Open
+  step-off,floor2Cafeteria_east1_5DoorsA_Close
+@floor2Cafeteria_east1_5DoorsA_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerFloor2Cafeteria_east1_5DoorsA, PINK_DOOR)
+@floor2Cafeteria_east1_5DoorsA_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerFloor2Cafeteria_east1_5DoorsA, PINK_DOOR)
+
+#floor2Cafeteria_east1_5DoorsB
+  step-first,floor2Cafeteria_east1_5DoorsB_Open
+  step-off,floor2Cafeteria_east1_5DoorsB_Close
+@floor2Cafeteria_east1_5DoorsB_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerFloor2Cafeteria_east1_5DoorsB, PINK_DOOR)
+@floor2Cafeteria_east1_5DoorsB_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerFloor2Cafeteria_east1_5DoorsB, PINK_DOOR)
+
+// STATICS
+
+// ARG0 = direction Ada needs to face to face the doorway she entered from
+// @floor2Cafeteria_notedHallwayLength
+//   +setConversation(Ada)
+//   +walkPartyToFormation()
+//   +:ld(Party, [ARG0])
+//   +:question(Ada)
+//   Ada: "That hallway was... rather long, was it not?"
+//   +?func(inParty, Anjana):{
+//     Anjana: "There's lots of weird architecture choices in here.  You'd better get used to it."
+//   }
+//   +endConversation()
+
+#floor2Cafeteria_employeeDoorLockedRight
+  action,this
+@this
+  +setConversation(Ada)
+  +:face(Ada, rightup)
+  Ada: "The sign next to the door says 'Employees Only'."
+  +endConversation()
+
+#floor2Cafeteria_PizzaLineTalk
+  action,this
+@this
+  +setStorageIfNotSet(vars.cafeteriaPizzaTalkCtr, 0)
+  +setConversation(Ada)
+  +?eq(vars.cafeteriaPizzaTalkCtr, 0):{
+    Person In Line: "This line is really long."
+  }
+  +?eq(vars.cafeteriaPizzaTalkCtr, 1):{
+    Person In Line: "I'm not even really sure if I want pizza, honestly."
+  }
+  +?eq(vars.cafeteriaPizzaTalkCtr, 2):{
+    Person In Line: "If there are so many people in line, the food must be good, right?"
+  }
+  +?eq(vars.cafeteriaPizzaTalkCtr, 3):{
+    Person In Line: "I wonder if they have good toppings available..."
+  }
+  +?eq(vars.cafeteriaPizzaTalkCtr, 4):{
+    Person In Line: "I want a deep dish!  No actually a round sounds better."
+  }
+  +?eq(vars.cafeteriaPizzaTalkCtr, 5):{
+    Person In Line: "I think they should have cantaloupe as a topping.  That's much better than pineapple."
+  }
+  +incrementStorage(vars.cafeteriaPizzaTalkCtr, 1)
+  +?gt(vars.cafeteriaPizzaTalkCtr, 5):{
+    +setStorage(vars.cafeteriaPizzaTalkCtr, 0)
+  }
+  +endConversation()
+
+#floor2Cafeteria_PizzaLineTalk0
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Ada, Person0)
+  Person0: "Hey!  I'm next in line!  If you want your own pizza, go to the back and wait like the rest of us!"
+  +endConversation()
+
+#floor2Cafeteria_BurgerStore
+  action,?once('cd4aece7'):floor2Cafeteria_BurgerStore1
+  action,floor2Cafeteria_BurgerStore2
+@floor2Cafeteria_BurgerStore1
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  BurgerEmployee: "Order up! How'd you like it cooked? (And don't say anything other than *well*)."
+  +endConversation()
+  +showStore(SECOND_FLOOR_CAFETERIA_BURGER_STORE)
+@floor2Cafeteria_BurgerStore2
+  +:ld(Ada, leftup)
+  +showStore(SECOND_FLOOR_CAFETERIA_BURGER_STORE)
+
+#floor2Cafeteria_RamenStore
+  action,?once('a0262f52'):floor2Cafeteria_RamenStore1
+  action,floor2Cafeteria_RamenStore2
+@floor2Cafeteria_RamenStore1
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  RamenEmployee: "Just so you know, you won't get any chasu with this stuff."
+  +endConversation()
+  +showStore(SECOND_FLOOR_CAFETERIA_RAMEN_STORE)
+@floor2Cafeteria_RamenStore2
+  +:ld(Ada, leftup)
+  +showStore(SECOND_FLOOR_CAFETERIA_RAMEN_STORE)
+
+#floor2Cafeteria_SaladStore
+  action,?once('e85f2df9'):floor2Cafeteria_SaladStore1
+  action,floor2Cafeteria_SaladStore2
+@floor2Cafeteria_SaladStore1
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  SaladEmployee: "You're actually interested in this?  Alright, whatddya want?"
+  +endConversation()
+  +showStore(SECOND_FLOOR_CAFETERIA_SALAD_STORE)
+@floor2Cafeteria_SaladStore2
+  +:ld(Ada, leftup)
+  +showStore(SECOND_FLOOR_CAFETERIA_SALAD_STORE)
+
+#floor2Cafeteria_PizzaOnTheBar
+  action,?once('5697dc42'):floor2Cafeteria_PizzaOnTheBar1
+  action,floor2Cafeteria_PizzaOnTheBar2
+@floor2Cafeteria_PizzaOnTheBar1
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  +?func(inParty, Skye):{
+    +:ld(Skye, leftup)
+    Skye: "Oh man, it smells <italic>really</> good over here."
+  }
+  +?func(inParty, Anjana):{
+    +:ld(Anjana, leftup)
+    +:teardrop(Anjana)
+    Anjana: "I think I could dip that in a vat of lard and it would come out <italic>less</> greasy."
+  }
+  Ada: "These pizzas look like they have been sitting out here for some time."
+  +endConversation()
+@floor2Cafeteria_PizzaOnTheBar2
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  Ada: "I do not believe I should take any of these..."
+  +endConversation()
+
+#floor2CafeteriaCashierEmployeeTalk
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +:ld(Floor2CafeteriaCashierEmployee, rightdown)
+  Floor2CafeteriaCashierEmployee: "Welcome to the <color=LIGHTGREEN>Caf8teria</>! Feel free to peruse our selection of fine foods!"
+  +endConversation()
+
+#floor2CafeteriaFoodPersonsTalk
+  action,this
+@this
+  // +walkToCharacter(Party, Floor2CafeteriaFoodPerson1, -16, 16)
+  // +:la(Ada, Floor2CafeteriaFoodPerson1)
+  // +walkPartyToFormation()
+  +setConversation(Ada)
+  +:sad(Floor2CafeteriaFoodPerson1)
+  Floor2CafeteriaFoodPerson1: "I'm not sure what I want to eat..."
+  Floor2CafeteriaFoodPerson2: "Maybe just get a salad?"
+  Floor2CafeteriaFoodPerson1: "Nah, a salad seems a bit too light right now."
+  Floor2CafeteriaFoodPerson2: "Well, everything looks like it will be good.  Might as well just pick something so we're not hungry anymore."
+  +:shakeZ(Floor2CafeteriaFoodPerson1)
+  +:ld(Floor2CafeteriaFoodPerson1, leftdown)
+  Floor2CafeteriaFoodPerson1: "Yeah but I still just don't know what I want..."
+  +:leach(Floor2CafeteriaFoodPerson1, Floor2CafeteriaFoodPerson2)
+  +endConversation()
+
+#floor2Cafeteria_SimplePatron
+  action,this
+@this
+  +setConversation(Ada)
+  +:la(Guy, Ada)
+  Guy: "There used to be a pink sign with the number '9' on this table, but it was taking up too much space, so I removed it."
+  +endConversation()
+
+#floor2CafeteriaEast1_WindowPanePerson
+  action,this
+@this
+  +setConversation(Ada)
+  floor2CafeteriaEast1_WindowPanePerson: "I'm trying to figure out the best way to put this pane of glass back on the wall."
+  floor2CafeteriaEast1_WindowPanePerson: "In this corner it's got a bit of a glare towards a few seats, but the other one just looks so dull."
+  floor2CafeteriaEast1_WindowPanePerson: "I'll just leave it here for now."
+  floor2CafeteriaEast1_WindowPanePerson: "Then again... maybe there is a better spot for it."
+  +endConversation()
+
+#floor2Cafeteria_tavernityMachine
+  action,this
+@this
+  +setUnskippableConversation(Ada)
+  +walkToMarker(Ada, MarkerTavernityMachine)
+  +setFacing(Ada, rightup)
+  +runArcadeCabinetGame(TAVERNITY)
+  +setAtMarker(Ada, MarkerTavernityMachine)
+  +endConversation()

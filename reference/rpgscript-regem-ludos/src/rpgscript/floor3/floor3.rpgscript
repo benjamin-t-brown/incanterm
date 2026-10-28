@@ -1,0 +1,568 @@
+#floor3North_load
+  load,this
+@this
+  +?is(vars.floor3North_blocked):{
+    +changePropAnim(PropCratesFall1, "animated-props/crates_falling_completed")
+    +changePropAnim(PropCratesFall2, "animated-props/crates_falling_completed")
+    +changePropAnim(PropCratesFall3, "animated-props/crates_falling_completed")
+    +changePropAnim(PropCratesFall4, "animated-props/crates_falling_up_completed", -78, -42)
+    +changePropAnim(PropCratesFall5, "animated-props/crates_falling_up2_completed", -78, -42)
+    +changePropAnim(PropCratesFall6, "animated-props/crates_falling_up_completed", -78, -42)
+    +despawnCharacter(floor3North_Foreman)
+    +despawnCharacter(floor3North_WagonHauler1)
+    +despawnCharacter(floor3North_WagonHauler2)
+    +despawnCharacter(floor3North_regularWagon)
+    +despawnCharacter(floor3North_cowWagon)
+  }
+  +?once('528d3a5c'):{
+    +setStorage(vars.floor3North_blocked, true)
+  }
+
+#floor3North_toEmployeeHub
+  step,this
+@this
+  +:utils-change-room(floor3EmployeeHub, MarkerFromFloor3North)
+
+#floor3EmployeeHub_toNorth
+  step,this
+@this
+  +:utils-change-room(floor3North, MarkerForemanLeave)
+
+#floor3EmployeeHub_toCards
+  step,this
+@this
+  +:utils-change-room(floor3CardsEntrance, MarkerFromHub)
+
+#floor3North_doorsOpen
+  step-first,floor3North_doorsOpen
+  step-off,floor3North_doorsClose
+@floor3North_doorsOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerRedDoor1, RED_DOOR_FWDL)
+  +:openDoor(MarkerRedDoor2, RED_DOOR_FWDR)
+@floor3North_doorsClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerRedDoor1, RED_DOOR_FWDL)
+  +:closeDoor(MarkerRedDoor2, RED_DOOR_FWDR)
+
+#floor3EmployeeHub_pinkDoors
+  step-first,floor3Cards_floor3EmployeeHub_pinkDoorsOpen
+  step-off,floor3Cards_floor3EmployeeHub_pinkDoorsClose
+@floor3Cards_floor3EmployeeHub_pinkDoorsOpen
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerPinkDoor2, PINK_DOOR_BCKL)
+  +:openDoor(MarkerPinkDoor1, PINK_DOOR_BCKR)
+@floor3Cards_floor3EmployeeHub_pinkDoorsClose
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerPinkDoor2, PINK_DOOR_BCKL)
+  +:closeDoor(MarkerPinkDoor1, PINK_DOOR_BCKR)
+
+#floor3EmployeeHub_blueDoors
+  step-first,floor3Cards_floor3EmployeeHub_blueDoorsOpen
+  step-off,floor3Cards_floor3EmployeeHub_blueDoorsClose
+@floor3Cards_floor3EmployeeHub_blueDoorsOpen
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerBlueDoor1, BLUE_DOOR)
+@floor3Cards_floor3EmployeeHub_blueDoorsClose
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerBlueDoor1, BLUE_DOOR)
+
+#floor3EmployeeHub_greenDoors
+  step-first,floor3Cards_floor3EmployeeHub_greenDoorsOpen
+  step-off,floor3Cards_floor3EmployeeHub_greenDoorsClose
+@floor3Cards_floor3EmployeeHub_greenDoorsOpen
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerGreenDoor1, GREEN_DOOR)
+@floor3Cards_floor3EmployeeHub_greenDoorsClose
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerGreenDoor1, GREEN_DOOR)
+
+#floor3EmployeeHub_greyDoors
+  step-first,floor3Cards_floor3EmployeeHub_greyDoorsOpen
+  step-off,floor3Cards_floor3EmployeeHub_greyDoorsClose
+@floor3Cards_floor3EmployeeHub_greyDoorsOpen
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsBck(MarkerGreyDoor1, GREY_DOOR)
+@floor3Cards_floor3EmployeeHub_greyDoorsClose
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsBck(MarkerGreyDoor1, GREY_DOOR)
+
+#floor3EmployeeHub_casinoSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, rightup)
+  Narrator: "FAUX CASINO"
+  Narrator: "<color=LIGHTGREEN>Access open."
+  +endConversation()
+
+#floor3EmployeeHub_pinkSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Narrator: "CAF8TERIA KITCHEN"
+  +playSound('terminal_cancel')
+  Narrator: "<color=LIGHTRED>Access denied."
+  +endConversation()
+
+#floor3EmployeeHub_blueSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Narrator: "RESEARCH & DEVELOPMENT"
+  +playSound('terminal_cancel')
+  Narrator: "<color=LIGHTRED>Access denied."
+  +endConversation()
+
+#floor3EmployeeHub_greenSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Narrator: "TELEPORTER MAINTENANCE"
+  +playSound('terminal_cancel')
+  Narrator: "<color=LIGHTRED>Access denied."
+  +endConversation()
+
+#floor3EmployeeHub_greySign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Narrator: "JUNKYARD/SEWERS"
+  Narrator: "<color=ORANGE>WARNING: Hash check invalid! This terminal's security protocol is not enabled!</>"
+  Narrator: "<color=ORANGE>Contact Security & Maintenance immediately, as this terminal has likely been hacked.</>"
+  +endConversation()
+
+#floor3North_SigmaKnocksBoxesDown
+  step,?once('e2e23216'):floor3North_SigmaKnocksBoxesDown
+@floor3North_SigmaKnocksBoxesDown
+  +stopAi(Foreman)
+  +setConversationGroup(Foreman, floor3North_WagonHauler1)
+  +setWallCollisionEnabled(false)
+  +spawnCharacterAtMarker(Sigma, MarkerSigmaSpawn)
+  +walkToOffset(Ada, 16, 0)
+  +walkPartyToFormation(true)
+  +walkToOffset(Foreman, 32, 32, true)
+  +panCameraToFitCharacters(1500, false, Foreman)
+  +panCameraRelativeToCurrentPosition(0, 55, 500)
+  +:exclaim(Foreman)
+  Foreman: "Why did you bring this stuff here?"
+  Foreman: "I told you we don't have any more room!"
+  +:shakeZ(floor3North_WagonHauler1)
+  floor3North_WagonHauler1: "It's just a few boxes and things, boss."
+  floor3North_WagonHauler1: "The shopkeep said we could store them here."
+  +:angry(Foreman)
+  +walkToOffset(Foreman, 12, 0)
+  +:la(Foreman, floor3North_WagonHauler1)
+  Foreman: "Absolutely not."
+  +:jump(Foreman)
+  Foreman: "I don't care what they said!"
+  Foreman: "Go. Back. The. <shake>WAY YOU CAME</>!"
+  +:teardrop(floor3North_WagonHauler1)
+  floor3North_WagonHauler1: "But... we don't have any space over there either!"
+  +:none()
+  +walkToMarker(Sigma, MarkerSigma1, 0, 0, true)
+  +panCameraRelativeToCurrentPosition(50, 10, 500)
+  +walkToMarker(Sigma, MarkerSigma2, 0, 0)
+  +:ld(Sigma, down)
+  +:w(100)
+  +:lookAround(Sigma)
+  +:w(100)
+  +:ld(Sigma, left)
+  +:jump(Sigma)
+  +:exclaim(Sigma)
+  Sigma: "Moo!!!"
+  +none()
+  +:la(floor3North_WagonHauler1, Sigma)
+  +:la(floor3North_WagonHauler2, Sigma)
+  Sigma: "Moo!!! Moo!! Mooo!"
+  +none()
+  +:jump(Sigma)
+  +setSpeed(Sigma, 3)
+  +walkToMarker(Sigma, MarkerSigmaWagonWalk, 0, 0, true)
+  +panCameraRelativeToCurrentPosition(-50, 10, 500)
+  +playSound(thunk)
+  +:bumpY(Sigma, -2)
+  +walkToMarker(floor3North_cowWagon, MarkerCollide1, 0, 0, true)
+  +setSpeed(Sigma, 3.9)
+  +:exclaim(Sigma)
+  +walkToMarker(Sigma, MarkerCollide1, 0, 0, true)
+  +:w(100)
+  +:face(floor3North_WagonHauler1, leftdown)
+  +:face(floor3North_WagonHauler2, leftdown)
+  +panCameraRelativeToCurrentPosition(-50, 10, 400, true)
+  +walkToMarker(Sigma, MarkerWagonLeave, 0, 0, true)
+  +walkToMarker(floor3North_cowWagon, MarkerWagonLeave, 0, 0, true)
+  +playSound(knock)
+  +playSound(knock)
+  +playSound(knock)
+  +:floor3North_cratesFall()
+  +despawnCharacter(Sigma)
+  +despawnCharacter(floor3North_cowWagon)
+  +panCameraToFitCharacters(500, false, Foreman, floor3North_WagonHauler1)
+  +setConversationGroup(Foreman, floor3North_WagonHauler1)
+  +setSpeed(Foreman, 3)
+  +walkToOffset(Foreman, 0, 16)
+  +:exclaim(Foreman)
+  +:jump(Foreman)
+  +:ld(Foreman, leftdown)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_NERVOUS_SWEAT, Foreman, normal)
+  Foreman: "No!  <scale=1.5>No!  <scale=2.0>No!"
+  +:ld(Foreman, leftdown)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_NERVOUS_SWEAT, Foreman, normal)
+  Foreman: "<scale=1.25>What in the world was that?!?!"
+  +:angry(Foreman)
+  +:ld(Foreman, rightdown)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_NERVOUS_SWEAT, Foreman, normal)
+  Foreman: "Oh... this is going to set us back for weeks!"
+  Foreman: "<cascade-letters>WEEKS I TELL YOU!"
+  +:none()
+  +walkToOffset(floor3North_WagonHauler2, -16, 0)
+  +:w(500)
+  +:la(floor3North_WagonHauler2, floor3North_WagonHauler1)
+  floor3North_WagonHauler2: "That wasn't our fault was it?"
+  +:la(floor3North_WagonHauler1, Foreman)
+  floor3North_WagonHauler1: "Um.  What about this wagon boss?"
+  floor3North_WagonHauler1: "We can't really go back now."
+  +:none()
+  +:la(Foreman, floor3North_WagonHauler1)
+  Foreman: "<italic cascade-letters>Just push it..."
+  Foreman: "<scale=2.0 cascade=200> OUT OF THE WAY!!!"
+  +none()
+  +:shakeZ(floor3North_WagonHauler2)
+  floor3North_WagonHauler2: "Right away, boss!"
+  +none()
+  +setSpeed(floor3North_regularWagon, 2.5)
+  +setSpeed(floor3North_WagonHauler1, 2.5)
+  +setSpeed(floor3North_WagonHauler2, 2.5)
+  +walkToMarker(floor3North_regularWagon, MarkerWagonHaulersEnd, 0, 0, true)
+  +walkToMarker(floor3North_WagonHauler1, MarkerWagonHaulersEnd, 0, 0, true)
+  +walkToMarker(floor3North_WagonHauler2, MarkerWagonHaulersEnd, 0, 0)
+  +walkToMarker(floor3North_regularWagon, MarkerWagonHaulersEnd2, 0, 0, true)
+  +walkToMarker(floor3North_WagonHauler1, MarkerWagonHaulersEnd2, 0, 0, true)
+  +walkToMarker(floor3North_WagonHauler2, MarkerWagonHaulersEnd2, 0, 0)
+  +endConversation(100, true)
+  +panCameraToFitCharacters(500, false, Foreman)
+  +setConversation()
+  +:jump(Foreman)
+  Foreman: "<scale=2.0>LISTEN UP EVERYONE!"
+  +none()
+  +walkToOffset(floor3North_BoxHauler1, 20, -62, true)
+  +walkToOffset(floor3North_BoxHauler3, 40, 40, true)
+  +walkToOffset(floor3North_BoxHauler5, 0, 64, true)
+  +walkToOffset(floor3North_BoxHauler6, 0, 64)
+  +:w(500)
+  +lookAtCharacter(floor3North_BoxHauler1, Foreman)
+  +lookAtCharacter(floor3North_BoxHauler3, Foreman)
+  +lookAtCharacter(floor3North_BoxHauler4, Foreman)
+  +lookAtCharacter(floor3North_BoxHauler5, Foreman)
+  +lookAtCharacter(floor3North_BoxHauler6, Foreman)
+  +:ld(Foreman, leftdown)
+  Foreman: "I have to go report this <shake>MISHAP</> to HQ!"
+  +lookAtCharacter(floor3North_BoxHauler1, Foreman)
+  +:ld(Foreman, down)
+  Foreman: "You all better have this cleaned up by the time I get back!"
+  +:ld(Foreman, up)
+  Foreman: "Or else you'll be on <color=red>WAGON DUTY</> for the rest of the month!"
+  +:ld(Foreman, rightdown)
+  Foreman: "You all got that?"
+  +:shakeZ(floor3North_BoxHauler1)
+  floor3North_BoxHauler1: "Right away, boss."
+  +:shakeZ(floor3North_BoxHauler3)
+  floor3North_BoxHauler3: "Yes of course, boss."
+  +none()
+  +:shakeZ(Foreman)
+  Foreman: "<color=LIGHTGREY /> The things I have to deal with..."
+  +none()
+  +walkToMarker(Foreman, MarkerForemanLeave, 0, 0, true)
+  +setWallCollisionEnabled(true)
+  +fadeOut(700)
+  +panCameraBackToPlayer(1)
+  +changeRoom(floor3North, MarkerPartySpawn)
+  +:face(Ada, rightdown)
+  +walkPartyToFormation()
+  +fadeIn(700)
+  +endConversation()
+
+#floor3North_cratesFall
+  step-first,?once('f9748d67'):this
+@this
+  +setConversation(Ada)
+  +playSound(click)
+  +:w(100)
+  +changePropAnim(PropCratesFall3, "animated-props/crates_falling_anim")
+  +:w(50)
+  +playSound(collapse)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SMOKE_FAST, MarkerSmoke2, rise, 0, 0)
+  +changePropAnim(PropCratesFall2, "animated-props/crates_falling_anim")
+  +:w(100)
+  +changePropAnim(PropCratesFall1, "animated-props/crates_falling_anim")
+  +:w(50)
+  +changePropAnim(PropCratesFall6, "animated-props/crates_falling_up_anim", -78, -42)
+  +:w(50)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SMOKE_FAST, MarkerSmoke1, rise, 0, 0)
+  +changePropAnim(PropCratesFall5, "animated-props/crates_falling_up2_anim", -78, -42)
+  +:w(100)
+  +changePropAnim(PropCratesFall4, "animated-props/crates_falling_up_anim", -78, -42)
+  +endConversation()
+
+#floor3North_cannotProceed
+  action,?is(vars.floor3North_blocked):floor3North_cannotProceed_1
+  action,floor3North_cannotProceed_2
+@floor3North_cannotProceed_1
+  +:ld(Ada, leftdown)
+  +setConversation(Ada)
+  Ada: "It seems like we need to wait for the employees to clean this up before we can get through."
+  +endConversation()
+@floor3North_cannotProceed_2
+  +:ld(Ada, leftdown)
+  +setConversation(Ada)
+  Ada: "I certainly hope the crates do not fall this time."
+  +endConversation()
+
+#floor3North_BoxHauler1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(floor3North_BoxHauler1, Ada)
+  floor3North_BoxHauler1: "'<color=LIGHTGREY />Stacks of four</>' she says.  '<color=LIGHTGREY />Keeps them from falling over</>' she says."
+  floor3North_BoxHauler1: "These boxes are so heavy I can barely lift one!  What's in these things, bricks??"
+  +endConversation()
+
+  // +setConversation(Ada)
+  // +:leach(floor3North_BoxHauler1, Ada)
+  // floor3North_BoxHauler1: "I just need a quick break..."
+  // floor3North_BoxHauler1: "Don't tell the Foreman I'm over here!"
+  // +endConversation()
+
+#floor3North_BoxHauler2
+  action,?once('fddb2011'):floor3North_BoxHauler2_1
+  action,floor3North_BoxHauler2_2
+@floor3North_BoxHauler2_1
+  +setConversation(Ada)
+  +:leach(floor3North_BoxHauler2, Ada)
+  floor3North_BoxHauler2: "Those lazy bums on <color=LIGHTPURPLE>delivery duty</> just dumped all these boxes through the teleporter."
+  floor3North_BoxHauler2: "If you can believe it, there was an even bigger mess before we started cleaning it up."
+  +endConversation()
+@floor3North_BoxHauler2_2
+  +setConversation(Ada)
+  +:leach(floor3North_BoxHauler2, Ada)
+  floor3North_BoxHauler2: "The teleporter in this room is just a maintenance one.  You have to be an employee to use it."
+  +endConversation()
+
+#floor3North_BoxHauler3
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(floor3North_BoxHauler3, Ada)
+  floor3North_BoxHauler3: "The Foreman means well, but, between you and me <italic color=LIGHTGREY /> I think she likes her job a bit too much</>."
+  +endConversation()
+
+#floor3North_BoxHauler4
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(floor3North_BoxHauler4, Ada)
+  floor3North_BoxHauler4: "Box duty is supposed to be so easy, but if it's like this every day I don't think I'm gonna like it."
+  +endConversation()
+
+#floor3North_BoxHauler5
+  action,?once('6cb1523c'):floor3North_BoxHauler5_1
+  action,?once('72a25deb'):floor3North_BoxHauler5_2
+  action,?once('2f5ba150'):floor3North_BoxHauler5_3
+  action,floor3North_BoxHauler5_4
+@floor3North_BoxHauler5_1
+  +setConversationGroup(floor3North_BoxHauler5, floor3North_BoxHauler6)
+  +walkToMarker(Party, MarkerAdaWalkWagonConvo1)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +:ld(floor3North_BoxHauler5, leftup)
+  +:ld(floor3North_BoxHauler6, leftup)
+  floor3North_BoxHauler5: "See, I told you they wouldn't fit in the wagon."
+  floor3North_BoxHauler5: "It's way too small."
+  floor3North_BoxHauler6: "I guess you were right."
+  +:leach(floor3North_BoxHauler5, floor3North_BoxHauler6)
+  floor3North_BoxHauler6: "But I brought the thing all the way over here, the least we could do is try to use it."
+  +:ld(floor3North_BoxHauler6, leftup)
+  floor3North_BoxHauler6: "Maybe you could sit in it and I could pull you around?"
+  +:smirk(floor3North_BoxHauler5)
+  floor3North_BoxHauler5: "Better not let the Foreman see us."
+  +panCameraBackToPlayer(500, true);
+  +endConversation()
+@floor3North_BoxHauler5_2
+  +walkToMarker(Party, MarkerAdaWalkWagonConvo1)
+  +:ld(Ada, leftup)
+  +setConversationGroup(floor3North_BoxHauler5, floor3North_BoxHauler6)
+  +walkPartyToFormation()
+  +:ld(floor3North_BoxHauler5, leftup)
+  +:ld(floor3North_BoxHauler6, leftup)
+  floor3North_BoxHauler5: "On second thought, the wagon seems kinda dangerous."
+  floor3North_BoxHauler6: "Oh c'mon!  It'll be fun!"
+  floor3North_BoxHauler5: "Maybe we can trick an <color=LIGHTGREEN>Alternate</> into pulling it for us."
+  floor3North_BoxHauler6: "Nah, they hate manual labor."
+  +panCameraBackToPlayer(500, true);
+  +endConversation()
+@floor3North_BoxHauler5_3
+  +walkToMarker(Party, MarkerAdaWalkWagonConvo1)
+  +:ld(Ada, leftup)
+  +setConversationGroup(floor3North_BoxHauler5, floor3North_BoxHauler6)
+  +walkPartyToFormation()
+  +:ld(floor3North_BoxHauler5, leftup)
+  +:ld(floor3North_BoxHauler6, leftup)
+  floor3North_BoxHauler5: "So they don't have any bigger wagons?"
+  floor3North_BoxHauler6: "They do, but I'm not gonna haul it over here."
+  floor3North_BoxHauler5: "It has wheels, how heavy can it be?"
+  floor3North_BoxHauler6: "It's not the weight, it's the size."
+  floor3North_BoxHauler6: "They don't fit through the automatic doors very well."
+  +panCameraBackToPlayer(500, true);
+  +endConversation()
+@floor3North_BoxHauler5_4
+  +walkToMarker(Party, MarkerAdaWalkWagonConvo1)
+  +:ld(Ada, leftup)
+  +setConversationGroup(floor3North_BoxHauler5, floor3North_BoxHauler6)
+  +walkPartyToFormation()
+  +:ld(floor3North_BoxHauler5, leftup)
+  +:ld(floor3North_BoxHauler6, leftup)
+  floor3North_BoxHauler5: "It's too bad the wagon is smaller than the boxes."
+  +panCameraBackToPlayer(500, true);
+  +endConversation()
+
+#floor3EmployeeHub_DeskEmployee
+  action,?once('7216e742'):floor3EmployeeHub_DeskEmployee1
+  action,floor3EmployeeHub_DeskEmployee2
+@floor3EmployeeHub_DeskEmployee1
+  +setConversation(Ada)
+  +:leach(floor3EmployeeHub_DeskEmployee, Ada)
+  // +walkPartyToFormation()
+  floor3EmployeeHub_DeskEmployee: "You best be on your way to your station.  Don't wanna get chewed out by the <color=LIGHTRED>Foreman</>, do you."
+  +:shakeZ(Ada)
+  Ada: "...Right.  Where are we, exactly?"
+  +:flat(floor3EmployeeHub_DeskEmployee)
+  floor3EmployeeHub_DeskEmployee: "Did you sleep through training or something?"
+  floor3EmployeeHub_DeskEmployee: "This is the <color=LIGHTPURPLE>Employee Hub</> for the third floor."
+  +:la(floor3EmployeeHub_DeskEmployee, Ada)
+  floor3EmployeeHub_DeskEmployee: "Employees come through here to get to their stations, or to take a break."
+  +:ld(floor3EmployeeHub_DeskEmployee, right)
+  floor3EmployeeHub_DeskEmployee: "Over there is the entrance to the <color=LIGHTPURPLE>Faux Casino</>, I assume you are stationed there, why else would you be here?"
+  +:ld(floor3EmployeeHub_DeskEmployee, leftdown)
+  floor3EmployeeHub_DeskEmployee: "There's also some useful teleporters to various parts of the floor, but you need certain access to use them."
+  +:la(floor3EmployeeHub_DeskEmployee, Ada)
+  floor3EmployeeHub_DeskEmployee: "And... with all due respect, <italic>I don't think you have that access</>."
+  +?func(inParty, Skye):{
+    Skye: "What's that supposed to mean?"
+  }
+  +:smirk(floor3EmployeeHub_DeskEmployee)
+  floor3EmployeeHub_DeskEmployee: "Look.  I've been working here longer than you honey, I know who's who and who <italic>ain't</>."
+  +?func(inParty, Skye):{
+    +:angry(Skye)
+    +:jump(Skye)
+    Skye: "Why you..."
+    +?func(inParty, Anjana):{
+      +setSpeed(Anjana, 2.5)
+      +setSpeed(Skye, 2.5)
+      +walkToCharacter(Anjana, Skye)
+      +:w(100)
+      +walkToOffset(Anjana, 48, 0, true)
+      +:face(Ada, Anjana)
+      +offsetCharacter(Skye, 8, 0)
+      +:w(33)
+      +loopExpr("+offsetCharacter(Skye, 4, 0)\n+playSound(knock)\n+:w(33)", 14)
+      +:la(Ada, Anjana)
+      +:shakeZ(Anjana)
+      Anjana: "Just shut up and let's move on."
+      Anjana: "She's dumb enough to think we are employees, after all."
+    }
+    +walkToOffset(Ada, 32, 0)
+  }
+  +endConversation()
+@floor3EmployeeHub_DeskEmployee2
+  +setConversation(Ada)
+  +:leach(floor3EmployeeHub_DeskEmployee, Ada)
+  floor3EmployeeHub_DeskEmployee: "Not to nit pick you or anything, but you really should be in uniform, even back here in an <color=LIGHTPURPLE>Employee Hub</>."
+  floor3EmployeeHub_DeskEmployee: "I've been chewed out for that before."
+  +endConversation()
+
+#floor3EmployeeHub_Vending
+  action,this
+@this
+  +showStore(FLOOR3_EMPLOYEE_HUB_VENDING_MACHINE)
+
+#floor3EmployeeHub_VendingEmployee
+  action,?once('fc6dddb7'):floor3EmployeeHub_VendingEmployee1
+  action,floor3EmployeeHub_VendingEmployee2
+@floor3EmployeeHub_VendingEmployee1
+  +setConversation(Ada)
+  +:leach(floor3EmployeeHub_VendingEmployee, Ada)
+  floor3EmployeeHub_VendingEmployee: "I really want an <color=LIGHTBLUE>Almond Milk Latte</> but the vending machine is out of them."
+  floor3EmployeeHub_VendingEmployee: "They're <italic>never</> in stock though, so I don't know why I keep looking."
+  +:ld(floor3EmployeeHub_VendingEmployee, leftup)
+  floor3EmployeeHub_VendingEmployee: "I guess I could settle for a <color=LIGHTBLUE>Bubble Pop</>, but it's just so darn expensive..."
+  +:floor3EmployeeHub_VendingEmployeeBubblePop()
+  +endConversation()
+@floor3EmployeeHub_VendingEmployee2
+  +setConversation(Ada)
+  +:leach(floor3EmployeeHub_VendingEmployee, Ada)
+  +?is(vars.givenBubblePop):{
+    floor3EmployeeHub_VendingEmployee: "I need to bug the Foreman about restocking this vending machine."
+  }
+  +?isnot(vars.givenBubblePop):{
+    floor3EmployeeHub_VendingEmployee: "I guess I could settle for a <color=LIGHTBLUE>Bubble Pop</>, but it's just so darn expensive..."
+    +:floor3EmployeeHub_VendingEmployeeBubblePop()
+  }
+  +endConversation()
+@floor3EmployeeHub_VendingEmployeeBubblePop
+  +:leach(floor3EmployeeHub_VendingEmployee, Ada)
+  +?isnot(vars.givenBubblePop):{
+    +?with(BubblePop):{
+      Narrator: "Give a <color=LIGHTBLUE>Bubble Pop</>?"
+      +awaitChoice("Yes, give.", "No, keep.")
+      +?eq(lastChoiceIndex, 0):{
+        +:surprised(floor3EmployeeHub_VendingEmployee)
+        floor3EmployeeHub_VendingEmployee: "Are you giving this to me?"
+        floor3EmployeeHub_VendingEmployee: "Thank you so much!"
+        +removeItem(BubblePop)
+        +setStorage('vars.givenBubblePop', 'true')
+        +:ld(floor3EmployeeHub_VendingEmployee, down)
+        floor3EmployeeHub_VendingEmployee: "I always forget this stuff gives you a shield in the combat instances."
+        +:la(floor3EmployeeHub_VendingEmployee, Ada)
+        floor3EmployeeHub_VendingEmployee: "Here's a little secret between you and me."
+        floor3EmployeeHub_VendingEmployee: "There's something weird going on with the card games in the <color=LIGHTPURPLE>Faux Casino</>."
+        floor3EmployeeHub_VendingEmployee: "Somebody has the ear of the dealers in there."
+        floor3EmployeeHub_VendingEmployee: "If you wanna make some t-bucks, I suggest you keep an eye out for someone <color=LIGHTBLUE>in the know</>."
+        floor3EmployeeHub_VendingEmployee: "Or avoid the card games, I guess."
+      }
+    }
+  }
+
+@floor3EmployeeHub_beforePortal
+  +?isnot(all(func(inParty, Skye),func(inParty, Anjana))):{
+    +sbreak()
+  }
+  +setConversation(Ada)
+  +:la(Ada, Anjana)
+  Ada: "This portal <italic>better</> take us to the next floor."
+  Ada: "I am getting very irritated with all this."
+  +:la(Anjana, Ada)
+  Anjana: "Stop being so impatient.  I mean, do we really even trust that Alternate?"
+  Anjana: "For all we know, this could take us back to where we started."
+  +:ld(Ada, down)
+  Ada: "We should go.  Now."
+  +endConversation()
+
+@floor3EmployeeHub_afterPortalFirstTime
+  +setConversation(Ada)
+  +?isnot(all(func(inParty, Skye),func(inParty, Anjana))):{
+    Ada: "Where should I go now?"
+    +endConversation()
+    +sbreak()
+  }
+  +:la(Ada, Anjana)
+  Ada: "Is this the next floor?"
+  +:ld(Anjana, rightup)
+  Anjana: "I can't tell.  But at least I don't think it's an instance."
+  +:ld(Skye, up)
+  Skye: "Let's look around and see if we can't find another elevator or something."
+  +endConversation()

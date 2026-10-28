@@ -1,0 +1,115 @@
+#ConscienceTalk
+  action,?all(func(inParty, Conscience), once('791dd727')):ConscienceTalk1
+  action,?func(inParty, Conscience):ConscienceTalk_Default
+@ConsciencePrepareTalk
+  +setStorage(vars.shouldSpawnConscience, false)
+  +?isnot(Conscience):{
+    +setStorage(vars.shouldSpawnConscience, true)
+    +setConversation()
+    +setFacing('Ada', down)
+    +spawnCharacterAtCharacter('Conscience', 'Ada')
+    +waitMS(250)
+    +walkToOffset('Conscience', -16, 16)
+    +endConversation(100, true)
+    +lookAtEachOther('Conscience', 'Ada')
+  }
+  +setConversation2(Conscience, Ada)
+@ConscienceEndTalk
+  +?is(vars.shouldSpawnConscience):{
+    +:utils-stop-Conscience-dialogue()
+  }
+@ConscienceTalk_Default
+  +:ConsciencePrepareTalk()
+  +:leach(Conscience, Ada)
+  Conscience: "Aren't we supposed to be meeting <color=LIGHTRED>Carl-Arnold</>?"
+  Conscience: "I don't think he would like it very much if we were late."
+  +:ConscienceEndTalk()
+  +endConversation()
+@ConscienceTalk1
+  +:ConsciencePrepareTalk()
+  +:leach(Conscience, Ada)
+  Conscience: "You know, you ought to try to enjoy this place a bit more."
+  Ada: "Should I?"
+  Conscience: "It's not everyday you get to go to an arcade."
+  Ada: "I could come here whenever I want.  I just do not want to."
+  Conscience: "That's what I mean.  I know full well you would <italic>never</> come here on your own without a little prompting."
+  Conscience: "I'm just saying maybe you should consider that it might be fun.  I mean, you're already here."
+  Ada: "Why do you care about what I enjoy?"
+  +:surprised(Conscience)
+  Conscience: "Isn't it obvious?"
+  Conscience: "Because I'm so <italic>bored</> just hanging around your room all the time."
+  Conscience: "You need to get out more."
+  +:blush(Ada)
+  Ada: "I am perfectly content with my lifestyle as it is.  If you do not like it then you just have to deal with it."
+  +:yawn(Conscience)
+  Conscience: "It's just a suggestion.  Sheesh, no need to be so defensive."
+  +:ConscienceEndTalk()
+  +endConversation()
+
+#AnjanaTalk
+  action,?all(func(inParty, Anjana), once('5c22bad9')):AnjanaTalk1
+  action,?func(inParty, Anjana):AnjanaTalk_Default
+@AnjanaTalk_Default
+  +:leach(Anjana, Ada)
+  +setConversation(Ada)
+  Anjana: "We should keep moving."
+  +endConversation()
+@AnjanaTalk1
+  +:leach(Anjana, Ada)
+  +setConversation2(Ada, Anjana)
+  Anjana: "Did you know that you have quite the reputation amongst my classmates?"
+  Ada: "I suppose that is not unexpected.  My Father's name provides some measure of fame, after all."
+  Anjana: "Actually, the right word might be <italic>infamy</>."
+  Anjana: "To be honest, most of us think you're some kind of weirdo.  It's unnerving to see you talk to yourself all the time."
+  Ada: "Is this about <color=YELLOW>Conscience</>?"
+  Anjana: "Yes.  You have to admit that your situation is abnormal."
+  +:serious(Ada)
+  Ada: "Having stewardship of an <color=LIGHTGREEN>Alternate</> does affect my life as a student at school."
+  Ada: "I still go to class.  I still have homework.  I still have a locker."
+  Ada: "In this regard you and I are very much the same."
+  Anjana: "I don't think you get what I mean."
+  Ada: "Is that so?"
+  Anjana: "You know what?  Nevermind.  Just drop it.  I have a feeling that this conversation will be unproductive."
+  Ada: "Fine."
+  +endConversation()
+
+#floor2_skyeTalk
+  action,?all(func(inParty, Skye), once('51586c72')):SkyeTalk1
+  action,?func(inParty, Skye):SkyeTalk_Default
+  action,this
+@SkyeTalk_Default
+  +:leach(Skye, Ada)
+  +setConversation(Ada)
+  Skye: "Let's keep going!"
+  +endConversation()
+@SkyeTalk1
+  +setConversation2(Ada, Skye)
+  +:leach(Skye, Ada)
+  Skye: "Hey, what's up?  Did you need anything?"
+  Ada: "Um.  Not not really."
+  Ada: "I appreciate you helping to find Conscience."
+  +:happy(Skye)
+  Skye: "No problem!  I know you'd help <italic>me</> out in a bind."
+  Skye: "That reminds me though.  About tomorrow's math assignment..."
+  +:angry(Ada)
+  Ada: "I already <italic>told</> you that I'm not letting you copy my assignments anymore."
+  Ada: "It is CHEATING.  <scale=0.75 />And also I cannot ignore the fact that we almost got caught last time."
+  Skye: "C'mon!  It wasn't even that bad.  I got us out of it no problem."
+  Skye: "I already know all this crap anyway; this homework is just busy work they give us 'cuz the school has a reputation to maintain."
+  +:ld(Ada, down)
+  +:bored(Ada)
+  Ada: "I am not certain about that assertion."
+  +:la(Ada, Skye)
+  Ada: "I am <italic>not</> going to let you copy.  However, if you want to go over it later I can help you."
+  Ada: "Once... I get <color=YELLOW>Conscience</> back."
+  Skye: "Nice.  Then let's get going!"
+  +endConversation()
+@floor2_skyeTalk
+  +:leach(Skye, Ada)
+  +setConversation2(Ada, Skye)
+  Skye: "I <shake>WILL</> get a drink from this machine!"
+  +?once('b353cfdb'):{
+    +:teardrop(Ada)
+    Ada: "Yes.  Of course..."
+  }
+  +endConversation()

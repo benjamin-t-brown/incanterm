@@ -1,0 +1,215 @@
+#floor2_rhoConnFirst
+  step,?isnot(vars.rhocon.metRhoAndConnor):floor2_rhoConnFirst
+  load,floor2_rhoConnFirst_load
+@floor2_rhoConnFirst_load
+  +?is(vars.rhocon.metRhoAndConnor):{
+    +despawnCharacter(Rho)
+    +despawnCharacter(Connor)
+  }
+@floor2_rhoConnFirst_shootBasketball
+  +none()
+  +:ld(Connor, leftup)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_BASKETBALL, Connor, normal, -16, -28)
+  +:w(600)
+  +playSound(thunk)
+  +:w(200)
+  +playSound(terminal_cancel)
+  +:w(1000)
+
+@floor2_rhoConnFirst
+  +setStorage(vars.rhocon.metRhoAndConnor)
+  +setConversation(Ada)
+  +:lockCamera()
+  +panCameraToFitCharacters(500, false, Rho, Connor)
+  +walkToMarker(Ada, MarkerRhoConn2, 0, 0, true)
+  // +?func(inParty, Anjana):{
+  //   +:la(Anjana, Ada)
+  // }
+  // +?func(inParty, Skye):{
+  //   +:la(Skye, Ada)
+  // }
+  // +:ld(Ada, down)
+  +endConversation(100)
+  +setConversation2(Rho, Connor)
+  +:la(Rho, Connor)
+  Rho: "I'm telling you, these machines are rigged or something."
+  Rho: "I haven't seen you make a single basket yet."
+  +:flat(Connor)
+  +:la(Connor, Rho)
+  Connor: "Go on.  Tell me I suck at this.  I know you want to."
+  +:none()
+  +:ld(Connor, leftup)
+  +:ld(Rho, up)
+  +:w(500)
+  +:floor2_rhoConnFirst_shootBasketball()
+  +:teardrop(Rho)
+  Rho: "Well, <color=LIGHTGREY delay=100 scale=0.76>you lack a certain<italic> touch."
+  Connor: "I'll figure it out!  Just need some more time."
+  +:ld(Rho, down)
+  Rho: "Weren't we supposed to be looking for <color=YELLOW>Sigma</>?  I have no idea where she went off to."
+  +:la(Rho, Connor)
+  +:ld(Connor, leftup)
+  Connor: "She's fine."
+  Rho: "<cascade-letters>You don't know that."
+  Rho: "We <italic>really</> need to find her before there's trouble."
+  +:floor2_rhoConnFirst_shootBasketball()
+  +:sigh(Rho)
+  +:exhale(Rho)
+  +:la(Rho, Connor)
+  Rho: "Let's try asking around..."
+  +:la(Rho, Ada)
+  Rho: "Look.  Over there.  Let's ask her."
+  +endConversation(1)
+  +setConversation(Ada)
+  +:face(Ada, rightup)
+  +panCameraToFitCharacters(1000, false, Rho, Connor, Ada)
+  +walkPartyToFormation(true)
+  +:la(Rho, Ada)
+  +:jump(Rho)
+  Rho: "Hey!  You with the flower in your hair!  I've got a question for you."
+  +:la(Ada, Rho)
+  +:exclaim(Ada)
+  +walkToMarker(Ada, MarkerRhoConn1, 0, 0, true)
+  +walkToMarker(Rho, MarkerRhoConn3, 0, 0)
+  +walkToMarker(Connor, MarkerRhoConn3, 0, -16)
+  +:la(Connor, Ada)
+  +:la(Party, Rho)
+  +:la(Rho, Ada)
+  +panCameraToFitCharacters(1000, false, Rho, Connor, Ada)
+  Rho: "Have you seen a small girl around?  Blue-ish hair.  She doesn't speak a lot either."
+  Connor: "She likes cows too."
+  +:la(Rho, Connor)
+  +:angry(Rho)
+  Rho: "Why would she know or even care about that?"
+  +:la(Connor, Rho)
+  Connor: "Any information could be useful."
+  +:la(Connor, Ada)
+  Connor: "Have you seen her?  Her name is <color=YELLOW>Sigma</>?"
+  +:la(Rho, Ada)
+  Ada: "Um.  Actually, I think I have seen her."
+  +:exclaim(Connor)
+  +:question(Rho)
+  Rho: "Where?"
+  Ada: "On the first floor.  She was looking at the items in the store down there."
+  +:lightbulb(Connor)
+  Connor: "Of course!  I bet she saw something shiny</>."
+  +:la(Connor, Rho)
+  Connor: "You both are so distractible, I swear."
+  +:la(Rho, Connor)
+  +:flat(Rho)
+  Rho: "The only reason we're even standing here is because <italic>you</> were walking by and thought it would be cool to go inside."
+  +:blush(Connor)
+  +:ld(Connor, left)
+  +:ld(Connor, right)
+  +:ld(Connor, down)
+  +:jump(Connor)
+  Connor: "We're wasting time standing around!  Let's go!"
+  +:la(Rho, Ada)
+  +none()
+  +setSpeed(Connor, 3)
+  +walkToMarker(Connor, MarkerRhoConn4)
+  +despawnCharacter(Connor)
+  +walkToOffset(Rho, 8, 0)
+  +:la(Rho, Ada)
+  Rho: "Thanks for the help.  This whole day has been a nuisance."
+  Rho: "What's your name, by the way?"
+  Ada: "I am Ada.  Nice to meet you."
+  +:la(Rho, Ada)
+  Rho: "I'm <color=LIGHTRED>Rho</>.  That guy is <color=LIGHTBLUE>Connor</>.  I guess you've already seen <color=YELLOW>Sigma</>."
+  +:shakeZ(Ada)
+  Ada: "Are you part of another <italic>faction</> around here?"
+  +:question(Rho)
+  Rho: "What?  Faction?  No...  We just walked in today."
+  +:smallPause()
+  +:shakeZ(Rho)
+  +stopSkipCutscene()
+  Rho: "I'm not sure how to explain this... but I have this weird feeling we'll be seeing you around."
+  Rho: "Anyway..."
+  +walkToMarker(Rho, MarkerRhoConn4)
+  +despawnCharacter(Rho)
+  +panCameraBackToPlayer()
+  +walkPartyToFormation()
+  +startQuest(RhoConn)
+  +setStorage(vars.tmp1, true)
+  +?all(is(vars.tmp1), func(inParty, Anjana)):{
+    +:leach(Anjana, Ada)
+    +:question(Anjana)
+    Anjana: "Who was that?  Do you know her?"
+    Anjana: "I don't think she goes to <color=LIGHTPURPLE>Erran Valley.</>  She seems too old."
+    +:smallPause()
+    Ada: "<cascade-letters>...no I do not.</>  They simply wanted some information."
+    +setStorage(vars.tmp1, false)
+  }
+  +?all(is(vars.tmp1), func(inParty, Skye)):{
+    +:leach(Skye, Ada)
+    +:question(Skye)
+    Skye: "Who was that?  Do you know her?"
+    +:smallPause()
+    Ada: "<cascade-letters>...no I do not.</>  They simply wanted some information."
+    +setStorage(vars.tmp1, false)
+  }
+  +endConversation()
+
+#floor1_rhoConnCantFindSigma
+  load,floor1_rhoConnCantFindSigma_load
+  action,?all(is(vars.rhocon.metRhoAndConnor),isnot(vars.rhocon.cantFindSigma)):floor1_rhoConnCantFindSigma
+@floor1_rhoConnCantFindSigma_load
+  +?any(func(questNotStarted, Tutorial), func(questStepLT, Tutorial, 1), is(vars.rhocon.metRhoAndConnor)):{
+    +despawnCharacter(Sigma)
+  }
+  +?all(is(vars.rhocon.metRhoAndConnor),isnot(vars.rhocon.cantFindSigma)):{
+    +spawnCharacterAtMarker(Rho, MarkerRho)
+    +spawnCharacterAtMarker(Connor, MarkerCon)
+    +:face(Rho, rightdown)
+    +:face(Connor, leftup)
+  }
+@floor1_rhoConnCantFindSigma
+  +setStorage(vars.rhocon.cantFindSigma)
+  +setConversation(Ada)
+  +walkToCharacter(Ada, Rho, 8, 24)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +setConversation2(Rho, Connor)
+  Rho: "She isn't here..."
+  Connor: "But she <italic>was</>.  That's what the employee told us."
+  +:ld(Rho, rightup)
+  Rho: "But why would <color=LIGHTBLUE>Sigma</> have hung around here for a while?"
+  +:ld(Connor, rightup)
+  Connor: "Maybe she saw something she wanted."
+  +:leach(Connor, Rho)
+  Rho: "What do you think that would be?"
+  +:teardrop(Connor)
+  Connor: "I have no idea.  She doesn't exactly say much."
+  +:la(Rho, Ada)
+  +:exclaim(Rho)
+  +endConversation(100, true)
+  +setConversation2(Ada, Rho)
+  Rho: "Oh.  It's you again."
+  Ada: "It seems like your friend is no longer here."
+  Rho: "Yeah..."
+  +:question(Rho)
+  Rho: "When you saw her, did she say anything to you?  Anything at all?"
+  +:ld(Ada, right)
+  Ada: "Um...  No. Not really."
+  +:la(Ada, Rho)
+  Rho: "That's too bad.  I guess we'll just have to keep looking."
+  +:la(Rho, Connor)
+  +setConversation(Rho)
+  Rho: "C'mon."
+  +none()
+  +walkToMarker(Rho, MarkerFromAtrium)
+  +:ld(Rho, leftup)
+  +:w(100)
+  +:floor1-OpenRedDoorsFWDOpen()
+  +despawnCharacter(Rho)
+  +:la(Connor, Ada)
+  Connor: "If you do see her, send her our way."
+  +:ld(Connor, rightup)
+  Connor: "Although she might need some convincing."
+  +:none()
+  +walkToMarker(Connor, MarkerFromAtrium)
+  +despawnCharacter(Connor)
+  +:w(100)
+  +:floor1-OpenRedDoorsFWDClose()
+  +endConversation()
+  +completeQuestStep(RhoConn, 0)

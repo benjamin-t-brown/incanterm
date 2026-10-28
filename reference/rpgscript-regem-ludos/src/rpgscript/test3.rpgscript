@@ -1,0 +1,57 @@
+#some-test-or-something
+  action,this
+// step,?all(is(isnot(is(isnot(pizza)))), once('8e733c3b')):this
+@this
+  +setConversation(Ada)
+  Ada: "This is a test case."
+  +awaitChoice('Test case 0', 'Test case 1')
+  +?eq(lastChoiceIndex, 0):{
+    Ada: "You have selected test case 0."
+    +?eq(testStorage, 1):{
+      Ada: "This should not be playing."
+    }
+    +none()
+    Ada: "The end of test case 0 is here."
+  }
+  +?eq(lastChoiceIndex, 1):{
+    Ada: "You have selected test case 1."
+    Ada: "This is the end of the test case."
+  }
+  Ada 2: "Test another one"
+  Ada: "Test complete."
+  +endConversation()
+  +:la()
+
+#test3_load
+  load,this
+@this
+  +createPropAtMarker(PropBattery, MarkerBattery0, props_small_144, 16, 8, 8)
+
+// tests that spawning a character at a marker takes into account the tile layer prefix
+#testZ_spawnCharacterAtMarker
+  action,this
+@this
+  +setConversation()
+  Ada: "Now testing spawn character at marker."
+  +none()
+  +panCameraToMarker(MarkerTestSpawnCh)
+  +spawnCharacterAtMarker(Carnold, MarkerTestSpawnCh)
+  +walkToOffset(Carnold, -48, 0)
+  +:ld(Carnold, down)
+  +:w(1000)
+  +despawnCharacter(Carnold)
+  +panCameraToMarker(MarkerTestSpawnCh2)
+  +spawnCharacterAtMarker(Carnold, MarkerTestSpawnCh2)
+  +walkToOffset(Carnold, -48, 0)
+  +:ld(Carnold, down)
+  +:w(1000)
+  +despawnCharacter(Carnold)
+  +panCameraBackToPlayer();
+  +endConversation()
+
+@test3_talkConscienceStaticNoise
+  +setConversation2(Ada, Conscience)
+  Ada: "This is a test case."
+  Conscience&maskStatic: "This is a test case 2."
+  +endConversation()
+  +:la()

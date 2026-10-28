@@ -1,0 +1,264 @@
+// This file defines all the people at the party in floor1West1 and the Employee outside
+
+#Floor1PartyPreventWalkInside
+  step,?isnot(access.floor1Party):this
+@this
+  +stopAi(Employee)
+  +playSound('aggro_alert')
+  +setConversation(Ada)
+  +panCameraToFitCharacters(500, false, Ada, Employee)
+  +:la(Employee, Ada)
+  +:jump(Employee)
+  Employee: "Hey!  You can't go in there without talking to me first!"
+  +none()
+  +walkToOffset(Ada, 0, -32)
+  +panCameraBackToPlayer()
+  +:ld(Employee, leftdown)
+  +resetAi(Employee)
+  +endConversation()
+
+#Floor1West1_Employee
+  action,?once('88c5e1cb'):Floor1West1_Employee_1
+  action,?isnot('access.floor1Party'):Floor1West1_Employee_askTickets
+  action,Floor1West1_Employee_2
+@Floor1West1_Employee_1
+  +stopAi(Employee)
+  +setConversation(Ada)
+  +lookAtEachOther(Ada, Employee)
+  +:question(Ada)
+  Ada: "Excuse me.  What is this area?"
+  +:shakeZ(Employee)
+  Employee: "What a good-looking question!"
+  Employee: "You are standing in the <color=YELLOW>Primary Information Kiosk Zone</>."
+  +:exclaim(Employee)
+  +lookAtEachOther(Ada, Employee)
+  +panCameraRelativeToCurrentPosition(-200, 20)
+  Employee: "In here you can do a bunch of administrative tasks oriented around the <color=ORANGE>Regem Ludos Arcade</>."
+  Employee: "You know, things like <color=LIGHTBLUE>Save your game</> or <color=LIGHTBLUE>view information about your stats</>."
+  +lookAtEachOther(Ada, Employee)
+  +panCameraBackToPlayer()
+  +panCameraRelativeToCurrentPosition(-45, 120)
+  Employee: "I am also here to admit people into the <color=LIGHTBLUE>Floor 1 Party Room</>."
+  Employee: "It is currently being rented out by a third party."
+  +panCameraBackToPlayer()
+  +:la(Employee, Ada)
+  Employee: "You don't happen to be part of them, do you?"
+  Ada: "No.  I am here for a different reason."
+  +:shakeZ(Employee)
+  Employee: "Ah.  That's too bad.  They told me to be on the lookout for new recruits."
+  Employee: "I can let you inside if you like."
+  Employee: "At the very least, they have some good food in there."
+  Ada: "Um.  Okay I guess?"
+  Ada: "Who is renting the place out?"
+  Employee: "Oh just some <color=LIGHTPURPLE>Company</>."
+  Employee: "It doesn't matter."
+  Employee: "<cascade-letters>Anyway.... if you wanna get inside..."
+  +stopSkipCutscene()
+  +:jump(Employee)
+  Employee: "That'll be 50 tickets please!"
+  +:flat(Ada)
+  Ada: "You <italic>just said</> that you would let me inside."
+  +:la(Employee, Ada)
+  Employee: "Yes!  This is me letting you inside!"
+  Employee: "Good food isn't free you know!"
+  Employee: "50 tickets please!!"
+  +:Floor1West1_Employee_ticketsChoice()
+@Floor1West1_Employee_ticketsChoice
+  +awaitChoice('Here are the tickets...', 'No thank you.')
+  +?eq(lastChoiceIndex, 0):{
+    +?isnot(func(hasEnoughTickets, 50)):{
+      +:teardrop(Floor1BowlingEmployee)
+      Employee: "You, uh, seem to be missing a few tickets there."
+      Employee: "Come back when you've scrounged together enough."
+    }
+    +?func(hasEnoughTickets, 50):{
+      +modifyTickets(-50)
+      +setStorage(access.floor1Party, true)
+      Employee: "Thank you very much!"
+      Employee: "You may now access the room, I won't stop you."
+    }
+  }
+  +?eq(lastChoiceIndex, 1):{
+    Employee: "Suit yourself.  Come back if you change your mind."
+  }
+  +resetAi(Employee)
+  +endConversation()
+@Floor1West1_Employee_askTickets
+  +setConversation(Ada)
+  +stopAi(Employee)
+  +:leach(Ada, employee)
+  Employee: "So how about it.  50 tickets to access that party?"
+  +:Floor1West1_Employee_ticketsChoice()
+@Floor1West1_Employee_2
+  +setConversation(Ada)
+  +lookAtEachOther(Ada, Employee)
+  +:question(Ada)
+  Employee: "I've already given you access to the party.  No need to bother me anymore!"
+  +resetAi(Employee)
+  +endConversation()
+
+#Floor1Partygoer1
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer1)
+  +setConversation(Ada)
+  Floor1Partygoer1: "I really like the food here!"
+  Floor1Partygoer1: "I'm really glad the <color=LIGHTPURPLE>Company</> shelled out for this party."
+  Floor1Partygoer1: "Normally they're stingy about this sort of thing."
+  +endConversation()
+
+#Floor1Partygoer2
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer2)
+  +setConversation(Ada)
+  Floor1Partygoer2: "You know this place reminds me bit of the Corporate Office, except with better carpet."
+  +endConversation()
+
+#Floor1Partygoer3
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer3)
+  +setConversation(Ada)
+  Floor1Partygoer3: "I've got to remember to book this place for Vinny's wedding.  He's my cousin, you know."
+  Floor1Partygoer3: "I wonder how much it costs..."
+  Floor1Partygoer3: "I'll have to ask the Manager."
+  +endConversation()
+
+#Floor1Partygoer4
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer4)
+  +setConversation(Ada)
+  +:sad(Floor1Partygoer4)
+  Floor1Partygoer4: "Ugh, I'm so full I feel like I'm gonna burst."
+  Floor1Partygoer4: "I can't let the Manager see me like this."
+  +endConversation()
+
+#Floor1Partygoer5
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer5)
+  +setConversation(Ada)
+  Floor1Partygoer5: "It doesn't really bother me that there aren't a lot of windows in this building."
+  Floor1Partygoer5: "My cubicle doesn't have any windows either, so I feel quite at home."
+  +endConversation()
+
+#Floor1Partygoer6
+  action,this
+@this
+  +:leach(Ada, Floor1Partygoer6)
+  +setConversation(Ada)
+  Floor1Partygoer6: "I really wish they had some cake, but I didn't see any at the buffet."
+  Floor1Partygoer6: "They had cake at the 7:00 AM meeting today, why not here?"
+  +endConversation()
+
+#Floor1BoredPartygoer
+// TODO This quest needs a game (puzzle game)
+// action,?once('0876784d'):Floor1BoredPartygoer1
+  action,Floor1BoredPartygoerDefault
+@Floor1BoredPartygoer1
+  +walkToCharacter(Ada, Floor1BoredPartygoer, 0, 24)
+  +walkPartyToFormation()
+  // +:leach(Ada, Floor1BoredPartygoer)
+  +setConversation(Ada)
+  Floor1BoredPartygoer: "This party needs some excitement."
+  Floor1BoredPartygoer: "It's the only one that the <color=LIGHTPURPLE>Company</>'ll pay for all year."
+  +:ld(Floor1BoredPartygoer, rightdown)
+  Floor1BoredPartygoer: "If it's memorable enough people won't complain."
+  +:la(Floor1BoredPartygoer, Ada)
+  +:exclaim(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Hey, you're not an employee of the <color=LIGHTPURPLE>Company</>.  How'd you get in here?"
+  +:question(Ada)
+  +:ld(Ada, up)
+  Ada: "Me?  <italic scale=0.75 />I paid the the guy over there..."
+  +:la(Ada, Floor1BoredPartygoer)
+  +:ld(Floor1BoredPartygoer, leftup)
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "I told him he could let any prospective employees in, but..."
+  +:leach(Ada, Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "How old are you?"
+  +:shakeZ(Ada)
+  +:angry(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "It doesn't matter.  Not old enough to work for the <color=LIGHTPURPLE>Company</>, so I don't care."
+  +:ld(Floor1BoredPartygoer, rightdown)
+  Floor1BoredPartygoer: "<scale=0.8 color=LIGHTGREY />I'll have to leave a passive-aggressive comment about this in the review."
+  +:leach(Ada, Floor1BoredPartygoer)
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Actually, wait a second.  You might be just what I need."
+  Floor1BoredPartygoer: "Can you bring me something interesting?"
+  +:question(Ada)
+  Ada: "What?"
+  Floor1BoredPartygoer: "Something interesting, girl.  Something that will wow this party.  Something everyone will talk about for months."
+  Ada: "You want me to just <italic>find</> that for you somewhere?"
+  Floor1BoredPartygoer: "Yeah.  The young generation always has crazy ideas."
+  Floor1BoredPartygoer: "Something like..."
+  +:jump(Floor1BoredPartygoer)
+  +:lightbulb(Floor1BoredPartygoer)
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Ah yes! I know!"
+  Floor1BoredPartygoer: "I need an <color=LIGHTBLUE>Arcade Machine</>."
+  Floor1BoredPartygoer: "Not just any one though.  I need an <italic>interesting</> one."
+  Floor1BoredPartygoer: "If we get one of those in here, then this party will be much more of an <italic>event."
+  +:flat(Ada)
+  Ada: "Could you not just ask an employee to bring one in for you?"
+  Floor1BoredPartygoer: "I don't want just ANY machine!  I want an <italic>interesting</> one."
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Do you know who I am?"
+  +:grumpy(Ada)
+  Ada: "No...?"
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "I'm the Manager at the <color=LIGHTPURPLE>Company</>."
+  +:ld(Floor1BoredPartygoer, leftup)
+  Floor1BoredPartygoer: "I have contacts here at this arcade.  Other managers, representatives, vice presidents, and such."
+  +:ld(Floor1BoredPartygoer, leftdown)
+  Floor1BoredPartygoer: "I can get you things, you just have to ask me."
+  Floor1BoredPartygoer: "If I like you enough, then maybe I'd say 'yes' to one of your requests."
+  Ada: "I understand, <scale=0.75 />though that sounds rather dubious."
+  +:shakeZ(Ada)
+  Ada: "What exactly qualifies as an 'interesting' arcade machine?"
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "I don't know, girl, use your imagination.  I'm sure you'll know it when you see it."
+  Ada: "<cascade-letters>......"
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Don't look at me like that!"
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Okay okay, how about this.  I have a lead for you."
+  Floor1BoredPartygoer: "A staff manager here told me once that there's a lone machine on the second floor."
+  Floor1BoredPartygoer: "Nobody ever seems to be playing it.  You could watch it all day and nobody would approach."
+  Floor1BoredPartygoer: "I wonder why that is?"
+  +:question(Ada)
+  Ada: "Perhaps the game is not very enticing?"
+  +:ld(Floor1BoredPartygoer, leftdown)
+  +:jump(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "No no no!  It has to be something MORE than that.  Something <italic>interesting</>."
+  Floor1BoredPartygoer: "Go check it out, then see if you can't get that machine down to this room."
+  Floor1BoredPartygoer: "That oughta liven up this party."
+  +:shakeZ(Floor1BoredPartygoer)
+  Floor1BoredPartygoer: "Off with you, then!"
+  +startQuest(PuzzlingTradition)
+  +endConversation()
+
+@Floor1BoredPartygoerDefault
+  +:leach(Ada, Floor1BoredPartygoer)
+  +setConversation(Ada)
+  Floor1BoredPartygoer: "This party needs some excitement."
+  +endConversation()
+
+#Floor1PartyRoomBuffet
+  action,?once('407a8d5b'):Floor1PartyRoomBuffet1
+  action,Floor1PartyRoomBuffet2
+@Floor1PartyRoomBuffet1
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  Ada: "It looks like they are serving some tacos here."
+  Ada: "Perhaps I can grab some.  I did pay for this after all..."
+  +none()
+  +playSound(get_item)
+  +acquireItem(PowerTacos)
+  +endConversation()
+@Floor1PartyRoomBuffet2
+  +:ld(Ada, leftup)
+  +setConversation(Ada)
+  Ada: "There does not seem to be enough food left for another portion."
+  +endConversation()

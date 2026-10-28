@@ -1,0 +1,112 @@
+
+#floor1-atrium-TicTacToeGirl
+  // if you haven't beat the tic-tac-toe quest
+  action,?func(questNotStarted, TicTacToe):floor1-atrium-TicTacToeGirl-first
+  action,?func(questStepEQ, TicTacToe, 0):floor1-atrium-TicTacToeGirl-not-completed-yet
+  // default
+  action,this
+@this
+  +lookAtEachOther('Ada', 'Tic Tac Toe Girl')
+  +setConversation('Ada')
+  Tic Tac Toe Girl: "There probably are better games than <color=LIGHTBLUE>Tic-Tac-Toe</>, but I kinda like its simplicity."
+  +endConversation()
+@floor1-atrium-TicTacToeGirl-first
+  +lookAtEachOther('Ada', 'Tic Tac Toe Girl')
+  +setConversation('Ada')
+  Tic Tac Toe Girl: "<cascade>The machines over here aren't very exciting.  You can only play <color=LIGHTBLUE>Tic-Tac-Toe</> on them."
+  Tic Tac Toe Girl: "<cascade>Not that the game is stupid or anything, but it's just... <scale=1.25 color=LIGHTBLUE>SO EASY<cascade-letters> to beat the AI."
+  +:sad(Tic Tac Toe Girl)
+  Tic Tac Toe Girl: "Honestly, I feel kinda bad for it.  I wonder if it feels sad to lose all the time."
+  Tic Tac Toe Girl: "Maybe somebody should let it win a few games, you know, to help its self-esteem."
+  Tic Tac Toe Girl: "I'd be willing to chip in some tickets for that."
+  +setFacing('Tic Tac Toe Girl', rightdown)
+  +startQuest(TicTacToe)
+  +?isnot([ARG0]):{
+    +endConversation()
+  }
+@floor1-atrium-TicTacToeGirl-not-completed-yet
+  +lookAtEachOther('Ada', 'Tic Tac Toe Girl')
+  +setConversation('Ada')
+  Tic Tac Toe Girl: "<cascade>Maybe somebody should let the AI win a few games of <color=LIGHTBLUE cascade>Tic-Tac-Toe<cascade>. You know, to help its self-esteem."
+  +setFacing('Tic Tac Toe Girl', rightdown)
+  +endConversation()
+// Called from onGameComplete in the TicTacToe Arcade Cabinet Meta
+@floor1-atrium-TicTacToeGirl-complete
+  +?isnot(func(questStepEQ, TicTacToe, 0)):{
+    +setStorage(tmp.result, [ARG0])
+    +?gt(tmp.result,0):{
+      +setUnskippableConversation()
+      +playSound(terminal_beep)
+      Narrator: "The machine dispenses one ticket per win."
+      +modifyTickets({tmp.result})
+      +endConversation()
+    }
+    +?lt(tmp.result,0):{
+      +setUnskippableConversation()
+      +playSound(boy_laugh)
+      +:w(100)
+      +playSound(boy_laugh)
+      +:w(100)
+      +playSound(boy_laugh)
+      +:w(100)
+      Narrator: "The machine does not dispense any tickets.  You did not win a game."
+      Narrator: "It seems pleased by this outcome."
+      +endConversation()
+    }
+    +runArcadeCabinetGame(TIC_TAC_TOE)
+  }
+  +?func(questStepEQ, TicTacToe, 0):{
+    +hideCurrentArcadeGame()
+    +playSound(ttt-ai-victory)
+    +changeTileAtMarker(MarkerTTTMachineTile, TIC_TAC_TOE_EXCITED)
+    +lookAtEachOther('Ada', 'Tic Tac Toe Girl')
+    +setConversation('Ada')
+    +:surprised(Tic Tac Toe Girl)
+    Tic Tac Toe Girl: "You actually let it win, huh?  It seems pretty excited about that."
+    +:teardrop(Tic Tac Toe Girl)
+    Tic Tac Toe Girl: "Maybe a little too excited..."
+    +setConversationSpeaker(none)
+    +setFacing('Tic Tac Toe Girl', left)
+    +setFacing(Ada, leftup)
+    +waitMS(1000)
+    +lookAtEachOther('Ada', 'Tic Tac Toe Girl')
+    +waitMS(1000)
+    +:bored(Tic Tac Toe Girl)
+    Tic Tac Toe Girl: "Well, <delay=750 cascade=30> I'm glad I wasn't the one who lost to it."
+    +changeTileAtMarker(MarkerTTTMachineTile, TIC_TAC_TOE_NORMAL)
+    Tic Tac Toe Girl: "Here, take some of my tickets for the trouble."
+    +completeQuestStep(TicTacToe, 0)
+    +resetAi('Tic Tac Toe Girl')
+    +endConversation()
+    +resumeGame()
+  }
+
+
+#floor1-atrium-TicTacToeMachine
+  step-first,this
+  action,floor1-atrium-TicTacToeMachine-action
+@this
+// +setCharacterText('Press Action (X) to play Tic-Tac-Toe.');
+@floor1-atrium-TicTacToeMachine-action
+  +walkToMarker(Ada, MarkerTTTMachine)
+  +setFacing(Ada, leftup)
+// If Ada hasn't spoken with the girl standing by the machines, force that cutscene
+  +?func(questNotStarted, TicTacToe):{
+  // +setCharacterText('');
+    +lookAtCharacter('Tic Tac Toe Girl', 'Ada')
+    +setConversation('Ada')
+    Tic Tac Toe Girl: "Hey."
+    +lookAtEachOther('Tic Tac Toe Girl', 'Ada')
+    +:exclaim(Ada)
+    +panCameraToFitCharacters(500, false, Ada, Tic Tac Toe Girl)
+    +:question(Tic Tac Toe Girl)
+    Tic Tac Toe Girl: "You looking to play that game?"
+    +:floor1-atrium-TicTacToeGirl-first(true)
+    +panCameraBackToPlayer(500)
+    +setStorage(floor1-atrium-TicTacToeGirl)
+    +waitMS(500)
+    +setFacing(Ada, leftup)
+  }
+  +runArcadeCabinetGame(TIC_TAC_TOE)
+  +setAtMarker(Ada, MarkerTTTMachine)
+  +endConversation()

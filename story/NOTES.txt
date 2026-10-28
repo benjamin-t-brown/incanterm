@@ -1,0 +1,56 @@
+Titles
+Splendid Exception
+Cleaned Code
+Thrown Error
+Oh Bugger 
+Crash Detected
+
+Johnathan - A somewhat hapless boy who is trying to ask a date, Vivi, to prom.
+Otis - Johnathan's friend, Vivi's younger brother.  Surly but encouraging.
+Vivi - Crush of Johnathan's, quiet, athletic, reserved.
+Dedrick - Man overseeing the Revirtualis in the school, overworked on a deadline, somewhat desperate, catalyst
+Jeremiah - The "bug".  He is sabotaging the Revirtualis for Regem Ludos reasons, setting up surveillance and contrived happenstance meant for Ada, but Johnathan keeps tripping into it.  He is a higher up scientist at the same place Dedrick works
+
+Settings
+- School (Erran Valley)
+- Revirtualis (various)
+
+
+Johnathan is bribed into entering a sketchy Revirtualis by the scientist Dedrick because he needs to calibrate the teleporter.  He tells Jonathan to go in there and find the "Bug" in the system. Johnathan jumps into a wacky world solving puzzles, talking to people and trying to do the best job he can.  He takes a while though and has some struggles. Dedrick sends in other students after him, as his deadline is coming up.  Johnathan and the other students get stuck as he's pursuing the Bug, as he is too focused on his task, and it gets them into trouble.  He finally concedes that they should try to get out, and they work together to do that.  On the way out, the "Bug" appears, and Johnathan eventually defeats it, and he and the others get out of the Revirtualis.  When they get out, the bug is solved and Dedrick says its ready to go.  Jeremiah appears and relieves him of his duty, and the students split the pay.
+
+Themes
+
+- Your job isn't the most important thing
+- instead of grinding alone, work together
+- rejection
+
+Puzzle Themes
+
+- 1 Messy Room
+  - Classic Escape the Room puzzles / half life pipe traversal
+- Get item to defeat enemy blocking gate
+- Match the pattern on the walls
+- Lock and Key (always the standard)
+- Dialogue locked info (password)
+- Some kind of cooking based diner dash thing for pizza
+- Something that uses Vivi's athletics
+- Something musical for Otis
+- Something with a keypad on a door with a weird console/fastfetch interface
+- Something that involves tricking an ai into thinking you are the admin
+- Something that involves meeting Conscience (easter egg)
+- Something that involves giving a robot instructions to execute (maybe with a missing instruction makes the puzzle solvable)
+- Something stealth based where you have to wait for a guard to move away before doing something timed
+- Something that makes you type fast
+
+
+Vibes
+
+- All 3 main characters have some flaw with their progression:
+  - Johnathan is too work-oriented and will do whatever anybody tells him
+  - Otis is a judgemental pessimist who doesn't entertain others' points of view
+  - Vivi is shy and too guarded to assert her opinion
+
+ - Different zones incrementally reveal who the Bug is
+  - Tall man with a hooded face
+  - Intentionally causing chaos
+  - Seems to have technical skill

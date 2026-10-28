@@ -1,0 +1,67 @@
+// ARG0 the name of the item to acquire
+@acquireLoot
+  +setConversation(Ada)
+  +?once('2a25c1bc'):{
+    Ada: "It looks like there is something in here..."
+  }
+  +none()
+  +playSound(get_item)
+  +acquireItem([ARG0])
+  +endConversation()
+
+@noLoot
+  +setConversation(Ada)
+  Ada: "Nothing is in there."
+  +endConversation()
+
+#loot5Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache5")
+  action,noLoot
+
+#loot7Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache7")
+  action,noLoot
+
+#loot10Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache10")
+  action,noLoot
+
+#loot20Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache20")
+  action,noLoot
+
+#loot25Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache25")
+  action,noLoot
+
+#loot50Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache50")
+  action,noLoot
+
+#loot100Tickets
+  action,?oncePerInstance():acquireLoot("TicketCache100")
+  action,noLoot
+
+#loot5Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache5")
+  action,noLoot
+
+#loot10Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache10")
+  action,noLoot
+
+#loot20Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache20")
+  action,noLoot
+
+#loot25Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache25")
+  action,noLoot
+
+#loot50Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache50")
+  action,noLoot
+
+#loot100Tokens
+  action,?oncePerInstance():acquireLoot("TokenCache100")
+  action,noLoot

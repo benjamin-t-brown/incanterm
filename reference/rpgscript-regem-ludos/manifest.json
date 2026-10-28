@@ -1,0 +1,667 @@
+{
+  "source": "C:\\progs\\regem-ludos",
+  "sourceCommit": "6e2d6e0641b50b80e4c17a606db5c16ceb4c4d18",
+  "extractedOn": "2026-10-26",
+  "note": "Copied working-tree files; may include changes newer than sourceCommit. Original bytes preserved. Runtime references require adaptation, not a standalone build.",
+  "excluded": [
+    "node_modules",
+    "dist/out generated output",
+    "generated JS with sibling TS",
+    "source maps",
+    "machine npm/yarn configuration",
+    "duplicate res script copies and generated collection",
+    "empty rpgscript-string-html directory"
+  ],
+  "files": [
+    {
+      "path": "copywright.txt",
+      "sha256": "1989655EF0AAAA91D5224C2451C28F1CFC0445DF01531305FB30D994932DDCB0",
+      "bytes": 84
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "50FC6EBE7CB8E2A802E959EEF9253248036C67225E271D2B654CD5BCC2EB6D39",
+      "bytes": 282233
+    },
+    {
+      "path": "package.json",
+      "sha256": "023AD0AC717CBDFC593F504010C03C22CDA9F15EFBFE8A3A72225E57E9DDF7F0",
+      "bytes": 1825
+    },
+    {
+      "path": "rpgscript-format/.gitignore",
+      "sha256": "DBA27C31AAD935787BB275C3E5E4E957708F15386DE599EFF1DB476022CD7E4C",
+      "bytes": 12
+    },
+    {
+      "path": "rpgscript-format/.vscode/launch.json",
+      "sha256": "D37C7E677E982D8653BB41173E720A893F66FEC79DFDEF37A7A6BEBFFB75AA8A",
+      "bytes": 1022
+    },
+    {
+      "path": "rpgscript-format/.vscode/tasks.json",
+      "sha256": "0E118D626EDC0AF34538A91986473C3F462030817FDE14523908D159B7EC224C",
+      "bytes": 1228
+    },
+    {
+      "path": "rpgscript-format/.vscodeignore",
+      "sha256": "B70DF72D5F625F08C3B12507607476FB4494C76D721A2F8C2EF0A4CB6136DF0A",
+      "bytes": 118
+    },
+    {
+      "path": "rpgscript-format/package-lock.json",
+      "sha256": "3BC408DE09973C506544AB2C1F46C1C8B7D2C8128DE1BA37088DC59C9D573B29",
+      "bytes": 34978
+    },
+    {
+      "path": "rpgscript-format/package.json",
+      "sha256": "B9D106CD30CFDAD5F264C0BC53C85D1D180232662F6289617F446DAFA4348B4D",
+      "bytes": 897
+    },
+    {
+      "path": "rpgscript-format/README.md",
+      "sha256": "392F3AE9CB6E01325FBF1A58AFBFAC9F246A1A260C63ED84EDBF1EA7B8E4D456",
+      "bytes": 312
+    },
+    {
+      "path": "rpgscript-format/src/extension.ts",
+      "sha256": "FCA88287B74074F512312B373B0846AE624CE8FAD813C34F5D3D221C88A7F261",
+      "bytes": 2382
+    },
+    {
+      "path": "rpgscript-format/tsconfig.json",
+      "sha256": "EB1110E2BD4E4A61219D12C9E00B888C965EB4C78E44C459FEF7E3C9DB0D707C",
+      "bytes": 268
+    },
+    {
+      "path": "rpgscript-format/yarn.lock",
+      "sha256": "460C255A7F8C6434182E8CD5FBAD163A224438A2E8B9F4500C5E05BE4B6390F2",
+      "bytes": 14409
+    },
+    {
+      "path": "rpgscript-vs/.eslintrc.yaml",
+      "sha256": "C7E7F5472D829D704E7374D0EF7B131D924B78FECF52B1479E403759FFB5CF8C",
+      "bytes": 1331
+    },
+    {
+      "path": "rpgscript-vs/.gitignore",
+      "sha256": "4A0D082EC94D7D0DD7E8D5AAD7EB6271B29AB9BF49130D4E4229D02EFBAC6407",
+      "bytes": 63
+    },
+    {
+      "path": "rpgscript-vs/.vscode/extensions.json",
+      "sha256": "63B7E9555DBB724869D072720D3AB31000FD8603147BC1C7EFADDEFE43C98786",
+      "bytes": 202
+    },
+    {
+      "path": "rpgscript-vs/.vscode/launch.json",
+      "sha256": "379B7964030AFA3972BBB371808090B9BD4E29342CA9B49EDFEA93F302DFD4B7",
+      "bytes": 616
+    },
+    {
+      "path": "rpgscript-vs/.vscode/settings.json",
+      "sha256": "81DEE35F74043F2162504EAA3BB9ED05F71CCDD9385C70ABCFE84DE654F61043",
+      "bytes": 638
+    },
+    {
+      "path": "rpgscript-vs/.vscode/tasks.json",
+      "sha256": "CFF1702E61AF2748F71C14CDD725174D376DECFB11B76E8CA0E928052802DD72",
+      "bytes": 783
+    },
+    {
+      "path": "rpgscript-vs/.vscodeignore",
+      "sha256": "0F0C4C93C6270169E1AE3268A05D4331F57C829C711EA54809DAC4AE25CB84A0",
+      "bytes": 187
+    },
+    {
+      "path": "rpgscript-vs/CHANGELOG.md",
+      "sha256": "A6E8146F04B7A5B4F87F41E9937CEF721A10AF6EE0DA4A2856AFF41C426E6A9D",
+      "bytes": 258
+    },
+    {
+      "path": "rpgscript-vs/install.bat",
+      "sha256": "DC948E0532B589B255A947BAD30CDC128B812E62B79132663318ACC707C55F6B",
+      "bytes": 122
+    },
+    {
+      "path": "rpgscript-vs/language-configuration.json",
+      "sha256": "C8FA50E139E0A49BD8BADD3DC52E067752EA8D0C1946CE02DDACD9D24AFB68B2",
+      "bytes": 857
+    },
+    {
+      "path": "rpgscript-vs/package.json",
+      "sha256": "180373EE14209A336FE29B5E6E89F0525D4868AA9E130FF91D4B29B581F6E42A",
+      "bytes": 3098
+    },
+    {
+      "path": "rpgscript-vs/README.md",
+      "sha256": "B89CD9DB5198A489A326DBA19BA6C380A67ACE7F8B38485E77F3008521BE9FC7",
+      "bytes": 1060
+    },
+    {
+      "path": "rpgscript-vs/scripts/cp_server_files.js",
+      "sha256": "C01B6F4FE2407AECD019F9AB4B2D4F988A091EFED2866219262283A87FE68741",
+      "bytes": 551
+    },
+    {
+      "path": "rpgscript-vs/scripts/cp_server_files.sh",
+      "sha256": "26773483EC4787F604518739B41018FF0CFD43FFE92BE9C0FE194B4E5076D267",
+      "bytes": 139
+    },
+    {
+      "path": "rpgscript-vs/scripts/cp_to_extensions.js",
+      "sha256": "5213984BB51B2FCF558E090B9B93BEB55EEE74439FB55EAD8F146FB709A68B1E",
+      "bytes": 598
+    },
+    {
+      "path": "rpgscript-vs/src/extension.ts",
+      "sha256": "A018F88A58A7EC551EC0AA50F4EBA76938142469F6A5BBAA69D245D85DA00370",
+      "bytes": 1814
+    },
+    {
+      "path": "rpgscript-vs/src/logger.ts",
+      "sha256": "38988DDDE9A674E2E50361A5BDA569E2F3638F9815412BBCF4BA055FD318F005",
+      "bytes": 851
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/generics.ts",
+      "sha256": "CA14F5C75AA847013723AA05905197FB355778753DE76E0B19FA203549DA9D43",
+      "bytes": 849
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/logger.ts",
+      "sha256": "D8E42709A79A361D9D40C3EA177159DE0022F8AB827B71CF639B0EA9B037B95C",
+      "bytes": 497
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/paths.ts",
+      "sha256": "62C39115CFF0E07410FEF7EE6BE56C30231FEFBD8A3CD4010AC28853DED672CE",
+      "bytes": 2603
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/autocomplete.ts",
+      "sha256": "8522C60E583870EF3FEF8E344E287A9A929E3E697575561936FA5CEF7AAB77B0",
+      "bytes": 1457
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/commands.ts",
+      "sha256": "9203359DA7F5B9A09E0FE3C4FB26F62CF0091240D3EE9ED51B87394347BE30EF",
+      "bytes": 3263
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/definition.ts",
+      "sha256": "8CF7ADCC9BD8079665286590F8A085B0573B1E3126C27823027C4C016758EAC4",
+      "bytes": 2627
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/hover.ts",
+      "sha256": "FCD45AA1721712DEB48B2E8B3EF3CDA4C0F4D34613D2E871FF8704F1D34EF727",
+      "bytes": 2604
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/lint.ts",
+      "sha256": "3132F1E92C16EA3012B8B6C43839A4E4AC3140906DAF5918EAC67259827B85D3",
+      "bytes": 4158
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/rpgscript/rpgscript.ts",
+      "sha256": "2AD08CAC12D4E45A605018E7C395DBBF0DA98816E4791AE659A1856AC488F749",
+      "bytes": 25631
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/server.ts",
+      "sha256": "E1438D0A2F2F2F342315C4FA3D6A6E64A1836089D0637E2178455ED71240FCF4",
+      "bytes": 6674
+    },
+    {
+      "path": "rpgscript-vs/src/server/src/settings.ts",
+      "sha256": "555556367F35499DF9DA31B5480440E04D8CF820BBD9C94BB9B6D120B2BF7BC3",
+      "bytes": 1404
+    },
+    {
+      "path": "rpgscript-vs/src/server/tsconfig.json",
+      "sha256": "B0B63BFE60EAF63D1C428676904310DB95EA82AF01E3D19C204B36DF16A7C267",
+      "bytes": 372
+    },
+    {
+      "path": "rpgscript-vs/syntax.iro",
+      "sha256": "E44103BE979652016DBECA079E9852AD6C044C344C3EC932ACF24BB388039403",
+      "bytes": 12180
+    },
+    {
+      "path": "rpgscript-vs/syntaxes/rpgscript.tmLanguage",
+      "sha256": "556D87D320786757888988202707089597538C0D0647A74377F3D5A1FD67333D",
+      "bytes": 28517
+    },
+    {
+      "path": "rpgscript-vs/test-file.rpgscript",
+      "sha256": "C2B39AD93A3F4585278441526FC7360284072D7D5B35BEDD4913D5F16ECA6591",
+      "bytes": 312
+    },
+    {
+      "path": "rpgscript-vs/tsconfig.json",
+      "sha256": "9B626ED570010D10EB269112F018F0B3329A176DE29B70289DEF7F44DBB75342",
+      "bytes": 344
+    },
+    {
+      "path": "rpgscript-vs/vs-icon.png",
+      "sha256": "389C2DF65758DB438A1E9928506FF5D92461A60C349AA1A2D90C62A9DA7B3A24",
+      "bytes": 493
+    },
+    {
+      "path": "rpgscript-vs/webpack.config.js",
+      "sha256": "C8E0606884F04E8A5D31916F8859E7388B006C1B8791C3B8078851660A714FB8",
+      "bytes": 701
+    },
+    {
+      "path": "rpgscript-vs/yarn.lock",
+      "sha256": "D4186BB441D9AA7560F1B8B8DD4F836203CD7ECF92E82A3EE45A69AFA937317D",
+      "bytes": 98720
+    },
+    {
+      "path": "scripts/get-rpgscript-collection.js",
+      "sha256": "6BCA833E89B3BCEF1EF65628EA005DE7651480D7E9870B9B0ECE6ED22859D7B7",
+      "bytes": 2607
+    },
+    {
+      "path": "src/__tests__/controller/scene-commands.test.ts",
+      "sha256": "0504BC5C5FFD84D2EC68A3FC0995F3746D5603FA66ABA179AC5D71D58F7DB98F",
+      "bytes": 3574
+    },
+    {
+      "path": "src/__tests__/rpgscript/conditionals.test.ts",
+      "sha256": "0C96D28613680334E1E774779717022AC596B4F523CC4262DBAD94F89071EBE6",
+      "bytes": 3640
+    },
+    {
+      "path": "src/__tests__/rpgscript/parser.test.ts",
+      "sha256": "9526DEED505B8AACE16A7CF27BD3F266113265BC0CAA67876B8E18D2240F5C39",
+      "bytes": 981
+    },
+    {
+      "path": "src/__tests__/rpgscript/storage.test.ts",
+      "sha256": "F498F50269421FB40280C6949844E10473A8E6B4212AFC6EE3AFE42E25170F7F",
+      "bytes": 1076
+    },
+    {
+      "path": "src/__tests__/setup.ts",
+      "sha256": "86ED1E50B1F31C97FFEB994020CE45A529F871635687B92D3AC2CC6FD7B51AAD",
+      "bytes": 4573
+    },
+    {
+      "path": "src/_db/scripts.ts",
+      "sha256": "0145507CA6895AFCF224053E6DADAF2A336715A04AFD40B1A6B2D1E6A381644B",
+      "bytes": 3119
+    },
+    {
+      "path": "src/controller/res-loader.ts",
+      "sha256": "AEFE5F98C3CEDDF44402BE95177DD7F8136D06DAD9CE7493133C3507A09BBFA3",
+      "bytes": 12344
+    },
+    {
+      "path": "src/controller/scene-management.ts",
+      "sha256": "15B56DD9A46B72ABA1826F77724E0E143433B2FAE0C288A9C8CECBEAB20EC3AA",
+      "bytes": 25100
+    },
+    {
+      "path": "src/controller/scene/scene-commands-skip.ts",
+      "sha256": "054E578B6B8B8973627133BA9B4A9B02D3784E4A6098CE4235C24FC0468EC4DA",
+      "bytes": 30803
+    },
+    {
+      "path": "src/controller/scene/scene-commands.ts",
+      "sha256": "4FCCDF8DD327BA6DFB58C9A4FCA235596071722A1C2442CE3148DE5C7B32C786",
+      "bytes": 144391
+    },
+    {
+      "path": "src/controller/scene/scene-conditionals.ts",
+      "sha256": "6B9CDDD110AF0B8FD1C29A70CCE667CA429BB66F58EBFB7DC87A67F1266E6211",
+      "bytes": 6835
+    },
+    {
+      "path": "src/extensiontest.rpgscript",
+      "sha256": "B205E3D91310BFAA57055F9421C37485D2572851DAF44003924621EFEE72DCA7",
+      "bytes": 45
+    },
+    {
+      "path": "src/lib/rpgscript.ts",
+      "sha256": "BA9453B317998ECD8D77910EF5CD85D1A54682186CA987DA78DFA275663ADA23",
+      "bytes": 25073
+    },
+    {
+      "path": "src/model/scene.ts",
+      "sha256": "0AFC88897CE92161A8B8C87B404AFDD82E2388426334D0EEDFEDECA4DF1A285F",
+      "bytes": 7427
+    },
+    {
+      "path": "src/rpgscript/bowling.rpgscript",
+      "sha256": "CED1DC425812846749E0A0D3721E039BA51DF7E6C1C6F6DD8A1ECE8247A686A5",
+      "bytes": 5616
+    },
+    {
+      "path": "src/rpgscript/carl-arnold-high-scores.rpgscript",
+      "sha256": "E2C5D55BEEDBFDC972D02177C6DB652A76FA69EC1F8043999F3016D258DE5A28",
+      "bytes": 659
+    },
+    {
+      "path": "src/rpgscript/carl-arnold/carl-arnold-monologues.rpgscript",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "path": "src/rpgscript/carl-arnold/carl-arnold-remedy.rpgscript",
+      "sha256": "08C08172FB0A8E95278B2B6F2C96B3B50770250906CEBAFB9B6CF262C074A401",
+      "bytes": 6285
+    },
+    {
+      "path": "src/rpgscript/carl-arnold/carl-arnold-scratch.rpgscript",
+      "sha256": "F6DA5D7807ACF1F05E0B89ED543F90F12256EE4B9A402CACD080E2E252EA2B6F",
+      "bytes": 3915
+    },
+    {
+      "path": "src/rpgscript/credits.rpgscript",
+      "sha256": "06B843766F7B48D9CE615C0BBA23D5F05C709BBFEF8D63163389891496654A33",
+      "bytes": 858
+    },
+    {
+      "path": "src/rpgscript/elevator.rpgscript",
+      "sha256": "9D38658BB61AE9120E75C49A9CEB115CA65D4DF6B13911517E3FA9E146935E83",
+      "bytes": 3852
+    },
+    {
+      "path": "src/rpgscript/example.rpgscript",
+      "sha256": "BE2B5D24767CD9453BCC05151C41CA60FC8C3CDEA1A80B21E4240AEA64677D8A",
+      "bytes": 384
+    },
+    {
+      "path": "src/rpgscript/flashback/ada-classroom1.rpgscript",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "path": "src/rpgscript/flashback/ada-lockers1.rpgscript",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "path": "src/rpgscript/flashback/ada-room1.rpgscript",
+      "sha256": "F471B437821306AF1205605D986C1CFEA1361525C9947F3F597BBC5E7B95BD7D",
+      "bytes": 8601
+    },
+    {
+      "path": "src/rpgscript/flashback/ada-vr-conscience-intro.rpgscript",
+      "sha256": "6F1BDFBE6DD8584CF5A3EC3A5F8482F097CA8D8DDEDC4623016332BB68C659C7",
+      "bytes": 7140
+    },
+    {
+      "path": "src/rpgscript/floor1/floor0-pre.rpgscript",
+      "sha256": "341A1CE41CD68A5663C7AEC382EB70DECF2DD266442C419039700A6C0927B967",
+      "bytes": 15381
+    },
+    {
+      "path": "src/rpgscript/floor1/floor1-atrium.rpgscript",
+      "sha256": "4AB34B6554ECDEE41FA705BB74BE1EDC09BCAD296467C9F32D2C1D842207B5F1",
+      "bytes": 36842
+    },
+    {
+      "path": "src/rpgscript/floor1/floor1-party.rpgscript",
+      "sha256": "EAF89597568B2143EB18EEA725FC5F1476FD3F214AD175700FFBAD768E5F3F2D",
+      "bytes": 10861
+    },
+    {
+      "path": "src/rpgscript/floor1/floor1.rpgscript",
+      "sha256": "B7C371E5659B19F4299EC6DE582CFBA5B6538161E3E467D764ED2E421F333D1E",
+      "bytes": 31305
+    },
+    {
+      "path": "src/rpgscript/floor2/floor2-cafeteria.rpgscript",
+      "sha256": "AC9078A7FA0F0C9CF35BA305E82A07AD73F2A12D9FB12701BE16ED1EE0C55433",
+      "bytes": 16241
+    },
+    {
+      "path": "src/rpgscript/floor2/floor2-guestrooms.rpgscript",
+      "sha256": "3FA56EC8C65951A671F612FCC70163828E8CC98560F9E485F81A8FAF3D28A61E",
+      "bytes": 20759
+    },
+    {
+      "path": "src/rpgscript/floor2/floor2-lockers.rpgscript",
+      "sha256": "E5152BD717A097F5AE75DE6AA7C23B29317CBE8B51E4BE304A8B33B402DB846C",
+      "bytes": 4187
+    },
+    {
+      "path": "src/rpgscript/floor2/floor2-vr-main.rpgscript",
+      "sha256": "3F897628A119B5A40F5C27DFCEACF1041E93682D8A1E07D01B5280C625A781B9",
+      "bytes": 2611
+    },
+    {
+      "path": "src/rpgscript/floor2/floor2.rpgscript",
+      "sha256": "4E344A3A596898E1E54F3D31259CA3837CBA29D62A80CB40EE8209081854AEE0",
+      "bytes": 69290
+    },
+    {
+      "path": "src/rpgscript/floor3/floor3-cards.rpgscript",
+      "sha256": "D3D9C0B360A46EFBEAB900605E170F35E868644FD1A1F2034A1BDD3887DEA23D",
+      "bytes": 30179
+    },
+    {
+      "path": "src/rpgscript/floor3/floor3.rpgscript",
+      "sha256": "5EDCE80147B56CC052E64EF03D2F60632A71FBCCDA62A70DAC14CEEC5316B90A",
+      "bytes": 22812
+    },
+    {
+      "path": "src/rpgscript/green-pools.rpgscript",
+      "sha256": "1D1336C66CDB41DBC469B3A1D8422B835D8D693A37BA4D7EC5B8084F155CFDCC",
+      "bytes": 847
+    },
+    {
+      "path": "src/rpgscript/instances/carl-arnold-conscience-prison.rpgscript",
+      "sha256": "C89BCDC7CE332DE58E9C931A3499C19F77E09B81CC1104FEA9CA89A5F3AEB74D",
+      "bytes": 10413
+    },
+    {
+      "path": "src/rpgscript/instances/carl-arnold-pre.rpgscript",
+      "sha256": "8EFB0F1B93B9498CF5A48F40814A63392A5EC300CE0ADD286220FED074C62353",
+      "bytes": 26637
+    },
+    {
+      "path": "src/rpgscript/instances/carl-arnold-throne.rpgscript",
+      "sha256": "80D02AA6EDFFA04DEBAFDD9AC4B3C87FF59A5C3754390F11FAB0D82CDADE3D1E",
+      "bytes": 35915
+    },
+    {
+      "path": "src/rpgscript/instances/challenge-floor2.rpgscript",
+      "sha256": "4F532DCB0A033DE6A972B233066921221955E4936556614518CDFB7FA50D7D37",
+      "bytes": 25393
+    },
+    {
+      "path": "src/rpgscript/instances/fortress-of-bartolo-junkyardsewer.rpgscript",
+      "sha256": "6B05E73720B24011DD89CF305CB6A2C98717B30E8CCC126BC2A77290B5C54F7E",
+      "bytes": 25122
+    },
+    {
+      "path": "src/rpgscript/instances/fortress-of-bartolo-pre.rpgscript",
+      "sha256": "3A387BB6B82EABC03CEB146599DBDD35D1C54DEEB9B062FE69BCEEAD2317FB62",
+      "bytes": 13936
+    },
+    {
+      "path": "src/rpgscript/instances/tutorial.rpgscript",
+      "sha256": "D9D21C1AED88ED0E975FFF0EB2C65FBC2B42B2683A7011075F3C584D165B9790",
+      "bytes": 69627
+    },
+    {
+      "path": "src/rpgscript/intro.rpgscript",
+      "sha256": "1869A48245BD74C2B225CE65AC463D9ED26C75B88D9633FC11CCA8181B951FB2",
+      "bytes": 6933
+    },
+    {
+      "path": "src/rpgscript/lint.rpgscript",
+      "sha256": "C8F4E0AD906E6558BF9B2F9BD190F14872C201BD5DBF5345D5FB22AAA31C422F",
+      "bytes": 130
+    },
+    {
+      "path": "src/rpgscript/loot.rpgscript",
+      "sha256": "862AEFB69CA9878EAA26995078BC3A687DC5D35307CAC8F480E3298563BD2FA3",
+      "bytes": 1462
+    },
+    {
+      "path": "src/rpgscript/party-members.rpgscript",
+      "sha256": "4950952DD2E3FFC1CFD1CB1BA1882F936AA62BFF147D7B9D93B79EAC2F514301",
+      "bytes": 4900
+    },
+    {
+      "path": "src/rpgscript/quest/floor2-throne-room.original.rpgscript",
+      "sha256": "9F164B4A43ACF690A9367008D4D0F530519482B9AD8AF01DCC8213A6298E4B8E",
+      "bytes": 26277
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-pairing-conversations.rpgscript",
+      "sha256": "72AA00524374B171AC9687C6110D1DD491D5986EDB41DE2E91AA582C94757FDD",
+      "bytes": 18053
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-1.rpgscript",
+      "sha256": "5826A38BC5E9A26A3F56E8F6F5F46912A7464B34AF89F32D296105C86ED08B3B",
+      "bytes": 14000
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-2.rpgscript",
+      "sha256": "229066D979F12E75F8B23469AFC81AB82959714BB764AE2E017C416D9013BB56",
+      "bytes": 15446
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-3.rpgscript",
+      "sha256": "ABC171DF75D310B6C42B97ADB1E58E1552F01ACD7F12E7BD3AB6F9F581B59C7F",
+      "bytes": 12725
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-4.rpgscript",
+      "sha256": "FC015EF55264D55442E76172DF18C975CD76CB66FF34EA389985B397EF3BA0F0",
+      "bytes": 14757
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-5.rpgscript",
+      "sha256": "467F9EE07C48EF457675ED65599901F68C087B34F2C05BCDC5FBC3B8DB0B8A8E",
+      "bytes": 10208
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-6.rpgscript",
+      "sha256": "8EFB8F3207665245365C64CB8936C404C9127AF23E97FC689F2F3A595181DDFD",
+      "bytes": 6282
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-7.rpgscript",
+      "sha256": "8B8EDDE67D76DC65A3BDC899BE9D9BC0E703508593C0B7673BBBE88A7CA49BEC",
+      "bytes": 5111
+    },
+    {
+      "path": "src/rpgscript/quest/pattern-matchmaking/mm-table-8.rpgscript",
+      "sha256": "6B5474351E2B0C17CF0AA22A444580E07769F5020C2E4AA16651CFF22DBFEBD3",
+      "bytes": 2973
+    },
+    {
+      "path": "src/rpgscript/quest/quest-free-throw.rpgscript",
+      "sha256": "0D6F2FE22EBD80F5D0772DCC99C38BFA6FD36288CB45BCA1718AA4C2885FC7FA",
+      "bytes": 3476
+    },
+    {
+      "path": "src/rpgscript/quest/quest-gobbler.rpgscript",
+      "sha256": "A063A6C942F9F7130E9EBB542201B52F4B0F79F5CBD1CF92E55AA1DD92998EDD",
+      "bytes": 3212
+    },
+    {
+      "path": "src/rpgscript/quest/quest-jesse-date.rpgscript",
+      "sha256": "296D42FA22273CD9FBB0611A4136F4FF804E3C5ED0D3A56582AFE5A3DE80FD13",
+      "bytes": 4428
+    },
+    {
+      "path": "src/rpgscript/quest/quest-oeeseg.rpgscript",
+      "sha256": "E7CEC707190B6823393728E627BC244E7D3D3146C0E23A6688555F71407850AC",
+      "bytes": 3410
+    },
+    {
+      "path": "src/rpgscript/quest/quest-party-planner-assistant.rpgscript",
+      "sha256": "FB12A31526E95437405FA72A6F8EF8CA1A3948035A9979D0B522FC30C496C08C",
+      "bytes": 3990
+    },
+    {
+      "path": "src/rpgscript/quest/quest-pattern-matchmaking.rpgscript",
+      "sha256": "73BD75293190F78F2C82D43E92483B0D31B5ECC488B37CAEAE8DB24A751CF90D",
+      "bytes": 32046
+    },
+    {
+      "path": "src/rpgscript/quest/quest-ping-pong.rpgscript",
+      "sha256": "B26283E79D4727DE2E10C75E794D469FCF71C8E635E594BE70C484EE03D07957",
+      "bytes": 34295
+    },
+    {
+      "path": "src/rpgscript/quest/quest-prophecy-of-lance.rpgscript",
+      "sha256": "A76363CE5719CA3B32E0776ABF331DCA9720CE0B5648FC2DB2FD89A4A4B7D67D",
+      "bytes": 8865
+    },
+    {
+      "path": "src/rpgscript/quest/quest-puzzling-tradition.rpgscript",
+      "sha256": "4A42885F043BBA3605805891406ECB68741D4C72CE8F101224EA65A0A8273554",
+      "bytes": 1841
+    },
+    {
+      "path": "src/rpgscript/quest/quest-rhoconn.rpgscript",
+      "sha256": "14C54DA8500BA8A8222A1019B8B0876CB214DE4968018D4359B673BE8EE418EC",
+      "bytes": 7289
+    },
+    {
+      "path": "src/rpgscript/quest/quest-rps.rpgscript",
+      "sha256": "57D9F5EDAAA5D66F5D94D5746A26612092EAF4AF272524FAAC0A4EF1F0EC5A07",
+      "bytes": 30347
+    },
+    {
+      "path": "src/rpgscript/quest/quest-skye.rpgscript",
+      "sha256": "2CE623518FB2AF1645B54F0557A5B23B9C704D2B17DE0EB8AD780F1837369CA6",
+      "bytes": 19974
+    },
+    {
+      "path": "src/rpgscript/quest/quest-tic-tac-toe.rpgscript",
+      "sha256": "0C26D3868CE692167C403AC6B518813F7D7E7D4452884C1B52CFDFF320835609",
+      "bytes": 4503
+    },
+    {
+      "path": "src/rpgscript/test.rpgscript",
+      "sha256": "4F2AC822658FC73BCD4EBE1C033EF8B752A051046CFC0DC1D9D40DD4C8A0BA39",
+      "bytes": 10427
+    },
+    {
+      "path": "src/rpgscript/test2.rpgscript",
+      "sha256": "15D4E3DA3BFE953720063DD32110317B9513F7E18C5B29C3F1D53B1EFCB75213",
+      "bytes": 29682
+    },
+    {
+      "path": "src/rpgscript/test3.rpgscript",
+      "sha256": "6F7543F9ECE8414B4EE358AFDD3BC791F34746B452ACC0EE006C62566F29DAF4",
+      "bytes": 1553
+    },
+    {
+      "path": "src/rpgscript/testCi.rpgscript",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0
+    },
+    {
+      "path": "src/rpgscript/utils.rpgscript",
+      "sha256": "81C77F1057E51E6B2F13AA8B523A08D4C4D2DA0073D653048A0FC796B0529F3E",
+      "bytes": 24737
+    },
+    {
+      "path": "tsconfig.app.json",
+      "sha256": "6FD54B0F284451E28E5B92FFA40DD489BCBADEF8D70C44769682D46E0323BE80",
+      "bytes": 856
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "AD28D132EE48D6E23917CF5827CACE785D0FC01A44CA68B0DDA51CC8C3FD3F52",
+      "bytes": 126
+    },
+    {
+      "path": "vitest.config.mts",
+      "sha256": "E7B933B6C07BC6EC32FE8EB52CE03EB2F3D3344C6D56B5BC111BF308BA13FEC7",
+      "bytes": 2382
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+#quest_partyPlannerAssistant_load
+  load,this
+@this
+  +?func(questCompleted, PartyPlannerAssistant):{
+    +despawnCharacter(PartyPlannerEla)
+  }
+
+#quest_partyPlannerAssistant
+  action,?func(questNotStarted, PartyPlannerAssistant):quest_PartyPlannerAssistant_beginQuest
+  action,?func(questStepEQ, PartyPlannerAssistant, 0):quest_PartyPlannerAssistant_duringQuest
+  action,?func(questStepEQ, PartyPlannerAssistant, 1):quest_PartyPlannerAssistant_foundItems
+  action,?func(questCompleted, PartyPlannerAssistant):quest_PartyPlannerAssistant_questOver
+@quest_PartyPlannerAssistant_beginQuest
+  +setConversation(Ada)
+  Ada: "You look quite distraught. What is wrong?"
+  +:ld(PartyPlannerEla, down)
+  PartyPlannerEla: "Oh dear, oh dear, oh dear.  I'm in a terrible terrible mess!  It's my manager's birthday today and I should be throwing him a lovely party!"
+  +:leach(Ada, PartyPlannerEla)
+  PartyPlannerEla: "But I've forgotten to buy the snacks!  I'll never get them in time now!  He'll sack me!  What will I do?  I have three cats and a gopher to look after."
+  +:leach(Ada, PartyPlannerEla)
+  +:lightbulb(PartyPlannerEla)
+  PartyPlannerEla: "Wait... will you help me?  Please!?"
+  +?func(inParty, Conscience):{
+    +:jump(Conscience)
+    Conscience: "Of course we will help!"
+  }
+  Ada: "Um... What exactly do you need?"
+  PartyPlannerEla: "Oh thank you, thank you!  I need a bag of <color=LIGHTBLUE>Crushed Flowers</>, some <color=LIGHTBLUE>Spoiled Milk</>, and a <color=LIGHTBLUE>Rotten Chocolate Egg</>."
+  Ada: "<cascade-letters>......"
+  Ada: "I am sorry, but I thought you said you wanted snacks?"
+  PartyPlannerEla: "Yes, yes, I did.  I need them for the party."
+  PartyPlannerEla: "I will be making them into a cake."
+  +:serious(Ada)
+  Ada: "That sounds like quite a revolting cake."
+  PartyPlannerEla: "Oh, it's not for eating.  It's for throwing at the manager."
+  +:ld(Ada, down)
+  Ada: "Okay then.  I am sorry I asked."
+  +:shakeZ(PartyPlannerEla)
+  +:jump(PartyPlannerEla)
+  PartyPlannerEla: "Will you help me???"
+  +:la(Ada, PartyPlannerEla)
+  Ada: "<cascade-letters>......"
+  PartyPlannerEla: "I'll be sure to compensate you for your time.  Just get them to me as soon as you can."
+  +startQuest(PartyPlannerAssistant)
+  +:quest_partyPlannerAssistant_checkItems()
+  PartyPlannerEla: "You may have to search some unsavory places to find some of these, but don't give up!"
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "I think 'Crushed Flowers' are a brand of chips.  We should check the vending machines."
+    +:ld(Anjana, rightdown)
+    Anjana: "As for the others... I don't know.  I don't think I want to know."
+  }
+  +?func(inParty, Conscience):{
+    +:leach(Conscience, Ada)
+    Conscience: "Aren't 'Crushed Flowers' a brand of chips?  We should check the vending machines."
+    Conscience: "The other items are a bit of a problem, aren't they?"
+  }
+  +endConversation()
+@quest_PartyPlannerAssistant_duringQuest
+  +setConversation(Ada)
+  +:leach(Ada, PartyPlannerEla)
+  PartyPlannerEla: "If you don't have the snacks yet, please hurry up and find them!"
+  +endConversation()
+@quest_PartyPlannerAssistant_foundItems
+  +setConversation(Ada)
+  +:leach(Ada, PartyPlannerEla)
+  +:jump(PartyPlannerEla)
+  PartyPlannerEla: "Yes! You found them!  Thank you so much!"
+  +completeQuestStep(PartyPlannerAssistant, 1)
+  +endConversation()
+@quest_PartyPlannerAssistant_questOver
+  +setConversation(Ada)
+  PartyPlannerEla: "I need to make a cake now, please don't bother me while I think about the best way to do it."
+  +endConversation()
+@quest_partyPlannerAssistant_checkItems
+  +?with(CrushedFlowers):{
+    +completeQuestSubStep(PartyPlannerAssistant, 0, 0)
+  }
+  +?with(SpoiledMilk):{
+    +completeQuestSubStep(PartyPlannerAssistant, 0, 1)
+  }
+  +?with(RottenChocolateEgg):{
+    +completeQuestSubStep(PartyPlannerAssistant, 0, 2)
+  }
+  +?all(with(CrushedFlowers),with(SpoiledMilk),with(RottenChocolateEgg)):{
+    +completeQuestStep(PartyPlannerAssistant, 0)
+  }

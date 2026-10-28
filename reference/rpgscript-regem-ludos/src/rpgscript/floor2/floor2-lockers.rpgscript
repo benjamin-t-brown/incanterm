@@ -1,0 +1,128 @@
+@Floor2Lockers_AlreadyChecked
+  +setConversation()
+  +:face(Ada, down)
+  Ada: "I already checked this locker.  Nothing else of interest is here."
+  +endConversation()
+
+#Floor2Lockers_SouthSports1
+  action,?once('8726f6a0'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "This locker looks like it is still open."
+  Ada: "But nothing is in here."
+  +endConversation()
+
+#Floor2Lockers_SouthSports2
+  action,?once('4f870efa'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, rightup)
+  Ada: "The latch on this locker does not appear to be working."
+  Ada: "Somebody's backpack is in there.  I should leave it alone."
+  +endConversation()
+
+#Floor2Lockers_SouthSports3
+  action,?once('17d3b9de'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, rightup)
+  Ada: "This locker does not appear to have an opening latch.  It just opens on its own..."
+  Ada: "It looks like somebody might have left some candy in here."
+  +acquireItem(VenusPeanutButterSaucer)
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallwayEmpty
+  action,this
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "These lockers are empty."
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallway1
+  action,?once('5230f75c'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "This locker is unlocked."
+  Ada: "Somebody left a few tickets in here."
+  +acquireItem(TicketCache5)
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallway2
+  action,?once('040454f4'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "This locker is wide open."
+  Ada: "But there is nothing inside it."
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallway3
+  action,?once('8804f3ca'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "All these lockers are locked up tight."
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallway4
+  action,?once('9ebcc9c7'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  Ada: "None of these lockers appear to be open."
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallway5
+  action,?once('e1b13d6e'):this
+  action,Floor2Lockers_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, rightup)
+  Ada: "I do not think any of these lockers are open."
+  +endConversation()
+
+#Floor2Lockers_SouthEastLongHallwayPingPong
+  action,?all(func(questStepEQ, PingPong, 7), once('07c7ddc5')):Floor2Lockers_SouthEastLongHallwayFloor2Lockers_SouthEastLongHallwayPingPong_TakeEmployeeUniform
+  action,?any(with(RegemLudosVest), func(questStepEQ, PingPong, 8)):Floor2Lockers_SouthEastLongHallwayFloor2Lockers_SouthEastLongHallwayPingPong_AlreadyHave
+  action,?all(func(questCompleted, PingPong)):Floor2Lockers_SouthEastLongHallwayFloor2Lockers_SouthEastLongHallwayPingPong_AlreadyHave
+  action,Floor2Lockers_SouthEastLongHallway_AlreadyChecked
+@this
+  +setConversation()
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "I think this locker might be unlocked."
+  Ada: "There are a bunch of... are those uniforms?"
+  +?func(inParty, Anjana):{
+    Anjana: "Those look like the uniforms the employees use."
+  }
+  Ada: "This seems like an odd place to store those..."
+  +endConversation()
+@Floor2Lockers_SouthEastLongHallway_AlreadyChecked
+  +setConversation()
+  +:face(Ada, down)
+  Ada: "There were a bunch of uniforms in that locker for some reason."
+  +endConversation()
+@Floor2Lockers_SouthEastLongHallwayFloor2Lockers_SouthEastLongHallwayPingPong_TakeEmployeeUniform
+  +setConversation()
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "This locker... it has a bunch of <color=LIGHTBLUE>Regem Ludos Vests</> inside of it."
+  Ada: "I believe I need one of those."
+  +acquireItem(RegemLudosVest)
+  +endConversation()
+@Floor2Lockers_SouthEastLongHallwayFloor2Lockers_SouthEastLongHallwayPingPong_AlreadyHave
+  +setConversation()
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "I already have a <color=LIGHTBLUE>Regem Ludos Vest</> from this locker.  I do not need another one."
+  +endConversation()

@@ -1,0 +1,749 @@
+// Quest is started with this trigger.
+// Quest started with #AtriumPingPongSearcher
+// Step 0 completed with #floor1-atrium-greeter-employee -> @floor1AtriumGreeterEmployeePingPong
+// Step 1 completed with #Floor1East1PrizeEmployee -> @Floor1East1PrizeEmployee_PingPongQuest
+// Step 2 completed with #floor1-Floor1PingPongGuyA ->  @Floor1AtriumPingPongGuysQuest
+// Step 3 completed with #Floor1ShadyPerson -> @Floor1ShadyPerson_spottedAda
+// Step 4 completed with #Floor1ShadyPerson -> @Floor1ShadyPerson_tellAboutStorage
+// Step 5 completed with #Floor1East1Storage_Employee -> @Floor1East1Storage_Employee_questActive
+// Step 6 completed with 
+// Step 7 completed with #Floor1East1Storage_Employee -> @Floor1East1Storage_Employee_questActiveCheckEmployeeVest
+// Step 8 completed with #floor1-AtriumPingPongSearcher -> @floor1-AtriumPingPongSearcher_finishQuest
+
+#floor1-AtriumPingPongSearcher
+  action,?func(questNotStarted, PingPong):floor1-AtriumPingPongSearcher_startQuest
+  action,?all(func(questNotCompleted, PingPong), with(PingPongEquipment)):floor1-AtriumPingPongSearcher_finishQuest
+  action,?func(questStepLT, PingPong, 8):floor1-AtriumPingPongSearcher_askIfQuestCompleted
+// action,?func(questCompleted, PingPong):floor1-AtriumPingPongSearcher_questCompleted
+// Getting here should imply that the PingPong quest is completed.
+  action,floor1-AtriumPingPongSearcher_default
+  load,floor1-AtriumPingPongSearcher_load
+@floor1-AtriumPingPongSearcher_load
+  +?func(questCompleted, PingPong):{
+    +setAtMarker(Floor1AtriumPingPongSearcher, MarkerPingPongGirl1)
+    +:face(Floor1AtriumPingPongSearcher, leftdown)
+  }
+@floor1-AtriumPingPongSearcher_startQuest
+  +lookAtEachOther(Ada, Floor1AtriumPingPongSearcher)
+  +setConversation(Ada)
+  Floor1AtriumPingPongSearcher: "<cascade>I <cascade italic>really<cascade> wanted to play ping pong, but I can't find any spare balls and paddles."
+  +lookAtCharacter(Floor1AtriumPingPongSearcher, Floor1PingPongGuyA)
+  +:sad(Floor1AtriumPingPongSearcher)
+  +panCameraToFitCharacters(500, true, Ada, Floor1PingPongGuyA)
+  Floor1AtriumPingPongSearcher: "And those two guys over there have been playing for a long time."
+  +panCameraBackToPlayer()
+  Floor1AtriumPingPongSearcher: "They won't let me borrow a paddle though, even though I asked."
+  Ada: "Did you ask an employee for more?"
+  +:jump(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "Heavens no!"
+  Floor1AtriumPingPongSearcher: "I have <cascade-letters>waaayyyy</> too much <color=LIGHTBLUE shake>anxiety</> to do that."
+  +setFacing(Ada, right)
+  +:shakeZ(Ada)
+  Ada: "But you just said you asked those boys to play."
+  +lookAtEachOther(Ada, Floor1AtriumPingPongSearcher)
+  +:teardrop(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "This is different..."
+  Floor1AtriumPingPongSearcher: "The employees here are... kinda weird.  I dunno if you've noticed."
+  Floor1AtriumPingPongSearcher: "Honestly they kind of scare me a bit."
+  +:lightbulb(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "But that uniform!  You're from that hoity-toity prep school."
+  Floor1AtriumPingPongSearcher: "What was it called...?"
+  +:ld(Floor1AtriumPingPongSearcher, down)
+  Floor1AtriumPingPongSearcher: "<cascade-letters>Um..."
+  +:ld(Floor1AtriumPingPongSearcher, leftdown)
+  Floor1AtriumPingPongSearcher: "<cascade-letters>UM....."
+  +:flat(Ada)
+  Ada: "<color=LIGHTBLUE cascade-letters=45>Erran Valley."
+  +:exclaim(Floor1AtriumPingPongSearcher)
+  +:la(Floor1AtriumPingPongSearcher, Ada)
+  Floor1AtriumPingPongSearcher: "Ya! That's what it's called."
+  Floor1AtriumPingPongSearcher: "Your school gives you some measure of <italic>status</> right?"
+  Floor1AtriumPingPongSearcher: "I mean why else would you go to a school like that?"
+  +:happy(Floor1AtriumPingPongSearcher)
+  +:teardrop(Ada)
+  Ada: "I think you might have some misunderstanding..."
+  +:jump(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "Could you go ask the Employee for some <color=LIGHTBLUE>Ping Pong Equipment</> for me?"
+  Floor1AtriumPingPongSearcher: "I bet they'd listen to <italic>you</>!"
+  Ada: "<cascade-letters>I......"
+  +:sigh(Ada)
+  Ada: "I suppose I could do that for you."
+  +:happy(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "Thank you SO MUCH!"
+  +startQuest(PingPong)
+  +endConversation()
+@floor1-AtriumPingPongSearcher_askIfQuestCompleted
+  +lookAtEachOther(Ada, Floor1AtriumPingPongSearcher)
+  +setConversation(Ada)
+  Floor1AtriumPingPongSearcher: "Did you find some <color=LIGHTBLUE>Ping Pong Equipment</>?"
+  +:shakeZ(Ada)
+  Ada: "Not yet."
+  Floor1AtriumPingPongSearcher: "I <cascade-letters>reaalllyyyy</> wanna play."
+  +endConversation()
+@floor1-AtriumPingPongSearcher_finishQuest
+  +:lockCamera()
+  +lookAtEachOther(Ada, Floor1AtriumPingPongSearcher)
+  +walkPartyToFormation()
+  +setConversation(Ada)
+  Floor1AtriumPingPongSearcher: "Did you find some <color=LIGHTBLUE>Ping Pong Equipment</>?"
+  +:smirk(Ada)
+  Ada: "I have indeed."
+  +walkToCharacter(Ada, Floor1AtriumPingPongSearcher, 0, -8)
+  +:leach(Ada, Floor1AtriumPingPongSearcher)
+  +:la(Party, Floor1AtriumPingPongSearcher)
+  +:bumpY(Ada, 1)
+  +removeItem(PingPongEquipment)
+  +walkToOffset(Ada, 0, -8)
+  +:ld(Ada, leftdown)
+  +:surprised(Floor1AtriumPingPongSearcher)
+  +:happy(Ada)
+  +:jump(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "Wow, you really did it!"
+  +none()
+  +:jump(Floor1AtriumPingPongSearcher)
+  +:jump(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "<cascade-letters>Youdidityoudidityoudidit<scale=1.2 cascade-letters>youdidit!"
+  +:shakeZ(Floor1AtriumPingPongSearcher)
+  +:ld(Floor1AtriumPingPongSearcher, down)
+  Floor1AtriumPingPongSearcher: "And there are still some tables open."
+  Floor1AtriumPingPongSearcher: "I've gotta start doing my warmups."
+  +:none()
+  +walkToMarker(Floor1AtriumPingPongSearcher, MarkerPingPongGirl1)
+  +:ld(Floor1AtriumPingPongSearcher, leftdown)
+  +:la(Party, Floor1AtriumPingPongSearcher)
+  +?func(inParty, Skye):{
+    +:teardrop(Skye)
+    Skye: "Is she just gonna play by herself?"
+    +?func(inParty, Anjana):{
+      Anjana: "Ping pong is such a brainless game."
+    }
+  }
+  +completeQuestStep(PingPong, 9)
+  +panCameraBackToPlayer(500)
+  +endConversation()
+@floor1-AtriumPingPongSearcher_default
+  +lookAtEachOther(Ada, Floor1AtriumPingPongSearcher)
+  +setConversation(Ada)
+  +:heart(Floor1AtriumPingPongSearcher)
+  Floor1AtriumPingPongSearcher: "Oh it's you!"
+  Floor1AtriumPingPongSearcher: "Thanks for getting my equipment."
+  +?once('c81f07df'):{
+    Ada: "Are you just going to play by yourself?"
+    +:exclaim(Floor1AtriumPingPongSearcher)
+    Floor1AtriumPingPongSearcher: "Of course not!"
+    Floor1AtriumPingPongSearcher: "I just need to get in my warmups before I'm ready to challenge anybody."
+    Floor1AtriumPingPongSearcher: "Gotta make sure I'm ready, you know!"
+  }
+  +endConversation()
+
+
+// Called as part of the Greeter Employee's dialog as a part of this quest
+@floor1AtriumGreeterEmployeePingPong
+  +lookAtEachOther(Ada, AtriumGreeterEmployee)
+  +setConversation(Ada)
+  +:question(Ada)
+  Ada: "Excuse me, I have a small question."
+  AtriumGreeterEmployee: "What can I do for you?"
+  +:ld(Ada, left)
+  Ada: "You seem to be missing a couple of balls and paddles over at the ping pong tables."
+  +:leach(Ada, AtriumGreeterEmployee)
+  Ada: "Do you know where I could find some more?"
+  +:question(AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "You're looking for a set of <color=LIGHTBLUE>Ping Pong Equipment</>?"
+  +:nervous(AtriumGreeterEmployee)
+  +:ld(AtriumGreeterEmployee, up)
+  AtriumGreeterEmployee: "<scale=0.75 />Do we even have that?"
+  +:leach(Ada, AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "I... uh... don't think I can help you.  You'll have to ask somebody else."
+  +:teardrop(Ada)
+  Ada: "Why do you seem so nervous?"
+  +:la(AtriumGreeterEmployee, Ada)
+  AtriumGreeterEmployee: "Me?  Nervous?"
+  +:jump(AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "I'm just the greeter employee!"
+  AtriumGreeterEmployee: "I do my job just like everyone else!"
+  +:ld(AtriumGreeterEmployee, up)
+  AtriumGreeterEmployee: "<scale=0.75>But I don't know a lot about this post.</>"
+  +:leach(Ada, AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "I'm sorry I just can't help you with this."
+  Ada: "Is there something wrong?"
+  +:shakeZ(AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "No no!  Of course not."
+  AtriumGreeterEmployee: "<scale=0.75>Look, just drop it okay.  I can't be seen in a position where I can't answer a question.</>"
+  +:grumpy(Ada)
+  Ada: "Um... Okay?"
+  +:ld(Ada, down)
+  Ada: "<scale=0.75 />That seems a bit odd, but whatever."
+  +:la(Ada, AtriumGreeterEmployee)
+  Ada: "Can you point me to somebody that <italic>can</> help me?"
+  AtriumGreeterEmployee: "I'm not sure..."
+  +:nervous(AtriumGreeterEmployee)
+  AtriumGreeterEmployee: "I guess you could go ask the employee manning the prize counter on this floor, he might know."
+  AtriumGreeterEmployee: "But DON'T TELL HIM I SENT YOU."
+  AtriumGreeterEmployee: "<scale=0.75 />They can't find out about my failure here."
+  Ada: "Wonderful.  Thank you."
+  +none()
+  +walkToOffset(Ada, 32, 0)
+  Ada: "<color=LIGHTGREY />Why was that so difficult?"
+  +completeQuestStep(PingPong, 0)
+  +endConversation()
+
+// Called in the prize employee's talk trigger as part of this quest
+@Floor1East1PrizeEmployee_PingPongQuest
+  +stopAi(Shopkeep)
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerAdaShopkeep)
+  +lookAtEachOther(ada,shopkeep)
+  Shopkeep: "Hello there!  You look like you need something from the <color=ORANGE scale=1.33>Regem Ludos</> prize counter!"
+  +:bored(Ada)
+  Ada: "As a matter of fact I do."
+  Ada: "I am looking for a set of <color=LIGHTBLUE>Ping Pong Equipment</>.  Do you happen to have that here?"
+  +setFacing(Shopkeep, down)
+  +:shakeZ(Shopkeep)
+  Shopkeep: "<color=LIGHTBLUE cascade-letters>Ping Pong Equipment</>..."
+  +:ld(Shopkeep, leftdown)
+  Shopkeep: "<cascade-letters>........"
+  +setFacing(Shopkeep, left)
+  Shopkeep: "<cascade-letters>........"
+  +setFacing(Shopkeep, leftdown)
+  Shopkeep: "<cascade-letters>........"
+  +:question(Ada)
+  Ada: "Sir...?"
+  +:smallPause()
+  +setFacing(Shopkeep, down)
+  Shopkeep: "<cascade-letters>..."
+  +setFacing(Shopkeep, leftdown)
+  Shopkeep: "<cascade-letters>....."
+  +setFacing(Shopkeep, left)
+  Shopkeep: "<cascade-letters>........"
+  +lookAtEachOther(Ada, Shopkeep)
+  +shakeScreen(250, true)
+  +:jump(Shopkeep)
+  +:bumpX(Ada, 2)
+  +:exclaim(Ada)
+  Ada: "Ah!"
+  +:exclaim(Shopkeep)
+  Shopkeep: "I just remembered!"
+  Shopkeep: "We did have that somewhere in stock at some point."
+  Shopkeep: "It used to be a very hot commodity."
+  Shopkeep: "But all the balls and paddles were removed from this store because they kept getting stolen."
+  +:question(Ada)
+  Ada: "Stolen?"
+  Ada: "Well... do you know where I could find more?"
+  Shopkeep: "We'd have to pull it out of storage or something."
+  Ada: "Could you do that for me please?"
+  +:exclaim(Shopkeep)
+  Shopkeep: "Of course not!"
+  Shopkeep: "My job is to stand here and offer the wonderful prizes of the <color=ORANGE scale=1.33>Regem Ludos</> prize counter!"
+  +:jump(Shopkeep)
+  Shopkeep: "I wont leave my post at your humble request!"
+  Shopkeep: "You'll have to find the <color=LIGHTBLUE />Ping Pong Equipment</> elsewhere, I'm afraid."
+  Ada: "<cascade-letters>......"
+  +:ld(Ada, rightdown)
+  Ada: "Maybe <color=LIGHTRED>those boys</> playing ping pong can tell me where they got their equipment."
+  +completeQuestStep(PingPong, 1)
+  +endConversation()
+
+// Called from #floor1-Floor1PingPongGuyA
+@Floor1AtriumPingPongGuysQuest
+  +setAiState(Floor1PingPongGuyA, pingpong_interrupted, true)
+  +setAiState(Floor1PingPongGuyB, pingpong_interrupted, true)
+  +lookAtEachOther(Ada, Floor1PingPongGuyB)
+  +lookAtEachOther(Ada, Floor1PingPongGuyA)
+  +setConversation(Ada)
+  +panCameraToFitCharacters(500, false, Ada, Floor1PingPongGuyA, Floor1PingPongGuyB)
+  +?once(has_spoken_to_ping_pong_guys):{
+    +:floor1-Floor1PingPongGuysConvo()
+  }
+  +:bored(Ada)
+  +lookAtEachOther(Ada, Floor1PingPongGuyA)
+  Ada: "Excuse me.  I would like to ask you two a question."
+  +lookAtEachOther(Ada, Floor1PingPongGuyB)
+  +:shakeZ(Floor1PingPongGuyB)
+  Floor1PingPongGuyB: "Make it snappy.  We got a score to settle."
+  Ada: "That is just it, actually."
+  Ada: "I would like to know where you acquired those paddles."
+  Ada: "Did you get them from an Employee."
+  +:question(Floor1PingPongGuyB)
+  Floor1PingPongGuyB: "What are you talking about?"
+  Floor1PingPongGuyB: "These were just sitting out over here."
+  Floor1PingPongGuyB: "We picked these things up fair and square."
+  +lookAtEachOther(Ada, Floor1PingPongGuyA)
+  +:shakeZ(Floor1PingPongGuyA)
+  Floor1PingPongGuyA: "Yeah, if you want more, you should go ask an employee or something."
+  +:exhale(Ada)
+  Ada: "I have already done that, and it appears that <color=LIGHTBLUE>Ping Pong Equipment</> is more rare than you would think."
+  Ada: "How much longer you will be using those particular paddles and that particular ball."
+  +lookAtEachOther(Ada, Floor1PingPongGuyB)
+  +:exclaim(Floor1PingPongGuyB)
+  Floor1PingPongGuyB: "Don't you <italic>dare</> try to impose a time limit on this game!"
+  Floor1PingPongGuyB: "It's distracting!  You'll make me lose concentration."
+  +lookAtEachOther(Ada, Floor1PingPongGuyA)
+  Floor1PingPongGuyA: "Sorry.  We're probably gonna be using these for a while."
+  +setFacing(Floor1PingPongGuyA, leftdown)
+  +panCameraBackToPlayer(300)
+  +setAiState(Floor1PingPongGuyA, pingpong_interrupted, false)
+  +setAiState(Floor1PingPongGuyB, pingpong_interrupted, false)
+  +setAiState(Floor1PingPongGuyB, pingpong_reset, true)
+  +waitMS(100)
+  +walkToMarker(Ada, MarkerPingPongB)
+  Ada: "What am I supposed to do now?"
+  +?func(inParty, Conscience):{
+    +:utils-start-Conscience-dialogue()
+    Conscience: "You know, you're being uncharacteristically <italic>involved</> with this task."
+    Ada: "One might think this would be <italic>simple."
+    +setFacing(Conscience, leftdown)
+    Conscience: "I mean, how much do you really want to help that girl..."
+    +lookAtEachOther(Ada, Conscience)
+    Conscience: "And how much are you just angry at how <italic>inconvenient</> it has become?"
+    +:angry(Ada)
+    Ada: "Why is so difficult to find <color=LIGHTBLUE>Ping Pong Equipment</>?"
+    Ada: "I mean, they have <scale=1.1 />FOUR</> tables, and one set of paddles."
+    Ada: "<cascade-letters>Idiotic..."
+    Conscience: "Well, I guess it doesn't matter.  <scale=0.75 cascade>You'll still be helping her out anyway."
+    Conscience: "But you kinda hit a dead end now, right?"
+    +:shakeZ(Conscience)
+    Conscience: "Maybe if we keep looking around on this floor we'll find something."
+    +:utils-stop-Conscience-dialogue()
+  }
+  +?func(inParty, Anjana):{
+    +walkToCharacter(Anjana, Ada, 16, -16)
+    +setConversation2(Ada, Anjana)
+    +:leach(Ada, Anjana)
+    Anjana: "Why are you so fixated on this stupid task?"
+    +:ld(Anjana, leftdown)
+    Anjana: "You don't even know that girl."
+    Anjana: "Don't we need to go after <color=LIGHTRED>Carl-Arnold</>?"
+    Anjana: "Let her figure out how to play Ping Pong on her own."
+    +:la(Anjana, Ada)
+    +:teardrop(Ada)
+    Ada: "We do but..."
+    Ada: "I just irks me that acquiring something as simple as <color=LIGHTBLUE>Ping Pong Equipment</> is so <italic>difficult</>."
+    Ada: "I should be able to do this task without a problem."
+    Anjana: "Ah.  I see.  You have too much pride."
+    Anjana: "I understand.  We can continue.  I won't bring it up again."
+    Ada: "What?"
+    Anjana: "Don't worry about it.  I understand."
+    Anjana: "I'm sure if we wander around on this floor long enough we'll find something."
+  }
+  +completeQuestStep(PingPong, 2)
+  +endConversation()
+
+#Floor1ShadyPerson
+  step-first,?func(questStepEQ, PingPong, 3):Floor1ShadyPerson_spottedAda
+  action,?func(questStepEQ, PingPong, 4):Floor1ShadyPerson_tellAboutStorage
+  action,?func(questStepEQ, PingPong, 5):Floor1ShadyPerson_default
+@Floor1ShadyPerson_spottedAda
+  +setConversation(Ada)
+  ShadyPerson: "Hey.  Girl."
+  +:lookAroundFast(Ada)
+  +walkToOffset(ShadyPerson, 0, -64)
+  +lookAtEachOther(Ada, ShadyPerson)
+  +:shakeZ(ShadyPerson)
+  ShadyPerson: "Been hearing some <cascade-letters=40>buzz</> about you."
+  ShadyPerson: "I hear you're looking for <color=LIGHTBLUE>Ping Pong Equipment</>?"
+  Ada: "Um.  Yes, that is correct."
+  +:question(Ada)
+  Ada: "How did you know?"
+  ShadyPerson: "Word travels fast around here."
+  ShadyPerson: "I might be able to help you."
+  +:lookAroundFast(ShadyPerson)
+  ShadyPerson: "But not here.  Too many security cameras."
+  +lookAtEachOther(Ada, ShadyPerson)
+  ShadyPerson: "Meet me by the elevators."
+  ShadyPerson: "I've got info you might <cascade-letters=40>appreciate</>."
+  +none()
+  +walkToOffset(ShadyPerson, -256, 0)
+  +waitMS(500)
+  +despawnCharacter(ShadyPerson)
+  +completeQuestStep(PingPong, 3)
+  +:question(Ada)
+  Ada: "What was that about?"
+  +?func(inParty, Anjana):{
+    +:bored(Anjana)
+    Anjana: "The intrigue here never ends, does it?"
+  }
+  +endConversation()
+@Floor1ShadyPerson_tellAboutStorage
+  +lookAtEachOther(Ada, ShadyPerson)
+  +setConversation(Ada)
+  +:shakeZ(Ada)
+  Ada: "You are the one that spoke to me about the <color=LIGHTBLUE>Ping Pong Equipment</>, right?"
+  +:exclaim(ShadyPerson)
+  ShadyPerson: "Yes.  Yes."
+  +:lookAround(ShadyPerson)
+  +lookAtEachOther(Ada, ShadyPerson)
+  ShadyPerson: "We can speak freely in here."
+  ShadyPerson: "You can call me Callico."
+  Callico: "Let me start of by saying that I've never seen you around this arcade before."
+  +:question(ShadyPerson)
+  Callico: "Are you new?"
+  Ada: "I walked in the door for the first time today."
+  Callico: "Ah, I thought so."
+  +:happy(ShadyPerson)
+  Callico: "In that case, I'll give you a <color=LIGHTBLUE cascade-letters=40>freebee</>."
+  Callico: "Everybody gets one."
+  Ada: "What do you mean?"
+  Callico: "Normally I wouldn't give away this info, but..."
+  Callico: "There's actually a secret storage room on this floor."
+  +:shakeZ(ShadyPerson)
+  Callico: "It's located in the same room as the <color=ORANGE scale=1.33>Regem Ludos</> prize counter."
+  Callico: "South side of the room, 4th or 5th section from the east wall.  Knock on it and you'll get inside."
+  +:teardrop(Ada)
+  Ada: "Okay... And I can find Ping Pong equipment in there?"
+  Callico: "Probably.  It just so happens that somebody's in there that can get what you seek."
+  Callico: "Just gotta tell him the password: <color=YELLOW>ZOOFA</>."
+  Ada: "Wait.  Who exactly is this?"
+  +:wink(ShadyPerson)
+  Callico: "Just an acquaintance of mine.  He owes me a favor."
+  +:smirk(ShadyPerson)
+  Callico: "Alright, that's all you get."
+  Callico: "Maybe you'll survive longer than the other newbies I see come in here."
+  Ada: "That hat..."
+  Callico: "Yes, what about it?"
+  +:blush(Ada)
+  Ada: "Nevermind...  It looks nice, I suppose."
+  Callico: "Hehehe."
+  +completeQuestStep(PingPong, 4)
+  +endConversation()
+@Floor1ShadyPerson_default
+  +setConversation(Ada)
+  +lookAtEachOther(Ada, ShadyPerson)
+  ShadyPerson: "You already got your <color=LIGHTBLUE cascade-letters=40>freebee</>, leave me alone for now."
+  +endConversation()
+
+#Floor1East1Storage_Employee
+  step-first,?func(questStepEQ, PingPong, 5):Floor1East1Storage_Employee_questActive
+  step-first,?func(questStepLT, PingPong, 5):Floor1East1Storage_Employee_questNotActive
+  step-first,?func(questNotStarted, PingPong):Floor1East1Storage_Employee_questNotActive
+// Checks if Ada has EmployeeVest, if true, modifies quest step + 1
+  step-first,?with(RegemLudosVest):Floor1East1Storage_Employee_questActiveCheckEmployeeVest
+  action,Floor1East1Storage_Employee_default
+@Floor1East1Storage_Employee_default
+  +lookAtEachOther(Ada, Employee)
+  +setConversation(Ada)
+  +:shakeZ(Employee)
+  Employee: "Oh, hello."
+  +:question(Employee)
+  Employee: "Did you want something else?"
+  +:shakeZ(Ada)
+  Ada: "No, I do not require anything else from you."
+  +endConversation()
+@Floor1East1Storage_Employee_questNotActive
+  +setUnskippable(true)
+  +setConversation(Ada)
+  +lookAtEachOther(Ada, Employee)
+  +panCameraRelativeToPlayer(-50, 30)
+  Employee: "Oh, hello."
+  Employee: "You got a password for me?"
+  Ada: "<cascade-letters>Um......"
+  +none()
+  +waitMS(100)
+  +awaitChoice('"Password".', '"Pizza".', 'I do not have a password.')
+  Ada: "<cascade-letters>{lastChoiceText}..."
+  +?lt(lastChoiceIndex, 2):{
+    +playSound(terminal_cancel)
+    +:shakeZ(Employee)
+    Employee: "Wrong answer.  I gotta kick you outta here."
+    Employee: "How did you find this place, anyway?"
+    +none()
+    +walkToMarker(Employee, MarkerWalkEmployee)
+    +panCameraBackToPlayer()
+    +:floor1-transitionToEast1FromEast1Storage()
+    +:ld(Ada, rightup)
+    +setConversation(Ada)
+    Narrator: "On his way back he took a few Prize Tickets."
+    +modifyTickets(-5)
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +:shakeZ(Employee)
+    Employee: "Well, at least you're honest."
+    +:question(Employee)
+    Employee: "How did you find this place, anyway?"
+    +:smirk(Employee)
+    Employee: "I gotta kick you out anyway, though."
+    +panCameraBackToPlayer()
+    +:floor1-transitionToEast1FromEast1Storage()
+  }
+  +endConversation()
+@Floor1East1Storage_Employee_questActive
+  +setConversation(Ada)
+  +lookAtEachOther(Ada, Employee)
+  +panCameraRelativeToPlayer(-50, 50)
+  Employee: "Oh, hello."
+  Employee: "You got a password for me?"
+  +awaitChoice('"Fooza".', '"Blarg".', '"Zoofa".', 'I do not have a password.')
+  Ada: "<cascade-letters>{lastChoiceText}..."
+  +?lt(lastChoiceIndex, 2):{
+    +playSound(terminal_cancel)
+    +:shakeZ(Employee)
+    Employee: "Wrong answer.  I gotta kick you outta here."
+    +:smirk(Employee)
+    Employee: "Gotta take a little tax too for my time."
+    +walkToMarker(Employee, MarkerWalkEmployee)
+    +panCameraBackToPlayer()
+    +:floor1-transitionToEast1FromEast1Storage()
+    +setConversation(Ada)
+    +modifyTickets(-5)
+  }
+  +?eq(lastChoiceIndex, 2):{
+    +playSound(terminal_beep)
+    +lookAtEachOther(Ada, Employee)
+    Employee: "Yeah, that's right.  You can come in."
+    Ada: "Who are you?  An employee?"
+    Employee: "Yeah.  Just chillin' back here for now."
+    Employee: "Sometimes you lose a couple of bets, sometimes you're down on your luck.  Somebody's gotta do storage duty."
+    +:shakeZ(Ada)
+    +setFacing(Ada, left)
+    Ada: "What is this place?"
+    +:shakeZ(Employee)
+    Employee: "Eh it's just a simple room."
+    +:ld(Employee, leftdown)
+    Employee: "<scale=0.75 />With an alternate entrance."
+    +lookAtEachOther(Ada, Employee)
+    Employee: "Not that important of a place, honestly."
+    Employee: "Maybe sometimes people come in here to buy things.  Maybe they just want a break.  It really depends on how you heard about it."
+    +lookAtEachOther(Ada, Employee)
+    +:question(Employee)
+    Employee: "Anyway you said you wanted something?"
+    +:grumpy(Ada)
+    Ada: "<cascade-letters>......"
+    +:shakeZ(Ada)
+    Ada: "Yes."
+    Ada: "I require <color=LIGHTBLUE>Ping Pong Equipment</>.  Do you have that in here?"
+    +:shakeZ(Employee)
+    +:smirk(Employee)
+    Employee: "Honey, this is back room storage.  I could find <italic>almost anything</> you want.  Provided of course, that you give me enough compensation."
+    +:teardrop(Ada)
+    Ada: "<cascade-letters>Okay,</> what do you want?"
+    +setFacing(Employee, down)
+    +:shakeZ(Employee)
+    Employee: "Well, you might have noticed I'm not wearing the officially-sanctioned <color=LIGHTBLUE>Regem Ludos Vest</>."
+    +lookAtEachOther(Ada, Employee)
+    +:smallPause()
+    Employee: "I kinda lost it this morning. It got stuck in the elevator shaft somewhere.  Anyway I'm sure it's gone."
+    Employee: "Problem is, they don't like it when an employee is walkin' around the floor without that particular vest."
+    Ada: "When you say <italic>they</> who are you referring to?"
+    Employee: "You know. <italic cascade-letters> The bosses</>.  The powers that be.  The OWNERS."
+    Employee: "They come around from time to time and you better be sure to be on your best behavior around them, or else."
+    +:sad(Employee)
+    Employee: "The last guy who lost his vest wasn't as lucky as me.  Us employees <italic>still</> don't know what happened to him."
+    Ada: "<cascade-letters>That is... slightly disturbing."
+    +:shakeZ(Ada)
+    Ada: "<scale=0.75 />Assuming your're joking around. </>You want me to find a vest for you?"
+    Ada: "Where am I supposed to acquire this <color=LIGHTBLUE>employee vest</>?"
+    +:shakeZ(Employee)
+    Employee: "I mean, I wasn't really gonna ask how you got one.  If you had to 'permanently borrow' one, then that's your business."
+    Employee: "But if you're not that kind of girl, then you might find it more difficult."
+    Ada: "I can assure you, I am not <italic>that kind of girl."
+    +:sigh(Employee)
+    Employee: "Well, I bet somebody out there is sellin' it."
+    Employee: "Just keep lookin' around, I'm sure you'll find it somewhere."
+    Employee: "Maybe you should ask whoever told you about this room?"
+    +:teardrop(Ada)
+    Ada: "Look, I do not really have <italic>time</> for this."
+    Ada: "Somebody named <color=YELLOW>Callico</> told me about this place.  She said you owe here a favor?"
+    +:smirk(Employee)
+    Employee: "This <italic delay=100>is</> the favor.  The fact that I let you in should have clued you."
+    +:flat(Ada)
+    Ada: "Can I just have the <color=LIGHTBLUE>Ping Pong Equipment</> and then bring you a vest when I come back?"
+    Employee: "You mean, <italic>if</> you come back."
+    Employee: "Listen, hun, I wasn't born yesterday.  You look like the type to fleece a toddler."
+    +:angry(Ada)
+    Ada: "Excuse me!?"
+    +stopSkipCutscene()
+    Employee: "Just do what I ask and I'll get you your ping pong stuff.  Gotta build some trust if you expect to be trusted, you know?"
+    Employee: "That's my <cascade-letters>deal</>, take it or leave it."
+    +:angry(Ada)
+    Ada: "If anyone is doing the <italic>fleecing</> here, it is you."
+    +:happy(Employee)
+    Employee: "Run along now.  You said yourself that you are in a hurry."
+    +setFacing(Ada, rightup)
+    +:grumpy(Ada)
+    +panCameraBackToPlayer()
+    +completeQuestStep(PingPong, 5)
+  }
+  +?eq(lastChoiceIndex, 3):{
+    +:shakeZ(Employee)
+    Employee: "Well, at least you're honest."
+    +:smirk(Employee)
+    Employee: "I gotta kick you out anyway, though."
+    +panCameraBackToPlayer()
+    +:floor1-transitionToEast1FromEast1Storage()
+  }
+  +endConversation()
+@Floor1East1Storage_Employee_questActiveCheckEmployeeVest
+  +completeQuestStep(PingPong, 8)
+  +lookAtEachOther(Ada, Employee)
+  +setConversation(Ada)
+  +:shakeZ(Employee)
+  Employee: "Oh, hello."
+  +none()
+  +panCameraRelativeToPlayer(-50, 50)
+  +:question(Employee)
+  Employee: "Did you get an <color=LIGHTBLUE>Employee Vest</> for me?"
+  +:shakeZ(Ada)
+  Ada: "As a matter of fact, yes."
+  +walkToCharacter(Ada, Employee, 0, -16)
+  +:bumpY(Ada, 1)
+  +removeItem(RegemLudosVest)
+  +walkToMarker(Ada, MarkerWalkInside)
+  +:ld(Ada, leftdown)
+  +walkPartyToFormation()
+  +:shakeZ(Employee)
+  +:ld(Employee, down)
+  Employee: "Ah.  Yes, this is indeed the real deal.  Nice work."
+  +:none()
+  +walkToOffset(Employee, -16, 0)
+  +:bumpX(Employee, -1)
+  Employee: "Anyway, <italic>a deal is a deal</>, as my old boss always said."
+  Employee: "I asked around and managed to get some <color=LIGHTBLUE>Ping Pong Equipment</>.  I've got it right here."
+  +walkToOffset(Employee, 16, 0)
+  +walkToCharacter(Employee, Ada, 0, 16)
+  +:bumpY(Employee, -1)
+  +acquireQuestItem(PingPongEquipment)
+  +walkToOffset(Employee, 0, 24)
+  +:ld(Employee, rightup)
+  +:happy(Employee)
+  Employee: "It was a pleasure doing <italic>business</> with you."
+  +?func(inParty, Skye):{
+    +:shakeZ(Skye)
+    Skye: "Hey, what's down the stairs behind you?"
+    +:ld(Employee, leftdown)
+    Employee: "Back there?"
+    +:ld(Employee, rightup)
+    Employee: "Oh you know.  Deeper into the secret headquarters and all that."
+    Ada: "Secret headquarters?  What does that mean?"
+    Employee: "I don't really feel like telling you right now.  Later maybe, if you've got the right password."
+  }
+  +none()
+  +panCameraBackToPlayer()
+  +endConversation()
+
+#Floor1East1Storage_Employee_preventStealing
+  action,this
+@this
+  +stopAi(Employee)
+  +setConversation(Ada)
+  +waitMS(100)
+  +playSound(aggro_alert)
+  +:jump(Ada, true)
+  +panCameraToFitCharacters(500, false, Ada, Employee)
+  +lookAtEachOther(Ada, Employee)
+  +:shakeZ(Employee)
+  +:smirk(Employee)
+  Employee: "Careful there hun, wouldn't want to get caught stealing anything, would you?"
+  +panCameraBackToPlayer()
+  +resetAi(Employee)
+  +endConversation()
+
+#Floor1East1Storage_Employee_preventDownStairs
+  step,this
+@this
+  +stopAi(Employee)
+  +setConversation(Ada)
+  +waitMS(100)
+  +playSound(aggro_alert)
+  +:jump(Ada, true)
+  +panCameraToFitCharacters(500, false, Ada, Employee)
+  +lookAtEachOther(Ada, Employee)
+  +:shakeZ(Employee)
+  +:smirk(Employee)
+  Employee: "Hey, I didn't give you permission to go down there!"
+  +panCameraBackToPlayer()
+  +resetAi(Employee)
+  +walkToOffset(Ada, 0, -8)
+  +endConversation()
+
+#floor2South_MerchantryGirlPingPong
+  action,?all(once('e5e8d3da'), func(questNotCompleted, PingPong)):floor2South_MerchantryGirlPingPong
+  action,floor2South_MerchantryGirlPingPong_1
+  load,floor2South_MerchantryGirlPingPong_load
+@floor2South_MerchantryGirlPingPong_load
+  +?any(func(questCompleted, PingPong), func(questStepLT, PingPong, 6)), func(questStepGT, PingPong, 7))):{
+    +despawnCharacter(floor2South_MerchantryGirl1)
+    +despawnCharacter(floor2South_MerchantryGirl2)
+  }
+@floor2South_MerchantryGirlPingPong
+  +stopAi(floor2South_MerchantryGirl1)
+  +stopAi(floor2South_MerchantryGirl2)
+  +:leach(Ada, floor2South_MerchantryGirl1)
+  +:la(floor2South_MerchantryGirl2, Ada)
+  +walkPartyToFormation()
+  +setConversation()
+  floor2South_MerchantryGirl1: "Well, well, well.  Fresh meat approaches."
+  +:leach(floor2South_MerchantryGirl2, floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl2: "Ug!  That phrase is so gross."
+  +:teardrop(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "Yeah, it sounded better in my head."
+  +:leach(Ada, floor2South_MerchantryGirl1)
+  +:la(floor2South_MerchantryGirl2, Ada)
+  floor2South_MerchantryGirl1: "Anyway, what can we do for a lovey young lady like yourself?"
+  Ada: "I cannot help but notice you both are wearing some distinctive hats."
+  floor2South_MerchantryGirl1: "If you're part of the <italic>club</> then you might get one."
+  floor2South_MerchantryGirl2: "But don't expect an easy entry, of course."
+  Ada: "Somebody approached me earlier wearing the same thing."
+  Ada: "Her name was <color=YELLOW>Callico</>."
+  Ada: "She offered to help me find some <color=LIGHTBLUE>Ping Pong Equipment</>."
+  +:leach(floor2South_MerchantryGirl2, floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl2: "<color=YELLOW>Callico</>?  Don't tell me that's... the boss?"
+  +:heart(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "She always did like the newbies."
+  floor2South_MerchantryGirl2: "Especially the <italic>earnest</> ones."
+  +:yawn(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "If we help her out, maybe we can call it a favor."
+  floor2South_MerchantryGirl2: "<shake>Definitely</>!"
+  floor2South_MerchantryGirl1: "I'm kinda bored anyway."
+  +:leach(Ada, floor2South_MerchantryGirl1)
+  +:la(floor2South_MerchantryGirl2, Ada)
+  floor2South_MerchantryGirl1: "So what did you need? <color=LIGHTBLUE>Ping Pong Equipment</>?  Did she tell you about the ZOOFA room?"
+  +:flat(Ada)
+  Ada: "...Yes.  The rather rude man down there told me he would not get anything unless I found him an 'officially-sanctioned <color=LIGHTBLUE>Regem Ludos Vest</>'?"
+  +:surprised(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "Whoah?  He must have been feeling generous.  Usually he asks newbies for a lot more."
+  floor2South_MerchantryGirl2: "Or he sees if they are dumb enough to take his spot while he trolls around the atrium."
+  Ada: "I see..."
+  Ada: "Well do you have any idea where I can get a <color=LIGHTBLUE>Regem Ludos Vest</>?"
+  floor2South_MerchantryGirl1: "Um... let me think."
+  +:lightbulb(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "I know they keep extra uniforms in one of the lockers on this floor."
+  floor2South_MerchantryGirl2: "That's a great idea!"
+  Ada: "So.  You are suggesting that I rummage through every locker on this floor in search of a <color=LIGHTBLUE>Regem Ludos Vest</>?"
+  +:happy(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "I'm not saying to break into the locker or anything.  One of them has a bunch of spare uniforms in it."
+  floor2South_MerchantryGirl1: "I just can't remember which one..."
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    Anjana: "There are an awful lot of lockers on this floor..."
+    +:la(Anjana, floor2South_MerchantryGirl1)
+  }
+  Ada: "That might take a while."
+  +:shakeZ(floor2South_MerchantryGirl1)
+  floor2South_MerchantryGirl1: "Advice is free; work isn't.  It's not like we're gonna search for you."
+  floor2South_MerchantryGirl2: "I'm sure if you start now, you'll find it in no time!"
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    Anjana: "This is such a waste of time."
+  }
+  +?func(inParty, Skye):{
+    +:la(Anjana, Ada)
+    Skye: "Does that vest give you any bonuses in battle?"
+    Skye: "It might be worth keeping if we find it."
+  }
+  +completeQuestStep(PingPong, 6)
+  +endConversation()
+  +resetAi(floor2South_MerchantryGirl1)
+  +resetAi(floor2South_MerchantryGirl2)
+
+@floor2South_MerchantryGirlPingPong_1
+  +stopAi(floor2South_MerchantryGirl1)
+  +stopAi(floor2South_MerchantryGirl2)
+  +:leach(Ada, floor2South_MerchantryGirl1)
+  +:la(floor2South_MerchantryGirl2, Ada)
+  +setConversation()
+  floor2South_MerchantryGirl1: "Any luck finding that <color=LIGHTBLUE>Regem Ludos Vest</>?"
+  Ada: "No, not yet."
+  floor2South_MerchantryGirl2: "Don't get discouraged.  I'm sure you'll find it soon."
+  +endConversation()
+  +resetAi(floor2South_MerchantryGirl1)
+  +resetAi(floor2South_MerchantryGirl2)

@@ -1,0 +1,90 @@
+#quest_OEESEG_machineCaf8teria
+  action,this
+@this
+  +setUnskippableConversation(Ada)
+  +walkToMarker(Ada, MarkerOEESEGMachine)
+  +setFacing(Ada, rightup)
+// +setCharacterText('');
+  +setStorage(vars.OEESEG.currentMachine, 'caf8teria')
+  +setStorage(quest.OEESEG.firstMachineEncounterCaf8teria)
+  +runArcadeCabinetGame(OEESEG)
+  +setAtMarker(Ada, MarkerOEESEGMachine)
+  +endConversation()
+
+
+@quest_OEESEG_firstMachineEncounter
+  // +setUnskippable(true)
+  +setConversation(Ada)
+  +:w(500);
+  Ada: "This machine..."
+  Ada: "It does not have a place to insert any tokens.  How am I supposed to use it?"
+  +?func(inParty, Anjana):{
+    Anjana: "I've never seen this before.  I wonder if they recently put it over here...?"
+  }
+  +endConversation()
+
+#quest_OEESEG_JesseAssist
+  // If the OEESEG machine has been encountered, and Jesse has not remarked about it to Ada
+  step-first,?all(is(quest.OEESEG.firstMachineEncounterCaf8teria), once(quest_OEESEG_JesseAssist)):this
+@quest_OEESEG_JesseAssist
+  +setConversation(Ada)
+  +setAnimationState(Jesse, idle)
+  Jesse: "Hey, Ada!"
+  +?isnot(vars.hasSpokenToJesseFirstTime):{
+    +:ld(Ada, leftup)
+    +:flat(Ada)
+    Ada: "Fancy seeing you in a place like this."
+  }
+  +none()
+  +panCameraToFitCharacters(800, false, Jesse, Ada)
+  +:shakeZ(Jesse)
+  Jesse: "Did you just try to use that <italic color=LIGHTPURPLE>strange machine</> over there?"
+  +none()
+  +walkToMarker(Ada, MarkerJesseAssist)
+  +walkPartyToFormation(true)
+  +panCameraToFitCharacters(500, false, Jesse, Ada)
+  +endConversation(100, true)
+  +setConversation2(Jesse, Ada)
+  +:teardrop(Ada)
+  Ada: "Yes.  I did.  Do you know what it is?"
+  Jesse: "No, but I watched an <color=LIGHTGREEN>Employee</> walk up to it."
+  Jesse: "They had a small <color=LIGHTBLUE>figurine</> in their hands.  It looked like a priest or something.  I didn't really get a good look at it."
+  Jesse: "They placed it on the machine, started playing the game, and then they they just sort of... disappeared."
+  +:question(Ada)
+  Ada: "Disappeared?"
+  Jesse: "Yeah.  I don't know how else to describe it."
+  +?func(inParty, Anjana):{
+    +replaceConversationMember2(Anjana, right)
+    Anjana: "Maybe they teleported to an instance?"
+  }
+  +:ld(Jesse, down)
+  +:teardrop(Jesse)
+  Jesse: "...not sure what that means.  I don't really know a lot about this place, to be honest."
+  +:la(Jesse, Ada)
+  Jesse: "But the <color=LIGHTBLUE>figurine</> definitely has something to do with it."
+  +?func(inParty, Skye):{
+    +replaceConversationMember2(Skye, right)
+    Skye: "I saw something like that in a vending machine outside the <color=PURPLE>Caf8teria</>."
+  }
+  +replaceConversationMember2(Ada, right)
+  Ada: "That sounds suspiciously like a 'quest'."
+  +startQuest(OEESEG_Figurines)
+  +:happy(Jesse)
+  Jesse: "Sounds fun!  I've always loved a good mystery."
+  +?is(vars.hasSpokenToJesseFirstTime):{
+    Jesse: "If I see somebody else walk over there, I'll ask them about it."
+    +setAnimation(Jesse, characters/jesse_phone_idle)
+    +setStorage(vars.hasSpokenToJesseFirstTime, true)
+    +panCameraBackToPlayer()
+    +endConversation()
+    +sbreak()
+  }
+  +?isnot(vars.hasSpokenToJesseFirstTime):{
+    +stopSkipCutscene()
+    +endConversation(100)
+    +setConversation2(Jesse, Ada)
+    Ada: "So... what exactly are you doing here?"
+    +:floor2-jesse-cafeteria-ada1-startQuest()
+    +panCameraBackToPlayer()
+  }
+  +endConversation()

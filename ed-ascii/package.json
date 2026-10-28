@@ -1,0 +1,10 @@
+{
+  "name": "ed-ascii",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A small browser-based ANSI art editor",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}

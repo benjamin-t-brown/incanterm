@@ -1,0 +1,440 @@
+
+@floor0entrance
+  +?once('af197dca'):{
+    +fadeOut(1)
+  }
+#floor0_load
+  load,this
+@this
+  +?once('9574c2e5'):{
+    +setPartyWalkBehindLeaderEnabled(false)
+    +:floor0_enterRoom()
+    // +:floor0_prePhone()
+  }
+
+#floor0_employeeTalk
+  action,?once('0db7c83e'):floor0_pre1
+  action,this
+@this
+  +setConversation(Ada)
+  +:leach(Employee, Ada)
+  Employee: "Have fun!"
+  +endConversation()
+
+#floor0_ConscienceTalk
+  action,this
+@this
+  +setConversation(Conscience)
+  +:leach(Conscience, Ada)
+  Conscience: "Hurry up and talk to the employee lady at the front desk!"
+  +endConversation()
+
+@floor0_enterRoom
+  +setAtMarker(Conscience, MarkerConscience)
+  +setAtMarker(Ada, MarkerAdaStart)
+  +:face(Ada, rightup)
+  +setWallCollisionEnabled(false)
+  +setAnimation(Employee, 'characters/employee-entrance_bored_phone')
+  +panCameraRelativeToPlayer(75, -75, 1)
+  +panCameraRelativeToCurrentPosition(0, 25, 5000, true)
+  +setSpeed(Ada, 0.5)
+  +:openDoor(MarkerDoor0, WOOD_DOOR_BCK)
+  +setConversationGroup(Ada, Employee)
+  Ada: "Am I... in the right place?"
+  +none()
+  +fadeIn(3000, true)
+  +playMusic(music_outside_arcade)
+  +:w(1000)
+  +walkToOffset(Ada, 0, -24)
+  +:w(200)
+  +walkToOffset(Ada, 0, -32)
+  +:w(500)
+  +playSound(locked)
+  +:closeDoor(MarkerDoor0, WOOD_DOOR_BCK)
+  +:question(Ada)
+  Ada: "Um.  Excuse me?"
+  +:none()
+  +:w(200)
+  +setAnimation(Employee, 'characters/employee-entrance_bored_look')
+  +:exclaim(Employee)
+  +:shakeZ(Employee)
+  Employee: "Huh?"
+  Employee: "Oh.  Sorry.  Didn't see you there."
+  +setAnimation(Employee, 'characters/employee-entrance_bored_phone_away')
+  +:w(500)
+  +setAnimationState('Employee', 'idle')
+  +walkToOffset(Employee, 12, 12)
+  +:la(Employee, Ada)
+  +walkToOffset(Ada, 0, -12)
+  +panCameraToFitCharacters(1000, false, Ada, Employee)
+  +:leach(Employee, Ada)
+  +:shakeZ(Ada)
+  Ada: "I was told this was an <italic>Arcade</>?"
+  Employee: "Yep. The <color=LIGHTBLUE>Regem Ludos Arcade</>."
+  +:teardrop(Ada)
+  +:ld(Ada, leftup)
+  +:w(300)
+  +:ld(Ada, rightup)
+  +:w(300)
+  +:ld(Ada, right)
+  Ada: "But it is just a room...?"
+  +:leach(Ada, Employee)
+  Employee: "The <italic>arcade</> is actually a <color=PURPLE>Revirtualis</>.  You know, like virtual reality?"
+  Ada: "<cascade-letters>Oh....\nI see."
+  +walkToOffset(Ada, 6, 6)
+  +:angry(Ada)
+  +endConversation(100)
+  +setConversation2('', Ada)
+  Ada: "That idiot!  He neglected to mention that!"
+  +:none()
+  +:ld(Ada, leftdown)
+  +:shakeZ(Ada)
+  +:w(1000)
+  Ada: "Of course he did it on purpose!"
+  Ada: "You know <color=YELLOW>Father</> does not want us cavorting about some random <color=PURPLE>Revirtualis</>!"
+  +:none()
+  +:w(2000)
+  +:serious(Ada)
+  Ada: "I would <shake>never</> have agreed to come if I had known about this."
+  +endConversation(100)
+  +setConversation(Ada)
+  +:shakeZ(Employee)
+  Employee: "Uh... I'm sorry?  Are you talking to me?"
+  +:angry(Ada)
+  +:ld(Ada, down)
+  +:ld(Ada, right)
+  +:la(Ada, Employee)
+  Ada: "No.  I am speaking with <color=YELLOW>Conscience</>.  Please do not interrupt."
+  +none()
+  +:ld(Ada, right)
+  +:ld(Ada, leftdown)
+  +endConversation(100)
+  +setConversation2('', Ada)
+  +:w(1000)
+  Ada: "No, I am not planning to leave... I said I would come."
+  Ada: "But I have a bad feeling about this."
+  +:none()
+  +:w(1000)
+  Ada: "<cascade-letters>Fine..."
+  +none()
+  +endConversation(100)
+  +setConversationGroup(Ada, Employee)
+  +walkToOffset(Ada, -8, -8)
+  +:leach(Ada, Employee)
+  +panCameraToFitCharacters(500, false, Ada, Employee)
+  +:shakeZ(Ada)
+  Ada: "Very well, how do I proceed?"
+  +:ld(Employee, down)
+  Employee: "<cascade-letters>Ookaay...."
+  // +:la(Employee, Ada)
+  // Employee: "I'm going to assume you are new here?"
+  // Ada: "Yes."
+  +:sigh(Employee)
+  +walkToOffset(Employee, 6, 0)
+  +:leach(Employee, Ada)
+  Employee: "Are you a student?  Let me see your ID.  I can get you set up."
+  // Ada: "Yes, I am."
+  // Employee: "Let me see your ID."
+  // +:shakeZ(Ada)
+  // Ada: "Why...?"
+  // Employee: "Students get a discount on membership."
+  // Ada: "I do not need a membership, I am just meeting someone inside."
+  // Employee: "It's also useful for registration."
+  Ada: "<italic>Okay</>."
+  +none()
+  +setSpeed(Ada, 0.75)
+  +walkToOffset(Ada, 16, -4)
+  +:leach(Ada, Employee)
+  +playSound(pop)
+  +:bumpY(Ada, -2, true)
+  +:bumpY(Employee, 2)
+  +walkToOffset(Ada, -16, 4)
+  +:la(Ada, Employee)
+  Employee: "Let's see..."
+  +:ld(Employee, down)
+  Employee: "<cascade-letters>Huh... </>This is an ID for <color=PURPLE>Erran Valley High School</>."
+  +:leach(Employee, Ada)
+  Ada: "Yes, I am a student there."
+  +:ld(Employee, down)
+  +:smirk(Employee)
+  Employee: "Another one of you, huh?  I guess I shouldn't be surprised.  You're probably used to the <color=PURPLE>Revirtualis</> more than most."
+  Ada: "I suppose so."
+  +:la(Employee, Ada)
+  Employee: "Let me get you logged in."
+  +none()
+  +walkToOffset(Employee, 8, 2)
+  +:ld(Employee, leftdown)
+  Employee: "I just need to type in your name and id number..."
+  +playSound(keyboard)
+  +:bumpY(Employee, 1)
+  +playSound(keyboard)
+  +:bumpY(Employee, 1)
+  +:w(500)
+  +playSound(keyboard)
+  +:bumpY(Employee, 1)
+  +:question(Employee)
+  Employee: "Hmm.  'Adalais Eldridge'?  Is that right?"
+  Ada: "<italic>Ada</>, if you please."
+  Employee: "'Eldridge' as in the famous AI guy <color=ORANGE>Dalton Eldridge</>?  Any relation?"
+  +:teardrop(Ada)
+  +:ld(Ada, rightdown)
+  Ada: "Actually, yes. He is my father."
+  +:leach(Employee, Ada)
+  +:shakeZ(Employee)
+  Employee: "Aha!  I knew he had a daughter that goes to <color=PURPLE>Erran Valley High School</>.  It makes sense you would come here."
+  +:smirk(Employee)
+  Employee: "Come to check out our tech?  To see if it lives up to your dad's expectations?"
+  +:ld(Ada, rightdown)
+  Ada: "<cascade-letters>......"
+  +:la(Ada, Employee)
+  Ada: "I am meeting an... acquaintance of mine."
+  Employee: "<cascade-letters=50>Right."
+  Employee: "You can have your ID back."
+  +walkToOffset(Ada, 16, -4)
+  +:leach(Ada, Employee)
+  +playSound(pop)
+  +:bumpY(Employee, 2)
+  +:bumpY(Ada, -2, true)
+  +walkToOffset(Ada, 0, 8)
+  +:leach(Ada, Employee)
+  Ada: "<cascade-letters>...Thank you."
+  +setSpeed(Ada)
+  +:ld(Employee, rightdown)
+  Employee: "Go ahead and stand over on that tile over there."
+  +none()
+  +:ld(Employee, leftdown)
+  +walkToMarker(Ada, MarkerVRLanding, 0, 32)
+  +walkToMarker(Ada, MarkerVRLanding)
+  +panCameraToFitCharacters(500, false, Ada, Employee)
+  +:leach(Ada, Employee)
+  +:shakeZ(Employee)
+  Employee: "Alright, since you're from <color=PURPLE>Erran Valley High School</>, you probably already know the drill."
+  Employee: "It's just like the <color=PURPLE>Revirtualis</> you use at school.  So just stand still and I'll beam you in."
+  Employee: "Oh and we've been having a few issues with some of the <italic>monsters</> lately, so, you know, just try to be a little careful."
+  // Employee: "But just to reiterate, when I beam you in, try to stay still and don't move around too much."
+  // +:ld(Employee, rightdown)
+  // Employee: "There'll be somebody in there who can explain how everything works in the <color=PURPLE>Arcade</>."
+  // +:ld(Employee, leftdown)
+  // Employee: "You know: how to earn tickets, how to ascend floors, and of course: <color=LIGHTRED>how to battle monsters</>."
+  +:jump(Ada)
+  +:surprised(Ada)
+  Ada: "Wait...<cascade=100> What did you say?"
+  +:ld(Ada, down)
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters=50 scale=1.25 color=LIGHTRED>MONSTERS</>?"
+  // // +stopSkipCutscene()
+  // +:shakeZ(Ada)
+  Ada: "<cascade-letters=25 scale=1.15>Ijustneedtomeetsomebodyinthere!"
+  +:shakeZ(Employee)
+  Employee: "Have fun!!"
+  +none()
+  +stopMusic()
+  +:ld(Employee, leftdown);
+  +playSound(terminal_beep)
+  +:bumpY(Employee, 1)
+  +playSound(wand_attack)
+  +panCameraBackToPlayer(300)
+  +setUnskippable(true)
+  +setConversation(Ada)
+  +despawnCharacter(Conscience)
+  +playSound(skye_kick_vending_machine)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_PHONE_RIGHT_PERSON, MarkerMachine)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_FLASH, MarkerMachine)
+  +:utils-transition-to-vr-fade-out()
+  +waitMS(1500)
+  +setConversation(Ada)
+  +playSound(log_warn)
+  LOG: "<cascade-letters=10 color=LIGHTGREY>[TRACE] Revirtualis Connecter start - v1663794735481 <cascade-letters=10 color=YELLOW>\n[WARN] Deprecated input method detected.</> <cascade-letters=10 color=YELLOW>\nEntering compatibility mode... <cascade-letters=10 color=YELLOW>\n[WARN] Some features of this program may not </> <cascade-letters=10 color=YELLOW>\nfunction properly. See manual W3231."
+  +none()
+  +setConversationWithoutBars(Ada)
+  +waitMS(1500)
+  +stopSkipCutscene()
+  // +:utils-transition-to-vr-fade-in(floor1AtriumPre, MarkerPortal, false)
+  +playSound('vr_portal_landed')
+  +changeRoom(floor1AtriumPre, MarkerPortal)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, 'Ada', 'normal')
+  +despawnCharacter('Conscience')
+  +fadeIn()
+//wait for the spawn particles to finish
+  +waitMS(300)
+  +setAnimationState('Ada', 'idle')
+  +enableAnimationSounds()
+  // MarkerPortal
+  +setUnskippable(false)
+  +setAnimationState('Ada', 'idle')
+  +setWallCollisionEnabled(true)
+  // +setPartyWalkBehindLeaderEnabled(true)
+  // +setSpeed(Ada)
+  +:floor0_loadingRoom()
+
+@floor0_phone_right
+  +none()
+  +playSound([ARG0])
+  +spawnParticleAtMarker('EFFECT_TEMPLATE_PHONE_RIGHT_PERSON', MarkerTerminal, 'normal')
+  +waitMS(1000)
+@floor0_prePhone_ringParticleLoop
+  +spawnParticleAtMarker('EFFECT_TEMPLATE_RING', MarkerTerminal, 'weighted')
+  +waitMS(200)
+@floor0_loadingRoom
+  +:lockCamera()
+  +changePropAnim(PropTerminal, 'animated-props/animated_terminals_green_down')
+  +endConversation(100)
+  // +setConversation2('Conscience', 'Ada')
+  +setConversation('Ada')
+  +setAnimation(ada, ada_headache)
+  Ada: "...That is always so unpleasant."
+  +none()
+  +panCameraRelativeToPlayer(-32, 0)
+  +spawnParticleAtCharacter('EFFECT_TEMPLATE_CONSCIENCE_SPAWN_FIRST', 'Ada', 'normal', -32, 0)
+  // +:w(3300)
+  +loopExpr("+playSound('conscience_appear');\n+:w(275)", 10)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  // +playSound('conscience_appear');
+  // +:w(550)
+  +:w(100)
+  +spawnCharacterAtCharacter('Conscience', 'Ada', -16, 16)
+  +endConversation(100)
+  +setConversation2('Conscience', 'Ada')
+  +:shakeZ(Conscience)
+  Conscience: "Whoah!  That was kind of intense."
+  +none()
+  +callScript('utils-character-look-around', 'Conscience')
+  Conscience: "Where are we?  Is this some sort of <italic>loading</> room?"
+  +:la(Conscience, Ada)
+  +:question(Conscience)
+  Conscience: "What's the matter?  Are you okay?"
+  +:smallPause()
+  +setAnimationState(Ada, idle)
+  +:smallPause()
+  +:shakeZ(Ada)
+  Ada: "I am fine..."
+  +:smallPause()
+  +:la(Ada, Conscience)
+  Ada: "Entering a foreign <color=LIGHTBLUE>Revirtualis</> can be... straining for me."
+  Conscience: "I'm sorry."
+  +:ld(Conscience, leftdown)
+  +:sad(Conscience)
+  Conscience: "<color=LIGHTGREY />Is that my fault?"
+  +:shakeZ(Ada)
+  Ada: "Of course not!  Like I said.  I am fine."
+  +:leach(Ada, Conscience)
+  Ada: "Now, where are we?"
+  +none()
+  +:w(500)
+  +playSound('phone_ring')
+  +:ld(Ada, up)
+  +:ld(Conscience, up)
+  +loop(floor0_prePhone_ringParticleLoop, 6)
+  Narrator: "<cascade-letters=50>Incoming call..."
+  +:none()
+  +panCameraBackToPlayer(300)
+  +panCameraRelativeToPlayer(0, 0, 33, true)
+  +:w(500)
+  +walkToMarker(Ada, MarkerTerminal, 24, 24)
+  +:w(500)
+  // +:bumpZ(Ada, -2)
+  +playSound('phone_beep')
+  +endConversation(100)
+  +setConversation('Ada')
+  Ada: "Hello?"
+  +:floor0_phone_right(phone_voice1)
+  Voice On Phone: "I see you've arrived in one piece."
+  Ada: "Is that you, <color=LIGHTRED>Carl-Arnold</>?"
+  +:angry(Ada)
+  Ada: "Why didn't you tell me the <italic>nature</> of this place?"
+  +:floor0_phone_right(phone_voice1)
+  Voice On Phone: "Because I knew you wouldn't have come if I did."
+  Ada: "<cascade-letters>......"
+  Voice On Phone: "I want to show you something."
+  Voice On Phone: "This place is so much more than an <color=LIGHTPURPLE>arcade</>.  It'll be quite <italic>captivating</> for you, I'm sure."
+  +:question(Ada)
+  Ada: "Is that so?"
+  Ada: "How long is this going to take?  I have better things to do than trying to find you in here."
+  +:floor0_phone_right(phone_voice1)
+  Voice on Phone: "Oh, don't worry about that."
+  Voice on Phone: "You brought your... <color=YELLOW>interesting friend</> with you, right?"
+  +:leach(Ada, Conscience)
+  +:shakeZ(Ada)
+  Ada: "Of course.  She is always with me."
+  +:ld(Ada, up)
+  +:floor0_phone_right(phone_voice1)
+  Voice on Phone: "Good!  Very good."
+  Voice on Phone: "I'm on the <color=YELLOW>SECOND</> floor. Come meet me up here."
+  Voice on Phone: "Like I told you; I have a special surprise for you."
+  +:floor0_phone_right(phone_voice2)
+  Voice on Phone: "<cascade-letters>Quite SPECIAL indeed."
+  Voice on Phone: "Hehehe."
+  +setConversationSpeaker('none')
+  +waitMS(500)
+  +playSound('phone_beep_off')
+  +waitMS(1000)
+  +:flat(Ada)
+  Ada: "<cascade-letters>......"
+  +none()
+  +:ld(Ada, down)
+  +setAnimationState('Ada', 'idle')
+  // +walkToMarker('Conscience', MarkerConscience2, 0, 0, true)
+  +waitMS(250)
+  Ada: "He is so <italic>difficult</>."
+  +endConversation(100)
+  +setConversation2('Conscience', 'Ada')
+  +:question(Conscience)
+  Conscience: "Was that <color=LIGHTRED>Carl-Arnold</>?  He's really excited for this, isn't he?"
+  +:leach(Conscience, Ada)
+  Ada: "Yes he is.  He seems quite interested in you actually."
+  +:ld(Conscience, down)
+  +:heart(Conscience)
+  Conscience: "Of course he is!\nI'm <italic cascade-letters>irresistible</>."
+  +:leach(Ada, Conscience)
+  Ada: "Do not get carried away.  I suppose he just wants to meet you."
+  Ada: "<scale=0.75>Although why here?"
+  Conscience: "Maybe he just wants to play some games?"
+  +:angry(Ada)
+  Ada: "Does anybody in school actually study, or do they fritter their time away here and hope for the best later?"
+  // +stopSkipCutscene()
+  Conscience: "Not everybody is as <italic>painfully serious</> as you are."
+  +none()
+  +playSound('projector_ready')
+  +:w(200)
+  +:ld(Ada, right)
+  +:ld(Conscience, left)
+  +:w(800)
+  Narrator: "<color=LIGHTBLUE cascade-letters> Revirtualis loading is completed.\n  Please stand in the center of the room."
+  +none()
+  +:leach(Ada, Conscience)
+  +:w(1000)
+  +stopSkipCutscene()
+  +:jump(Conscience)
+  Conscience: "Let's go already!"
+  +none()
+  +panCameraBackToPlayer(300)
+  +walkToMarker(Ada, MarkerPortal)
+  +:ld(Ada, down)
+  +walkPartyToFormation()
+  +:w(1000)
+  +playSound(lightswitch_echo)
+  +:w(500)
+  +playSound(thunk)
+  +:w(50)
+  +applyZTransform('Party', 32, 1000, true, true)
+  +applyZTransformTileAtMarker(MarkerPortal1, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal2, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal3, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal4, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal5, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal6, 32, 1000, true)
+  +applyZTransformTileAtMarker(MarkerPortal7, 32, 1000, true)
+  +fadeOut(1000)
+  +panCameraBackToPlayer(1)
+  +changeRoom(floor1Atrium, MarkerPortal)
+  +endConversation()
+  

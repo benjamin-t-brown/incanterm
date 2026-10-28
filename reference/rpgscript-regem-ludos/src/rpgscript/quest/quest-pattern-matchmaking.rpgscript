@@ -1,0 +1,666 @@
+@patternMatchmaking_setupMatchmaking
+  +setStorage(tmp.mmDir0, leftdown)
+  +setStorage(tmp.mmDir1, rightup)
+  +setStorage(tmp.mmDir2, rightdown)
+  +setStorage(tmp.mmDir3, leftup)
+  +setStorage(tmp.mmDir4, leftdown)
+  +setStorage(tmp.mmDir5, rightup)
+  +setStorage(tmp.mmDir6, right)
+  +setStorage(tmp.mmDir7, left)
+  +setStorage(tmp.mmDir8, right)
+  +setStorage(tmp.mmDir9, left)
+  +setStorage(tmp.mmDir10, rightup)
+  +setStorage(tmp.mmDir11, leftdown)
+  +setStorage(tmp.mmDir12, right)
+  +setStorage(tmp.mmDir13, left)
+  +setStorage(tmp.mmDir14, rightdown)
+  +setStorage(tmp.mmDir15, leftdown)
+  // if everybody should be at their initial tables for round 1
+  +?any(func(questNotStarted, PatternMatchmaking), func(questStepEQ, PatternMatchmaking, 0), func(questStepEQ, PatternMatchmaking, 1)):{
+    +setStorageIfNotSet(quest.aux.PatternMatchmaking.NextRoundNumber, 2)
+
+    // table 1
+    +setStorage(tmp.mm0, Floor2Cafeteria_MM_StefaniGwen)
+    +setStorage(tmp.mm1, Floor2Cafeteria_MM_Mateo)
+    +setStorage(quest.aux.PatternMatchmaking.Table1SecondaryCh, "Mateo")
+    +setStorage(quest.aux.PatternMatchmaking.Table1_Round1_SecondaryCh, "Mateo")
+
+    // table 2
+    +setStorage(tmp.mm2, Floor2Cafeteria_MM_Junlia)
+    +setStorage(tmp.mm3, "none")
+    +setStorage(quest.aux.PatternMatchmaking.Table2SecondaryCh, "Anders")
+    +setStorage(quest.aux.PatternMatchmaking.Table2_Round1_SecondaryCh, "Anders")
+
+    // table 3
+    +setStorage(tmp.mm5, Floor2Cafeteria_MM_Jill)
+    +setStorage(tmp.mm4, Floor2Cafeteria_MM_Jack)
+    +setStorage(quest.aux.PatternMatchmaking.Table3SecondaryCh, "Jack")
+    +setStorage(quest.aux.PatternMatchmaking.Table3_Round1_SecondaryCh, "Jack")
+
+    // table 4
+    +setStorage(tmp.mm7, Floor2Cafeteria_MM_Saiki)
+    +setStorage(tmp.mm6, Floor2Cafeteria_MM_Randy)
+    +setStorage(quest.aux.PatternMatchmaking.Table4SecondaryCh, "Randy")
+    +setStorage(quest.aux.PatternMatchmaking.Table4_Round1_SecondaryCh, "Randy")
+
+    // table 5
+    +setStorage(tmp.mm8, Floor2Cafeteria_MM_Bernie)
+    +setStorage(tmp.mm9, Floor2Cafeteria_MM_Lars)
+    +setStorage(quest.aux.PatternMatchmaking.Table5SecondaryCh, "Lars")
+    +setStorage(quest.aux.PatternMatchmaking.Table5_Round1_SecondaryCh, "Lars")
+
+    // table 6
+    +setStorage(tmp.mm10, Floor2Cafeteria_MM_Liv)
+    +setStorage(tmp.mm11, Floor2Cafeteria_MM_Scott)
+    +setStorage(quest.aux.PatternMatchmaking.Table6SecondaryCh, "Scott")
+    +setStorage(quest.aux.PatternMatchmaking.Table6_Round1_SecondaryCh, "Scott")
+
+    // table 7
+    +setStorage(tmp.mm12, Floor2Cafeteria_MM_Robin)
+    +setStorage(tmp.mm13, Floor2Cafeteria_MM_Mordred)
+    +setStorage(quest.aux.PatternMatchmaking.Table7SecondaryCh, "Mordred")
+    +setStorage(quest.aux.PatternMatchmaking.Table7_Round1_SecondaryCh, "Mordred")
+
+    // table 8
+    +setStorage(tmp.mm15, Floor2Cafeteria_MM_Millie)
+    +setStorage(tmp.mm14, Floor2Cafeteria_MM_Bobby)
+    +setStorage(quest.aux.PatternMatchmaking.Table8SecondaryCh, "Bobby")
+    +setStorage(quest.aux.PatternMatchmaking.Table8_Round1_SecondaryCh, "Bobby")
+  }
+  // if round 2
+  +?any(func(questStepEQ, PatternMatchmaking, 2), func(questStepEQ, PatternMatchmaking, 3)):{
+    +setStorageIfNotSet(quest.aux.PatternMatchmaking.NextRoundNumber, 3)
+
+    // table 1
+    +setStorage(tmp.mm0, Floor2Cafeteria_MM_StefaniGwen)
+    +setStorage(tmp.mm1, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table1_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table1SecondaryCh, {quest.aux.PatternMatchmaking.Table1_Round2_SecondaryCh})
+
+    // table 2
+    +setStorage(tmp.mm2, Floor2Cafeteria_MM_Junlia)
+    +setStorage(tmp.mm3, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table2_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table2SecondaryCh, {quest.aux.PatternMatchmaking.Table2_Round2_SecondaryCh})
+
+    // table 3
+    +setStorage(tmp.mm5, Floor2Cafeteria_MM_Jill)
+    +setStorage(tmp.mm4, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table3_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table3SecondaryCh, {quest.aux.PatternMatchmaking.Table3_Round2_SecondaryCh})
+
+    // table 4
+    +setStorage(tmp.mm7, Floor2Cafeteria_MM_Saiki)
+    +setStorage(tmp.mm6, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table4_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table4SecondaryCh, {quest.aux.PatternMatchmaking.Table4_Round2_SecondaryCh})
+
+    // table 5
+    +setStorage(tmp.mm8, Floor2Cafeteria_MM_Bernie)
+    +setStorage(tmp.mm9, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table5_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table5SecondaryCh, {quest.aux.PatternMatchmaking.Table5_Round2_SecondaryCh})
+
+    // table 6
+    +setStorage(tmp.mm10, Floor2Cafeteria_MM_Liv)
+    +setStorage(tmp.mm11, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table6_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table6SecondaryCh, {quest.aux.PatternMatchmaking.Table6_Round2_SecondaryCh})
+
+    // table 7
+    +setStorage(tmp.mm12, Floor2Cafeteria_MM_Robin)
+    +setStorage(tmp.mm13, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table7_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table7SecondaryCh, {quest.aux.PatternMatchmaking.Table7_Round2_SecondaryCh})
+
+    // table 8
+    +setStorage(tmp.mm15, Floor2Cafeteria_MM_Millie)
+    +setStorage(tmp.mm14, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table8_Round2_SecondaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table8SecondaryCh, {quest.aux.PatternMatchmaking.Table8_Round2_SecondaryCh})
+  }
+  // if round 3
+  +?any(func(questStepEQ, PatternMatchmaking, 4), func(questStepEQ, PatternMatchmaking, 5)):{
+    +setStorageIfNotSet(quest.aux.PatternMatchmaking.NextRoundNumber, 4)
+
+    // table 1
+    +setStorage(tmp.mm0, Floor2Cafeteria_MM_StefaniGwen)
+    +setStorage(tmp.mm1, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table1_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table1TertiaryCh, {quest.aux.PatternMatchmaking.Table1_Round2_TertiaryCh})
+
+    // table 2
+    +setStorage(tmp.mm2, Floor2Cafeteria_MM_Junlia)
+    +setStorage(tmp.mm3, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table2_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table2TertiaryCh, {quest.aux.PatternMatchmaking.Table2_Round2_TertiaryCh})
+
+    // table 3
+    +setStorage(tmp.mm5, Floor2Cafeteria_MM_Jill)
+    +setStorage(tmp.mm4, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table3_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table3TertiaryCh, {quest.aux.PatternMatchmaking.Table3_Round2_TertiaryCh})
+
+    // table 4
+    +setStorage(tmp.mm7, Floor2Cafeteria_MM_Saiki)
+    +setStorage(tmp.mm6, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table4_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table4TertiaryCh, {quest.aux.PatternMatchmaking.Table4_Round2_TertiaryCh})
+
+    // table 5
+    +setStorage(tmp.mm8, Floor2Cafeteria_MM_Bernie)
+    +setStorage(tmp.mm9, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table5_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table5TertiaryCh, {quest.aux.PatternMatchmaking.Table5_Round2_TertiaryCh})
+
+    // table 6
+    +setStorage(tmp.mm10, Floor2Cafeteria_MM_Liv)
+    +setStorage(tmp.mm11, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table6_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table6TertiaryCh, {quest.aux.PatternMatchmaking.Table6_Round2_TertiaryCh})
+
+    // table 7
+    +setStorage(tmp.mm12, Floor2Cafeteria_MM_Robin)
+    +setStorage(tmp.mm13, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table7_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table7TertiaryCh, {quest.aux.PatternMatchmaking.Table7_Round2_TertiaryCh})
+
+    // table 8
+    +setStorage(tmp.mm15, Floor2Cafeteria_MM_Millie)
+    +setStorage(tmp.mm14, Floor2Cafeteria_MM_{quest.aux.PatternMatchmaking.Table8_Round2_TertiaryCh})
+    +setStorage(quest.aux.PatternMatchmaking.Table8TertiaryCh, {quest.aux.PatternMatchmaking.Table8_Round2_TertiaryCh})
+  }
+  +loop("patternMatchmaking_setupMatchmakingLoop(\{vars.loopIndex\})", 16)
+@patternMatchmaking_setupMatchmakingLoop
+  +setStorage(tmp.chName, {tmp.mm[ARG0]})
+  +setStorage(tmp.markerName, MarkerTables[ARG0])
+  +setStorage(tmp.dir, {tmp.mmDir[ARG0]})
+  +?isnot(eq(tmp.chName, "none")):{
+    // for example: "Place character Floor2Cafeteria_MM_StefaniGwen at MarkerTable0 facing leftdown"
+    // +log("Place character {tmp.chName} at {tmp.markerName} facing {tmp.dir}");
+    +?isnot(eq(tmp.chName, 'Floor2Cafeteria_MM_Anders')):{
+      +spawnCharacterAtMarker({tmp.chName}, {tmp.markerName})
+      +:face({tmp.chName}, {tmp.dir})
+    }
+  }
+  +?eq(tmp.chName, "Floor2Cafeteria_MM_Bobby"):{
+    +setStorageEval(tmp.tableNumber, "Math.floor({ARG0}/2 + 1)")
+    // +log("Create Bobby Prop at table {tmp.tableNumber}")
+    +createPropAtMarker(PropRamen,  MarkerRamen{tmp.tableNumber}, 'props_tiny_1', 11, 16, 16)
+  }
+@patternMatchmaking_placeMillieCafeteriaFood
+  +?all(func(questStepEQ, PatternMatchmaking, 1), isnot(quest.aux.PatternMatchmaking.MillieFound1)):{
+    +spawnCharacterAtMarker(Floor2Cafeteria_MM_Millie, MarkerMillie1)
+  }
+
+// Sets the variable 'quest.aux.PatternMatchmaking.SpokeToEveryone[ARG0]'
+// If Ada has spoken to all 8 tables, then this variable will be true.  Otherwise it will be false.
+// [ARG0] is the next round number
+@patternMatchmaking_checkSubTasksForN
+  +setStorage(tmp.roundIndex, {ARG0})
+  +incrementStorage(tmp.roundIndex, -2)
+  +setStorage("quest.aux.PatternMatchmaking.SpokeToEveryone{tmp.roundIndex}", true)
+  +loop("patternMatchmaking_setSubtasksReducer({tmp.roundIndex}, \{vars.loopIndex\})", 8)
+  +?is("quest.aux.PatternMatchmaking.SpokeToEveryone{tmp.roundIndex}"):{
+    +completeQuestStep(PatternMatchmaking, {tmp.roundIndex})
+  }
+@patternMatchmaking_setSubtasksReducer
+  +setStorage(tmp.subtaskKey, "quest.aux.PatternMatchmaking.{ARG0}_{ARG1}")
+  +setStorage(tmp.overallTaskKey, "quest.aux.PatternMatchmaking.SpokeToEveryone{ARG0}")
+  +setStorageCond(tmp.subtaskComplete, "is({tmp.subtaskKey})")
+  +setStorageCond(tmp.overallTasksComplete, "is({tmp.overallTaskKey})")
+
+  // +log("Checking if Ada has spoken to {tmp.subtaskKey}={tmp.subtaskComplete} AND {tmp.overallTaskKey}={tmp.overallTasksComplete}")
+  +?is({tmp.subtaskKey}):{
+    // need this check for the "return early" case
+    +?isnot({tmp.overallTaskKey}):{
+      +setStorage({tmp.overallTaskKey}, false)
+    }
+  }
+  +?isnot({tmp.subtaskKey}):{
+    // set the "return early" case
+    +setStorage({tmp.overallTaskKey}, false)
+  }
+
+#patternMatchmaking_enterCafeteria
+  step,?once('24934964'):this
+@this
+  +setConversation(Ada)
+  +lookAtCharacter(Floor2Cafeteria_MM_StefaniGwen, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Mateo, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Junlia, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Jack, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Jill, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Randy, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Saiki, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Bernie, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Lars, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Liv, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Scott, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Robin, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Mordred, Matchmaker)
+  +lookAtCharacter(Floor2Cafeteria_MM_Bobby, Matchmaker)
+  +panCameraToFitCharacters(4000, false, Matchmaker)
+  +:jump(Matchmaker)
+  Matchmaker: "Can everybody hear me!?"
+  Matchmaker: "Welcome to the <color=LIGHTRED>Matchmaking</> event!"
+  Matchmaker: "Now that you're with your pre-established partners, I'd just like to remind you all that one of these people surely is going to be your next soul mate!"
+  +:ld(Matchmaker, left)
+  +:heart(Matchmaker)
+  Matchmaker: "I can totally smell <color=LIGHTRED shake>LOVE</> in the air."
+  +:ld(Matchmaker, leftdown)
+  Matchmaker: "Also.  If you're just passing by the <color=PURPLE>Caf8teria</> come on down!  We still have some spots left."
+  Matchmaker: "If not, I could also use an assistant volunteer!"
+  +:shakeZ(Matchmaker)
+  Matchmaker: "Now, go!  Get to know each other!"
+  +:ld(Matchmaker, down)
+  Matchmaker: "This is soooo exciting!"
+  +none()
+  +:patternMatchmaking_setupMatchmaking()
+  +panCameraBackToPlayer(2000)
+  +walkToMarker(Ada, MarkerAdaWalkFirst1)
+  +walkPartyToFormation()
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "Ugh.  I hate it when they have events in here."
+    Anjana: "It's so loud and annoying."
+  }
+  +?func(inParty, Skye):{
+    +:ld(Skye, right)
+    Skye: "Do you really think it smells like love?"
+    Skye: "It kinda smells like pizza."
+  }
+  +endConversation()
+
+#patternMatchmaking_matchmaker
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_matchmaker1
+  action,?any(func(questStepEQ, PatternMatchmaking, 0), func(questStepEQ, PatternMatchmaking, 1)):patternMatchmaking_matchmakerQuest_afterRound1
+  action,?func(questStepEQ, PatternMatchmaking, 2):patternMatchmaking_matchmakerQuest_afterRound2
+  action,?func(questStepEQ, PatternMatchmaking, 3):patternMatchmaking_matchmakerQuest3
+@patternMatchmaking_matchmaker1
+  +setConversation(Ada)
+  // +:leach(Ada, Matchmaker)
+  Matchmaker: "Hello there!  My name's Clara.  And I'm the matchmaking host!"
+  Matchmaker: "Are you here for the super exciting <color=LIGHTRED>live dating</> amazingness?  You look like a great prize for one of our lucky contestants!"
+  +?func(inParty, Anjana):{
+    +:question(Anjana)
+    Anjana: "Prize...?"
+  }
+  +:leach(Ada, Matchmaker)
+  +:flat(Ada)
+  Ada: "Thank you for the offer, but in all honesty, that sounds quite unappealing."
+  +:sad(Matchmaker)
+  Matchmaker: "Oh dear, I'm sorry to hear that.  Well, if you change your mind, I'll be here for a while yet!"
+  Matchmaker: "Everybody deserves a great prize, and I'm here to help!"
+  +?func(inParty, Skye):{
+    +:la(Skye, Matchmaker)
+    Skye: "I'm not sure I like the sound of that..."
+  }
+  Matchmaker: "If you're not here to join, then maybe you can help me out? I'm a bit short staffed, unfortunately."
+  Matchmaker: "I'd be willing to offer <italic>ample</> compensation."
+  +:sigh(Ada)
+  +:ld(Ada, down)
+  Ada: "<scale=0.75 />I get the feeling I am going to regret asking this..."
+  +:la(Ada, Matchmaker)
+  Ada: "But out of curiosity, what do you need?"
+  +:ld(Matchmaker, leftdown)
+  Matchmaker: "I need to know the vibe of the people here, so I can give them the best possible outcome."
+  +:jump(Matchmaker)
+  Matchmaker: "Problem is, I can't go on facilitating conversations myself!  That'd be a HUGE conflict of interest!"
+  Matchmaker: "So, I need you to go around and talk to people, and come back and let me know how you think they should be paired for the next round."
+  Matchmaker: "I might be able to offer some advice as well, if you need it."
+  +?func(inParty, Skye):{
+    Skye: "Are you some sort of expert on relationships or something?"
+    +:la(Matchmaker, Skye)
+    Matchmaker: "I know <italic>people</>, dear, and I know how to make them happy."
+  }
+  +:leach(Matchmaker, Ada)
+  +:question(Ada)
+  Ada: "Who is participating in the event?"
+  +:none()
+  +panCameraRelativeToPlayer(-200, 50)
+  Matchmaker: "As you can see, I've put little numbered signs on each table."
+  Matchmaker: "I've already split the participants into groups based on their stated preferences."
+  Matchmaker: "Just go around and mingle a bit with them.  Get to know who they are and learn a few things about them."
+  Matchmaker: "Then come back to me and we'll figure out what to do from there."
+  +none()
+  +panCameraBackToPlayer()
+  +?func(inParty, Skye):{
+    +:la(Skye, Ada)
+    +:smirk(Skye)
+    Skye: "Of all people here, you're asking <color=YELLOW>Ada</> to <italic>mingle</>?"
+    +:la(Skye, Matchmaker)
+    Skye: "You know she slapped the last person who ever tried to ask her out, right?"
+    +:la(Ada, Skye)
+    Ada: "I most certainly did not!"
+    +:la(Skye, Ada)
+    Skye: "<cascade-letters>Oh, wait...</> I meant <italic>verbally</> slapped.  It had about the same impact."
+    +:shakeZ(Ada)
+    +:la(Ada, Matchmaker)
+    Ada: "I can <italic>mingle</> whenever I have the need.  Often I feel I do <scale=0.8>NOT</>."
+    +:la(Skye, Matchmaker)
+  }
+  Matchmaker: "You don't even really have to mingle.  Just listen to what they're talking and try get a beat on them."
+  +:la(Ada, Matchmaker)
+  Ada: "What kind of compensation are you offering?"
+  Matchmaker: "One of the employees here gave me some gear for their battle system or whatever."
+  Matchmaker: "Personally, I'm not too interested in it, but they said it was worth a lot."
+  +?func(inParty, Anjana):{
+    +:la(Anjana, Ada)
+    +:shrug(Anjana)
+    Anjana: "More gear might help us out."
+  }
+  Ada: "Fine.  I will be back."
+  +startQuest(PatternMatchmaking)
+  +endConversation()
+
+@patternMatchmaking_matchmakerQuest_afterRound1
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +?isnot("quest.aux.PatternMatchmaking.SpokeToEveryone0"):{
+    +setConversation(Ada)
+    +walkPartyToFormation()
+    +:leach(Ada, Matchmaker)
+    Matchmaker: "Did you speak with everybody yet?"
+    Ada: "No not yet."
+    Matchmaker: "Come back when you have.  There's no time to waste!"
+    +endConversation()
+  }
+  +?is("quest.aux.PatternMatchmaking.SpokeToEveryone0"):{
+    +setConversation(Ada)
+    +walkPartyToFormation()
+    +:leach(Ada, Matchmaker)
+    +?once('84ebb25e'):{
+      Matchmaker: "Looks like you got around to everybody.   Good job."
+      Matchmaker: "Now, I'd like you to suggest new pairings for the next round."
+    }
+    Matchmaker: "Are you ready to begin?"
+    +awaitChoice("Yes, discus the matchmaking now.", "No, not yet.")
+    +?eq(lastChoiceIndex, 1):{
+      Matchmaker: "Okay, come back when you're ready."
+      +endConversation()
+      +sbreak()
+    }
+    Matchmaker: "Let's begin."
+    +none()
+    +:patternMatchmaking_selectTable()
+    +endConversation()
+  }
+
+@patternMatchmaking_matchmakerQuest_afterRound2
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +?isnot("quest.aux.PatternMatchmaking.SpokeToEveryone1"):{
+    +setConversation(Ada)
+    +walkPartyToFormation()
+    +:leach(Ada, Matchmaker)
+    Matchmaker: "Did you speak with everybody yet?"
+    Ada: "No not yet."
+    Matchmaker: "Come back when you have.  There's no time to waste!"
+    +endConversation()
+  }
+  +?is("quest.aux.PatternMatchmaking.SpokeToEveryone1"):{
+    +setConversation(Ada)
+    +walkPartyToFormation()
+    +:leach(Ada, Matchmaker)
+    +?once('1989f573'):{
+      Matchmaker: "Looks like you got around to everybody.   Good job."
+    }
+    Matchmaker: "Are you ready to begin?"
+    +awaitChoice("Yes, discus the matchmaking now.", "No, not yet.")
+    +?eq(lastChoiceIndex, 1):{
+      Matchmaker: "Okay, come back when you're ready."
+      +endConversation()
+      +sbreak()
+    }
+    Matchmaker: "Let's begin."
+    +none()
+    +:patternMatchmaking_selectTable()
+    +endConversation()
+
+// [ARG0] primary name
+// [ARG1] secondary name
+@patternMatchmaking_setChoiceSpriteText
+  +setStorage(tmp.choiceSpriteTextPrimary, "{ARG0} +animChRoom:{ARG0}")
+  +?eq({ARG1}, "Anders"):{
+    +setStorage(tmp.choiceSpriteTextSecondary, "Anders +anim:characters/guy-shadow_idle_down")
+    +sbreak()
+  }
+  +setStorage(tmp.choiceSpriteTextSecondary, "{ARG1} +animChRoom:{ARG1}")
+
+// outputs {tmp.tableChoices} variable which can be used with awaitChoiceEx
+@patternMatchmaking_generateTableChoices
+  +setStorage(tmp.nextRoundNumber, {quest.aux.PatternMatchmaking.NextRoundNumber})
+  +setStorage(tmp.tableChoices, '')
+
+  +:patternMatchmaking_setChoiceSpriteText(Stefani, {quest.aux.PatternMatchmaking.Table1SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 1: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table1_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table1_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Stefani, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Junlia, {quest.aux.PatternMatchmaking.Table2SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 2: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table2_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table2_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Junlia, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Jill, {quest.aux.PatternMatchmaking.Table3SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 3: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table3_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table3_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Junlia, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Saiki, {quest.aux.PatternMatchmaking.Table4SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 4: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table4_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table4_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Saiki, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Bernie, {quest.aux.PatternMatchmaking.Table5SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 5: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table5_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table5_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Bernie, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Liv, {quest.aux.PatternMatchmaking.Table6SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 6: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table6_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table6_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Liv, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Robin, {quest.aux.PatternMatchmaking.Table7SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 7: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table7_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table7_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Robin, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +:patternMatchmaking_setChoiceSpriteText(Millie, {quest.aux.PatternMatchmaking.Table8SecondaryCh})
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Table 8: {tmp.choiceSpriteTextPrimary} and {tmp.choiceSpriteTextSecondary}")
+  +?is(quest.aux.PatternMatchmaking.Table8_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorageValueAt(tmp.secondaryForRound, quest.aux.PatternMatchmaking.Table8_Round{tmp.nextRoundNumber}_SecondaryCh)
+    +:patternMatchmaking_setChoiceSpriteText(Millie, {tmp.secondaryForRound})
+    +setStorage(tmp.tableChoices, "{tmp.tableChoices} -> (paired) {tmp.choiceSpriteTextSecondary}")
+  }
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Stop discussing matchmaking for now.")
+  +setStorage(tmp.tableChoices, "{tmp.tableChoices},Use these pairings (go to next round).")
+
+@patternMatchmaking_areAllPairingsSelected
+  +setStorage(tmp.areAllPairingsSelected, true)
+  +?isnot(quest.aux.PatternMatchmaking.Table1_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table2_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table3_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table4_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table5_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table6_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table7_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+  +?isnot(quest.aux.PatternMatchmaking.Table8_Round{tmp.nextRoundNumber}_SecondaryCh):{
+    +setStorage(tmp.areAllPairingsSelected, false)
+  }
+
+@patternMatchmaking_selectTable
+  Matchmaker: "Which table would you like to discus?"
+  +:patternMatchmaking_generateTableChoices()
+  +awaitChoiceEx('array', {tmp.tableChoices})
+  // since scope is global in rpgscript, lastChoiceIndex is overridden by sub-choices
+  +setStorage(tmp.selectedTableMenuInd, {lastChoiceIndex})
+  +?all(gt(tmp.selectedTableMenuInd, -1), lt(tmp.selectedTableMenuInd, 8)):{
+    +setStorage(tmp.selectedTable, {tmp.selectedTableMenuInd})
+    +incrementStorage(tmp.selectedTable, 1)
+    +:patternMatchmaking_selectPairingActionForTable({tmp.nextRoundNumber}, {tmp.selectedTable})
+    +?eq(tmp.confirmPairingResult, "back"):{
+      Matchmaker: "Okay, let's try again."
+    }
+    +none()
+    +panCameraBackToPlayer(600)
+    +:patternMatchmaking_selectTable()
+    +sbreak()
+  }
+  +?eq(tmp.selectedTableMenuInd, 8):{
+    Matchmaker: "Okay, come back when you're ready to continue."
+    +endConversation()
+    +sbreak()
+  }
+  +?eq(tmp.selectedTableMenuInd, 9):{
+    +:patternMatchmaking_areAllPairingsSelected()
+    +?isnot(patternMatchmaking_areAllPairingsSelected):{
+      Matchmaker: "Not all pairings have been selected yet. Let's make sure we have them all set before we start the next round."
+      +:patternMatchmaking_selectTable()
+      +sbreak()
+    }
+    Matchmaker: "Great!  Let's start the next round!"
+    +none()
+    +fadeOut(1000)
+    +completeQuestStep(PatternMatchmaking, 1)
+    +:patternMatchmaking_setupMatchmaking()
+    +fadeIn(1000)
+    +endConversation()
+    +sbreak()
+  }
+
+@patternMatchmaking_matchmakerQuest1
+  +setConversation(Ada)
+  // +:leach(Ada, Matchmaker)
+  Matchmaker: "Did you talk to everyone?"
+  Ada: "No not yet."
+  Matchmaker: "Come back when you have.  There's no time to waste!"
+  +endConversation()
+
+@patternMatchmaking_Couple_NotStarted
+  +setConversation(Ada)
+  Ada: "I do not want to interrupt."
+  +endConversation()
+
+// assumes tmp.primaryCh and tmp.secondaryCh are set
+// ARG0: table number
+@patternMatchmaking_SecondConvoForTable
+  +setConversation(Ada)
+  +:ld(Ada, down)
+  +setStorage(tmp.else, true)
+  +?all(eq(ARG0, 2), eq(tmp.secondaryCh, Anders)):{
+    Ada: "<color=PINK>{tmp.primaryCh}</> is at table {ARG0}.  Should I listen to her again?"
+    +setStorage(tmp.else, false)
+  }
+  // +?all(eq(ARG0, 8), eq(tmp.secondaryCh, Bobby)):{
+  //   Ada: "<color=PINK>{tmp.secondaryCh}</> is at table {ARG0}.  Should I listen to him again?"
+  //   +setStorage(tmp.else, false)
+  // }
+  +?is(tmp.else):{
+    Ada: "<color=PINK>{tmp.primaryCh}</> and <color=YELLOW>{tmp.secondaryCh}</> are at table {ARG0}.  Should I listen to them again?"
+  }
+  +awaitChoice(Yes, No)
+  +?eq(lastChoiceIndex, 0):{
+    +:patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh}()
+  }
+  +?eq(lastChoiceIndex, 1):{
+    Ada: "Very well."
+    +endConversation()
+  }
+
+// ARG0: primary ch
+// ARG1: secondary ch
+@patternMatchmaking_pairingCount
+  +setStorage(tmp.pairingCount, 0)
+  +?all(eq(ARG0, Stefani), eq(ARG1, Mateo)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Junlia), eq(ARG1, Anders)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Jill), eq(ARG1, Jack)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Saiki), eq(ARG1, Randy)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Bernie), eq(ARG1, Lars)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Liv), eq(ARG1, Scott)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Robin), eq(ARG1, Mordred)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Millie), eq(ARG1, Bobby)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Stefani),eq(quest.aux.PatternMatchmaking.Table1_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Junlia),eq(quest.aux.PatternMatchmaking.Table2_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Jill),eq(quest.aux.PatternMatchmaking.Table3_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Saiki),eq(quest.aux.PatternMatchmaking.Table4_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Bernie),eq(quest.aux.PatternMatchmaking.Table5_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Liv),eq(quest.aux.PatternMatchmaking.Table6_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Robin),eq(quest.aux.PatternMatchmaking.Table7_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+  +?all(eq(ARG0, Millie),eq(quest.aux.PatternMatchmaking.Table8_Round2_SecondaryCh, ARG1)):{
+    +incrementStorage(tmp.pairingCount, 1)
+  }
+
+
+// MATCHMAKING MILLIE!!
+
+// #patternMatchmaking_FoundMillie
+//   action,+?func(questStepEQ,2):patternMatchmaking_FoundMillie0
+// @patternMatchmaking_FoundMillie0
+//   +stopAi(Millie)
+//   +setConversation(Ada)
+//   +:leach(Ada, Floor2Cafeteria_MM_Millie)
+//   Ada: "Excuse me..."
+//   +:exclaim(Millie)
+//   +:jump(Millie)
+//   Millie: "<cascade-letters=16>Shhhhhhhhhhhhhhhhhhh!!!!!!!"
+//   Millie: "I need to remain hidden."
+//   +:bored(Ada)
+//   Ada: "Perchance, is your name Millie?"
+//   +:ld(Millie, Ada)
+//   +:startled(Millie)
+//   Millie: "Yes it is. <scale=0.75 />How did you know?"
+//   Ada: "I am an <italic>assistant</> for the matchmaking event."
+//   Ada: "Why are you hiding from your partner?"
+//   Millie: "Well how else am I supposed to know if he's worth pursuing?"
+//   Millie: "If he can't find Millie the Magnificent in a place like this, then he's not worth my time."
+
+
+// MATCHMAKING TABLE CONVERSATIONS -----------------------
+  // +setStorage(vars.mm12, Floor2Cafeteria_MM_Robin);
+  // +setStorage(vars.mm13, Floor2Cafeteria_MM_Mordred);
+  // // +setStorage(vars.mm14, Floor2Cafeteria_MM_Millie);
+  // +setStorage(vars.mm14, Floor2Cafeteria_MM_Bobby);

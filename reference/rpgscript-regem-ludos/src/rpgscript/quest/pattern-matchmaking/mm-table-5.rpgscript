@@ -1,0 +1,277 @@
+#patternMatchmaking_Table5
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table5
+@patternMatchmaking_Table5
+  +:patternMatchmaking_Table5_SetupConv()
+  +setStorage(tmp.primaryCh, Bernie)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table5SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(5)
+  }
+
+@patternMatchmaking_Table5_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables9, 0, -16)
+  +:face(Ada, leftdown)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table5_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 4)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 4)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 4)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_BernieAndLars
+  +setConversationGroup(Bernie, Lars)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Lars)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    Lars: "I can see by your name plate that your name is <color=PINK>Bernie</>."
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>....."
+    +:la(Lars, Bernie)
+    Lars: "My given name is <color=LIGHTBLUE>Lars</>.  I am not a native of here."
+    +:la(Bernie, Lars)
+    Bernie: "<cascade-letters>....."
+    +:question(Lars)
+    Lars: "Perhaps you have a frog in your throat?"
+    +:ld(Bernie, rightdown)
+    +:blush(Bernie)
+    Bernie: "<cascade-letters>....."
+    +:shakeZ(Lars)
+    Lars: "Do you prefer not to be speaking?  Is this normal for you?"
+    +:ld(Bernie, down)
+    Bernie: "<cascade-letters>....."
+    +:grumpy(Lars)
+    Lars: "Okay. I will be silent."
+    +:leach(Bernie, Lars)
+    Bernie: "<cascade-letters>....."
+    +none()
+    +panCameraBackToPlayer()
+    +?func(inParty, Anjana):{
+      +:shakeZ(Anjana)
+      Anjana: "Reminds me of my family."
+    }
+  }
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 3):{
+    Lars: "If you prefer I can have silence."
+    +:ld(Bernie, down)
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>....."
+    Lars: "Is it my accent?  Are you not liking of it?"
+    +:la(Bernie, Lars)
+    Bernie: "<cascade-letters>....."
+    Lars: "I am not sure what to say."
+  }
+  +panCameraBackToPlayer(500, true)
+  +:patternMatchmaking_Table5_EndConvo()
+
+//----------------------------------------------------------------------------------------
+
+@patternMatchmaking_BernieAndAnders
+  +setConversationGroup(Bernie, Anders)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Anders)
+  +:patternMatchmaking_pairingCount(Bernie, Anders)
+  +?eq(tmp.pairingCount, 1):{
+    Bernie: "<cascade-letters>......"
+  }
+  +?eq(tmp.pairingCount, 2):{
+    Bernie: "<cascade-letters>........"
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndBobby
+  +setConversationGroup(Bernie, Bobby)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Bobby)
+  +:patternMatchmaking_pairingCount(Bernie, Bobby)
+  +?eq(tmp.pairingCount, 1):{
+    Bobby: "Hey there!  Do you like ramen?"
+    +:shakeZ(Bernie)
+    +:worried(Bernie)
+    Bernie: "..."
+    +:sad(Bobby)
+    Bobby: "You don't?  Oh.  That's disappointing."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:la(Bobby, Ada)
+    Bobby: "I'm worried that my ramen is getting cold."
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndScott
+  +setConversationGroup(Bernie, Scott)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Scott)
+  +:patternMatchmaking_pairingCount(Bernie, Scott)
+  +?eq(tmp.pairingCount, 1):{
+    Scott: "Hey, just so you know I'm not actually here for a date."
+    Scott: "I'm just saving a spot for my friend."
+    Bernie: "<cascade-letters>......."
+    Scott: "Don't look at me like that, that's just how it is."
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>......."
+    Scott: "Oh come on, now I just feel bad."
+    +:ld(Ada, down)
+    Ada: "Perhaps we should move on."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:la(Bobby, Ada)
+    Scott: "Okay, so maybe you're right.  My friend probably isn't coming."
+    Scott: "It's just that, he would never do that to me!"
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>......."
+    Scott: "No! He isn't like that.  I mean we <italic>have</> been friends for a while..."
+    Scott: "But he doesn't pull pranks like this.  He just doesn't."
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>......."
+    Scott: "Ugh.  I mean you might be right.  Maybe it isn't even a prank.  Maybe he really wanted me here."
+    Scott: "This is so unlike him.  I don't know what to think."
+    +?func(inParty, Anjana):{
+      +:leach(Anjana, Ada)
+      Anjana: "It's conversations like these that make me consider becoming a therapist."
+    }
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndMordred
+  +setConversationGroup(Bernie, Mordred)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Mordred)
+  +:patternMatchmaking_pairingCount(Bernie, Mordred)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Bernie, Mordred)
+    Mordred: "Good day, my lady.  I am <color=LIGHTBLUE>Mordred</>.  Might I ask what your name is?"
+    Bernie: "<cascade-letters>......."
+    Mordred: "Ahh. Silence.  You remind me of some monks I once ventured with."
+    Bernie: "<cascade-letters>..."
+    Mordred: "Do not worry!  I shall carry the mantle of the conversation.  Should you wish me to stop, simply blink erratically."
+    +:jump(Bernie)
+    +:worried(Bernie)
+    Bernie: "<cascade-letters>..."
+    +:serious(Mordred)
+    Mordred: "So... where to start?"
+    Mordred: "I am a champion of the realm.  I have been on many adventures.  I have slain many beasts.  I have saved many denizens."
+    Mordred: "The list is quite long actually, perhaps I should not bore you with the details."
+    +:ld(Ada, down)
+    +:bored(Ada)
+    Ada: "Perhaps <italic>we</> should move on."
+    +:leach(Bernie, Mordred)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Bernie, Mordred)
+    Mordred: "...And that was when I slew the dragon.  It was a fearsome beast, but I was more fearsome."
+    Mordred: "I remember the day well.  The sun was shining, the birds were singing, and I was covered in dragon blood."
+    Mordred: "It was a good day."
+    +:surprised(Bernie)
+    Bernie: "<cascade-letters>..."
+    Mordred: "Thank you for listening, you have been a great audience."
+    +:happy(Bernie)
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndMateo
+  +setConversationGroup(Bernie, Mateo)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Mateo)
+  +:patternMatchmaking_pairingCount(Bernie, Mateo)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Bernie, Mateo)
+    Mateo: "Hey.  I'm Mateo."
+    Bernie: "<cascade-letters>......."
+    Mateo: "You're not much of a talker, are you?"
+    Mateo: "Well you gotta talk sometime or else nobody will know what you're thinking."
+    +:shakeZ(Bernie)
+    Bernie: "<scale=0.5 />......"
+    Mateo: "What was that?  You gotta speak up."
+    Bernie: "<cascade-letters>......."
+    +:shrug(Mateo)
+    Mateo: "I guess I can't help you then."
+    +:shakeZ(Bernie)
+    +:ld(Ada, down)
+    Ada: "Perhaps we should move on."
+    +:leach(Bernie, Mateo)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Mateo, Ada)
+    Mateo: "She doesn't want to talk, so I can't really do anything here."
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndRandy
+  +setConversationGroup(Bernie, Randy)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Randy)
+  +:patternMatchmaking_pairingCount(Bernie, Randy)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Bernie, Randy)
+    Randy: "Hey.  I'm Randy."
+    Bernie: "<cascade-letters>......."
+    Randy: "Um.  If you don't want to talk that's fine."
+    Randy: "Honestly, I'm kinda relieved.  It takes a lot of pressure off."
+    Randy: "Wanna just sit here and not talk?"
+    Bernie: "<cascade-letters>......."
+    +:shakeZ(Bernie)
+    +:shakeZ(Randy)
+    +:shakeZ(Bernie)
+    Bernie: "<cascade-letters>...this is nice."
+    Randy: "Yeah."
+    +:ld(Ada, down)
+    Ada: "Good for them I suppose."
+    +:leach(Bernie, Randy)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Bernie, Randy)
+    Bernie: "<cascade-letters>...do you like... um... drawing at all?"
+    Randy: "Me?  No.  I'm not very good at it."
+    Randy: "But I'm kinda jealous of people who are."
+    Bernie: "<cascade-letters>...I'm not very good either."
+    Bernie: "But I like to do it."
+    Randy: "Can you show me?"
+    +:blush(Bernie)
+    Bernie: "Yeah sure... let me get my phone."
+  }
+
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_BernieAndJack
+  +setConversationGroup(Bernie, Jack)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(1000, false, Bernie, Jack)
+  +:patternMatchmaking_pairingCount(Bernie, Jack)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Bernie, Jack)
+    Jack: "Hey.  I'm Jack."
+    Bernie: "<cascade-letters>......."
+    Jack: "Do you not speak?"
+    Bernie: "<cascade-letters>..."
+    Jack: "That's boring.  I would much rather talk with someone else."
+    +panCameraBackToPlayer()
+    +:ld(Ada, down)
+    +:sad(Ada)
+    Ada: "That is quite harsh."
+    +:leach(Bernie, Jack)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Bernie, Jack)
+    Jack: "This sucks..."
+  }
+  +:patternMatchmaking_Table5_EndConvo()

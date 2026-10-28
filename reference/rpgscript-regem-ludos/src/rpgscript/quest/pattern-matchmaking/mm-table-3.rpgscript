@@ -1,0 +1,308 @@
+#patternMatchmaking_Table3
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table3
+@patternMatchmaking_Table3
+  +:patternMatchmaking_Table3_SetupConv()
+  +setStorage(tmp.primaryCh, Jill)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table3SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(3)
+  }
+
+@patternMatchmaking_Table3_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables4, 16, 0)
+  +:face(Ada, left)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table3_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 2)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 2)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 2)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_JillAndJack
+  +setConversationGroup(Jill, Jack)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jack, Jill)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    +:shakeZ(Jill)
+    Jack: "It's <color=LIGHTBLUE>Jack</>. <color=LIGHTGREY>(Like it even matters)</>."
+    +:la(Jack, Jill)
+    Jill: "That is a good name."
+    Jack: "Sure, I guess..."
+    Jill: "Are you well, <color=LIGHTBLUE>Jack</>?"
+    Jack: "I'm fine."
+    Jill: "That is good to hear.  I am also fine, so there is no need to ask."
+    Jack: "I... wasn't going to."
+    Jack: "<color=LIGHTGREY />(How long is this stupid event anyway...)?"
+    +:ld(Jill, rightup)
+    +?func(inParty, Anjana):{
+      Anjana: "He sounds like a <italic cascade-letters>nihilist</>."
+    }
+  }
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 3):{
+    Jill: "Do you wish to engage in further conversation?"
+    Jack: "Not really.  Did you anything in mind?"
+    Jill: "No.  I was just asking."
+    Jack: "Yeah.  That's what I thought."
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+  
+//----------------------------------------------------------------------------------------
+
+@patternMatchmaking_JillAndAnders
+  +setConversationGroup(Jill)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill)
+  +:patternMatchmaking_pairingCount(Jill, Anders)
+  +?eq(tmp.pairingCount, 1):{
+    Jill: "I cannot collect data without a partner."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:sad(Jill)
+    Jill: "I wish I had a partner to collect data from."
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndMordred
+  +setConversationGroup(Jill, Mordred)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Mordred)
+  +:patternMatchmaking_pairingCount(Jill, Mordred)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Mordred)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Mordred: "<color=LIGHTBLUE>Mordred</>.  'Tis a pleasure to meet you."
+    Jill: "Yes.  I agree.  What do you do for a living?"
+    Mordred: "I am a 'leader' of sorts.  Though I do not lead a country or a company as you might assume."
+    Mordred: "I lead a party of adventurers."
+    Jill: "Oh.  What does that entail?"
+    Mordred: "We complete quests that are given to us."
+    Mordred: "Usually, these quests involve fetching something or assisting with the creation of food (oddly enough)."
+    Mordred: "But every once in a while we get to do something truly exciting, like solve a theft!"
+    +:question(Jill)
+    Jill: "Is that what you're doing now?"
+    Mordred: "Among other things, yes..."
+    +:question(Mordred)
+    Mordred: "You wouldn't happen to have any information about a theft, would you?"
+    Jill: "No, sorry."
+    Mordred: "A shame.  Not you, of course.  Theft is never a good situation."
+    Jill: "If I see something, I'll be sure to look out."
+    +?func(inParty, Skye):{
+      Skye: "So is this going good or bad, I can't tell?"
+    }
+    +:leach(Jill, Mordred)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Mordred)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Mordred</>?"
+    Mordred: "That is something I would prefer for others to figure out."
+    Jill: "Understandable, though that gives me incomplete data about you."
+    Mordred: "I am not sure what you mean by that.  It takes time to know someone, of course."
+    Jill: "This is good to know.  Perhaps we can continue this conversation at a later time."
+    +?func(inParty, Skye):{
+      Skye: "So this is not gonna work then, I guess."
+    }
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndRandy
+  +setConversationGroup(Jill, Randy)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Randy)
+  +:patternMatchmaking_pairingCount(Jill, Randy)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Randy)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Randy: "It's <color=LIGHTBLUE>Randy</>.  Nice to meet you."
+    Jill: "Yes.  I agree.  What do you do for a living?"
+    +:teardrop(Randy)
+    Randy: "Um... Nothing right now, I guess."
+    +:none()
+    +:w(1000)
+    Randy: "So um.  Here to find a date?"
+    Jill: "Not particularly.  I wish to meet more people."
+    Randy: "Oh.  Well.  I guess that's cool too."
+    Randy: "Have you met anyone that you liked?"
+    Jill: "Besides you?  No I haven't."
+    +:exclaim(Randy)
+    +:blush(Randy)
+    Randy: "WaitwhatReally?  I thought you said you didn't want a date."
+    Jill: "I don't.  I just like you."
+    Randy: "Oh geez.  I don't know what to say."
+    +?func(inParty, Skye):{
+      +:leach(Ada, Skye)
+      Skye: "Is this a good or bad conversation?"
+    }
+    +:ld(Ada, down)
+    Ada: "Maybe she simply likes it when others like her name?"
+    +:leach(Jill, Randy)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Randy)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Randy</>?"
+    Randy: "Like official? I don't know.  I'm just like, normal I guess."
+    Jill: "Normal is a good type to be.  I am also normal."
+    Randy: "Oh.  That's cool."
+    +?func(inParty, Skye):{
+      Skye: "I can see the sparks\n<italic cascade-letters>flying</> from here."
+    }
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndScott
+  +setConversationGroup(Jill, Scott)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Scott)
+  +:patternMatchmaking_pairingCount(Jill, Scott)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Scott)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Scott: "<color=LIGHTBLUE>Scott</>."
+    Jill: "That is a good name."
+    +:question(Scott)
+    Scott: "What?  What a weird thing to say."
+    Jill: "What do you mean?"
+    Scott: "It sounds like you just heard somebody say that and decided to repeat it."
+    Jill: "That is not entirely inaccurate."
+    +:teardrop(Scott)
+    Scott: "Look.  I don't really have any skin in this game, I'm just saving a spot for my friend."
+    Scott: "But some advice: you should at least try to be a little more creative."
+    Jill: "Such as yourself?"
+    +:angry(Scott)
+    Scott: "I'm not being <italic>creative</>.\nI <scale=1.1 cascade-letters>actually am</> just saving a spot for my friend."
+    Jill: "This is good information."
+    +:leach(Jill, Scott)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Scott)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Scott</>?"
+    Scott: "I told you, I'm not here for the dating thing."
+    Jill: "I am not here for that either.  I am here for data."
+    +:lightbulb(Scott)
+    Scott: "Data?  Wait, are you saying that you came to this event because you thought it was a 'data' event instead of a 'dating' event?"
+    Jill: "I think you may be confused.  Are we not all here to gather data?"
+    +:happy(Scott)
+    Scott: "Oh man.  That's hilarious.  I'm going to have to tell my friend about this."
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndLars
+  +setConversationGroup(Jill, Lars)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Lars)
+  +:patternMatchmaking_pairingCount(Jill, Lars)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Lars)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Lars: "It is <color=LIGHTBLUE>Lars</>.  Pleasure to be having your acquaintance."
+    Jill: "That is a good name."
+    Lars: "Thank you.  I am liking your name as well.  It reminds me of my cousins."
+    +:none()
+    +:w(750)
+    Lars: "So, how are you faring?"
+    Jill: "I am doing well.  How about you?"
+    Lars: "I mean, with regards to this event.  Are you finding it enjoyable?"
+    Jill: "I am not sure.  I do not think data collection is usually enjoyable."
+    Jill: "But I do enjoy having gathered some comprehensive data."
+    Jill: "Like your name for example."
+    Lars: "I am glad to be hearing that."
+    Lars: "If I might ask, however, what about me do you find interesting?"
+    Jill: "Your name."
+    Lars: "My name?  Is there anything else?"
+    Jill: "Not really."
+    Lars: "Oh.  Is this a good or bad thing?  I do not know if this is a custom."
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "Get me out of here..."
+    }
+    +:leach(Jill, Lars)
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Lars)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Lars</>?"
+    Lars: "My type?  I am type O negative."
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "I thought I told you to get me out of here..."
+    }
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndMateo
+  +setConversationGroup(Jill, Mateo)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Mateo)
+  +:patternMatchmaking_pairingCount(Jill, Mateo)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Mateo)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Mateo: "I'm <color=LIGHTBLUE>Mateo</>, good to meet you."
+    Jill: "That is a good name."
+    +:happy(Mateo)
+    Mateo: "Heh.  Thanks."
+    +:question(Jill)
+    Jill: "Why did you laugh like that?"
+    Mateo: "Oh, I was just thinking that this is already going better than a previous conversation."
+    Jill: "It is?"
+    Mateo: "Don't worry about it.  You seem really nice, wouldn't want to spoil it."
+    Mateo: "What about you?  How has your time here been?"
+    Jill: "I have gathered some reasonable data."
+    Mateo: "That's it?  Wanna just leave with me and get some food?"
+    Jill: "I am not sure.  Is there not more data to be gathered here?"
+    Mateo: "Ah that's too bad."
+    Mateo: "Maybe if you change your mind, you can find me after."
+    Jill: "I would not be opposed to that."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Mateo)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Mateo</>?"
+    Mateo: "I'm not sure.  I think I'm a mix of a few.  Never really thought about it."
+    Jill: "That sounds like incomplete data."
+    Mateo: "Ya it probably is.  I'm not really into that kind of stuff."
+    Mateo: "I'd rather just figure it out as I go."
+    Jill: "Is that why you want to get food?"
+    Mateo: "Yeah.  You can tell a lot about a person by what they eat."
+    Jill: "Maybe I should go with you then."
+  }
+  +:patternMatchmaking_Table3_EndConvo()
+
+@patternMatchmaking_JillAndBobby
+  +setConversationGroup(Jill, Bobby)
+  +:patternMatchmaking_Table3_SetupConv()
+  +panCameraToFitCharacters(1000, false, Jill, Bobby)
+  +:patternMatchmaking_pairingCount(Jill, Bobby)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Jill, Bobby)
+    Jill: "I am <color=PINK>Jill</>.  What is your name?"
+    Bobby: "Hi <color=PINK>Jill</>.  I'm <color=LIGHTBLUE>Bobby</>."
+    Jill: "That is a good name."
+    Bobby: "Do you like ramen?"
+    Jill: "No.  Sorry.  I don't eat much."
+    Bobby: "Oh.  That's too bad."
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Jill, Bobby)
+    Jill: "What is your personality type, <color=LIGHTBLUE>Bobby</>?"
+    Bobby: "Im sorry what?  I was thinking about ramen."
+  }
+  +:patternMatchmaking_Table3_EndConvo()

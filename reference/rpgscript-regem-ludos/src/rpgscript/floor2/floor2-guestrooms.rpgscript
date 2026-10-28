@@ -1,0 +1,572 @@
+@floor2_preThroneRoomGuestroomPortal
+  +?once(floor2_has_tp_to_ca_realm):{
+    +endConversation(1)
+    +setConversation(Ada)
+    +spawnCharacterAtMarker(Lotte, MarkerFromHallway, -32, -32)
+    +setStorage(floor2_guestroom_portal_prevent_leave, true)
+    +walkToMarker(Ada, MarkerFromHallway, -16, -16, 0, 0, true)
+    +walkToMarker(Lotte, MarkerTerminal)
+    +walkPartyToFormation()
+    +fadeIn(500)
+    +:leach(Ada, Lotte)
+    +panCameraToFitCharacters(1000, false, Ada, Lotte)
+    +:ld(Lotte, leftup)
+    +:smallPause()
+    +:ld(Lotte, rightdown)
+    +:smallPause()
+    +:ld(Lotte, down)
+    // +stopSkipCutscene()
+    +:exhale(Lotte)
+    Lotte: "He always leaves it in such a disgraceful state..."
+    +none()
+    +:smallPause()
+    +:ld(Lotte, rightup)
+    +playSound(terminal_beep)
+    +:bumpY(Lotte, -2)
+    +:smallPause()
+    +:ld(Lotte, leftdown)
+    +:ld(Ada, leftup)
+    +panCameraRelativeToPlayer(-32, -32)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', -16, -16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, -16, -16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', -16, 0)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, -16, 0)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', -16, 16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, -16, 16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 0, -16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 0, -16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 0, 0)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 0, 0)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 0, 16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 0, 16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 16, -16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 16, -16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 16, 0)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 16, 0)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +spawnParticleAtMarker(EFFECT_TEMPLATE_SPAWN, MarkerPortal, 'normal', 16, 16)
+    +changeTileAtMarker(MarkerPortal, VR_PORTAL_FLOOR, 16, 16)
+    +waitMS(75)
+    +playSound('spawn_enemy')
+    +:smallPause()
+    +:smallPause()
+    +:question(Ada)
+    Ada: "A <color=LIGHTBLUE>Portal</>?  In here?"
+    +:shakeZ(Lotte)
+    Lotte: "Okay, in you go."
+    +:shakeZ(Lotte)
+    Lotte: "And be quick about it."
+    +panCameraBackToPlayer()
+    +endConversation()
+  }
+
+#floor2_preThroneRoomGuestroomPortal_standOnPortal
+  step-first,?once('59afe425'):this
+@this
+  +setConversation(Ada)
+  +setStorage(floor2_guestroom_portal_prevent_leave, false)
+  +walkToMarker(Ada, MarkerPortal)
+  +:ld(Ada, down)
+  +walkToMarker(Conscience, MarkerPortal, 16, 0)
+  +:face(Conscience, down)
+  +panCameraRelativeToPlayer(16, -16)
+  +:shakeZ(Lotte)
+  Lotte: "Wonderful, we can proceed."
+  +stopMusic()
+  +none()
+  +:ld(Lotte, rightup)
+  +playSound(terminal_beep)
+  +:bumpY(Lotte, -2)
+  +:smallPause()
+  +panCameraBackToPlayer(1000, true)
+  +walkToMarker(Lotte, MarkerPortal, 16, -16)
+  +:ld(Lotte, down)
+
+  // had to copy pasta fade out/in so Lotte would come with them
+  +setConversation(Ada)
+  +none()
+  +stopMusic(500)
+  // +walkToMarker('Ada', MarkerVRLanding)
+  // +setFacing('Ada', 'down')
+  // +walkPartyToFormation()
+  +playSound('vr_portal_buzz')
+  +:w(500)
+  +setPlayerVisibility(false)
+  +playSound('spawn_enemy')
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Lotte, 'normal')
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  +despawnCharacter(Party)
+  +despawnCharacter(Lotte)
+  +:w(1000)
+  +fadeOut(500)
+
+  +playSound('vr_portal_landed')
+  +changeRoom(floor2PreThroneRoomPortal, MarkerPortal)
+  +spawnPartyMembersInFormation()
+  +:face(Party, down)
+  +spawnCharacterAtMarker(Lotte, MarkerPortal, 16, -16)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Party, 'normal')
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_SPAWN, Lotte, 'normal')
+  +:ld(Lotte, down)
+  +setPlayerVisibility(true)
+  +fadeIn(500)
+  +:w(200)
+  // +playSound('spawn_enemy')
+  +waitMS(1000)
+  +setAnimationState('Ada', 'idle')
+  +enableAnimationSounds()
+  +walkToMarker(Lotte, MarkerLotte)
+  +:ld(Lotte, down)
+  +:floor2_preThroneRoom_lotte2()
+
+@floor2_postThroneRoom
+  +fadeOut(1)
+  +panCameraBackToPlayer(1)
+// +:utils-transition-to-vr-fade-in(floor2GuestroomPortal, MarkerPortal, false);
+
+  +setConversation(Ada)
+  +playSound('vr_portal_landed')
+  +changeRoom(floor2GuestroomPortal, MarkerPortal)
+  +setAnimationState('Ada', 'idle')
+  +:face(Ada, down)
+  +setAnimation(Ada, ada_headache)
+  +stopMusic(1)
+  +spawnParticleAtCharacter(EFFECT_TEMPLATE_PORTAL_SPAWN, 'Ada', 'normal')
+
+  +fadeIn()
+// +playMusic(music_fallout2);
+//wait for the spawn particles to finish
+  +waitMS(1000)
+  +setAnimation(ada, ada_headache)
+  Ada: "<cascade-letters>My head..."
+  +:smallPause()
+  +setAnimationState(Ada, idle)
+  +:ld(Ada, leftdown)
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters>Conscience..."
+  +:smallPause()
+  +:ld(Ada, up)
+  Ada: "<cascade-letters>Conscience...!"
+  +none()
+  +:ld(Ada, rightup)
+  +:w(100)
+  +:ld(Ada, rightdown)
+  +:w(100)
+  +:ld(Ada, leftdown)
+  +:w(100)
+  +:ld(Ada, down)
+  +:w(500)
+  +:sad(Ada)
+  Ada: "I cannot believe he would stoop so low."
+  +startQuest(MainQuest)
+  Ada: "<color=LIGHTGREY italic cascade-letters>I need to get her back."
+  +none()
+  +endConversation()
+
+#floor2_postThroneRoomEmployee
+  step-first,?all(func(questIsStarted, MainQuest), once('2ba99051')):floor2_postThroneRoomEmployee2
+  action,floor2_postThroneRoomEmployee1
+@floor2_postThroneRoomEmployee1
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerAdaEmployee)
+  +:leach(Employee, Ada)
+  +:question(Employee)
+  Employee: "Can I help you?"
+  +:teardrop(Ada)
+  Ada: "No... clearly you cannot."
+  +endConversation()
+@floor2_postThroneRoomEmployee2
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerAdaEmployee)
+  +:leach(Employee, Ada)
+  +:question(Employee)
+  Employee: "Can I help you?"
+  Ada: "Yes!"
+  +:ld(Ada, rightup)
+  Ada: "How do I get back into that <color=LIGHTBLUE>Instance</>?"
+  +:ld(Employee, rightup)
+  Employee: "In that room?"
+  Employee: "That's the room <color=ORANGE>Miss Lotte</> reserved."
+  +:ld(Employee, rightdown)
+  Employee: "I believe she requested that a one-time portal be made to <color=LIGHTRED>Carl-Arnold's Penthouse Shard</>."
+  +:la(Ada, Employee)
+  Ada: "Yes, yes, whatever.  How do I get back in there?"
+  +:teardrop(Employee)
+  Employee: "Um.  Since it's the <color=LIGHTRED>Penthouse Shard</> you'd have to go to the <color=LIGHTPURPLE>Housing Hub</> on the next floor..."
+  +:exclaim(Ada)
+  Ada: "What?  But I was just in there a second ago!"
+  Employee: "<color=ORANGE>Miss Lotte</> only reserved a one-way trip, so you'd have to ask her to get you back up there."
+  +:ld(Ada, down)
+  Ada: "<scale=0.75 />Somehow I do not see that happening."
+  +:la(Ada, Employee)
+  Ada: "How do I get to the <color=LIGHTPURPLE>Housing Hub</>?"
+  Employee: "Well, unless you've been up there before, you'll have to go through the <color=LIGHTBLUE>3rd Floor Instance</> to get to the next floor</>."
+  +:doubt(Ada)
+  Ada: "You cannot be serious."
+  Employee: "Rules are rules, miss.  The only one who could maybe change that is <color=LIGHTRED>Carl-Arnold</> himself!"
+  +:ld(Ada, down)
+  Ada: "<scale=0.75 />So that was his plan all along."
+  +:la(Ada, Employee)
+  Ada: "Thank you for the information."
+  +:ld(Ada, down)
+  +:jump(Employee)
+  Employee: "Um.  Good luck!  The <color=LIGHTBLUE>3rd Floor Instance</> is at the other end of this floor.  It's notoriously difficult!"
+  +walkToOffset(Ada, 42, 42)
+  +:ld(Ada, rightdown)
+  Ada: "<italic />How encouraging..."
+  +stopSkipCutscene()
+  +setSpeed(Ada, 0.25)
+  +walkToOffset(Ada, 24, 0, true)
+  +:floor2-transitionFromHallwayToFloor2_openDoors()
+  +fadeOut(2000)
+  +changeRoom(floor2South, MarkerFromHallway)
+  +fadeIn(1500, true)
+  +setSpeed(Ada)
+  +:floor2_AnjanaJoinsAda()
+// +endConversation(100);
+// +endConversation();
+
+#floor2-transitionFromGuestRoomToHallway_preventLeave
+  action,?is(floor2_guestroom_portal_prevent_leave):floor2-transitionFromGuestRoomToHallway_preventLeave
+  action,floor2-guestroomPortalExamineTerminal
+@this
+  +setConversation(Ada)
+  +:leach(Ada, Lotte)
+  +panCameraToFitCharacters(500, false, Ada, Lotte)
+  +panCameraRelativeToCurrentPosition(0, -35, 400)
+  +:jump(Lotte)
+  Lotte: "You must stand on the portal; I have little time to waste."
+  +:ld(Lotte, leftdown)
+  +?is([ARG0]):{
+    +walkToOffset(Ada, -16, -16)
+  }
+  +panCameraBackToPlayer()
+  +endConversation()
+@floor2-guestroomPortalExamineTerminal
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerTerminal)
+  +:ld(Ada, rightup)
+  +:smallPause()
+  +playSound(terminal_beep)
+  +:bumpY(Ada, -2)
+  +:smallPause()
+  +:smallPause()
+  +playSound(terminal_cancel)
+  +:smallPause()
+  +:smallPause()
+  Ada: "It is no use..."
+  +endConversation()
+
+#floor2-transitionFromGuestRoomToHallway
+  action,?is(floor2_guestroom_portal_prevent_leave):floor2-transitionFromGuestRoomToHallway_preventLeave_door
+  action,this
+  step,floor2-transitionFromGuestRoomToHallway_step
+@this
+  +walkToMarker(Ada, MarkerDoor, -16)
+  +:ld(Ada, rightdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoor, WOOD_DOOR_FWD)
+  +:utils-change-room(floor2GuestroomHallway, MarkerFromGuestroom1)
+@floor2-transitionFromGuestRoomToHallway_preventLeave_door
+  +walkToMarker(Ada, MarkerDoor, -16)
+  +:ld(Ada, rightdown)
+  +:floor2-transitionFromGuestRoomToHallway_preventLeave(true)
+@floor2-transitionFromGuestRoomToHallway_step
+// +setCharacterText('Press Action (X) to leave room.');
+
+#floor2-transitionFromHallwayToGuestRoom
+  action,this
+  step,floor2-transitionFromHallwayToGuestRoom_step
+@this
+  +walkToMarker(Ada, MarkerDoorGuestroom1, 16)
+  +:ld(Ada, leftup)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorGuestroom1, WOOD_DOOR_FWD)
+  +:utils-change-room(floor2GuestroomPortal, MarkerFromHallway)
+@floor2-transitionFromHallwayToGuestRoom_step
+// +setCharacterText('Press Action (X) to enter room.');
+
+#floor2-guestRoomPortalSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "The sign says: '<color=LIGHTGREY />Large Conference Room</>.'"
+  +endConversation()
+
+#floor2-transitionFromHallwayToFloor2_openDoors
+  step-first,floor2-transitionFromHallwayToFloor2_openDoors
+  step-off,floor2-transitionFromHallwayToFloor2_closeDoors
+@floor2-transitionFromHallwayToFloor2_openDoors
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorFloor2, RED_DOOR_FWDL)
+  +:openDoor(MarkerDoorFloor2_2, RED_DOOR_FWDR)
+@floor2-transitionFromHallwayToFloor2_closeDoors
+  +playSound(sliding_door_close)
+  +:closeDoor(MarkerDoorFloor2, RED_DOOR_FWDL)
+  +:closeDoor(MarkerDoorFloor2_2, RED_DOOR_FWDR)
+
+#floor2-transitionFromHallwayToFloor2
+  step,this
+@this
+  +:utils-change-room(floor2South, MarkerFromHallway)
+
+#floor2GuestroomsSign1
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "The sign says, '<color=LIGHTGREY />Conference Room Alpha, No events scheduled.'"
+  +endConversation()
+
+#floor2GuestroomsSign2
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "The sign says, '<color=LIGHTGREY />Conference Room Beta, No events scheduled.'"
+  +endConversation()
+
+#floor2GuestroomsSign3
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "The sign says, '<color=LIGHTGREY />Conference Room Delta, Time Travel Symposium This Week!'"
+  +endConversation()
+
+#floor2-transitionFromHallwayToGuestRoomAlpha
+  action,this
+  step-first,floor2-transitionFromHallwayToGuestRoomAlpha_step
+@this
+  +walkToMarker(Ada, MarkerFromGuestroomAlpha)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorGuestroomAlpha, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2Guestrooms, MarkerFromHallwayAlpha)
+@floor2-transitionFromHallwayToGuestRoomAlpha_step
+// +setCharacterText('Press Action (X) to enter room.');
+
+#floor2-transitionFromHallwayToGuestRoomBeta
+  action,this
+  step-first,floor2-transitionFromHallwayToGuestRoomBeta_step
+@this
+  +walkToMarker(Ada, MarkerFromGuestroomBeta)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorGuestroomBeta, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2Guestrooms, MarkerFromHallwayBeta)
+@floor2-transitionFromHallwayToGuestRoomBeta_step
+// +setCharacterText('Press Action (X) to enter room');
+
+#floor2-transitionFromHallwayToGuestRoomDelta
+  action,this
+  step-first,floor2-transitionFromHallwayToGuestRoomDelta_step
+@this
+  +walkToMarker(Ada, MarkerFromGuestroomDelta)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorGuestroomDelta, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2Guestrooms, MarkerFromHallwayDelta)
+@floor2-transitionFromHallwayToGuestRoomDelta_step
+// +setCharacterText('Press Action (X) to enter room');
+
+#floor2-transitionFromGuestroomsToHallwayAlpha
+  action,this
+  step-first,floor2-transitionFromGuestroomsToHallwayAlpha_step
+@this
+  +walkToMarker(Ada, MarkerFromHallwayAlpha)
+  +:ld(Ada, leftdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorAlpha, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2GuestroomHallway, MarkerFromGuestroomAlpha)
+@floor2-transitionFromGuestroomsToHallwayAlpha_step
+// +setCharacterText('Press Action (X) to leave room');
+
+#floor2-transitionFromGuestroomsToHallwayBeta
+  action,this
+  step-first,floor2-transitionFromGuestroomsToHallwayBeta_step
+@this
+  +walkToMarker(Ada, MarkerFromHallwayBeta)
+  +:ld(Ada, leftdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorBeta, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2GuestroomHallway, MarkerFromGuestroomBeta)
+@floor2-transitionFromGuestroomsToHallwayBeta_step
+// +setCharacterText('Press Action (X) to leave room');
+
+// #floor2-transitionFromGuestroomsToHallwayDelta
+
+#floor2-transitionFromGuestroomsToHallwayDelta
+  action,this
+  step-first,floor2-transitionFromGuestroomsToHallwayDelta_step
+@this
+// +?is(quest.misc.floor2LaptopGonnaExplode):{
+  // +setConversation(Ada);
+  // +:ld(Ada, down);
+  // +:jump(Ada);
+  // Ada: "I cannot leave the room, the laptop is going to explode!"
+  // +endConversation();
+// }
+  +walkToMarker(Ada, MarkerFromHallwayDelta)
+  +:ld(Ada, leftdown)
+  +playSound(sliding_door_open)
+  +:openDoor(MarkerDoorDelta, WOOD_DOOR_BCK)
+  +:utils-change-room(floor2GuestroomHallway, MarkerFromGuestroomDelta)
+@floor2-transitionFromGuestroomsToHallwayDelta_step
+// +setCharacterText('Press Action (X) to leave room');
+
+@laptopSound
+  +none()
+  +playSound(phone_voice1)
+  +spawnParticleAtMarker('EFFECT_TEMPLATE_PHONE_RIGHT', MarkerLaptopObject, 'normal')
+  +waitMS(750)
+@laptopSound2
+  +none()
+  +playSound(phone_voice2)
+  +spawnParticleAtMarker('EFFECT_TEMPLATE_PHONE_RIGHT', MarkerLaptopObject, 'normal')
+  +waitMS(750)
+
+#floor2GuestroomsLaptop_enterRoom_step
+  step,?once('6dff0b7c'):floor2GuestroomsLaptop_enterRoom_step
+@floor2GuestroomsLaptop_enterRoom_step
+  +stopMusic()
+  +setConversation(Ada)
+  +panCameraRelativeToPlayer(-10, -50, 2000)
+  +:laptopSound()
+  LAPTOP: "YOU HAVE <color=LIGHTRED>1</> NEW NOTIFICATION(S)."
+  +:laptopSound()
+  LAPTOP: "<cascade-letters=0.25>PLEASE REVIEW IMMEDIATELY."
+  +panCameraBackToPlayer(500)
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    Anjana: "That thing is pretty loud..."
+  }
+// +setStorage(quest.misc.floor2LaptopGonnaExplode, true);
+  +endConversation()
+
+#floor2GuestroomsLaptop
+  action,?func(questNotStarted, AFunExpectedJourney):floor2GuestroomsLaptop
+@floor2GuestroomsLaptop
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerLaptop1)
+  +?func(inParty, Anjana):{
+    +walkToMarker(Anjana, MarkerLaptop2, 0, 0, true)
+    +onChWalkCompleted(Anjana, "+:face(Anjana, leftdown)")
+  }
+  +?func(inParty, Skye):{
+    +walkToMarker(Skye, MarkerLaptop2, 16, 0, true)
+    +onChWalkCompleted(Skye, "+:face(Skye, leftdown)")
+  }
+  +:floor2GuestroomsLaptop_scene()
+#floor2GuestroomsLaptop_walk
+  action,?isnot(quest.misc.floor2Laptop):floor2GuestroomsLaptop_walk
+@floor2GuestroomsLaptop_walk
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerLaptop2)
+  +walkToMarker(Ada, MarkerLaptop1)
+  +?func(inParty, Anjana):{
+    +walkToMarker(Anjana, MarkerLaptop2)
+    +:ld(Anjana, leftdown)
+  }
+  +:floor2GuestroomsLaptop_scene()
+@floor2GuestroomsLaptop_scene
+  +:ld(Ada, rightdown)
+  +:laptopSound()
+  LAPTOP: "YOU HAVE <color=LIGHTRED>1</> NEW NOTIFICATION(S)."
+  Ada: "Somebody has left their laptop on this table."
+  +?all(func(inParty, Anjana),once('f328b639')):{
+    +:shakeZ(Anjana)
+    Anjana: "Can you stop that thing from beeping so much?  It's getting on my nerves."
+  }
+  +?once('c20bddf8'):{
+    Ada: "Maybe I can turn the volume down or something."
+  }
+  +panCameraRelativeToPlayer(0, 0, 1)
+  Ada: "Let me see..."
+  +none()
+  +playSound("terminal_beep")
+  +:bumpX(Ada, 2)
+  +playSound("terminal_beep")
+  +:bumpX(Ada, 2)
+  +:w(500)
+  +:laptopSound()
+  LAPTOP: "<cascade-letters=0.25>USER REQUEST DENIED.\n</> <cascade-letters=0.25>UNREAD MESSAGES MUST BE MARKED AS READ."
+  +:teardrop(Ada)
+  Ada: "Okay then..."
+  +playSound("terminal_beep")
+  +:bumpX(Ada, 2)
+  +:w(500)
+  +:laptopSound()
+  LAPTOP: "<cascade-letters=0.25>MESSAGE WILL NOW BE PLAYED."
+  +playSound(static)
+  LAPTOP: "<cascade-letters=0.25>......"
+  +:laptopSound2()
+  Voice From Laptop: "<color=LIGHTGREY />Hello."
+  Voice From Laptop: "<color=LIGHTGREY />If you are hearing this message then you have entered a room with an inconspicuous laptop, and nobody else is around."
+  Voice From Laptop: "<color=LIGHTGREY />Do not be alarmed, this is by design."
+  Voice From Laptop: "<color=LIGHTGREY />My name is <color=ORANGE>Dr. Allison<color=LIGHTGREY />.  I am from the future."
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    +:shakeZ(Anjana)
+    Anjana: "What is thiiis?  Do they think we're stupid or something?"
+    +:ld(Anjana, leftdown)
+    +:ld(Ada, rightdown)
+  }
+  +:laptopSound2()
+  Voice From Laptop: "<color=LIGHTGREY />I am supposed to be giving a symposium on time travel in this very room all week, but something has gone terribly awry."
+  Voice From Laptop: "<color=LIGHTGREY />During a routine demonstration, something unexpected occurred, and it caused me to become trapped in a <color=LIGHTRED>time loop</>."
+  Voice From Laptop: "<color=LIGHTGREY />The only thing I have been able to manipulate from this loop is the laptop you are listening to right now."
+  Voice From Laptop: "<color=LIGHTGREY />Please, whomever you are that is seeing this, I implore you to assist me.  You are likely my only hope of escape."
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    +:question(Anjana)
+    Anjana: "This has to be some kind of joke."
+    +:ld(Anjana, leftdown)
+    +:ld(Ada, rightdown)
+  }
+  Voice From Laptop: "<color=LIGHTGREY />I don't have much space left in this recording.  If you believe me, then please perform this action:"
+  Voice From Laptop: "<color=LIGHTGREY />In the <color=LIGHTPURPLE>Caf8teria<color=LIGHTGREY /> there is a <italic>certain suspicious individual<color=LIGHTGREY /> whom you must find."
+  Voice From Laptop: "<color=LIGHTGREY />You will know who it is when you encounter them."
+  Voice From Laptop: "<color=LIGHTGREY />You must </>offer to buy them a slice of pizza<color=LIGHTGREY />.  Do so, then return to this laptop for further instruction."
+  Voice From Laptop: "<color=LIGHTGREY />You are the only one whom this message will reach."
+  Voice From Laptop: "<color=LIGHTGREY />Not only my fate lies in the balance here, but potentially the fate of the whole second floor."
+  Voice From Laptop: "<color=LIGHTGREY />Please heed my words.  Godspeed, traveler."
+  +none()
+  +playSound(static)
+  Voice From Laptop: "<cascade-letters=0.25>......"
+  +?func(inParty, Anjana):{
+    +:leach(Anjana, Ada)
+    +:bored(Anjana)
+    Anjana: "The things these kids come up with..."
+    Anjana: "We should just leave this alone.  It's clear that somebody just wants a free lunch."
+    +:flat(Ada)
+    Ada: "That would be quite an elaborate ruse."
+    +:ld(Ada, down)
+    +:shakeZ(Anjana)
+    Anjana: "Bah, do whatever you want.  That pizza will be on your tab, though."
+  }
+  +?func(inParty, Skye):{
+    Skye: "Why pizza?  The pizza here isn't even any good."
+  }
+  +panCameraBackToPlayer()
+  +startQuest(AFunExpectedJourney)
+
+  +endConversation()

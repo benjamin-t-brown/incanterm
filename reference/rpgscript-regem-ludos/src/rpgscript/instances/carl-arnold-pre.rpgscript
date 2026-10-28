@@ -1,0 +1,820 @@
+#floor2PreThroneRoom1_Load
+  load,this
+@this
+  +?is(tmp.floor2PreSpawnLotteAtEnd):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotteWalk5)
+  }
+  +?is(tmp.floor2Pre_SpawnLotteNextRoom):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotteSpawn)
+    +:face(Lotte, down)
+    +setStorage(tmp.floor2Pre_SpawnLotteNextRoom, false)
+    +setStorage(tmp.floor2PreSpawnLotteAtEnd, true)
+  }
+
+#floor2_preThroneRoom1_OpenFancyDoorFWD
+  step-first,floor2_preThroneRoom1_OpenFancyDoorFWD_Open
+  step-off,floor2_preThroneRoom1_OpenFancyDoorFWD_Close
+@floor2_preThroneRoom1_OpenFancyDoorFWD_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerFancyDoorFwd_1, FANCY_DOOR)
+@floor2_preThroneRoom1_OpenFancyDoorFWD_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerFancyDoorFwd_1, FANCY_DOOR)
+
+#floor2_preThroneRoom1_OpenFancyDoorFWD2
+  step-first,floor2_preThroneRoom1_OpenFancyDoorFWD2_Open
+  step-off,floor2_preThroneRoom1_OpenFancyDoorFWD2_Close
+@floor2_preThroneRoom1_OpenFancyDoorFWD2_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerFancyDoorFwd2_1, FANCY_DOOR)
+@floor2_preThroneRoom1_OpenFancyDoorFWD2_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerFancyDoorFwd2_1, FANCY_DOOR)
+
+#floor2_preThroneRoom_transitionFrom1To2
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom2, MarkerFrom1)
+#floor2_preThroneRoom_transitionFrom2To1
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom1, MarkerFrom2)
+#floor2_preThroneRoom_transitionFrom1ToExtra
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoomExtra, MarkerFrom1)
+#floor2_preThroneRoom_transitionFromExtraTo1
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom1, MarkerFromExtra)
+#floor2_preThroneRoom_transitionFromExtraPortalTo1
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom1, MarkerFromExtraPortal)
+#floor2_preThroneRoom_transitionFrom1ToExtraPortal
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoomExtraPortal, MarkerFrom1)
+#floor2_preThroneRoom_transitionFrom2To3
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom3, MarkerFrom2)
+#floor2_preThroneRoom_transitionFrom3To2
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom2, MarkerFrom3)
+#floor2_preThroneRoom_transitionFrom3To4
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom4, MarkerFrom3)
+#floor2_preThroneRoom_transitionFrom4To3
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom3, MarkerFrom4)
+#floor2_preThroneRoom_transitionFrom4To5
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom5, MarkerFrom4)
+  +?once('floor2PreThroneRoom5'):{
+    +setStorage(floor2PreThroneRoom5_lotteCutsceneDone)
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+    +characterSetTalkTrigger(Lotte, floor2PreThroneRoom5LotteTalk)
+    +setConversation(Ada)
+    +walkToMarker(Lotte, MarkerLotteWalk0, 0, 0)
+    +setFacing(Lotte, down)
+    +panCameraToFitCharacters(1000, false, Lotte)
+    +lookAtCharacter(Ada, Lotte)
+    +:shakeZ(Lotte)
+    Lotte: "Over here."
+    +lookAtCharacter(Ada, Lotte)
+    +panCameraBackToPlayer()
+    +endConversation()
+  }
+#floor2_preThroneRoom_transitionFrom5To4
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom4, MarkerFrom5)
+#floor2_preThroneRoom_transitionFrom5ToThroneRoom
+  step,this
+@this
+  +:utils-change-room(floor1ThroneRoom, MarkerFromPreThroneRoom)
+
+
+#floor2PreThroneRoom_transitionFromPortalTo0
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom1, MarkerFromPortal)
+#floor2PreThroneRoom_transitionFrom0ToPortal
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoomPortal, MarkerFrom0)
+#floor2PreThroneRoomPortal_OpenFancyDoor
+  step-first,floor2_preThroneRoomPortal_OpenFancyDoor_Open
+  step-off,floor2_preThroneRoomPortal_OpenFancyDoor_Close
+@floor2_preThroneRoomPortal_OpenFancyDoor_Open
+  +playSound(sliding_door_open)
+  +:openDoubleDoorsFwd(MarkerDoor, FANCY_DOOR)
+@floor2_preThroneRoomPortal_OpenFancyDoor_Close
+  +playSound(sliding_door_close)
+  +:closeDoubleDoorsFwd(MarkerDoor, FANCY_DOOR)
+
+#floor2_mainQuestLotte
+  step-first,?once('a587a5a1'):this
+@this
+  +spawnCharacterAtMarker(Lotte, MarkerLotteSpawn)
+  +:face(Lotte, leftdown)
+  +setConversation2("", Lotte)
+  +:leach(Ada, Lotte)
+  Lotte: "You there!"
+  +:question(Ada)
+  +none()
+  +walkToMarker(Ada, MarkerAdaWalk1)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  +walkToCharacter(Lotte, Ada, 0, -49)
+  +setConversation2("Ada", Lotte)
+  +:leach(Ada, Lotte)
+  +panCameraToFitCharacters(1000, false, Ada, Lotte)
+  Lotte: "You are <color=ORANGE>Ada</>?"
+  Ada: "Yes..."
+  +none()
+  +walkToOffset(Lotte, 16, 0)
+  +:ld(Lotte, leftdown)
+  Lotte: "And <color=YELLOW cascade-letters>Conscience</>?"
+  +replaceConversationMember2(Conscience, left)
+  +:happy(Conscience)
+  Conscience: "That's me!"
+  +:ld(Lotte, leftdown)
+  Lotte: "Good.  I need you to come with me."
+  +replaceConversationMember2(Ada, left)
+  +:exclaim(Ada)
+  Ada: "Wait a second!"
+  Ada: "I have neither the time, nor the patience for another diversion!"
+  Ada: "I am going to find <color=LIGHTRED>Carl-Arnold</> this moment!"
+  +:sarcasm(Lotte)
+  Lotte: "He told me you might give me some attitude."
+  Lotte: "Don't worry.  My name is <color=ORANGE>Lotte</>.  I'm here to take you to him."
+  Lotte: "But you will have to follow me to get there."
+  +stopSkipCutscene()
+  +:grumpy(Ada)
+  Ada: "Fine."
+  +none()
+  +setSpeed(Party, 0.5)
+  +setSpeed(Lotte, 0.5)
+  +walkToOffset(Lotte, 0, -32, true)
+  +walkToOffset(Party, 0, -32, true)
+  +:w(500)
+  +fadeOut(1000)
+  +setSpeed(Party)
+  +panCameraBackToPlayer(1)
+  +:utils-change-room(floor2GuestroomPortal, MarkerFromHallway, true)
+
+@floor2_preThroneRoom_lotte2
+// Ada, Conscience, and Lotte have just come out of the portal.
+  +setSpeed(Lotte, 1.5)
+  +walkToCharacter(Conscience, Ada, 16, 0)
+  +walkToOffset(Conscience, 0, 16)
+  +spawnCharacterAtMarker(Lotte, MarkerLotte)
+  +lookAtEachOther(lotte, ada)
+  +lookAtEachOther(lotte, conscience)
+  // +stopSkipCutscene()
+  +setConversation('Lotte')
+  +:shakeZ(Lotte)
+  +:surprised(Lotte)
+  +panCameraToFitCharacters(500, true, Ada, Conscience, Lotte)
+  Lotte: "How curious..."
+  +walkToOffset(Lotte, 0, 24)
+  +walkToOffset(Lotte, 8, 0)
+  +:shakeZ(Lotte)
+  Lotte: "You look almost exactly the same."
+  +none()
+  +setFacing(Conscience, left)
+  +waitMS(250)
+  +setFacing(Conscience, down)
+  +waitMS(250)
+  +:question(conscience)
+  Conscience: "We are plenty different, I assure you."
+  +:la(Ada, Conscience)
+  +:shakeZ(Ada)
+  Ada: "<cascade-letters scale=0.75>Conscience..."
+  +lookAtEachOther(lotte, conscience)
+  +:la(Ada, Lotte)
+  +:shakeZ(Lotte)
+  Lotte: "Indeed you are."
+  ++walkToOffset(Lotte, 0, -24)
+  +:ld(Lotte, rightdown)
+  +:la(Conscience, Lotte)
+  +:la(Ada, Lotte)
+  +:shakeZ(Lotte)
+  Lotte: "You seem... quite normal."
+  Conscience: "Thanks!  <scale=0.75 />I guess.</>"
+  +:blush(Conscience)
+  Conscience: "You've got a very <italic>alluring</> costume there, by the way."
+  +:heart(Lotte)
+  Lotte: "That's by design, dear. I'm glad you noticed."
+  Lotte: "I prefer to make use of <italic>all my assets</>."
+  Lotte: "This week there's a <color=LIGHTPURPLE>costume contest</> in the ballroom on floor 6."
+  Lotte: "I'm testing out a few options...  Today I'm a <color=LIGHTBLUE>sorceress</>.  It suits me, does it not?"
+  +:spin(Lotte)
+  +waitMS(1000)
+  +lookAtEachOther(lotte, ada)
+  +endConversation(1)
+  +setConversation2(Lotte, Ada)
+  +:teardrop(Ada)
+  Ada: "<cascade>Can you just hurry up and take us to <color=LIGHTRED>Carl-Arnold</>?"
+  +:smallPause()
+  +:sarcasm(Lotte)
+  Lotte: "So.<delay=250 /> You are the infamous <color=ORANGE />Adalais Eldridge</> of <color=LIGHTPURPLE>Erran Valley</>."
+  Lotte: "I thought you'd be taller."
+  +:ld(Ada, left)
+  Ada: "<color=LIGHTGREY scale=0.8 />And I thought you would be <italic>more helpful</>.  Where is <color=LIGHTRED>Carl-Arnold</>?"
+  Lotte: "Well, well, well.  You've got some bite, don't you?"
+  +:la(Ada, Lotte)
+  Ada: "Sorry, but who exactly are you?"
+  +:angry(Lotte)
+  Lotte: "I am <color=LIGHTRED>Lotte</>.  Also a student of <color=LIGHTPURPLE>Erran Valley</>.  Anybody worth anything is from there of course."
+  Ada: "Are you one of <color=LIGHTRED>Carl-Arnold</>'s lackeys or something?"
+  Lotte: "One of his <italic>lackeys</>?  Of course not."
+  Lotte: "I simply do him a few favors from time to time."
+  Lotte: "Like shepherding you around for example."
+  +stopSkipCutscene()
+  +:ld(Lotte, leftdown)
+  Lotte: "Let us proceed.  Follow me."
+  +none()
+  +walkToMarker(Lotte, MarkerLotteWalk1)
+  +lookAtEachOther(lotte, ada)
+  +lookAtEachOther(lotte, conscience)
+  Lotte: "<color=LIGHTRED>Carl-Arnold</> is very <italic>eager</> to see you, after all."
+  +none()
+  +setFacing(Lotte, leftup)
+  +:floor2_preThroneRoomPortal_OpenFancyDoor_Open()
+  +walkToMarker(Lotte, MarkerLotteWalk2)
+  +despawnCharacter(Lotte)
+  +:floor2_preThroneRoomPortal_OpenFancyDoor_Close()
+  +endConversation(100)
+  +setConversation2(Ada, Conscience)
+  +lookAtCharacter(Ada, Conscience)
+  +:bored(Ada)
+  Ada: "You are rather <italic>chummy</> today."
+  +lookAtCharacter(Conscience, Ada)
+  Conscience: "I'm just being polite."
+  Ada: "Just stay close to me.  I have a bad feeling about this."
+  // +:angry(Lotte)
+  // +setConversation(Lotte)
+  // +setFacing(Lotte, rightdown)
+  // +panCameraToFitCharacters(1000, true, 'Lotte')
+  // +waitMS(500)
+  // +:shakeZ(Lotte)
+  // Lotte: "Are you two going to follow me?  I am not known for my patience."
+  +panCameraBackToPlayer(1000)
+  // +setConversation(Conscience)
+  // +:jump(Conscience)
+  // Conscience: "We're coming!"
+  +setStorage('tmp.floor2Pre_SpawnLotteNextRoom', true)
+  +endConversation()
+
+#floor2_preThroneRoom_lotte4_move
+  step,?once('30d66288'):this
+@this
+  +setConversation(Ada)
+  +:leach(Lotte, Ada)
+  Lotte: "This way.  Don't stray too far from me."
+  Lotte: "This place can be a little... unruly."
+  +endConversation()
+  +walkToMarker(Lotte, MarkerLotteWalk5, 0, 0, true)
+
+#floor2_preThroneRoom_lotte5_move
+  step,?once('35894cd4'):this
+@this
+  +walkToMarker(Lotte, MarkerLotteWalk5, 0, 0, true)
+
+#floor2_preThroneRoom_lotte6_move
+  step,?once('9bef66bd'):this
+@this
+  +setStorage(tmp.floor2PreSpawnLotteAtEnd, false)
+  +setConversation(Ada)
+  +panCameraRelativeToPlayer(-50, 50, 1000, true)
+  +walkToMarker(Lotte, MarkerLotteWalk6, 0, 0)
+  +setFacing(Lotte, rightup)
+  +:jump(Lotte)
+  Lotte: "This way."
+  Lotte: "There might be some critters jumping around.  I'm <italic>sure</> a student of your calibre from <color=LIGHTPURPLE>Erran Valley</> can handle them without issue."
+  +none()
+  +walkToOffset(Lotte, 0, 48, true)
+  +none()
+  +setFacing(Lotte, leftdown)
+  +waitMS(500)
+  +despawnCharacter(Lotte)
+  +panCameraBackToPlayer()
+  +walkToMarker(Ada, MarkerAdaWalk2)
+  +walkToCharacter(Conscience, Ada, 16, 16)
+  +:lookAround(Ada)
+  +lookAtEachOther(Ada, Conscience)
+  Ada: "What is this place?"
+  Conscience: "It's gotta be another <color=LIGHTBLUE>Instance</>, right?  Probably <color=LIGHTRED>Carl-Arnold's</> personal one."
+  Conscience: "He is the <italic>king</> after all."
+  Ada: "It is quite different than the last one though."
+  Conscience: "Didn't they say their <color=LIGHTBLUE>Revirtualis</> can be made to represent <italic>anything</>?"
+  Conscience: "It doesn't have to be that weird skyway thingy."
+  +:worried(Ada)
+  Ada: "Whatever it is, just make sure stick close to me."
+  +endConversation()
+
+#floor2_preThroneRoomExtra_terminal
+  action,?once('c505c145'):this
+  action,floor2_preThroneRoomExtra_terminal2
+@this
+  +setConversation(Ada)
+  +:lockCamera()
+  +:ld(Ada, rightup)
+  +:bumpY(Ada, 1)
+  +playSound(terminal_beep)
+  +:smallPause()
+  Narrator: "<cascade-letters>THANK YOU FOR USING THE BREAK ROOM.\nPLEASE PARTAKE IN ONE OF THE FREE MUFFINS."
+  +none()
+  +acquireItem(Muffin)
+  +:unlockCamera()
+  +endConversation()
+@floor2_preThroneRoomExtra_terminal2
+  +setConversation(Ada)
+  +:lockCamera()
+  +:ld(Ada, rightup)
+  +:bumpY(Ada, 1)
+  +playSound(terminal_beep)
+  +:smallPause()
+  Narrator: "<cascade-letters>THANK YOU FOR USING THE BREAK ROOM."
+  Narrator: "<cascade-letters>THERE ARE NO MORE MUFFINS AVAILABLE.\nPLEASE TRY AGAIN AT A LATER TIME."
+  +:unlockCamera()
+  +endConversation()
+
+
+#floor2PreThroneRoomRemoveLotte
+  step-first,this
+@this
+  +?is(Lotte):{
+    +despawnCharacter(Lotte)
+  }
+
+#floor2PreThroneRoom2_load
+  load,this
+@this
+  +?once('7f8c1c51'):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+    +walkToMarker(Lotte, MarkerFrom3, 0, 0, true)
+  }
+
+#floor2_preThroneRoom2_lockedDoor
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This door is locked."
+  +endConversation()
+
+#floor2_preThroneRoom2_infoPanel
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +:lockCamera()
+  +:bumpX(Ada, -1)
+  +playSound(terminal_beep)
+  +:w(1000)
+  +playSound(terminal_cancel)
+  +:w(200)
+  Narrator: "<color=LIGHTGREY />The terminal says:\n</> Access to the <color=LIGHTPURPLE>Hall of Prizes</> is limited to admins only."
+  +:unlockCamera()
+  +endConversation()
+
+#floor2_preThroneRoom2_trophyRoomOverflowMessy
+  step,?once('a840b83c'):this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +panCameraRelativeToPlayer(-50, -50, 1000, true)
+  Ada: "A trophy room...?"
+  +?func(inParty, Conscience):{
+    +walkToCharacter(Conscience, Ada, -16, -16)
+    +:ld(Conscience, leftup)
+    Conscience: "It's kinda messy in here."
+    Conscience: "Did he really win all these prizes?"
+  }
+  +panCameraBackToPlayer()
+  +:ld(Ada, down)
+  +:smirk(Ada)
+  Ada: "One would think that the <color=LIGHTRED>Regem Ludos</> himself would have a more organized collection of accolades."
+  +endConversation()
+
+#floor2_preThroneRoom2_trophyRoomOverflowSign
+  action,this
+@this
+  +setConversation(Ada)
+  +:face(Party, leftup)
+  Ada: "<color=LIGHTGREY />The terminal says:\n</> 'Overflow for the <color=LIGHTPURPLE>Hall of Prizes</>.'"
+  +endConversation()
+
+#floor2_preThroneRoom2_trophyRoomOverflowSign2
+  action,this
+@this
+  +setConversation(Ada)
+  +:face(Party, leftup)
+  Ada: "<color=LIGHTGREY />The terminal says:\n</> '<color=LIGHTPURPLE>TODO</> Expand this room.  It's a little cramped.'"
+  +endConversation()
+
+#floor2_preThroneRoom2_trophyRoomOverflowCrates
+  action,this
+@this
+  +setConversation(Ada)
+  +:face(Party, leftup)
+  +walkPartyToFormation()
+  Ada: "These crates are full of trophies."
+  +?func(inParty, Conscience):{
+    Conscience: "I guess these weren't important enough to display."
+  }
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy1
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> A commemoration for placing first in the inaugural <color=LIGHTBLUE />Regem Ludos Skyborne! Tournament</>."
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy2
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> The holder of this trophy is currently undefeated in head-to-head <color=LIGHTBLUE />Dasher Racing</> when confronted by a challenger."
+  Narrator: "Footnote: the trophy-holder must have at least 10 matches played, and can retire at any time."
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy3
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> This trophy was given to the one who consumed the most hot-dogs in a single sitting at the <color=LIGHTRED /> Regem Ludos Cafeteria Eat Off</>."
+  Narrator: "The entrants are engraved on the side of it.  There appear to only be four of them.  And it looks like one was disqualified."
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy4
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> This trophy is for being <color=LIGHTBLUE />most-likely to win a raffle</>."
+  Narrator: "It seems the winner was drawn from a pot of entries."
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy5
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> This trophy is given to one who has won a game of <color=LIGHTBLUE>Solitaire</>."
+  Narrator: "That's it.  That's all it says."
+  +setFacing(Ada, down)
+  +:flat(Ada)
+  Ada: "Who hands out a trophy like <italic>that</>?"
+  +endConversation()
+
+#floor2_preThroneRoom2_trophy6
+  action,this
+@this
+  +setConversation(Ada)
+  Narrator: "<color=LIGHTGREY />The trophy's plaque says:\n</> This trophy is given to the best employee at <color=LIGHTRED />Deliver's Pizza</>, a nearby pizza joint."
+  +:question(Ada)
+  Ada: "There is a note pinned here."
+  +:shakeZ(Ada)
+  Narrator: "'Yo, CA, somebody came by to pick up your old trophy.'"
+  Narrator: "'Apparantly they got a new employee and he's, like, breaking all your records or something.'"
+  Narrator: "'They gave me this replacement though, so I put it up here.' ~ J"
+  +endConversation()
+
+#floor2PreThroneRoom3_load
+  load,this
+@this
+  +log('floor2PreThroneRoom3_load')
+  +?once('716e7c6f'):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+    +walkToMarker(Lotte, MarkerFrom4, 0, 0, true)
+  }
+  +?is(preThroneRoom3Item):{
+    +changePropAnim(PropSparkle, invisible)
+  }
+
+#floor2_preThroneRoom3_statue
+  action,?once('6671a670'):floor2_preThroneRoom3_statue1
+  action,?once('62ec7323'):floor2_preThroneRoom3_statue2
+  action,?once('733147a7'):floor2_preThroneRoom3_statue3
+  action,floor2_preThroneRoom3_statue4
+@floor2_preThroneRoom3_statue1
+  +setConversation(Ada)
+  Ada: "A statue of himself?  He can be so despicable."
+  +endConversation()
+@floor2_preThroneRoom3_statue2
+  +setConversation(Ada)
+  Ada: "Was he really that tall?"
+  +endConversation()
+@floor2_preThroneRoom3_statue3
+  +setConversation(Ada)
+  Ada: "I wonder why he is holding all those different weapons."
+  +endConversation()
+@floor2_preThroneRoom3_statue4
+  +setConversation(Ada)
+  Ada: "Ugh, he can be so despicable."
+  +setStorage('6671a670', false, true)
+  +setStorage('62ec7323', false, true)
+  +setStorage('733147a7', false, true)
+  +endConversation()
+
+#floor2_preThroneRoom3_statueSparkle
+  action,?isnot(preThroneRoom3Item):this
+  action,floor2_preThroneRoom3_statue4
+@this
+  +setConversation(Ada)
+  Ada: "There is something lose on this statue's hand..."
+  +none()
+  +walkToMarker(Ada, MarkerAdaStatue0)
+  +walkToMarker(Ada, MarkerAdaStatue1)
+  +setFacing(Ada, rightup)
+  +waitMS(250)
+  +:jump(Ada, true)
+  +waitMS(75)
+  +playSound(click)
+  +changePropAnim(PropSparkle, invisible)
+  +waitMS(500)
+  +setFacing(Ada, down)
+  +acquireItem(BandOfMinorPower)
+  +setStorage(preThroneRoom3Item)
+  +endConversation()
+
+#floor2_preThroneRoom4_boxYellow
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This is a <color=YELLOW>yellow</> box with a label on the side: 'For Bartolo'."
+  Ada: "It looks sealed shut with... heavy-duty nails?"
+  +endConversation()
+
+#floor2_preThroneRoom4_boxBlue
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This is a <color=LIGHTBLUE>blue</> box with a label on the side: 'For Lotte'."
+  Ada: "There a small seal on the box with a picture of a wand on it."
+  +endConversation()
+
+#floor2_preThroneRoom4_boxGreen
+  action,this
+@this
+  +setConversation(Ada)
+  Ada: "This is a <color=LIGHTGREEN>green</> box with a label on the side--"
+  Ada: "Wait a second... The label is crossed out quite vigorously, but I might still be able to make some of it out..."
+  Ada: "I think it says: 'For V-----na.'"
+  +:question(Ada)
+  Ada: "The box was sealed with tape that was hastily cut open.  It appears empty now."
+  +endConversation()
+
+#floor2_preThroneRoom4_boxRed
+  action,?once('01c4b43b'):floor2_preThroneRoom4_boxRed1
+  action,floor2_preThroneRoom4_boxRed2
+@floor2_preThroneRoom4_boxRed1
+  +setConversation(Ada)
+  Ada: "This is a <color=LIGHTRED>red</> box with a label on the side: 'For the Illustrious Carl-Arnold'."
+  Ada: "It looks like I might be able to open it..."
+  +none()
+  +walkToMarker(Ada, MarkerAdaBox0)
+  +setFacing(Ada, up)
+  +panCameraRelativeToCurrentPosition(0, 0, 1)
+  +waitMS(250)
+  +offsetCharacter(Ada, -2, -2)
+  +waitMS(500)
+  +offsetCharacter(Ada, -1, -1)
+  +waitMS(500)
+  +playSound(zap_quiet)
+  +waitMS(50)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_BLUE_LIGHTNING_LEFT, MarkerAdaBox1, normal)
+  +playSound(zap_medium)
+  +setAnimation(Ada, 'ada_battle_damaged_left_f')
+  +offsetCharacter(Ada, 8, 8)
+  +waitMS(50)
+  +offsetCharacter(Ada, 6, 6)
+  +waitMS(50)
+  +offsetCharacter(Ada, 4, 4)
+  +waitMS(50)
+  +offsetCharacter(Ada, 2, 2)
+  +waitMS(500)
+  +setAnimationState(Ada, 'idle')
+  +:angry(Ada)
+  Ada: "Ouch!!"
+  +panCameraBackToPlayer()
+  +endConversation()
+@floor2_preThroneRoom4_boxRed2
+  +setConversation(Ada)
+  +none()
+  +walkToMarker(Ada, MarkerAdaBox0)
+  +setFacing(Ada, down)
+  Ada: "I certainly do not want to touch that box again.  It zapped me quite thoroughly."
+  +endConversation()
+
+@floor2PreThroneRoom4
+  +?once('bf0dd6c7'):{
+    +spawnCharacterAtMarker(Lotte, MarkerLotte)
+    +walkToMarker(Lotte, MarkerFrom5, 0, 0, true)
+  }
+
+#floor2PreThroneRoom5_load
+  load,this
+@this
+  // +?isnot(floor2PreThroneRoom5_lotteCutsceneDone):{
+  +spawnCharacterAtMarker(Lotte, MarkerLotteWalk0)
+  +setFacing(Lotte, down)
+  +characterSetTalkTrigger(Lotte, floor2PreThroneRoom5LotteTalk)
+  // }
+
+#floor2PreThroneRoom5_messyNote
+  action,this
+@this
+  +setConversation(Ada)
+  +:face(Ada, left)
+  +walkPartyToFormation()
+  +?func(inParty, Conscience):{
+    +:ld(Conscience, leftup)
+    Conscience: "Did <color=LIGHTRED>Carl-Arnold</> leave all this stuff here?  Isn't this his personal <color=LIGHTBLUE>Instance</>?"
+  }
+  Ada: "He really ought to take more pride in his quarters."
+  +?func(inParty, Conscience):{
+    Conscience: "It looks like he just moved in."
+  }
+  +endConversation()
+
+#floor2PreThroneRoom5LotteTalk
+  action,this
+@this
+  +setConversation(Lotte)
+  +lookAtEachOther(Ada, Lotte)
+  +:ld(Lotte, up)
+  Lotte: "Proceed into this room."
+  +:leach(Ada, Lotte)
+  Lotte: "I will follow."
+  +endConversation()
+
+#floor2_preThroneRoom5_preventWalkWest
+  step-first,this
+@this
+  +playSound(aggro_alert)
+  +:jump(Ada, true)
+  +:smallPause()
+  +setConversation(Ada)
+  +lookAtCharacter(Lotte, Ada)
+  +panCameraToFitCharacters(500, false, Lotte)
+  +:angry(Lotte)
+  Lotte: "Do not go any further!  I didn't guide you here so that you could end up <italic>lost</>."
+  +none()
+  +walkToOffset(Ada, 32, -32)
+  +panCameraBackToPlayer()
+  +setFacing(Lotte, down)
+  +endConversation()
+
+#floor2_preThroneRoom5_lotteUsherIntoThroneRoom
+  step-first,?once('77800b11'):this
+  step,floor2_preThroneRoom5_lookAda
+@this
+  +setConversation(Ada)
+  +walkToMarker(Ada, MarkerAdaWalk0)
+  +walkPartyToFormation()
+  +lookAtEachOther(Lotte, Ada)
+  +panCameraToFitCharacters(1000, false, Lotte, Ada)
+  +:shakeZ(Lotte)
+  +:ld(Lotte, up)
+  Lotte: "Proceed into this room."
+  +:leach(Ada, Lotte)
+  Lotte: "I will follow."
+  +:shakeZ(Lotte)
+  Lotte: "And of course I needn't say this but..."
+  Lotte: "Be sure to show proper respect."
+  +panCameraBackToPlayer()
+  +setFacing(Lotte, down)
+  +endConversation()
+@floor2_preThroneRoom5_lookAda
+  +lookAtCharacter(Lotte, Ada)
+
+#floor2_preThroneRoom5_transitionToThroneRoom
+  step-first,this
+@this
+  +:utils-change-room(floor2ThroneRoom, MarkerFromPreThroneRoom, true)
+  +endConversation(1)
+  +setConversation(Ada)
+  +fadeIn(300)
+  +?once(floor2_preThroneRoom_transitionFrom5ToThroneRoom):{
+    +:floor2-throne-room-lotte1()
+  }
+
+#floor2PreThroneRoom5ComputerEquipment
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  Ada: "This terminal says:\n <color=LIGHTGREY> Subject: REDACTED, tracker: ERROR, location: UNDEFINED."
+  Conscience: "I have no idea what that means."
+  +endConversation()
+
+#floor2PreThroneRoom5ComputerEquipment2
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  +walkPartyToFormation()
+  +?isnot(vars.BastionGate1Closed):{
+    Ada: "This terminal says:\n <color=LIGHTGREY> No security breaches detected."
+  }
+  +?is(vars.BastionGate1Closed):{
+    Ada: "This terminal says:\n <color=LIGHTGREY> WARNING: Security breach detected in wing 5a: Western Bastion.  Remediation advised."
+    +:teardrop(Conscience)
+    Conscience: "...Did we do that?"
+  }
+  +endConversation()
+
+#floor2PreThroneRoom5StatueHeads
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, rightup)
+  +walkPartyToFormation()
+  Ada: "Stone replications of <color=LIGHTRED>Carl-Arnold's</> head..."
+  +:worried(Conscience)
+  Conscience: "They're honestly kind of creepy."
+  +:ld(Lotte, rightdown)
+  Lotte: "Those are defects.  Please ignore them."
+  +endConversation()
+
+#floor2PreThroneRoomExtraPortal_DormantPortal
+  action,this
+@this
+  +setConversation(Ada)
+  +:lm(Ada, MarkerPortal)
+  Ada: "This portal is not active."
+  +?func(inParty, Conscience):{
+    +:lm(Conscience, MarkerPortal)
+    Conscience: "I wonder where it goes...?"
+  }
+  +endConversation()
+
+#floor2_preThroneRoom1_barricade
+  action,this
+@this
+  +setConversation(Ada)
+  +:ld(Ada, leftup)
+  Ada: "Apparantly we are not going through there."
+  +?all(once('a6dda9c6'), func(inParty, Conscience)):{
+    +:ld(Conscience, leftup)
+    Conscience: "I hope it's not blocking anything nefarious."
+  }
+  +endConversation()
+
+#floor2_preThroneRoom1ToBastionEntrance1
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoomBastionEntrance1, MarkerFrom1)
+
+#floor2_bastionEntrance1ToPreThroneRoom1
+  step,this
+@this
+  +:utils-change-room(floor2PreThroneRoom1,  MarkerFromBastion)
+
+#floor2PreThroneRoomBastionGate1_Load
+  load,this
+@this
+  +?is(vars.BastionGate1Closed):{
+    +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED_NO_ANIM)
+    +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED_NO_ANIM, 16)
+    +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED_NO_ANIM, -16)
+  }
+
+#floor2PreThroneRoom_BastionEntrance1_CloseGate
+  step,?once('6faa55a7'):this
+@this
+  +setStorage(vars.BastionGate1Closed, true)
+  +setConversation(Ada)
+  +walkToCharacter(Ada, Ada)
+  +panCameraRelativeToPlayer(25, -25, 300)
+  +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED)
+  +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED, 16)
+  +changeTileAtMarker(MarkerGate, BASTION_GATE_CLOSED, -16)
+  +playSound(sliding_door_close)
+  +playSound(shing)
+  +:w(100)
+  +playSound(projector_close)
+  +:w(100)
+  +playSound(move_wall)
+  +:w(100)
+  +spawnParticleAtMarker(EFFECT_TEMPLATE_SMOKE_FAST, MarkerGate, normal, -12, 0)
+  +playSound(battle_fireball_explosion2)
+  +playSound(stone_bass)
+  +walkToOffset(Party, 0, 32)
+  +:ld(Ada, rightup)
+  +panCameraBackToPlayer()
+  Narrator: "Unauthorized intruder detected.  Lockdown engaged."
+  +:leach(Ada, Conscience)
+  +:worried(Ada)
+  Ada: "That was uncomfortably close."
+  Conscience: "Maybe we should have followed <color=LIGHTBLUE>Lotte</> after all."
+  +endConversation()

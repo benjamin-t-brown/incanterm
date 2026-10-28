@@ -1,0 +1,155 @@
+#patternMatchmaking_Table6
+  action,?func(questNotStarted, PatternMatchmaking):patternMatchmaking_Couple_NotStarted
+  action,?func(questActive, PatternMatchmaking):patternMatchmaking_Table6
+@patternMatchmaking_Table6
+  +:patternMatchmaking_Table6_SetupConv()
+  +setStorage(tmp.primaryCh, Liv)
+  +setStorage(tmp.secondaryCh, {quest.aux.PatternMatchmaking.Table6SecondaryCh})
+  +setStorageCond(tmp.onceKey, "once(mm_convo_{tmp.primaryCh}{tmp.secondaryCh}_{tmp.NextRoundNumber})")
+  +?is(tmp.onceKey):{
+    +callScript(patternMatchmaking_{tmp.primaryCh}And{tmp.secondaryCh})
+  }
+  +?isnot(tmp.onceKey):{
+    +:patternMatchmaking_SecondConvoForTable(6)
+  }
+
+@patternMatchmaking_Table6_SetupConv
+  +setWallCollisionEnabled(false)
+  +walkToMarker(Party, MarkerTables11, -24, 24)
+  +:face(Ada, rightdown)
+  +walkPartyToFormation()
+  +setWallCollisionEnabled(true)
+  +stopAi({tmp.primaryCh})
+  +stopAi({tmp.secondaryCh})
+
+@patternMatchmaking_Table6_EndConvo
+  +?func(questStepEQ, PatternMatchmaking, 0):{
+    +completeQuestSubStep(PatternMatchmaking, 0, 5)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 2):{
+    +completeQuestSubStep(PatternMatchmaking, 2, 5)
+  }
+  +?func(questStepEQ, PatternMatchmaking, 4):{
+    +completeQuestSubStep(PatternMatchmaking, 4, 5)
+  }
+  +:patternMatchmaking_checkSubTasksForN({quest.aux.PatternMatchmaking.NextRoundNumber})
+  +panCameraBackToPlayer(500, true)
+  +startAi({tmp.primaryCh})
+  +startAi({tmp.secondaryCh})
+  +endConversation()
+
+@patternMatchmaking_LivAndScott
+  +setConversationGroup(Liv, Scott)
+  +:patternMatchmaking_Table6_SetupConv()
+  +panCameraToFitCharacters(1000, false, Liv, Scott)
+  +?eq(quest.aux.PatternMatchmaking.NextRoundNumber, 2):{
+    +:happy(Liv)
+    Liv: "Hello! I'm <color=PINK>Liv</>! Nice to meet you!"
+    +:la(Scott, Liv)
+    Scott: "Yeah.  Hi.  I'm <color=LIGHTBLUE>Scott</>.  <color=LIGHTGREY scale=0.8 cascade-letters>Not that it really matters."
+    Liv: "What was that?  Could you speak up?"
+    +:nervous(Scott)
+    Scott: "Look, <scale=0.8 />I'm not really part of this dating event thing."
+    +:ld(Scott, leftup)
+    Scott: "I'm just saving a seat for my friend."
+    Liv: "Your friend?"
+    +:la(Scott, Liv)
+    Scott: "Yes.  My friend!  He's late!  He told me to go sign up for him and chill here until he comes back."
+    Liv: "Oh, that's nice of you!"
+    Scott: "Yeah, well, I'm not really into this sort of thing."
+    Scott: "If you don't mind, I'd rather not pretend like we're here for the same reason."
+    Scott: "Let's just... chill for a bit or something."
+    Liv: "Okay!  I can do that!"
+    +?func(inParty, Skye):{
+      +:leach(Ada, Skye)
+      Skye: "He should at least try to talk to her.  I mean, he's here, right?"
+    }
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "Somehow I doubt his 'friend' was being entirely truthful.  I doubt he's coming back."
+    }
+  }
+  +:patternMatchmaking_Table6_EndConvo()
+
+//----------------------------------------------------------------------------------------
+
+@patternMatchmaking_LivAndAnders
+  +setConversationGroup(Liv)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(500, false, Liv)
+  +:patternMatchmaking_pairingCount(Liv, Anders)
+  +?eq(tmp.pairingCount, 1):{
+    +:leach(Liv, Ada)
+    Liv: "Um excuse me.  Should I have a partner now?  Nobody has sat across from yet."
+    Ada: "Your partner is <color=LIGHTBLUE>Anders</>. They should be here eventually."
+    Liv: "Oh, okay.  I'll wait then."
+    +?func(inParty, Skye):{
+      +:leach(Ada, Skye)
+      Skye: "Aww man, I kinda feel bad for her.  She seems so eager."
+      +?func(inParty, Anjana):{
+        +:leach(Ada, Anjana)
+        Anjana: "I'm sure it'll be fine.  She seems like a nice person.  I'll bet we could pair her with anybody."
+      }
+    }
+  }
+  +?eq(tmp.pairingCount, 2):{
+    +:leach(Liv, Ada)
+    Liv: "I wonder when this <color=LIGHTBLUE>Anders</> is coming..."
+    +:lightbulb(Liv)
+    Liv: "I'll bet they're really nice!"
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_LivAndRandy
+  +setConversationGroup(Liv, Randy)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(500, false, Liv, Randy)
+  +:patternMatchmaking_pairingCount(Liv, Randy)
+  +?eq(tmp.pairingCount, 1):{
+    Randy: "Hi.  I'm <color=LIGHTBLUE>Randy</>."
+    Liv: "Hello!  I'm <color=PINK>Liv</>!  Nice to meet you!"
+    Randy: "Wow, you're really excited about this, huh?"
+    +:happy(Liv)
+    Liv: "Yep!  Honestly I get kind of nervous but then it's <italic>never</> as crazy as my imagination makes it out to be."
+    Randy: "Ha ha, yeah... <color=LIGHTGREY cascade-letters>sometimes</>."
+    Liv: "Well, no pressure.  We can just chat and see how it goes!"
+  }
+  +?eq(tmp.pairingCount, 2):{
+    Liv: "So, what do you do for fun?"
+    Randy: "I um... I like to... um... do math."
+    Liv: "Math?  Really?  That sounds so hard!"
+    Randy: "Actually, umm...  I just sort of freaked out and lied, and I don't know why."
+    Liv: "Oh is your mind going <italic>crazy</> right now? I get that way sometimes too."
+    Liv: "Do you maybe want to ask me a question?"
+    Randy: "Oh, um...  What's your favorite color?"
+    Liv: "Oh I like <color=RED>R<color=ORANGE>A<color=YELLOW>I<color=GREEN>N<color=BLUE>B<color=LIGHTPURPLE>O<color=PURPLE>W</>!  It's so calming."
+    Rands: "That's nice."
+  }
+  +:patternMatchmaking_Table5_EndConvo()
+
+@patternMatchmaking_LivAndJack
+  +setConversationGroup(Liv, Jack)
+  +:patternMatchmaking_Table5_SetupConv()
+  +panCameraToFitCharacters(500, false, Liv, Jack)
+  +:patternMatchmaking_pairingCount(Liv, Jack)
+  +?eq(tmp.pairingCount, 1):{
+    Liv: "Hi!  I'm <color=PINK>Liv</>!  Nice to meet you!"
+    Jack: "<color=LIGHTBLUE>Jack</>."
+    Liv: "I like your hair."
+    Jack: "Thanks.  I don't really do anything special with it."
+    Liv: "I think it's cool.  It's like you're a character in a story."
+    Jack: "I guess I can see that."
+    Liv: "Are you into music?"
+    Jack: "Ya, but not stuff you would like."
+    Liv: "Maybe!  That doesn't mean I'm not curious!"
+    Jack: "Heh.  I guess that's true."
+    +?func(inParty, Anjana):{
+      +:leach(Ada, Anjana)
+      Anjana: "Alright, I'm jealous"
+    
+    }
+  }
+  +?eq(tmp.pairingCount, 2):{
+
+  }
+  +:patternMatchmaking_Table5_EndConvo()
