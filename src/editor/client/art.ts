@@ -1,3 +1,14 @@
+import {
+  applyPath,
+  extendDrawPath,
+  isPathMode,
+  isPathStyle,
+  PATH_MODES,
+  strokeCells,
+  type GridPoint,
+  type PathMode,
+  type PathStyle,
+} from '../ascii-path.js';
 import { artCursorKind, type ArtCursorGesture, type ArtTool } from '../art-cursor.js';
 import { isSingleWidthGlyph } from '../glyph.js';
 import { paletteRgb, type PaletteDocument } from '../palette.js';
@@ -19,9 +30,53 @@ import {
   type SpriteFrame,
   type SpriteLayer,
 } from '../schema.js';
-import { jsonRequest, requestJson, ApiError } from './api.js';
+import {
+  applyTerminalGlyphStyle,
+  DEFAULT_SPRITE_FONT,
+  isSpriteFontId,
+  preloadSpriteFonts,
+  spriteFontFamily,
+  spriteFontNativePx,
+  SPRITE_FONTS,
+  terminalCellAtZoom,
+  terminalFont,
+  type SpriteFontId,
+  type TerminalCell,
+} from '../terminal-cell.js';
+import {
+  createReference,
+  DEFAULT_REFERENCE_OPACITY,
+  fitReferenceRect,
+  resizeReferenceRect,
+  type ReferenceHandle,
+  type SpriteReference,
+} from '../reference.js';
+import {
+  ART_TAB_PERSIST_MS,
+  LAST_SPRITE_KEY,
+  addOpenTab,
+  buildArtTabStore,
+  closeOpenTab,
+  defaultArtTabChrome,
+  neighborTab,
+  pruneMissingTabs,
+  readArtTabStore,
+  renameOpenTab,
+  sessionDirty,
+  writeArtTabStore,
+  type ArtTabChrome,
+  type ArtTabDirtySession,
+} from '../art-tabs.js';
+import { jsonRequest, requestJson, putBytes, getBytes, ApiError } from './api.js';
 import { artCursorCss } from './cursors.js';
-import { alertModal, askAnimationSpeed, askNewSprite, confirmModal, isModalOpen } from './modal.js';
+import {
+  alertModal,
+  askAnimationSpeed,
+  askNewSprite,
+  askSaveAs,
+  confirmModal,
+  isModalOpen,
+} from './modal.js';
 import { askId, brandLink, setDirtyGuard } from './shell.js';
 
 type Stamp = { width: number; height: number; cells: (SpriteCell | null)[] };
@@ -32,8 +87,16 @@ type HistoryEntry = {
   selectedFrame: number;
   activeLayerId: string | null;
 };
+type TabSession = ArtTabDirtySession & {
+  undoStack: HistoryEntry[];
+  redoStack: HistoryEntry[];
+  reference: SpriteReference | null;
+  referenceImage: HTMLImageElement | null;
+  referenceUrl: string | null;
+  referenceEdit: boolean;
+};
 
-const GLYPHS = [
+const SPECIAL_GLYPHS = [
   '█',
   '▓',
   '▒',
@@ -50,6 +113,8 @@ const GLYPHS = [
   '║',
   '╠',
   '╣',
+  '╦',
+  '╩',
   '┌',
   '┐',
   '└',
@@ -86,10 +151,13 @@ const GLYPHS = [
   '┓',
   '┗',
   '┛',
+  '━',
+  '┃',
   '┳',
   '┻',
   '┣',
   '┫',
+  '╋',
   '▲',
   '▼',
   '◄',
@@ -99,11 +167,17 @@ const GLYPHS = [
   '♥',
   '◆',
 ];
+const ALIASING_GLYPHS = Array.from('_,od8bn."*+=YP^\'`;[]()-/\\|');
+const GLYPH_TABS = [
+  { id: 'specials', label: 'SPECIALS', glyphs: SPECIAL_GLYPHS },
+  { id: 'aliasing', label: 'ALIASING', glyphs: ALIASING_GLYPHS },
+] as const;
+type GlyphTabId = (typeof GLYPH_TABS)[number]['id'];
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 8;
 const ZOOM_STEPS = [MIN_ZOOM, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7, MAX_ZOOM];
-const LAST_KEY = 'incanterm-editor-last-sprite';
 const SPEED_KEY = 'incanterm-editor-animation-ms';
+const GRID_KEY = 'incanterm-editor-show-grid';
 
 function readAnimationSpeed(): number {
   const raw = Number(localStorage.getItem(SPEED_KEY));
@@ -113,6 +187,11 @@ function readAnimationSpeed(): number {
 
 export function mountArt(root: HTMLElement): () => void {
   root.innerHTML = artMarkup();
+  void preloadSpriteFonts().then(() => {
+    if (!alive) return;
+    if (autoFit) fit();
+    else redraw();
+  });
   const $ = <T extends Element>(selector: string) => {
     const element = root.querySelector(selector);
     if (!element) throw new Error(`Missing ${selector}`);
@@ -147,6 +226,8 @@ export function mountArt(root: HTMLElement): () => void {
   let spriteId: string | null = null;
   let tool: Tool = 'brush';
   let brushSize = 1;
+  let pathMode: PathMode = 'draw';
+  let pathStyle: PathStyle = 'double';
   let glyph = '█';
   let fg = 'bright-white';
   let bg = 'black';
@@ -159,6 +240,7 @@ export function mountArt(root: HTMLElement): () => void {
   let celMarked = false;
   let selection: { x: number; y: number; width: number; height: number } | null = null;
   let pasteMode = false;
+  let showGrid = localStorage.getItem(GRID_KEY) !== '0';
   let zoom = 1;
   let ox = 30;
   let oy = 30;
@@ -175,7 +257,15 @@ export function mountArt(root: HTMLElement): () => void {
     sy?: number;
     ox?: number;
     oy?: number;
+    rect?: { x: number; y: number; width: number; height: number };
+    handle?: ReferenceHandle;
+    path?: GridPoint[];
+    shift?: boolean;
   } | null = null;
+  let reference: SpriteReference | null = null;
+  let referenceImage: HTMLImageElement | null = null;
+  let referenceUrl: string | null = null;
+  let referenceEdit = false;
   let spaceHeld = false;
   let pressing = false;
   let sampling = false;
@@ -187,6 +277,11 @@ export function mountArt(root: HTMLElement): () => void {
   let framePending = false;
   let autoFit = true;
   let alive = true;
+  let openTabs: string[] = [];
+  const sessions = new Map<string, TabSession>();
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistWarned = false;
+  let switchToken = 0;
 
   const stops: (() => void)[] = [];
   const listen = (
@@ -218,12 +313,38 @@ export function mountArt(root: HTMLElement): () => void {
     if (!layer?.locked || spaceHeld) return false;
     if (pasteMode) return true;
     const base = toolBase(tool);
-    return base === 'brush' || base === 'fill' || base === 'erase';
+    return base === 'brush' || base === 'fill' || base === 'erase' || base === 'path';
   }
   function syncCanvasCursor(): void {
+    if (referenceEdit && referenceShown() && !spaceHeld && gesture?.kind !== 'pan') {
+      const hit =
+        gesture?.kind === 'ref-resize' && gesture.handle
+          ? gesture.handle
+          : gesture?.kind === 'ref-move'
+            ? 'body'
+            : hover
+              ? hitReference(hover.sx, hover.sy)
+              : null;
+      if (hit === 'nw' || hit === 'se') {
+        canvas.style.cursor = 'nwse-resize';
+        return;
+      }
+      if (hit === 'ne' || hit === 'sw') {
+        canvas.style.cursor = 'nesw-resize';
+        return;
+      }
+      if (hit === 'body') {
+        canvas.style.cursor = 'move';
+        return;
+      }
+      canvas.style.cursor = 'default';
+      return;
+    }
     const kind = gesture?.kind;
     const cursorGesture: ArtCursorGesture | null =
-      kind === 'pan' || kind === 'pick' || kind === 'paint' || kind === 'select' ? kind : null;
+      kind === 'pan' || kind === 'pick' || kind === 'paint' || kind === 'select' || kind === 'path'
+        ? kind
+        : null;
     canvas.style.cursor = artCursorCss(
       artCursorKind({
         tool,
@@ -389,13 +510,13 @@ export function mountArt(root: HTMLElement): () => void {
     setTimeout(() => item.remove(), 4000);
   }
   function updateTitle(): void {
-    $<HTMLElement>('#document-title').classList.toggle('dirty', dirty());
-    $<HTMLElement>('#document-title').firstChild!.textContent = spriteId
-      ? `${spriteId.toUpperCase()} `
-      : 'NO SPRITE ';
+    const grid = doc ? cell() : null;
     $<HTMLElement>('#dimensions').textContent = doc
-      ? `${doc.width} × ${doc.height} CELLS`
+      ? grid
+        ? `${doc.width} × ${doc.height} CELLS · ${Math.round(grid.width)}×${Math.round(grid.height)}`
+        : `${doc.width} × ${doc.height} CELLS`
       : 'NO SPRITE';
+    renderTabs();
   }
   function refreshControls(): void {
     root.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((button) => {
@@ -404,6 +525,11 @@ export function mountArt(root: HTMLElement): () => void {
     const variant = $<HTMLSelectElement>('#tool-variant');
     variant.value = toolVariant(tool);
     variant.disabled = toolBase(tool) === 'select';
+    const pathActive = toolBase(tool) === 'path';
+    $<HTMLInputElement>('#brush-size').disabled = pathActive;
+    $<HTMLElement>('#path-settings').hidden = !pathActive;
+    $<HTMLSelectElement>('#path-mode').value = pathMode;
+    $<HTMLSelectElement>('#path-style').value = pathStyle;
     $<HTMLElement>('#fg-target').classList.toggle('active', colorTarget === 'fg');
     $<HTMLElement>('#bg-target').classList.toggle('active', colorTarget === 'bg');
     $<HTMLElement>('#fg-chip').style.background = rgb(fg);
@@ -414,8 +540,11 @@ export function mountArt(root: HTMLElement): () => void {
     $<HTMLInputElement>('#brush-size').value = String(brushSize);
     $<HTMLElement>('#brush-size-label').textContent = `${brushSize} × ${brushSize}`;
     const variantLabel = { full: 'GLYPH', fg: 'FG', bg: 'BG' }[toolVariant(tool)];
-    $<HTMLElement>('#tool-status').textContent =
-      `${toolBase(tool).toUpperCase()} / ${variantLabel} / ${brushSize} × ${brushSize}`;
+    $<HTMLElement>('#tool-status').textContent = pathActive
+      ? `${toolBase(tool).toUpperCase()} / ${pathMode.toUpperCase()} / ${pathStyle.toUpperCase()} / ${variantLabel}`
+      : stamp && ['brush', 'fg-brush', 'bg-brush'].includes(tool)
+        ? `${toolBase(tool).toUpperCase()} / ${variantLabel} / ${stamp.width} × ${stamp.height} STAMP`
+        : `${toolBase(tool).toUpperCase()} / ${variantLabel} / ${brushSize} × ${brushSize}`;
     const layer = activeLayer();
     $<HTMLElement>('#frame-status').textContent = frameStatusText();
     $<HTMLElement>('#layer-status').textContent = layer ? layerLabel(layer) : 'NO LAYER';
@@ -423,9 +552,25 @@ export function mountArt(root: HTMLElement): () => void {
     renderTimeline();
     $<HTMLElement>('#zoom-label').textContent = `${Math.round(zoom * 100)}%`;
     $<HTMLInputElement>('#palette-rgb').value = rgb(paletteEdit);
+    const family = spriteFontFamily(doc?.font ?? DEFAULT_SPRITE_FONT);
+    $<HTMLElement>('#glyph-capture-char').style.fontFamily = family;
+    root.querySelectorAll<HTMLElement>('.glyph-list').forEach((list) => {
+      list.style.fontFamily = family;
+    });
+    root.querySelectorAll<HTMLButtonElement>('.glyph-list button').forEach((button) => {
+      button.classList.toggle('active', button.dataset.glyph === glyph && !stamp);
+    });
     if (doc) {
       $<HTMLInputElement>('#origin-x').value = String(doc.originX);
       $<HTMLInputElement>('#origin-y').value = String(doc.originY);
+    }
+    refreshReferenceControls();
+    const gridAction = root.querySelector<HTMLButtonElement>('[data-action="toggle-grid"]');
+    if (gridAction) {
+      gridAction.replaceChildren(
+        document.createTextNode(showGrid ? 'Hide grid ' : 'Show grid '),
+        Object.assign(document.createElement('kbd'), { textContent: 'G' }),
+      );
     }
     root.querySelectorAll<HTMLButtonElement>('#palette button').forEach((button) => {
       const id = button.dataset.color ?? '';
@@ -433,6 +578,7 @@ export function mountArt(root: HTMLElement): () => void {
       button.style.background = rgb(id);
     });
     updateTitle();
+    schedulePersist();
     redraw();
   }
   function editingOrigin(): boolean {
@@ -451,23 +597,41 @@ export function mountArt(root: HTMLElement): () => void {
       draw();
     });
   }
+  function spriteFont(): SpriteFontId {
+    return doc?.font ?? DEFAULT_SPRITE_FONT;
+  }
+  function cell(): TerminalCell {
+    return terminalCellAtZoom(context, zoom, spriteFont());
+  }
   function draw(): void {
     if (!viewW || !viewH) return;
     context.clearRect(0, 0, viewW, viewH);
     context.fillStyle = getComputedStyle(wrap).backgroundColor;
     context.fillRect(0, 0, viewW, viewH);
     if (!doc) return;
-    const cw = 16 * zoom;
-    const ch = 22 * zoom;
+    const grid = cell();
+    const cw = grid.width;
+    const ch = grid.height;
     const x0 = Math.max(0, Math.floor(-ox / cw));
     const y0 = Math.max(0, Math.floor(-oy / ch));
     const x1 = Math.min(doc.width, Math.ceil((viewW - ox) / cw));
     const y1 = Math.min(doc.height, Math.ceil((viewH - oy) / ch));
     context.fillStyle = rgb('black');
     context.fillRect(ox, oy, doc.width * cw, doc.height * ch);
-    context.font = `${Math.max(6, Math.round(16 * zoom))}px 'Courier New', monospace`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
+    if (reference && referenceImage && reference.visible) {
+      context.save();
+      context.globalAlpha = reference.opacity;
+      context.imageSmoothingEnabled = false;
+      context.drawImage(
+        referenceImage,
+        ox + reference.x * cw,
+        oy + reference.y * ch,
+        reference.width * cw,
+        reference.height * ch,
+      );
+      context.restore();
+    }
+    applyTerminalGlyphStyle(context, grid);
     const flat = flattenSprite(doc, selectedFrame);
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
@@ -480,10 +644,11 @@ export function mountArt(root: HTMLElement): () => void {
         }
         if (entry.ch !== ' ') {
           context.fillStyle = rgb(entry.fg);
-          context.fillText(entry.ch, px + cw / 2, py + ch / 2 + zoom * 0.7);
+          context.fillText(entry.ch, px, py + grid.ascent);
         }
       }
     }
+    if (showGrid) drawGrid(cw, ch, x0, y0, x1, y1);
     context.strokeStyle = '#add1c3';
     context.lineWidth = 2;
     context.strokeRect(
@@ -492,6 +657,7 @@ export function mountArt(root: HTMLElement): () => void {
       doc.width * cw + 2,
       doc.height * ch + 2,
     );
+    if (referenceEdit && referenceShown()) drawReferenceHandles(cw, ch);
     if (editingOrigin()) box({ x: doc.originX, y: doc.originY, width: 1, height: 1 }, '#f2df9e');
     const march = (performance.now() / 60) % 12;
     if (selection) box(selection, '#f2df9e', [6, 6], march);
@@ -499,7 +665,10 @@ export function mountArt(root: HTMLElement): () => void {
       if (gesture.start && gesture.end)
         box(bounds(gesture.start, gesture.end), '#ffffff', [6, 6], march);
     }
-    if (hover && inside(hover.x, hover.y)) {
+    if (gesture?.kind === 'path' && gesture.start && gesture.end) {
+      paintPathPreview(pathGestureCells(gesture.end, gesture.shift === true));
+    }
+    if (hover && inside(hover.x, hover.y) && !referenceEdit) {
       if (
         !gesture &&
         !paintBlocked() &&
@@ -517,22 +686,50 @@ export function mountArt(root: HTMLElement): () => void {
     }
     if (marchingSelection()) redraw();
   }
+  function drawGrid(cw: number, ch: number, x0: number, y0: number, x1: number, y1: number): void {
+    if (!doc) return;
+    const left = Math.round(ox + x0 * cw);
+    const right = Math.round(ox + x1 * cw);
+    const top = Math.round(oy + y0 * ch);
+    const bottom = Math.round(oy + y1 * ch);
+    context.save();
+    context.strokeStyle = 'rgba(173, 209, 195, 0.35)';
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let x = Math.max(1, x0); x < Math.min(doc.width, x1); x++) {
+      const px = Math.round(ox + x * cw) + 0.5;
+      context.moveTo(px, top);
+      context.lineTo(px, bottom);
+    }
+    for (let y = Math.max(1, y0); y < Math.min(doc.height, y1); y++) {
+      const py = Math.round(oy + y * ch) + 0.5;
+      context.moveTo(left, py);
+      context.lineTo(right, py);
+    }
+    context.stroke();
+    context.restore();
+  }
+  function toggleGrid(): void {
+    showGrid = !showGrid;
+    localStorage.setItem(GRID_KEY, showGrid ? '1' : '0');
+    refreshControls();
+    announce(showGrid ? 'Grid shown' : 'Grid hidden');
+  }
   function paintPreview(origin: Point): void {
     const source = { ch: glyph, fg, bg };
+    const grid = cell();
     context.save();
     context.globalAlpha = 0.45;
-    context.font = `${Math.max(6, Math.round(16 * zoom))}px 'Courier New', monospace`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
+    applyTerminalGlyphStyle(context, grid);
     const place = (x: number, y: number, value: SpriteCell | null) => {
       if (!value || !inside(x, y)) return;
-      const px = ox + x * 16 * zoom;
-      const py = oy + y * 22 * zoom;
+      const px = ox + x * grid.width;
+      const py = oy + y * grid.height;
       context.fillStyle = rgb(value.bg);
-      context.fillRect(px, py, 16 * zoom + 0.3, 22 * zoom + 0.3);
+      context.fillRect(px, py, grid.width + 0.3, grid.height + 0.3);
       if (value.ch !== ' ') {
         context.fillStyle = rgb(value.fg);
-        context.fillText(value.ch, px + (16 * zoom) / 2, py + (22 * zoom) / 2 + zoom * 0.7);
+        context.fillText(value.ch, px, py + grid.ascent);
       }
     };
     if (stamp) {
@@ -557,16 +754,42 @@ export function mountArt(root: HTMLElement): () => void {
     }
     context.restore();
   }
+  function paintPathPreview(cells: GridPoint[]): void {
+    const grid = cell();
+    context.save();
+    context.globalAlpha = 0.45;
+    applyTerminalGlyphStyle(context, grid);
+    for (const write of applyPath(cells, pathStyle, (x, y) => layerCell(x, y)?.ch ?? null)) {
+      if (!inside(write.x, write.y)) continue;
+      const existing = layerCell(write.x, write.y);
+      const value = write.stroke
+        ? pathCellValue(write.ch, existing)
+        : existing
+          ? { ...existing, ch: write.ch }
+          : null;
+      if (!value) continue;
+      const px = ox + write.x * grid.width;
+      const py = oy + write.y * grid.height;
+      context.fillStyle = rgb(value.bg);
+      context.fillRect(px, py, grid.width + 0.3, grid.height + 0.3);
+      if (value.ch !== ' ') {
+        context.fillStyle = rgb(value.fg);
+        context.fillText(value.ch, px, py + grid.ascent);
+      }
+    }
+    context.restore();
+  }
   function box(
     rect: { x: number; y: number; width: number; height: number },
     color: string,
     dash: number[] = [],
     offset = 0,
   ): void {
-    const x = Math.round(ox + rect.x * 16 * zoom) + 0.5;
-    const y = Math.round(oy + rect.y * 22 * zoom) + 0.5;
-    const width = Math.round(rect.width * 16 * zoom);
-    const height = Math.round(rect.height * 22 * zoom);
+    const grid = cell();
+    const x = Math.round(ox + rect.x * grid.width) + 0.5;
+    const y = Math.round(oy + rect.y * grid.height) + 0.5;
+    const width = Math.round(rect.width * grid.width);
+    const height = Math.round(rect.height * grid.height);
     context.save();
     context.lineWidth = 2;
     if (dash.length > 0) {
@@ -616,12 +839,17 @@ export function mountArt(root: HTMLElement): () => void {
   function fit(): void {
     if (!viewW || !viewH || !doc) return;
     autoFit = true;
+    const grid = terminalCellAtZoom(context, 1, spriteFont());
     zoom = Math.max(
       MIN_ZOOM,
-      Math.min(MAX_ZOOM, (viewW - 64) / (doc.width * 16), (viewH - 64) / (doc.height * 22)),
+      Math.min(
+        MAX_ZOOM,
+        (viewW - 64) / (doc.width * grid.width),
+        (viewH - 64) / (doc.height * grid.height),
+      ),
     );
-    ox = Math.round((viewW - doc.width * 16 * zoom) / 2);
-    oy = Math.round((viewH - doc.height * 22 * zoom) / 2);
+    ox = Math.round((viewW - doc.width * grid.width * zoom) / 2);
+    oy = Math.round((viewH - doc.height * grid.height * zoom) / 2);
     refreshControls();
   }
   function setZoom(value: number, anchorX = viewW / 2, anchorY = viewH / 2): void {
@@ -646,12 +874,261 @@ export function mountArt(root: HTMLElement): () => void {
     const rect = canvas.getBoundingClientRect();
     const sx = event.clientX - rect.left;
     const sy = event.clientY - rect.top;
+    const grid = cell();
     return {
       sx,
       sy,
-      x: Math.floor((sx - ox) / (16 * zoom)),
-      y: Math.floor((sy - oy) / (22 * zoom)),
+      x: Math.floor((sx - ox) / grid.width),
+      y: Math.floor((sy - oy) / grid.height),
     };
+  }
+  const REFERENCE_HANDLE = 8;
+  function referencePixelRect(): { x: number; y: number; width: number; height: number } | null {
+    if (!reference) return null;
+    const grid = cell();
+    return {
+      x: ox + reference.x * grid.width,
+      y: oy + reference.y * grid.height,
+      width: reference.width * grid.width,
+      height: reference.height * grid.height,
+    };
+  }
+  function referenceHandles(rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): { handle: ReferenceHandle; x: number; y: number }[] {
+    return [
+      { handle: 'nw', x: rect.x, y: rect.y },
+      { handle: 'ne', x: rect.x + rect.width, y: rect.y },
+      { handle: 'sw', x: rect.x, y: rect.y + rect.height },
+      { handle: 'se', x: rect.x + rect.width, y: rect.y + rect.height },
+    ];
+  }
+  function hitReference(sx: number, sy: number): ReferenceHandle | 'body' | null {
+    const rect = referencePixelRect();
+    if (!rect) return null;
+    const reach = REFERENCE_HANDLE + 2;
+    for (const corner of referenceHandles(rect)) {
+      if (Math.abs(sx - corner.x) <= reach && Math.abs(sy - corner.y) <= reach)
+        return corner.handle;
+    }
+    if (sx >= rect.x && sy >= rect.y && sx <= rect.x + rect.width && sy <= rect.y + rect.height) {
+      return 'body';
+    }
+    return null;
+  }
+  function drawReferenceHandles(cw: number, ch: number): void {
+    if (!reference) return;
+    const x = ox + reference.x * cw;
+    const y = oy + reference.y * ch;
+    const width = reference.width * cw;
+    const height = reference.height * ch;
+    context.save();
+    context.lineWidth = 2;
+    context.strokeStyle = '#f2df9e';
+    context.setLineDash([6, 4]);
+    context.strokeRect(x + 0.5, y + 0.5, width, height);
+    context.setLineDash([]);
+    context.fillStyle = '#f2df9e';
+    for (const corner of referenceHandles({ x, y, width, height })) {
+      context.fillRect(
+        corner.x - REFERENCE_HANDLE / 2,
+        corner.y - REFERENCE_HANDLE / 2,
+        REFERENCE_HANDLE,
+        REFERENCE_HANDLE,
+      );
+    }
+    context.restore();
+  }
+  function referenceShown(): boolean {
+    return Boolean(reference && referenceImage && reference.visible);
+  }
+  function refreshReferenceControls(): void {
+    const open = Boolean(doc && spriteId);
+    const hasImage = Boolean(reference && referenceImage);
+    const shownOnCanvas = hasImage && Boolean(reference?.visible);
+    $<HTMLButtonElement>('#reference-open').disabled = !open;
+    $<HTMLButtonElement>('#reference-edit').disabled = !shownOnCanvas;
+    $<HTMLButtonElement>('#reference-clear').disabled = !hasImage;
+    const shown = $<HTMLInputElement>('#reference-visible');
+    shown.disabled = !hasImage;
+    shown.checked = hasImage ? reference!.visible : true;
+    const opacity = $<HTMLInputElement>('#reference-opacity');
+    opacity.disabled = !hasImage;
+    opacity.value = String(Math.round((reference?.opacity ?? DEFAULT_REFERENCE_OPACITY) * 100));
+    $<HTMLElement>('#reference-opacity-label').textContent =
+      `${Math.round(Number(opacity.value))}%`;
+    $<HTMLButtonElement>('#reference-edit').setAttribute(
+      'aria-pressed',
+      String(referenceEdit && shownOnCanvas),
+    );
+    $<HTMLButtonElement>('#reference-edit').classList.toggle(
+      'active',
+      referenceEdit && shownOnCanvas,
+    );
+    $<HTMLElement>('#reference-status').textContent = reference
+      ? `${reference.id}.${reference.ext}`
+      : 'NO IMAGE';
+  }
+  function forgetReference(): void {
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl);
+    referenceUrl = null;
+    reference = null;
+    referenceImage = null;
+    referenceEdit = false;
+  }
+  async function persistReference(): Promise<void> {
+    if (!spriteId || !reference) return;
+    try {
+      reference = await requestJson<SpriteReference>(
+        `/api/references/${encodeURIComponent(spriteId)}`,
+        jsonRequest('PUT', reference),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save reference';
+      announce(message);
+      toast(message, true);
+    }
+  }
+  async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.src = url;
+    try {
+      await image.decode();
+    } catch {
+      URL.revokeObjectURL(url);
+      throw new Error('Could not read that image');
+    }
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl);
+    referenceUrl = url;
+    return image;
+  }
+  async function loadReference(id: string): Promise<void> {
+    forgetReference();
+    try {
+      const meta = await requestJson<SpriteReference>(`/api/references/${encodeURIComponent(id)}`);
+      const blob = await getBytes(
+        `/api/references/${encodeURIComponent(id)}/image?t=${Date.now()}`,
+      );
+      if (!alive || spriteId !== id) return;
+      reference = meta;
+      referenceImage = await blobToImage(blob);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) {
+        announce(error instanceof Error ? error.message : 'Could not load reference');
+      }
+    }
+    if (!alive || spriteId !== id) return;
+    refreshReferenceControls();
+    redraw();
+  }
+  async function adoptReferenceBlob(blob: Blob): Promise<void> {
+    if (!doc || !spriteId) {
+      announce('Open or create a sprite');
+      return;
+    }
+    const id = spriteId;
+    try {
+      const saved = await putBytes<{ ext: SpriteReference['ext'] }>(
+        `/api/references/${encodeURIComponent(id)}/image`,
+        blob,
+      );
+      const image = await blobToImage(blob);
+      if (!alive || spriteId !== id || !doc) return;
+      const grid = terminalCellAtZoom(context, 1, spriteFont());
+      const rect = reference
+        ? { x: reference.x, y: reference.y, width: reference.width, height: reference.height }
+        : fitReferenceRect(
+            doc.width,
+            doc.height,
+            image.naturalWidth,
+            image.naturalHeight,
+            grid.width,
+            grid.height,
+          );
+      const next = createReference(
+        id,
+        saved.ext,
+        rect,
+        reference?.opacity ?? DEFAULT_REFERENCE_OPACITY,
+      );
+      reference = await requestJson<SpriteReference>(
+        `/api/references/${encodeURIComponent(id)}`,
+        jsonRequest('PUT', next),
+      );
+      referenceImage = image;
+      announce(`Reference ${id}.${saved.ext}`);
+      refreshControls();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save reference';
+      announce(message);
+      toast(message, true);
+      throw error instanceof Error ? error : new Error(message);
+    }
+  }
+  function referenceDialog(): HTMLDialogElement {
+    return $<HTMLDialogElement>('#reference-dialog');
+  }
+  function setReferenceDialogStatus(text: string, error = false): void {
+    const status = $<HTMLElement>('#reference-dialog-status');
+    status.textContent = text;
+    status.classList.toggle('error', error);
+  }
+  function closeReferenceDialog(): void {
+    $<HTMLButtonElement>('#reference-dropper').classList.remove('dragover');
+    setReferenceDialogStatus('Drop an image, click to browse, or press Ctrl+V.');
+    referenceDialog().close();
+  }
+  function openReferenceDialog(): void {
+    if (!doc || !spriteId) {
+      announce('Open or create a sprite');
+      return;
+    }
+    setReferenceDialogStatus('Drop an image, click to browse, or press Ctrl+V.');
+    referenceDialog().showModal();
+  }
+  function isReferenceImage(file: File): boolean {
+    if (['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) return true;
+    return /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+  }
+  function imageFromClipboard(clipboard: DataTransfer | null): File | null {
+    if (!clipboard) return null;
+    const file = [...clipboard.files].find((entry) => isReferenceImage(entry));
+    if (file) return file;
+    for (const item of clipboard.items) {
+      if (!item.type.startsWith('image/')) continue;
+      return item.getAsFile();
+    }
+    return null;
+  }
+  async function takeReferenceImage(blob: Blob): Promise<void> {
+    setReferenceDialogStatus('Saving…');
+    try {
+      await adoptReferenceBlob(blob);
+      closeReferenceDialog();
+    } catch (error) {
+      setReferenceDialogStatus(
+        error instanceof Error ? error.message : 'Could not save reference',
+        true,
+      );
+    }
+  }
+  async function clearReference(): Promise<void> {
+    if (!spriteId || !reference) return;
+    const id = spriteId;
+    try {
+      await requestJson(`/api/references/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (spriteId === id) forgetReference();
+      announce('Reference cleared');
+      refreshControls();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not clear reference';
+      announce(message);
+      toast(message, true);
+    }
   }
   function remember(before: HistoryEntry | null | undefined): void {
     if (!doc || !before) return;
@@ -661,6 +1138,7 @@ export function mountArt(root: HTMLElement): () => void {
     if (undoStack.length > 50) undoStack.shift();
     redoStack = [];
     updateTitle();
+    schedulePersist();
     redraw();
   }
   function restore(previous: HistoryEntry): void {
@@ -791,8 +1269,9 @@ export function mountArt(root: HTMLElement): () => void {
     }
     return { width: rect.width, height: rect.height, cells };
   }
-  function toolBase(value: Tool): 'brush' | 'fill' | 'erase' | 'select' {
+  function toolBase(value: Tool): 'brush' | 'fill' | 'erase' | 'select' | 'path' {
     if (value === 'select') return 'select';
+    if (value.endsWith('path')) return 'path';
     if (value.endsWith('fill')) return 'fill';
     if (value.endsWith('erase')) return 'erase';
     return 'brush';
@@ -803,11 +1282,51 @@ export function mountArt(root: HTMLElement): () => void {
     return 'full';
   }
   function composeTool(
-    base: 'brush' | 'fill' | 'erase' | 'select',
+    base: 'brush' | 'fill' | 'erase' | 'select' | 'path',
     variant: 'full' | 'fg' | 'bg',
   ): Tool {
     if (base === 'select' || variant === 'full') return base === 'select' ? 'select' : base;
     return `${variant}-${base}` as Tool;
+  }
+  function pathCellValue(ch: string, target: SpriteCell | null): SpriteCell {
+    if (tool === 'fg-path') return target ? { ...target, ch, fg } : { ch, fg, bg: 'black' };
+    if (tool === 'bg-path') return target ? { ...target, ch, bg } : { ch, fg: 'white', bg };
+    return { ch, fg, bg };
+  }
+  function pathGestureCells(end: Point, shift: boolean): GridPoint[] {
+    if (!gesture?.start) return [];
+    return strokeCells({
+      mode: pathMode,
+      start: { x: gesture.start.x, y: gesture.start.y },
+      end: { x: end.x, y: end.y },
+      path: gesture.path,
+      shift,
+    });
+  }
+  function commitPath(cells: GridPoint[]): void {
+    if (!doc || cells.length === 0) return;
+    if (playing) stopPlayback();
+    const before = captureHistory();
+    for (const write of applyPath(cells, pathStyle, (x, y) => layerCell(x, y)?.ch ?? null)) {
+      if (!inside(write.x, write.y)) continue;
+      if (write.stroke) {
+        setCell(write.x, write.y, pathCellValue(write.ch, layerCell(write.x, write.y)));
+        continue;
+      }
+      const existing = layerCell(write.x, write.y);
+      if (existing) setCell(write.x, write.y, { ...existing, ch: write.ch });
+    }
+    remember(before);
+  }
+  function cyclePathMode(): void {
+    if (toolBase(tool) !== 'path') {
+      const variant = toolBase(tool) === 'select' ? 'full' : toolVariant(tool);
+      setTool(composeTool('path', variant));
+      return;
+    }
+    pathMode = PATH_MODES[(PATH_MODES.indexOf(pathMode) + 1) % PATH_MODES.length];
+    refreshControls();
+    announce(`${pathMode} path mode`);
   }
   function cycleTool(base: 'brush' | 'fill' | 'erase'): void {
     if (toolBase(tool) !== base) {
@@ -827,10 +1346,321 @@ export function mountArt(root: HTMLElement): () => void {
     refreshControls();
     announce(`${value} tool selected`);
   }
+  function currentChrome(): ArtTabChrome {
+    return {
+      selectedFrame,
+      playFrom,
+      playTo,
+      rangeSelected,
+      moveArmed,
+      activeLayerId,
+      selection,
+      stamp,
+      pasteMode,
+      celMarked,
+      zoom,
+      ox,
+      oy,
+      autoFit,
+    };
+  }
+  function applyChrome(chrome: ArtTabChrome): void {
+    selectedFrame = chrome.selectedFrame;
+    playFrom = chrome.playFrom;
+    playTo = chrome.playTo;
+    rangeSelected = chrome.rangeSelected;
+    moveArmed = chrome.moveArmed;
+    activeLayerId = chrome.activeLayerId;
+    selection = chrome.selection;
+    stamp = chrome.stamp;
+    pasteMode = chrome.pasteMode;
+    celMarked = chrome.celMarked;
+    zoom = chrome.zoom;
+    ox = chrome.ox;
+    oy = chrome.oy;
+    autoFit = chrome.autoFit;
+  }
+  function persistableSession(session: TabSession): ArtTabDirtySession {
+    return {
+      doc: session.doc,
+      savedState: session.savedState,
+      selectedFrame: session.selectedFrame,
+      playFrom: session.playFrom,
+      playTo: session.playTo,
+      rangeSelected: session.rangeSelected,
+      moveArmed: session.moveArmed,
+      activeLayerId: session.activeLayerId,
+      selection: session.selection,
+      stamp: session.stamp,
+      pasteMode: session.pasteMode,
+      celMarked: session.celMarked,
+      zoom: session.zoom,
+      ox: session.ox,
+      oy: session.oy,
+      autoFit: session.autoFit,
+    };
+  }
+  function persistEntries(): Array<readonly [string, ArtTabDirtySession]> {
+    const entries: Array<readonly [string, ArtTabDirtySession]> = [];
+    if (spriteId && doc) {
+      entries.push([spriteId, { doc, savedState, ...currentChrome() }]);
+    }
+    for (const [id, session] of sessions) {
+      if (id === spriteId) continue;
+      entries.push([id, persistableSession(session)]);
+    }
+    return entries;
+  }
+  function tabDirty(id: string): boolean {
+    if (id === spriteId) return dirty();
+    const session = sessions.get(id);
+    return session ? sessionDirty(session.doc, session.savedState) : false;
+  }
+  function dirtyIds(): Set<string> {
+    const ids = new Set<string>();
+    if (spriteId && dirty()) ids.add(spriteId);
+    for (const [id, session] of sessions) {
+      if (sessionDirty(session.doc, session.savedState)) ids.add(id);
+    }
+    return ids;
+  }
+  function anyDirty(): boolean {
+    return dirtyIds().size > 0;
+  }
+  function writeOpenTabs(): void {
+    const result = writeArtTabStore(
+      localStorage,
+      buildArtTabStore(openTabs, spriteId, persistEntries()),
+    );
+    if (!result.ok && result.quota) {
+      if (!persistWarned) {
+        persistWarned = true;
+        toast('Could not store unsaved drafts', true);
+      }
+      return;
+    }
+    persistWarned = false;
+  }
+  function schedulePersist(): void {
+    if (persistTimer !== null) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      writeOpenTabs();
+    }, ART_TAB_PERSIST_MS);
+  }
+  function flushPersist(): void {
+    if (persistTimer !== null) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    writeOpenTabs();
+  }
+  function dropSession(id: string): void {
+    const session = sessions.get(id);
+    if (session?.referenceUrl) URL.revokeObjectURL(session.referenceUrl);
+    sessions.delete(id);
+  }
+  function stashCurrent(): void {
+    if (!spriteId || !doc) return;
+    stopPlayback();
+    sessions.set(spriteId, {
+      doc,
+      savedState,
+      undoStack,
+      redoStack,
+      ...currentChrome(),
+      reference,
+      referenceImage,
+      referenceUrl,
+      referenceEdit,
+    });
+    reference = null;
+    referenceImage = null;
+    referenceUrl = null;
+    referenceEdit = false;
+  }
+  function sessionFromPersisted(stored: ArtTabDirtySession): TabSession {
+    return {
+      ...stored,
+      undoStack: [],
+      redoStack: [],
+      reference: null,
+      referenceImage: null,
+      referenceUrl: null,
+      referenceEdit: false,
+    };
+  }
+  function applySession(session: TabSession): void {
+    stopPlayback();
+    gesture = null;
+    hover = null;
+    renamingLayer = false;
+    pressing = false;
+    doc = session.doc;
+    spriteId = session.doc.id;
+    savedState = session.savedState;
+    undoStack = session.undoStack;
+    redoStack = session.redoStack;
+    applyChrome(session);
+    reference = session.reference;
+    referenceImage = session.referenceImage;
+    referenceUrl = session.referenceUrl;
+    referenceEdit = session.referenceEdit;
+    clampSelectedFrame();
+    if (!frameLayers().some((layer) => layer.id === activeLayerId)) selectTopLayer();
+    localStorage.setItem(LAST_SPRITE_KEY, session.doc.id);
+    if (session.autoFit) fit();
+    if (!session.referenceImage) void loadReference(session.doc.id);
+    refreshControls();
+  }
+  function restoreSession(id: string): boolean {
+    const session = sessions.get(id);
+    if (!session) return false;
+    sessions.delete(id);
+    applySession(session);
+    return true;
+  }
+  function clearWorkspace(): void {
+    stopPlayback();
+    forgetReference();
+    doc = null;
+    spriteId = null;
+    savedState = '';
+    applyChrome(defaultArtTabChrome());
+    undoStack = [];
+    redoStack = [];
+    gesture = null;
+    hover = null;
+    renamingLayer = false;
+    pressing = false;
+  }
+  function renderTabs(): void {
+    const host = $<HTMLElement>('#document-tabs');
+    host.replaceChildren();
+    if (openTabs.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'document-tabs-empty';
+      empty.textContent = 'NO SPRITE';
+      host.append(empty);
+      return;
+    }
+    for (const id of openTabs) {
+      const tab = document.createElement('div');
+      tab.className = 'document-tab';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(id === spriteId));
+      if (id === spriteId) tab.classList.add('current');
+      if (tabDirty(id)) tab.classList.add('dirty');
+      const label = document.createElement('button');
+      label.type = 'button';
+      label.className = 'document-tab-label';
+      label.append(document.createTextNode(`${id.toUpperCase()} `));
+      const mark = document.createElement('span');
+      mark.className = 'dirty-mark';
+      mark.textContent = '●';
+      label.append(mark);
+      label.addEventListener('click', () => {
+        void activateSprite(id);
+      });
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'document-tab-close';
+      close.setAttribute('aria-label', `Close ${id}`);
+      close.textContent = '×';
+      close.addEventListener('click', (event) => {
+        event.stopPropagation();
+        void closeTab(id);
+      });
+      tab.append(label, close);
+      tab.addEventListener('auxclick', (event) => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        void closeTab(id);
+      });
+      host.append(tab);
+    }
+  }
+  async function activateSprite(id: string): Promise<boolean> {
+    if (id === spriteId) return true;
+    const token = ++switchToken;
+    if (sessions.has(id)) {
+      stashCurrent();
+      if (token !== switchToken || !alive) return false;
+      restoreSession(id);
+      openTabs = addOpenTab(openTabs, id);
+      flushPersist();
+      return true;
+    }
+    try {
+      const next = await requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`);
+      if (token !== switchToken || !alive) return false;
+      loadSprite(next);
+      return true;
+    } catch (error) {
+      if (token !== switchToken || !alive) return false;
+      announce(error instanceof Error ? error.message : 'Could not open sprite');
+      return false;
+    }
+  }
+  async function closeTab(id: string): Promise<void> {
+    if (!openTabs.includes(id)) return;
+    if (tabDirty(id) && !(await confirmModal('Discard unsaved changes?', 'DISCARD'))) return;
+    const next = neighborTab(openTabs, id);
+    const wasCurrent = spriteId === id;
+    openTabs = closeOpenTab(openTabs, id);
+    dropSession(id);
+    if (wasCurrent) {
+      spriteId = null;
+      doc = null;
+      savedState = '';
+      forgetReference();
+      if (next) {
+        await activateSprite(next);
+      } else {
+        clearWorkspace();
+        refreshControls();
+      }
+    }
+    flushPersist();
+    renderTabs();
+  }
+  async function discardUnsaved(): Promise<boolean> {
+    flushPersist();
+    const count = dirtyIds().size;
+    if (count === 0) return true;
+    const message =
+      count === 1 ? 'Discard unsaved changes?' : `Discard unsaved changes in ${count} sprites?`;
+    return confirmModal(message, 'DISCARD');
+  }
+
+  async function syncOpenTabs(files: string[]): Promise<void> {
+    const nextTabs = pruneMissingTabs(openTabs, files, dirtyIds());
+    if (
+      nextTabs.length === openTabs.length &&
+      nextTabs.every((id, index) => id === openTabs[index])
+    ) {
+      return;
+    }
+    for (const id of openTabs) {
+      if (!nextTabs.includes(id)) dropSession(id);
+    }
+    openTabs = nextTabs;
+    if (spriteId && !openTabs.includes(spriteId)) {
+      const next = openTabs[openTabs.length - 1] ?? null;
+      if (next) await activateSprite(next);
+      else {
+        clearWorkspace();
+        refreshControls();
+      }
+    }
+    flushPersist();
+    renderTabs();
+  }
   async function refreshFiles(): Promise<void> {
     const list = $<HTMLElement>('#file-list');
     try {
       const { files } = await requestJson<{ files: string[] }>('/api/sprites');
+      await syncOpenTabs(files);
       list.replaceChildren();
       if (files.length === 0) {
         list.innerHTML = '<div class="empty-files">NO SAVED SPRITES YET</div>';
@@ -857,7 +1687,10 @@ export function mountArt(root: HTMLElement): () => void {
     }
   }
   function loadSprite(next: SpriteDocument): void {
+    if (spriteId && spriteId !== next.id) stashCurrent();
+    else if (referenceUrl) forgetReference();
     stopPlayback();
+    sessions.delete(next.id);
     doc = next;
     selectedFrame = 0;
     playFrom = 0;
@@ -867,22 +1700,35 @@ export function mountArt(root: HTMLElement): () => void {
     selectTopLayer();
     spriteId = next.id;
     savedState = JSON.stringify(next);
-    localStorage.setItem(LAST_KEY, next.id);
+    openTabs = addOpenTab(openTabs, next.id);
+    localStorage.setItem(LAST_SPRITE_KEY, next.id);
     undoStack = [];
     redoStack = [];
     selection = null;
     stamp = null;
     pasteMode = false;
+    celMarked = false;
+    gesture = null;
+    hover = null;
+    void loadReference(next.id);
     fit();
+    flushPersist();
     void refreshFiles();
     refreshControls();
+    void document.fonts
+      .load(terminalFont(spriteFontNativePx(next.font), spriteFontFamily(next.font)))
+      .catch(() => undefined)
+      .then(() => {
+        if (!alive || spriteId !== next.id) return;
+        if (autoFit) fit();
+        refreshControls();
+      });
   }
   async function openSprite(id: string): Promise<void> {
-    if (!(await allowReplace())) return;
-    const next = await requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`);
-    loadSprite(next);
-    $<HTMLDialogElement>('#file-dialog').close();
-    announce(`Opened ${id}`);
+    if (await activateSprite(id)) {
+      $<HTMLDialogElement>('#file-dialog').close();
+      announce(`Opened ${id}`);
+    }
   }
   async function save(): Promise<void> {
     if (!doc || !spriteId) {
@@ -896,6 +1742,7 @@ export function mountArt(root: HTMLElement): () => void {
       );
       doc = saved;
       savedState = JSON.stringify(saved);
+      flushPersist();
       updateTitle();
       announce(`Saved ${spriteId}`);
       toast(`Saved ${spriteId}`);
@@ -906,28 +1753,99 @@ export function mountArt(root: HTMLElement): () => void {
       toast(message, true);
     }
   }
+  async function saveAs(): Promise<void> {
+    if (!doc || !spriteId) {
+      announce('Open or create a sprite');
+      return;
+    }
+    const id = await askSaveAs(spriteId);
+    if (id === null) return;
+    if (id === spriteId) {
+      await save();
+      return;
+    }
+    try {
+      await requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`);
+      await alertModal('An asset with that id already exists');
+      return;
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) {
+        await alertModal(error instanceof Error ? error.message : 'Could not save as');
+        return;
+      }
+    }
+    const next = cloneDoc(doc);
+    next.id = id;
+    const from = spriteId;
+    try {
+      const saved = await requestJson<SpriteDocument>(
+        `/api/sprites/${encodeURIComponent(id)}`,
+        jsonRequest('PUT', next),
+      );
+      doc = saved;
+      spriteId = saved.id;
+      savedState = JSON.stringify(saved);
+      for (const entry of undoStack) entry.doc.id = saved.id;
+      for (const entry of redoStack) entry.doc.id = saved.id;
+      openTabs = renameOpenTab(openTabs, from, saved.id);
+      dropSession(from);
+      localStorage.setItem(LAST_SPRITE_KEY, saved.id);
+      await copyOpenReference(from, saved.id);
+      flushPersist();
+      updateTitle();
+      refreshControls();
+      announce(`Saved as ${saved.id}`);
+      toast(`Saved as ${saved.id}`);
+      void refreshFiles();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Save as failed';
+      announce(message);
+      toast(message, true);
+    }
+  }
+  async function copyOpenReference(from: string, to: string): Promise<void> {
+    const current = reference;
+    if (!current) return;
+    try {
+      let blob: Blob | null = null;
+      if (referenceUrl) {
+        const response = await fetch(referenceUrl);
+        if (response.ok) blob = await response.blob();
+      }
+      if (!blob) blob = await getBytes(`/api/references/${encodeURIComponent(from)}/image`);
+      const saved = await putBytes<{ ext: SpriteReference['ext'] }>(
+        `/api/references/${encodeURIComponent(to)}/image`,
+        blob,
+      );
+      reference = await requestJson<SpriteReference>(
+        `/api/references/${encodeURIComponent(to)}`,
+        jsonRequest('PUT', { ...current, id: to, ext: saved.ext }),
+      );
+    } catch {
+      if (reference) reference = { ...reference, id: to };
+    }
+  }
   async function deleteSprite(id: string): Promise<void> {
     if (!(await confirmModal(`Delete ${id}? This cannot be undone.`, 'DELETE'))) return;
     await requestJson(`/api/sprites/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (localStorage.getItem(LAST_KEY) === id) localStorage.removeItem(LAST_KEY);
-    if (spriteId === id) {
-      stopPlayback();
-      doc = null;
-      selectedFrame = 0;
-      playFrom = 0;
-      playTo = 0;
-      rangeSelected = false;
-      moveArmed = false;
-      activeLayerId = null;
+    const next = neighborTab(openTabs, id);
+    const wasCurrent = spriteId === id;
+    openTabs = closeOpenTab(openTabs, id);
+    dropSession(id);
+    if (wasCurrent) {
       spriteId = null;
+      doc = null;
       savedState = '';
-      refreshControls();
+      forgetReference();
+      if (next) await activateSprite(next);
+      else {
+        clearWorkspace();
+        refreshControls();
+      }
     }
+    flushPersist();
     await refreshFiles();
     announce(`Deleted ${id}`);
-  }
-  async function allowReplace(): Promise<boolean> {
-    return !dirty() || confirmModal('Discard unsaved changes?', 'DISCARD');
   }
   function openResizeDialog(): void {
     if (!doc) {
@@ -942,8 +1860,34 @@ export function mountArt(root: HTMLElement): () => void {
     $<HTMLInputElement>('#canvas-height').value = String(doc.height);
     $<HTMLDialogElement>('#size-dialog').showModal();
   }
+  function openFontDialog(): void {
+    if (!doc) {
+      announce('Open or create a sprite');
+      return;
+    }
+    const current = spriteFont();
+    root.querySelectorAll<HTMLInputElement>('#font-choices input').forEach((input) => {
+      input.checked = input.value === current;
+    });
+    $<HTMLDialogElement>('#font-dialog').showModal();
+    root.querySelector<HTMLInputElement>('#font-choices input:checked')?.focus();
+  }
+  function applySpriteFont(value: SpriteFontId): void {
+    if (!doc || doc.font === value) return;
+    const before = captureHistory();
+    doc.font = value;
+    remember(before);
+    void document.fonts
+      .load(terminalFont(spriteFontNativePx(value), spriteFontFamily(value)))
+      .catch(() => undefined)
+      .then(() => {
+        if (!alive || !doc || doc.font !== value) return;
+        if (autoFit) fit();
+        refreshControls();
+        announce(`Font ${SPRITE_FONTS.find((font) => font.id === value)?.label ?? value}`);
+      });
+  }
   async function newSprite(): Promise<void> {
-    if (!(await allowReplace())) return;
     const draft = await askNewSprite();
     if (!draft) return;
     const sprite = createSprite(draft.id, draft.width, draft.height);
@@ -972,7 +1916,6 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Open or create a sprite');
       return;
     }
-    if (!(await allowReplace())) return;
     const id = await askId('Duplicate as', `${spriteId}-copy`);
     if (id === null) return;
     if (!isAssetId(id)) {
@@ -1120,8 +2063,7 @@ export function mountArt(root: HTMLElement): () => void {
     });
     highlightFrameRange();
     root.querySelectorAll<HTMLElement>('.cel').forEach((cel) => {
-      const current =
-        Number(cel.dataset.frame) === selectedFrame && cel.dataset.layer === layerId;
+      const current = Number(cel.dataset.frame) === selectedFrame && cel.dataset.layer === layerId;
       cel.classList.toggle('active', current);
       cel.classList.toggle('marked', celMarked && current);
     });
@@ -1134,10 +2076,7 @@ export function mountArt(root: HTMLElement): () => void {
       const index = Number(head.dataset.frame);
       head.classList.toggle('active', shown && index === selectedFrame);
       head.classList.toggle('in-range', shown && index >= from && index <= to);
-      head.classList.toggle(
-        'armed',
-        shown && moveArmed && from === to && index === selectedFrame,
-      );
+      head.classList.toggle('armed', shown && moveArmed && from === to && index === selectedFrame);
       head.classList.toggle('drop-target', drop === index);
     });
     const outline = root.querySelector<HTMLElement>('.frame-column-outline');
@@ -1345,9 +2284,7 @@ export function mountArt(root: HTMLElement): () => void {
       moveArmed = playFrom === playTo;
       refreshControls();
       announce(
-        playFrom === playTo
-          ? `Frame ${playFrom + 1}`
-          : `Frames ${playFrom + 1}–${playTo + 1}`,
+        playFrom === playTo ? `Frame ${playFrom + 1}` : `Frames ${playFrom + 1}–${playTo + 1}`,
       );
       return;
     }
@@ -1624,18 +2561,51 @@ export function mountArt(root: HTMLElement): () => void {
     });
     paletteHost.append(button);
   }
-  const glyphHost = $<HTMLElement>('#glyph-list');
-  for (const entry of GLYPHS) {
+  const glyphSets = $<HTMLElement>('#glyph-sets');
+  const glyphTabs = $<HTMLElement>('#glyph-tabs');
+  let glyphTab: GlyphTabId = GLYPH_TABS[0].id;
+  function showGlyphTab(id: GlyphTabId): void {
+    glyphTab = id;
+    glyphTabs.querySelectorAll<HTMLButtonElement>('[data-glyph-tab]').forEach((button) => {
+      const selected = button.dataset.glyphTab === id;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', String(selected));
+    });
+    glyphSets.querySelectorAll<HTMLElement>('[data-glyph-panel]').forEach((panel) => {
+      panel.hidden = panel.dataset.glyphPanel !== id;
+    });
+  }
+  for (const tab of GLYPH_TABS) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = entry;
-    button.addEventListener('click', () => {
-      glyph = entry;
-      stamp = null;
-      refreshControls();
-    });
-    glyphHost.append(button);
+    button.id = `glyph-tab-${tab.id}`;
+    button.dataset.glyphTab = tab.id;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', `glyph-panel-${tab.id}`);
+    button.textContent = tab.label;
+    button.addEventListener('click', () => showGlyphTab(tab.id));
+    glyphTabs.append(button);
+    const panel = document.createElement('div');
+    panel.id = `glyph-panel-${tab.id}`;
+    panel.className = 'glyph-list';
+    panel.dataset.glyphPanel = tab.id;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', button.id);
+    for (const entry of tab.glyphs) {
+      const glyphButton = document.createElement('button');
+      glyphButton.type = 'button';
+      glyphButton.textContent = entry;
+      glyphButton.dataset.glyph = entry;
+      glyphButton.addEventListener('click', () => {
+        glyph = entry;
+        stamp = null;
+        refreshControls();
+      });
+      panel.append(glyphButton);
+    }
+    glyphSets.append(panel);
   }
+  showGlyphTab(glyphTab);
 
   const actions: Record<string, () => void> = {
     new: () => void newSprite(),
@@ -1644,6 +2614,7 @@ export function mountArt(root: HTMLElement): () => void {
       $<HTMLDialogElement>('#file-dialog').showModal();
     },
     save: () => void save(),
+    'save-as': () => void saveAs(),
     duplicate: () => void duplicateSprite(),
     delete: () => {
       if (spriteId) void deleteSprite(spriteId);
@@ -1666,6 +2637,7 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Redo');
     },
     resize: () => openResizeDialog(),
+    font: () => openFontDialog(),
     'animation-speed': () => void changeAnimationSpeed(),
     'select-all': () => {
       if (!doc) return announce('Open or create a sprite');
@@ -1733,6 +2705,7 @@ export function mountArt(root: HTMLElement): () => void {
     'zoom-in': () => stepZoom(1),
     'zoom-out': () => stepZoom(-1),
     fit,
+    'toggle-grid': toggleGrid,
   };
 
   root.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) => {
@@ -1764,7 +2737,7 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       const variant = toolBase(tool) === 'select' ? 'full' : toolVariant(tool);
-      setTool(composeTool(base as 'brush' | 'fill' | 'erase', variant));
+      setTool(composeTool(base as 'brush' | 'fill' | 'erase' | 'path', variant));
     });
   });
   $<HTMLSelectElement>('#tool-variant').addEventListener('change', () => {
@@ -1776,6 +2749,18 @@ export function mountArt(root: HTMLElement): () => void {
   });
   $<HTMLInputElement>('#brush-size').addEventListener('input', (event) => {
     brushSize = Math.min(16, Math.max(1, Number((event.target as HTMLInputElement).value) || 1));
+    refreshControls();
+  });
+  $<HTMLSelectElement>('#path-mode').addEventListener('change', () => {
+    const value = $<HTMLSelectElement>('#path-mode').value;
+    if (!isPathMode(value)) return;
+    pathMode = value;
+    refreshControls();
+  });
+  $<HTMLSelectElement>('#path-style').addEventListener('change', () => {
+    const value = $<HTMLSelectElement>('#path-style').value;
+    if (!isPathStyle(value)) return;
+    pathStyle = value;
     refreshControls();
   });
   function setGlyphCapture(next: boolean): void {
@@ -1833,6 +2818,19 @@ export function mountArt(root: HTMLElement): () => void {
   $<HTMLButtonElement>('#cancel-size').addEventListener('click', () =>
     $<HTMLDialogElement>('#size-dialog').close(),
   );
+  $<HTMLButtonElement>('#close-font').addEventListener('click', () =>
+    $<HTMLDialogElement>('#font-dialog').close(),
+  );
+  $<HTMLButtonElement>('#cancel-font').addEventListener('click', () =>
+    $<HTMLDialogElement>('#font-dialog').close(),
+  );
+  $<HTMLFormElement>('#font-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const selected = root.querySelector<HTMLInputElement>('#font-choices input:checked');
+    const value = selected?.value ?? '';
+    $<HTMLDialogElement>('#font-dialog').close();
+    if (isSpriteFontId(value)) applySpriteFont(value);
+  });
   $<HTMLFormElement>('#size-form').addEventListener('submit', (event) => {
     event.preventDefault();
     const width = Number($<HTMLInputElement>('#canvas-width').value);
@@ -1858,6 +2856,76 @@ export function mountArt(root: HTMLElement): () => void {
         announce(error instanceof Error ? error.message : 'Import failed'),
       );
     (event.target as HTMLInputElement).value = '';
+  });
+  $<HTMLButtonElement>('#reference-open').addEventListener('click', () => {
+    openReferenceDialog();
+  });
+  $<HTMLButtonElement>('#close-reference').addEventListener('click', () => closeReferenceDialog());
+  $<HTMLButtonElement>('#reference-dropper').addEventListener('click', () => {
+    $<HTMLInputElement>('#reference-file').click();
+  });
+  $<HTMLInputElement>('#reference-file').addEventListener('change', (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+      if (!isReferenceImage(file)) {
+        setReferenceDialogStatus('Use a png, jpeg, webp, or gif image', true);
+      } else void takeReferenceImage(file);
+    }
+    (event.target as HTMLInputElement).value = '';
+  });
+  const dropper = $<HTMLButtonElement>('#reference-dropper');
+  dropper.addEventListener('dragenter', (event) => {
+    event.preventDefault();
+    dropper.classList.add('dragover');
+  });
+  dropper.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  });
+  dropper.addEventListener('dragleave', (event) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && dropper.contains(next)) return;
+    dropper.classList.remove('dragover');
+  });
+  const acceptDroppedImage = (event: DragEvent) => {
+    event.preventDefault();
+    dropper.classList.remove('dragover');
+    const file = event.dataTransfer ? [...event.dataTransfer.files].find(isReferenceImage) : null;
+    if (!file) {
+      setReferenceDialogStatus('Use a png, jpeg, webp, or gif image', true);
+      return;
+    }
+    void takeReferenceImage(file);
+  };
+  dropper.addEventListener('drop', acceptDroppedImage);
+  referenceDialog().addEventListener('dragover', (event) => event.preventDefault());
+  referenceDialog().addEventListener('drop', acceptDroppedImage);
+  $<HTMLButtonElement>('#reference-edit').addEventListener('click', () => {
+    if (!reference) return;
+    referenceEdit = !referenceEdit;
+    refreshControls();
+    announce(referenceEdit ? 'Reference edit mode' : 'Reference edit off');
+  });
+  $<HTMLButtonElement>('#reference-clear').addEventListener('click', () => {
+    void clearReference();
+  });
+  $<HTMLInputElement>('#reference-visible').addEventListener('change', () => {
+    if (!reference) return;
+    reference = { ...reference, visible: $<HTMLInputElement>('#reference-visible').checked };
+    if (!reference.visible) referenceEdit = false;
+    refreshControls();
+    announce(reference.visible ? 'Reference shown' : 'Reference hidden');
+    void persistReference();
+  });
+  $<HTMLInputElement>('#reference-opacity').addEventListener('input', () => {
+    if (!reference) return;
+    const value = Number($<HTMLInputElement>('#reference-opacity').value);
+    reference = { ...reference, opacity: value / 100 };
+    $<HTMLElement>('#reference-opacity-label').textContent = `${Math.round(value)}%`;
+    redraw();
+  });
+  $<HTMLInputElement>('#reference-opacity').addEventListener('change', () => {
+    void persistReference();
   });
   $<HTMLButtonElement>('#zoom-in').addEventListener('click', () => stepZoom(1));
   $<HTMLButtonElement>('#zoom-out').addEventListener('click', () => stepZoom(-1));
@@ -1907,12 +2975,50 @@ export function mountArt(root: HTMLElement): () => void {
     if (pointer.button === 1 || (pointer.button === 0 && spaceHeld)) {
       autoFit = false;
       gesture = { kind: 'pan', sx: p.sx, sy: p.sy, ox, oy };
-    } else if (pointer.button === 2 && inside(p.x, p.y) && tool === 'brush') {
+    } else if (
+      referenceEdit &&
+      reference &&
+      referenceImage &&
+      reference.visible &&
+      pointer.button === 0
+    ) {
+      const hit = hitReference(p.sx, p.sy);
+      if (hit === 'nw' || hit === 'ne' || hit === 'sw' || hit === 'se') {
+        gesture = {
+          kind: 'ref-resize',
+          sx: p.sx,
+          sy: p.sy,
+          handle: hit,
+          rect: {
+            x: reference.x,
+            y: reference.y,
+            width: reference.width,
+            height: reference.height,
+          },
+        };
+      } else if (hit === 'body') {
+        gesture = {
+          kind: 'ref-move',
+          sx: p.sx,
+          sy: p.sy,
+          rect: {
+            x: reference.x,
+            y: reference.y,
+            width: reference.width,
+            height: reference.height,
+          },
+        };
+      }
+    } else if (
+      pointer.button === 2 &&
+      inside(p.x, p.y) &&
+      tool === 'brush' &&
+      (pointer.ctrlKey || pointer.shiftKey)
+    ) {
       sampling = true;
       const picked = visibleEntry(p.x, p.y) ?? blankCell();
       if (pointer.ctrlKey) pickBrush(picked, 'ink');
-      else if (pointer.shiftKey) pickBrush(picked, 'paper');
-      else pickBrush(picked, 'tile');
+      else pickBrush(picked, 'paper');
     } else if (
       pointer.button === 0 &&
       pointer.shiftKey &&
@@ -1940,6 +3046,14 @@ export function mountArt(root: HTMLElement): () => void {
       else if (tool === 'select') {
         selection = null;
         gesture = { kind: 'select', start: p, end: p };
+      } else if (toolBase(tool) === 'path') {
+        gesture = {
+          kind: 'path',
+          start: p,
+          end: p,
+          path: [{ x: p.x, y: p.y }],
+          shift: pointer.shiftKey,
+        };
       } else {
         gesture = { kind: 'paint', before: captureHistory() ?? undefined, last: p };
         applyBrush(p);
@@ -1966,12 +3080,44 @@ export function mountArt(root: HTMLElement): () => void {
       ox = gesture.ox + p.sx - gesture.sx;
       oy = gesture.oy + p.sy - gesture.sy;
     }
-    if ((gesture?.kind === 'select' || gesture?.kind === 'pick') && doc) {
+    if (
+      gesture?.kind === 'ref-move' &&
+      gesture.rect &&
+      gesture.sx !== undefined &&
+      gesture.sy !== undefined &&
+      reference
+    ) {
+      const grid = cell();
+      reference = {
+        ...reference,
+        x: gesture.rect.x + (p.sx - gesture.sx) / grid.width,
+        y: gesture.rect.y + (p.sy - gesture.sy) / grid.height,
+      };
+    }
+    if (gesture?.kind === 'ref-resize' && gesture.rect && gesture.handle && reference) {
+      const grid = cell();
+      const next = resizeReferenceRect(
+        gesture.rect,
+        gesture.handle,
+        (p.sx - ox) / grid.width,
+        (p.sy - oy) / grid.height,
+        !(event as PointerEvent).shiftKey,
+      );
+      reference = { ...reference, ...next };
+    }
+    if (
+      (gesture?.kind === 'select' || gesture?.kind === 'pick' || gesture?.kind === 'path') &&
+      doc
+    ) {
       gesture.end = {
         ...p,
         x: Math.max(0, Math.min(doc.width - 1, p.x)),
         y: Math.max(0, Math.min(doc.height - 1, p.y)),
       };
+      gesture.shift = (event as PointerEvent).shiftKey;
+      if (gesture.kind === 'path' && pathMode === 'draw' && inside(p.x, p.y)) {
+        gesture.path = extendDrawPath(gesture.path ?? [], { x: p.x, y: p.y });
+      }
     }
     if (gesture?.kind === 'paint' && gesture.last && inside(p.x, p.y)) {
       let x = gesture.last.x;
@@ -1996,8 +3142,9 @@ export function mountArt(root: HTMLElement): () => void {
       gesture.last = p;
     }
     redraw();
+    syncCanvasCursor();
   });
-  const finishGesture = () => {
+  const finishGesture = (event: Event) => {
     const wasPressing = pressing;
     pressing = false;
     sampling = false;
@@ -2005,7 +3152,12 @@ export function mountArt(root: HTMLElement): () => void {
       if (wasPressing) syncCanvasCursor();
       return;
     }
+    if (gesture.kind === 'ref-move' || gesture.kind === 'ref-resize') void persistReference();
     if (gesture.kind === 'paint') remember(gesture.before);
+    if (gesture.kind === 'path' && gesture.start && gesture.end) {
+      const shift = event instanceof PointerEvent ? event.shiftKey : gesture.shift === true;
+      commitPath(pathGestureCells(gesture.end, shift));
+    }
     if (gesture.kind === 'select' && gesture.start && gesture.end) {
       selection = bounds(gesture.start, gesture.end);
       announce(`Selected ${selection.width} × ${selection.height} cells`);
@@ -2020,6 +3172,11 @@ export function mountArt(root: HTMLElement): () => void {
       brushSize = 1;
       tool = 'brush';
       pasteMode = false;
+      announce(
+        stamp
+          ? `Stamp selected · ${rect.width} × ${rect.height}`
+          : `Brush set to ${picked.ch === ' ' ? 'space' : picked.ch}`,
+      );
     }
     gesture = null;
     refreshControls();
@@ -2063,8 +3220,17 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       if (isModalOpen()) return;
+      if (referenceDialog().open) {
+        if (keyEvent.key === 'Escape') {
+          keyEvent.preventDefault();
+          closeReferenceDialog();
+        }
+        if (ctrl && key === 'v') return;
+        if (!typing) keyEvent.preventDefault();
+        return;
+      }
       const controlShortcut =
-        ctrl && !keyEvent.altKey && ['s', 'z', 'y', 'n', 'o', 'c', 'v', 'd'].includes(key);
+        ctrl && !keyEvent.altKey && ['s', 'z', 'y', 'n', 'o', 'c', 'v', 'd', 'g'].includes(key);
       if (keyEvent.key === 'Alt') {
         if (!altDown) {
           altDown = true;
@@ -2076,9 +3242,11 @@ export function mountArt(root: HTMLElement): () => void {
       if (altDown) altUsed = true;
       const modal = $<HTMLDialogElement>('#size-dialog').open
         ? $<HTMLDialogElement>('#size-dialog')
-        : $<HTMLDialogElement>('#file-dialog').open
-          ? $<HTMLDialogElement>('#file-dialog')
-          : null;
+        : $<HTMLDialogElement>('#font-dialog').open
+          ? $<HTMLDialogElement>('#font-dialog')
+          : $<HTMLDialogElement>('#file-dialog').open
+            ? $<HTMLDialogElement>('#file-dialog')
+            : null;
       if (modal) {
         if (keyEvent.key === 'Escape') {
           keyEvent.preventDefault();
@@ -2101,7 +3269,7 @@ export function mountArt(root: HTMLElement): () => void {
         if (isSingleWidthGlyph(keyEvent.key)) {
           glyph = keyEvent.key;
           stamp = null;
-          refreshControls();
+          setGlyphCapture(false);
         }
         return;
       }
@@ -2113,7 +3281,10 @@ export function mountArt(root: HTMLElement): () => void {
       if (controlShortcut) {
         if (typing && (key === 'c' || key === 'v' || key === 'a')) return;
         keyEvent.preventDefault();
-        if (key === 's') void save();
+        if (key === 's') {
+          if (keyEvent.shiftKey) void saveAs();
+          else void save();
+        }
         if (key === 'z') {
           if (keyEvent.shiftKey) actions.redo();
           else actions.undo();
@@ -2124,6 +3295,12 @@ export function mountArt(root: HTMLElement): () => void {
         if (key === 'd') void duplicateSprite();
         if (key === 'c') actions.copy();
         if (key === 'v') actions.paste();
+        if (key === 'g') toggleGrid();
+        return;
+      }
+      if (!typing && ctrl && !keyEvent.altKey && (key === 'b' || key === 'f' || key === 'e')) {
+        cycleTool({ b: 'brush', f: 'fill', e: 'erase' }[key] as 'brush' | 'fill' | 'erase');
+        keyEvent.preventDefault();
         return;
       }
       if (!typing && !ctrl && !keyMode && keyEvent.altKey && (key === 'b' || key === 'n')) {
@@ -2138,12 +3315,31 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       if (typing || ctrl || keyEvent.altKey) return;
+      if (keyEvent.key === 'ArrowLeft' || keyEvent.key === 'ArrowRight') {
+        if (
+          keyEvent.target instanceof HTMLInputElement ||
+          keyEvent.target instanceof HTMLSelectElement
+        ) {
+          return;
+        }
+        keyEvent.preventDefault();
+        selectFrame(selectedFrame + (keyEvent.key === 'ArrowLeft' ? -1 : 1));
+        return;
+      }
       if (key === 'b' || key === 'f' || key === 'e') {
-        cycleTool({ b: 'brush', f: 'fill', e: 'erase' }[key] as 'brush' | 'fill' | 'erase');
+        setTool({ b: 'brush', f: 'fill', e: 'erase' }[key] as Tool);
         keyEvent.preventDefault();
       }
       if (key === 's') {
         setTool('select');
+        keyEvent.preventDefault();
+      }
+      if (key === 'p') {
+        cyclePathMode();
+        keyEvent.preventDefault();
+      }
+      if (key === 'g') {
+        toggleGrid();
         keyEvent.preventDefault();
       }
       if (key === '[' || key === ']') {
@@ -2156,8 +3352,10 @@ export function mountArt(root: HTMLElement): () => void {
       if (key === '-') stepZoom(-1);
       if (keyEvent.key === 'Escape') {
         pasteMode = false;
+        if (referenceEdit) referenceEdit = false;
         selection = null;
         gesture = null;
+        refreshControls();
         redraw();
         syncCanvasCursor();
       }
@@ -2175,10 +3373,31 @@ export function mountArt(root: HTMLElement): () => void {
       altUsed = false;
     }
   });
+  listen(document, 'paste', (event) => {
+    if (!referenceDialog().open) return;
+    const item = imageFromClipboard((event as ClipboardEvent).clipboardData);
+    if (!item) {
+      setReferenceDialogStatus('No image on the clipboard', true);
+      return;
+    }
+    event.preventDefault();
+    void takeReferenceImage(item);
+  });
   const observer = new ResizeObserver(resizeView);
   observer.observe(wrap);
   stops.push(() => observer.disconnect());
-  setDirtyGuard(() => allowReplace());
+  setDirtyGuard(() => discardUnsaved());
+  listen(window, 'beforeunload', (event) => {
+    if (!anyDirty()) return;
+    event.preventDefault();
+    (event as BeforeUnloadEvent).returnValue = '';
+  });
+  listen(window, 'pagehide', () => {
+    flushPersist();
+  });
+  listen(document, 'visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPersist();
+  });
   if (localStorage.getItem('incanterm-editor-theme') === 'light') {
     document.body.classList.add('light');
     $<HTMLButtonElement>('#theme-toggle').textContent = '◐ DARK MODE';
@@ -2187,18 +3406,35 @@ export function mountArt(root: HTMLElement): () => void {
 
   void (async () => {
     palette = await requestJson<PaletteDocument>('/api/palette');
+    const stored = readArtTabStore(localStorage);
+    openTabs = stored.tabs;
+    for (const [id, session] of Object.entries(stored.sessions)) {
+      sessions.set(id, sessionFromPersisted(session));
+    }
     refreshControls();
     const requested =
-      new URLSearchParams(location.search).get('id') ?? localStorage.getItem(LAST_KEY);
+      new URLSearchParams(location.search).get('id') ??
+      stored.active ??
+      localStorage.getItem(LAST_SPRITE_KEY);
     if (requested && isAssetId(requested)) {
+      openTabs = addOpenTab(openTabs, requested);
       try {
+        if (sessions.has(requested)) {
+          restoreSession(requested);
+          flushPersist();
+          announce(`Opened ${requested}`);
+          return;
+        }
         loadSprite(
           await requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(requested)}`),
         );
         announce(`Opened ${requested}`);
         return;
       } catch {
-        localStorage.removeItem(LAST_KEY);
+        openTabs = closeOpenTab(openTabs, requested);
+        dropSession(requested);
+        localStorage.removeItem(LAST_SPRITE_KEY);
+        flushPersist();
       }
     }
     await refreshFiles();
@@ -2208,7 +3444,10 @@ export function mountArt(root: HTMLElement): () => void {
 
   return () => {
     alive = false;
+    flushPersist();
     stopPlayback();
+    for (const id of [...sessions.keys()]) dropSession(id);
+    forgetReference();
     setDirtyGuard(null);
     for (const stop of stops) stop();
   };
@@ -2225,6 +3464,7 @@ function artMarkup(): string {
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
         <button type="button" data-action="browse">Browse sprites <kbd>Ctrl+O</kbd></button>
         <button type="button" data-action="save">Save <kbd>Ctrl+S</kbd></button>
+        <button type="button" data-action="save-as">Save as… <kbd>Ctrl+Shift+S</kbd></button>
         <button type="button" data-action="duplicate">Duplicate <kbd>Ctrl+D</kbd></button>
         <button type="button" data-action="delete">Delete</button>
         <hr><button type="button" data-action="import">Import ed-ascii…</button>
@@ -2235,6 +3475,7 @@ function artMarkup(): string {
         <button type="button" data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
         <button type="button" data-action="redo">Redo <kbd>Ctrl+Y</kbd></button>
         <button type="button" data-action="resize">Resize canvas…</button>
+        <button type="button" data-action="font">Font…</button>
         <button type="button" data-action="animation-speed">Animation speed…</button>
         <hr><button type="button" data-action="select-all">Select all <kbd>Ctrl+A</kbd></button>
         <button type="button" data-action="copy">Copy selection <kbd>Ctrl+C</kbd></button>
@@ -2245,9 +3486,10 @@ function artMarkup(): string {
         <button type="button" data-action="zoom-in">Zoom in</button>
         <button type="button" data-action="zoom-out">Zoom out</button>
         <button type="button" data-action="fit">Fit canvas</button>
+        <hr><button type="button" data-action="toggle-grid">Hide grid <kbd>G</kbd></button>
       </div></details>
       <span class="menu-spacer"></span>
-      <span id="document-title" class="document-title">NO SPRITE <span class="dirty-mark">●</span></span>
+      <div id="document-tabs" class="document-tabs" role="tablist"></div>
     </nav>
     <main class="editor">
       <aside class="sidebar">
@@ -2259,20 +3501,50 @@ function artMarkup(): string {
             <button class="tool" type="button" data-tool="fill"><span>FILL</span><kbd>F</kbd></button>
             <button class="tool" type="button" data-tool="erase"><span>ERASE</span><kbd>E</kbd></button>
             <button class="tool" type="button" data-tool="select"><span>SELECT</span><kbd>S</kbd></button>
+            <button class="tool" type="button" data-tool="path"><span>PATH</span><kbd>P</kbd></button>
           </div>
-          <label class="field-head" for="tool-variant">VARIANT</label>
-          <select id="tool-variant" class="tool-variant">
-            <option value="full">GLYPH + FG + BG</option>
-            <option value="fg">FG</option>
-            <option value="bg">BG</option>
-          </select>
-          <div class="field-head"><label for="brush-size">BRUSH SIZE</label><span id="brush-size-label">1 × 1</span></div>
-          <div class="size-row"><input id="brush-size" type="range" min="1" max="16" value="1"></div>
+          <div class="tool-settings">
+            <div class="tool-setting">
+              <label class="field-head" for="tool-variant">VARIANT</label>
+              <select id="tool-variant" class="tool-variant">
+                <option value="full">GLYPH + FG + BG</option>
+                <option value="fg">FG</option>
+                <option value="bg">BG</option>
+              </select>
+            </div>
+            <div class="tool-setting">
+              <div class="field-head"><label for="brush-size">SIZE</label><span id="brush-size-label">1 × 1</span></div>
+              <div class="size-row"><input id="brush-size" type="range" min="1" max="16" value="1"></div>
+            </div>
+          </div>
+          <div id="path-settings" class="tool-settings path-settings" hidden>
+            <div class="tool-setting">
+              <label class="field-head" for="path-mode">MODE</label>
+              <select id="path-mode" class="tool-variant">
+                <option value="draw">DRAW</option>
+                <option value="line">LINE</option>
+                <option value="box">BOX</option>
+                <option value="circle">CIRCLE</option>
+                <option value="dialog">DIALOG</option>
+              </select>
+            </div>
+            <div class="tool-setting">
+              <label class="field-head" for="path-style">STYLE</label>
+              <select id="path-style" class="tool-variant">
+                <option value="single">SINGLE</option>
+                <option value="double">DOUBLE</option>
+                <option value="heavy">HEAVY</option>
+                <option value="rounded">ROUNDED</option>
+              </select>
+            </div>
+          </div>
         </section>
         <section class="panel">
           <div class="section-title"><span>02</span> CHARACTER</div>
-          <button type="button" id="glyph-capture" class="glyph-capture" aria-pressed="false" title="Press Q or click, then type a glyph. Click again or press Escape to stop."><span id="glyph-capture-char">█</span><span>ACTIVE GLYPH</span></button>
-          <div id="glyph-list" class="glyph-list"></div>
+          <button type="button" id="glyph-capture" class="glyph-capture" aria-pressed="false" title="Press Q or click, then type a glyph. Typing a glyph, Escape, or clicking again stops."><span id="glyph-capture-char">█</span><span>ACTIVE GLYPH</span></button>
+          <div id="glyph-sets">
+            <div id="glyph-tabs" class="glyph-tabs" role="tablist" aria-label="Glyph lists"></div>
+          </div>
         </section>
         <section class="panel">
           <div class="section-title"><span>03</span> PALETTE</div>
@@ -2284,6 +3556,20 @@ function artMarkup(): string {
         <section class="panel">
           <div class="section-title"><span>04</span> ORIGIN</div>
           <div class="origin-row"><label>X<input id="origin-x" type="number" min="0" value="0"></label><label>Y<input id="origin-y" type="number" min="0" value="0"></label></div>
+        </section>
+        <section class="panel">
+          <div class="section-title"><span>05</span> REFERENCE</div>
+          <div class="reference-actions">
+            <button id="reference-open" type="button" disabled>OPEN…</button>
+            <button id="reference-edit" type="button" disabled aria-pressed="false">EDIT</button>
+            <button id="reference-clear" type="button" disabled>CLEAR</button>
+          </div>
+          <label class="reference-visible"><input id="reference-visible" type="checkbox" checked disabled> SHOW</label>
+          <div class="tool-setting reference-opacity">
+            <div class="field-head"><label for="reference-opacity">OPACITY</label><span id="reference-opacity-label">55%</span></div>
+            <div class="size-row"><input id="reference-opacity" type="range" min="5" max="100" value="55" disabled></div>
+          </div>
+          <div id="reference-status" class="reference-status">NO IMAGE</div>
         </section>
       </aside>
       <section class="workspace">
@@ -2313,8 +3599,11 @@ function artMarkup(): string {
       </aside>
     </main>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
+    <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="file-dialog"><div class="dialog-heading"><span>SPRITES</span><button id="close-files" type="button">×</button></div><section class="panel files-panel"><div id="file-list" class="file-list"></div></section></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="cancel-size" type="button">CANCEL</button><button id="apply-size" type="submit">RESIZE</button></div></form></dialog>
+    <dialog id="font-dialog"><div class="dialog-heading"><span>FONT</span><button id="close-font" type="button">×</button></div><form id="font-form"><p id="font-description">Preview this sprite in a terminal typeface. Cell size follows the font.</p><div id="font-choices" class="font-choices">${SPRITE_FONTS.map((font) => `<label><input type="radio" name="sprite-font" value="${font.id}"><span class="font-choice-name">${font.label}</span><span class="font-sample" style="font-family:${font.family}">█▓░ ╔═╗ Aa</span></label>`).join('')}</div><div class="size-dialog-actions"><button id="cancel-font" type="button">CANCEL</button><button id="apply-font" type="submit">APPLY</button></div></form></dialog>
     <div id="toast-stack" class="toast-stack"></div>
     <footer class="statusbar"><div><span id="status">READY</span></div><div><span id="tool-status">BRUSH</span><span class="status-separator">│</span><span id="frame-status">NO FRAME</span><span class="status-separator">│</span><span id="layer-status">NO LAYER</span><span class="status-separator">│</span><span id="cursor-status">X: --  Y: --</span></div></footer>
   </div>`;

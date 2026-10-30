@@ -17,6 +17,10 @@
     "src/editor/client/**/*.d.ts",
     "src/editor/schema.ts",
     "src/editor/palette.ts",
-    "src/editor/glyph.ts"
+    "src/editor/glyph.ts",
+    "src/editor/terminal-cell.ts",
+    "src/editor/ascii-path.ts",
+    "src/editor/art-cursor.ts",
+    "src/editor/art-tabs.ts"
   ]
 }

@@ -1,0 +1,12 @@
+IBM VGA 8x16 and IBM EGA 8x14 webfonts are from
+The Ultimate Oldschool PC Font Pack v2.2 by VileR.
+
+https://int10h.org/oldschool-pc-fonts/
+
+The font files are VileR's remakes, licensed under Creative Commons
+Attribution-ShareAlike 4.0 International:
+
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Original raster glyph data remains credited to its respective designers.
+The .woff files are used unmodified (WebPlus variants).

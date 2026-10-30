@@ -6,6 +6,7 @@ import {
   type PaletteColor,
   type PaletteDocument,
 } from './palette.js';
+import { DEFAULT_SPRITE_FONT, isSpriteFontId, type SpriteFontId } from './terminal-cell.js';
 
 export const ASSET_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_ID_LENGTH = 64;
@@ -15,6 +16,7 @@ export const MAX_LAYERS = 32;
 export const MAX_LAYER_NAME_LENGTH = 24;
 export const MAX_FRAMES = 256;
 export const DEFAULT_FRAME_DURATION_MS = 100;
+export const DEFAULT_ANIMATION_DURATION_MS = 120;
 export const MAX_FRAME_DURATION_MS = 600_000;
 
 export type SpriteCell = {
@@ -43,19 +45,29 @@ export type SpriteDocument = {
   height: number;
   originX: number;
   originY: number;
+  font: SpriteFontId;
   sprites: SpriteFrame[];
 };
 
-export type AnimationFrame = {
+export type VisibleAnimationFrame = {
   sprite: string;
+  index: number;
   durationMs: number;
 };
+
+export type InvisibleAnimationFrame = {
+  invisible: true;
+  durationMs: number;
+};
+
+export type AnimationFrame = VisibleAnimationFrame | InvisibleAnimationFrame;
 
 export type AnimationDocument = {
   format: 'incanterm-animation';
   version: 1;
   id: string;
   loop: boolean;
+  defaultDurationMs: number;
   frames: AnimationFrame[];
 };
 
@@ -102,8 +114,24 @@ export function createSprite(id: string, width: number, height: number): SpriteD
     height,
     originX: 0,
     originY: 0,
+    font: DEFAULT_SPRITE_FONT,
     sprites: [emptySpriteFrame(width, height)],
   };
+}
+
+export function createAnimation(id: string): AnimationDocument {
+  return {
+    format: 'incanterm-animation',
+    version: 1,
+    id,
+    loop: true,
+    defaultDurationMs: DEFAULT_ANIMATION_DURATION_MS,
+    frames: [],
+  };
+}
+
+export function isInvisibleFrame(frame: AnimationFrame): frame is InvisibleAnimationFrame {
+  return 'invisible' in frame && frame.invisible === true;
 }
 
 export function flattenSprite(sprite: SpriteDocument, frameIndex = 0): SpriteCell[] {
@@ -163,6 +191,8 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
   if (!originX.ok) return originX;
   const originY = readInt(record.originY, 'Sprite originY', 0, height.value - 1);
   if (!originY.ok) return originY;
+  const font = readFont(record.font);
+  if (!font.ok) return font;
   const count = width.value * height.value;
   const sprites =
     record.version === 3 ? readSprites(record.sprites, count) : readLegacySprites(record, count);
@@ -177,6 +207,7 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
       height: height.value,
       originX: originX.value,
       originY: originY.value,
+      font: font.value,
       sprites: sprites.value,
     },
   };
@@ -191,20 +222,49 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
   const id = readId(record.id, 'Animation id');
   if (!id.ok) return id;
   if (typeof record.loop !== 'boolean') return fail('Animation loop must be true or false');
-  if (!Array.isArray(record.frames)) return fail('Animation frames must be an array');
+  const defaultDurationMs =
+    record.defaultDurationMs === undefined
+      ? { ok: true as const, value: DEFAULT_ANIMATION_DURATION_MS }
+      : readInt(record.defaultDurationMs, 'Animation defaultDurationMs', 1, MAX_FRAME_DURATION_MS);
+  if (!defaultDurationMs.ok) return defaultDurationMs;
+  if (!Array.isArray(record.frames) || record.frames.length > MAX_FRAMES) {
+    return fail(`Animation must contain at most ${MAX_FRAMES} frames`);
+  }
   const frames: AnimationFrame[] = [];
   for (let index = 0; index < record.frames.length; index++) {
     const frame = asObject(record.frames[index]);
     if (!frame) return fail(`Animation frame ${index} must be an object`);
+    const durationMs = readInt(
+      frame.durationMs,
+      `Animation frame ${index} durationMs`,
+      1,
+      MAX_FRAME_DURATION_MS,
+    );
+    if (!durationMs.ok) return durationMs;
+    if (frame.invisible === true) {
+      frames.push({ invisible: true, durationMs: durationMs.value });
+      continue;
+    }
     const sprite = readId(frame.sprite, `Animation frame ${index} sprite`);
     if (!sprite.ok) return sprite;
-    const durationMs = readInt(frame.durationMs, `Animation frame ${index} durationMs`, 1, 600_000);
-    if (!durationMs.ok) return durationMs;
-    frames.push({ sprite: sprite.value, durationMs: durationMs.value });
+    const spriteIndex = readInt(frame.index, `Animation frame ${index} index`, 0, MAX_FRAMES - 1);
+    if (!spriteIndex.ok) return spriteIndex;
+    frames.push({
+      sprite: sprite.value,
+      index: spriteIndex.value,
+      durationMs: durationMs.value,
+    });
   }
   return {
     ok: true,
-    value: { format: 'incanterm-animation', version: 1, id: id.value, loop: record.loop, frames },
+    value: {
+      format: 'incanterm-animation',
+      version: 1,
+      id: id.value,
+      loop: record.loop,
+      defaultDurationMs: defaultDurationMs.value,
+      frames,
+    },
   };
 }
 
@@ -245,6 +305,7 @@ export function importEdAscii(id: string, value: unknown): SchemaResult<SpriteDo
       height: height.value,
       originX: 0,
       originY: 0,
+      font: DEFAULT_SPRITE_FONT,
       sprites: [{ layers: [emptyLayer('layer-1', 'Layer 1', cells.length, cells)] }],
     },
   };
@@ -437,6 +498,14 @@ function readInt(value: unknown, label: string, min: number, max: number): Schem
 function readIndex(value: unknown, label: string): SchemaResult<number> {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 15) {
     return fail(`${label} must be an ANSI color index from 0 to 15`);
+  }
+  return { ok: true, value };
+}
+
+function readFont(value: unknown): SchemaResult<SpriteFontId> {
+  if (value === undefined) return { ok: true, value: DEFAULT_SPRITE_FONT };
+  if (typeof value !== 'string' || !isSpriteFontId(value)) {
+    return fail('Sprite font must be a known terminal typeface');
   }
   return { ok: true, value };
 }

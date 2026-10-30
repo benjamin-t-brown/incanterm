@@ -34,6 +34,8 @@ describe('art cursor', () => {
     expect(artCursorKind(state({ tool: 'fg' }))).toBe('fg-brush');
     expect(artCursorKind(state({ tool: 'bg' }))).toBe('bg-brush');
     expect(artCursorKind(state({ tool: 'select' }))).toBe('select');
+    expect(artCursorKind(state({ tool: 'path' }))).toBe('path');
+    expect(artCursorKind(state({ tool: 'fg-path' }))).toBe('fg-path');
   });
 
   it('uses pan for space or a pan drag, without stealing another drag', () => {
@@ -59,6 +61,9 @@ describe('art cursor', () => {
     expect(cursorIcon('bg-fill')).toEqual(cursorIcon('fill'));
     expect(cursorIcon('fill').d.startsWith('M274.639 24.324')).toBe(true);
     expect(cursorIcon('select').d.startsWith('M138.563 16.063')).toBe(true);
+    expect(cursorIcon('path').d.startsWith('M429.548 30.836')).toBe(true);
+    expect(cursorIcon('fg-path')).toEqual(cursorIcon('path'));
+    expect(cursorIcon('bg-path')).toEqual(cursorIcon('path'));
     expect(cursorIcon('select').struck).toBe(false);
     expect(cursorIcon('fill').struck).toBe(false);
     expect(cursorIcon('erase')).toEqual({ d: cursorIcon('brush').d, struck: true });

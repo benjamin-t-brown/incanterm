@@ -16,7 +16,8 @@ export async function dispatchAssetRequest(
   store: AssetStore,
   method: string,
   url: string,
-  rawBody: string,
+  rawBody: string | Buffer,
+  contentType = '',
 ): Promise<AssetResponse> {
   const request = new URL(url, 'http://editor.local');
   const parts = request.pathname.split('/').filter(Boolean);
@@ -27,6 +28,9 @@ export async function dispatchAssetRequest(
     if (parts[1] === 'animations') return await animations(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'scripts') return await scripts(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'audio') return await audio(store, method, parts.slice(2));
+    if (parts[1] === 'references') {
+      return await references(store, method, parts.slice(2), rawBody, contentType);
+    }
     if (parts[1] === 'duplicate' && method === 'POST') return await duplicate(store, rawBody);
     if (parts[1] === 'import' && parts[2] === 'ed-ascii' && method === 'POST') {
       return await importAscii(store, rawBody);
@@ -40,7 +44,11 @@ export async function dispatchAssetRequest(
   }
 }
 
-async function palette(store: AssetStore, method: string, rawBody: string): Promise<AssetResponse> {
+async function palette(
+  store: AssetStore,
+  method: string,
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
   if (method === 'GET') return json(200, await store.palette());
   if (method === 'PUT') return json(200, await store.savePalette(parseJson(rawBody)));
   return json(405, { error: 'Method not allowed' });
@@ -50,7 +58,7 @@ async function sprites(
   store: AssetStore,
   method: string,
   parts: string[],
-  rawBody: string,
+  rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET')
     return json(200, { files: await store.listSprites() });
@@ -80,7 +88,7 @@ async function animations(
   store: AssetStore,
   method: string,
   parts: string[],
-  rawBody: string,
+  rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET') {
     return json(200, { files: await store.listAnimations() });
@@ -102,7 +110,7 @@ async function scripts(
   store: AssetStore,
   method: string,
   parts: string[],
-  rawBody: string,
+  rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 1 && parts[0] === 'diagnose' && method === 'POST') {
     const body = asRecord(parseJson(rawBody));
@@ -143,7 +151,39 @@ async function audio(store: AssetStore, method: string, parts: string[]): Promis
   return json(404, { error: 'Not found' });
 }
 
-async function duplicate(store: AssetStore, rawBody: string): Promise<AssetResponse> {
+async function references(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+  rawBody: string | Buffer,
+  contentType: string,
+): Promise<AssetResponse> {
+  if (parts.length === 1 && method === 'GET') {
+    return json(200, await store.readReference(decode(parts[0])));
+  }
+  if (parts.length === 1 && method === 'PUT') {
+    return json(200, await store.saveReference(decode(parts[0]), parseJson(rawBody)));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteReference(decode(parts[0]));
+    return json(200, { ok: true });
+  }
+  if (parts.length === 2 && parts[1] === 'image' && method === 'GET') {
+    const image = await store.readReferenceImage(decode(parts[0]));
+    return {
+      status: 200,
+      headers: { 'content-type': image.type, 'cache-control': 'no-store' },
+      body: image.bytes,
+    };
+  }
+  if (parts.length === 2 && parts[1] === 'image' && method === 'PUT') {
+    const bytes = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
+    return json(200, await store.saveReferenceImage(decode(parts[0]), bytes, contentType));
+  }
+  return json(404, { error: 'Not found' });
+}
+
+async function duplicate(store: AssetStore, rawBody: string | Buffer): Promise<AssetResponse> {
   const body = asRecord(parseJson(rawBody));
   if (body.kind !== 'sprite' && body.kind !== 'animation' && body.kind !== 'script') {
     return json(400, { error: 'Unknown asset kind' });
@@ -154,15 +194,16 @@ async function duplicate(store: AssetStore, rawBody: string): Promise<AssetRespo
   return json(200, await store.duplicate(body.kind, body.from, body.id));
 }
 
-async function importAscii(store: AssetStore, rawBody: string): Promise<AssetResponse> {
+async function importAscii(store: AssetStore, rawBody: string | Buffer): Promise<AssetResponse> {
   const body = asRecord(parseJson(rawBody));
   if (typeof body.id !== 'string') return json(400, { error: 'Import needs an id' });
   return json(200, await store.importEdAscii(body.id, body.document));
 }
 
-function parseJson(rawBody: string): unknown {
-  if (rawBody.length > 4_000_000) throw new AssetError('File is too large', 413);
-  return JSON.parse(rawBody) as unknown;
+function parseJson(rawBody: string | Buffer): unknown {
+  const text = typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
+  if (text.length > 4_000_000) throw new AssetError('File is too large', 413);
+  return JSON.parse(text) as unknown;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

@@ -17,7 +17,9 @@ Extend the asset editor from an ASCII art maker into Incanterm's scene authoring
 - **Scene** is a TODO page. This milestone does not write scene documents or place entities.
 - **Game** embeds the browser client on port 7103. Start it with `npm run dev`. The page does not launch the server or load the open asset into a session.
 
-Sprite export writes truecolor SGR from the palette. `POST /api/import/ed-ascii` maps the old 16 color indices onto these palette ids. The game's existing `assets/sprites/crate.json` still stores inline `#rrggbb` colors for the test room and is not an editor sprite.
+Sprite export writes truecolor SGR from the palette. `POST /api/import/ed-ascii` maps the old 16 color indices onto these palette ids. The game's `assets/sprites/crate.json` uses the same compact cell-palette idea with its original `#rrggbb` colors. It remains a test-room sprite rather than an editable art-editor sprite.
+
+Art spritesheets use compact JSON on disk. A top-level `cellPalette` contains each distinct `[character, foreground id, background id]` tuple once. Each layer stores palette indexes (0 means a transparent layer cell), using either `indices` for varied art or `runs` as `[length, index]` pairs for repeated cells. The asset API expands this into the editor's ordinary cell objects when loading and compresses it when saving. The `test1` sheet is about 0.9 KB in this layout instead of about 21 KB as pretty-printed cell objects. This storage change keeps the existing sprite version number.
 
 Scene placement, character facing sets, and Play Scene remain later work.
 

@@ -14,6 +14,7 @@ type ModalRequest = {
   input: string | null;
   size: { width: number; height: number } | null;
   duration: boolean;
+  assetId: boolean;
   confirmLabel: string;
   cancelLabel: string | null;
   resolve: (value: ModalResult) => void;
@@ -44,6 +45,7 @@ export function alertModal(message: string): Promise<void> {
     input: null,
     size: null,
     duration: false,
+    assetId: false,
     confirmLabel: 'OK',
     cancelLabel: null,
   }).then(() => undefined);
@@ -56,6 +58,7 @@ export function confirmModal(message: string, confirmLabel = 'OK'): Promise<bool
     input: null,
     size: null,
     duration: false,
+    assetId: false,
     confirmLabel,
     cancelLabel: 'CANCEL',
   }).then((value) => value === true);
@@ -68,6 +71,7 @@ export function promptModal(message: string, value = ''): Promise<string | null>
     input: value,
     size: null,
     duration: false,
+    assetId: false,
     confirmLabel: 'OK',
     cancelLabel: 'CANCEL',
   }).then((result) => (typeof result === 'string' ? result : null));
@@ -80,18 +84,41 @@ export function askNewSprite(): Promise<SpriteDraft | null> {
     input: '',
     size: { width: 3, height: 3 },
     duration: false,
+    assetId: false,
     confirmLabel: 'OK',
     cancelLabel: 'CANCEL',
   }).then((result) => (result !== null && typeof result === 'object' ? result : null));
 }
 
-export function askAnimationSpeed(currentMs: number): Promise<number | null> {
+export function askSaveAs(currentId: string): Promise<string | null> {
   return openModal({
-    title: 'ANIMATION SPEED',
-    message: 'Milliseconds between frames',
+    title: 'SAVE AS',
+    message: '',
+    input: currentId,
+    size: null,
+    duration: false,
+    assetId: true,
+    confirmLabel: 'SAVE',
+    cancelLabel: 'CANCEL',
+  }).then((result) => (typeof result === 'string' ? result : null));
+}
+
+export function askAnimationSpeed(currentMs: number): Promise<number | null> {
+  return askDuration('ANIMATION SPEED', 'Milliseconds between frames', currentMs);
+}
+
+export function askFrameDuration(currentMs: number): Promise<number | null> {
+  return askDuration('FRAME DURATION', 'Milliseconds for every frame', currentMs);
+}
+
+function askDuration(title: string, message: string, currentMs: number): Promise<number | null> {
+  return openModal({
+    title,
+    message,
     input: String(currentMs),
     size: null,
     duration: true,
+    assetId: false,
     confirmLabel: 'OK',
     cancelLabel: 'CANCEL',
   }).then((result) => (typeof result === 'number' ? result : null));
@@ -115,7 +142,11 @@ function showNext(): void {
   elements.message.hidden = request.message.length === 0;
   elements.input.setAttribute(
     'aria-label',
-    request.duration ? 'Milliseconds between frames' : request.message || 'Sprite id',
+    request.duration
+      ? 'Milliseconds between frames'
+      : request.assetId
+        ? 'Sprite id'
+        : request.message || 'Sprite id',
   );
   elements.confirmButton.textContent = request.confirmLabel;
   if (request.cancelLabel) {
@@ -144,7 +175,7 @@ function showNext(): void {
   }
   if (request.size === null) {
     elements.sizeRow.hidden = true;
-    elements.idLabel.hidden = !request.duration;
+    elements.idLabel.hidden = !request.duration && !request.assetId;
     elements.idLabel.textContent = request.duration ? 'MS' : 'ID';
   } else {
     elements.sizeRow.hidden = false;
@@ -273,6 +304,18 @@ function ensureDialog(): {
         return;
       }
       finish(duration);
+      return;
+    }
+    if (active.assetId) {
+      const id = (input?.value ?? '').trim();
+      if (!isAssetId(id)) {
+        if (messageNode) {
+          messageNode.hidden = false;
+          messageNode.textContent = 'Use a short lowercase id';
+        }
+        return;
+      }
+      finish(id);
       return;
     }
     finish(active.input !== null ? (input?.value ?? '') : true);

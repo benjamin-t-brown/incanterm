@@ -4,11 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { isSingleWidthGlyph } from './glyph.js';
 import { PALETTE_IDS, defaultPalette } from './palette.js';
 import {
+  createAnimation,
   createSprite,
+  DEFAULT_ANIMATION_DURATION_MS,
   exportAscii,
   exportTruecolor,
   flattenSprite,
   importEdAscii,
+  MAX_FRAMES,
   parseAnimation,
   parsePalette,
   parseSprite,
@@ -243,17 +246,46 @@ describe('editor schema', () => {
   });
 
   it('describes a flat animation clip', () => {
+    expect(createAnimation('blink')).toEqual({
+      format: 'incanterm-animation',
+      version: 1,
+      id: 'blink',
+      loop: true,
+      defaultDurationMs: DEFAULT_ANIMATION_DURATION_MS,
+      frames: [],
+    });
     const parsed = parseAnimation({
       format: 'incanterm-animation',
       version: 1,
       id: 'blink',
       loop: true,
       frames: [
-        { sprite: 'lamp-on', durationMs: 120 },
-        { sprite: 'lamp-off', durationMs: 80 },
+        { sprite: 'lamp-on', index: 0, durationMs: 120 },
+        { sprite: 'lamp-off', index: 2, durationMs: 80 },
       ],
     });
-    expect(parsed.ok).toBe(true);
+    expect(parsed).toMatchObject({
+      ok: true,
+      value: {
+        defaultDurationMs: DEFAULT_ANIMATION_DURATION_MS,
+        frames: [
+          { sprite: 'lamp-on', index: 0, durationMs: 120 },
+          { sprite: 'lamp-off', index: 2, durationMs: 80 },
+        ],
+      },
+    });
+    expect(
+      parseAnimation({
+        format: 'incanterm-animation',
+        version: 1,
+        id: 'blink',
+        loop: true,
+        frames: [{ invisible: true, durationMs: 120 }],
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { frames: [{ invisible: true, durationMs: 120 }] },
+    });
     expect(
       parseAnimation({
         format: 'incanterm-animation',
@@ -263,6 +295,46 @@ describe('editor schema', () => {
         frames: [],
       }).ok,
     ).toBe(false);
+    expect(
+      parseAnimation({
+        format: 'incanterm-animation',
+        version: 1,
+        id: 'blink',
+        loop: true,
+        frames: [{ sprite: 'lamp-on', durationMs: 120 }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      parseAnimation({
+        format: 'incanterm-animation',
+        version: 1,
+        id: 'blink',
+        loop: true,
+        frames: Array.from({ length: MAX_FRAMES + 1 }, () => ({
+          sprite: 'lamp-on',
+          index: 0,
+          durationMs: 100,
+        })),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('defaults a missing spritesheet font and rejects an unknown typeface', () => {
+    const sprite = createSprite('sign', 1, 1);
+    expect(sprite.font).toBe('consolas');
+    expect(parseSprite({ ...sprite, font: undefined })).toMatchObject({
+      ok: true,
+      value: { font: 'consolas' },
+    });
+    expect(parseSprite({ ...sprite, font: 'courier-new' })).toMatchObject({
+      ok: true,
+      value: { font: 'courier-new' },
+    });
+    expect(parseSprite({ ...sprite, font: 'msdos-80x25' })).toMatchObject({
+      ok: true,
+      value: { font: 'msdos-80x25' },
+    });
+    expect(parseSprite({ ...sprite, font: 'comic-sans' }).ok).toBe(false);
   });
 
   it('exports flattened glyphs as notepad text', () => {
@@ -277,11 +349,7 @@ describe('editor schema', () => {
           name: 'Layer 1',
           visible: true,
           locked: false,
-          cells: [
-            { ch: 'A', fg: 'red', bg: 'black' },
-            { ch: 'B', fg: 'red', bg: 'black' },
-            null,
-          ],
+          cells: [{ ch: 'A', fg: 'red', bg: 'black' }, { ch: 'B', fg: 'red', bg: 'black' }, null],
         },
       ],
     });

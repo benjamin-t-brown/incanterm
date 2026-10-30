@@ -1,0 +1,23 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "test1anim",
+  "loop": true,
+  "frames": [
+    {
+      "sprite": "johnathan1",
+      "index": 2,
+      "durationMs": 100
+    },
+    {
+      "sprite": "johnathan1",
+      "index": 3,
+      "durationMs": 100
+    },
+    {
+      "sprite": "johnathan1",
+      "index": 4,
+      "durationMs": 100
+    }
+  ]
+}

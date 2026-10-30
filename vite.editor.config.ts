@@ -7,7 +7,7 @@ import { AssetStore } from './src/editor/store.js';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
-function readBody(request: IncomingMessage): Promise<string> {
+function readBody(request: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -20,7 +20,7 @@ function readBody(request: IncomingMessage): Promise<string> {
       }
       chunks.push(chunk);
     });
-    request.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    request.on('end', () => resolve(Buffer.concat(chunks)));
     request.on('error', reject);
   });
 }
@@ -52,8 +52,16 @@ async function respond(
   try {
     const method = request.method ?? 'GET';
     const body =
-      method === 'GET' || method === 'HEAD' || method === 'DELETE' ? '' : await readBody(request);
-    const result = await dispatchAssetRequest(store, method, request.url ?? '/api', body);
+      method === 'GET' || method === 'HEAD' || method === 'DELETE'
+        ? Buffer.alloc(0)
+        : await readBody(request);
+    const result = await dispatchAssetRequest(
+      store,
+      method,
+      request.url ?? '/api',
+      body,
+      String(request.headers['content-type'] ?? ''),
+    );
     response.statusCode = result.status;
     for (const [key, value] of Object.entries(result.headers)) response.setHeader(key, value);
     response.end(result.body);

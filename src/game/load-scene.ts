@@ -91,11 +91,7 @@ async function loadSprite(
   if (id !== spriteId) throw new Error(`${file} id is ${id}, expected ${spriteId}`);
   const width = readInt(record.width, `${file} width`, 1, 256);
   const height = readInt(record.height, `${file} height`, 1, 128);
-  if (!Array.isArray(record.cells)) throw new Error(`${file} cells must be an array`);
-  if (record.cells.length !== width * height) {
-    throw new Error(`${file} has ${record.cells.length} cells, expected ${width * height}`);
-  }
-  const cells = record.cells.map((cell, index) => readCell(cell, `${file} cell ${index}`));
+  const cells = readSpriteCells(record, width * height, file);
   const sprite = new Sprite(
     id,
     width,
@@ -106,6 +102,55 @@ async function loadSprite(
   );
   cache.set(spriteId, sprite);
   return sprite;
+}
+
+function readSpriteCells(record: Record<string, unknown>, count: number, file: string): Cell[] {
+  if (Array.isArray(record.cells)) {
+    if (record.cells.length !== count) {
+      throw new Error(`${file} has ${record.cells.length} cells, expected ${count}`);
+    }
+    return record.cells.map((cell, index) => readCell(cell, `${file} cell ${index}`));
+  }
+
+  if (!Array.isArray(record.cellPalette)) throw new Error(`${file} cellPalette must be an array`);
+  const palette = record.cellPalette.map((entry, index) => {
+    if (!Array.isArray(entry) || entry.length !== 3) {
+      throw new Error(`${file} cellPalette entry ${index} must have a glyph and two colors`);
+    }
+    return readCell({ ch: entry[0], fg: entry[1], bg: entry[2] }, `${file} cellPalette ${index}`);
+  });
+  const encoded = readObject(record.cells, `${file} cells`);
+  const indices: number[] = [];
+  if (Array.isArray(encoded.indices)) {
+    if (encoded.indices.length !== count) {
+      throw new Error(`${file} has ${encoded.indices.length} cell indexes, expected ${count}`);
+    }
+    indices.push(...encoded.indices);
+  } else if (Array.isArray(encoded.runs)) {
+    if (encoded.runs.length > count) throw new Error(`${file} has too many cell runs`);
+    for (const run of encoded.runs) {
+      if (
+        !Array.isArray(run) ||
+        run.length !== 2 ||
+        !Number.isInteger(run[0]) ||
+        run[0] < 1 ||
+        indices.length + run[0] > count
+      ) {
+        throw new Error(`${file} has an invalid cell run`);
+      }
+      for (let index = 0; index < run[0]; index++) indices.push(run[1]);
+    }
+    if (indices.length !== count)
+      throw new Error(`${file} has ${indices.length} cells, expected ${count}`);
+  } else {
+    throw new Error(`${file} cells need indices or runs`);
+  }
+  return indices.map((index, cellIndex) => {
+    if (!Number.isInteger(index) || index < 1 || index > palette.length) {
+      throw new Error(`${file} cell ${cellIndex} has an invalid palette index`);
+    }
+    return palette[index - 1];
+  });
 }
 
 async function readJson(file: string): Promise<unknown> {
