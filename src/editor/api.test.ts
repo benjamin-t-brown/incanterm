@@ -25,6 +25,56 @@ afterEach(async () => {
 });
 
 describe('asset API', () => {
+  it('merges two concurrent editors saving distinct cells and rejects conflicting edits', async () => {
+    const store = await tempStore();
+    const base = createSprite('shared', 2, 1);
+    const save = (doc: typeof base, snapshot: typeof base | null) =>
+      dispatchAssetRequest(
+        store,
+        'PUT',
+        '/api/sprites/shared',
+        JSON.stringify({ base: snapshot, doc }),
+      );
+    expect((await save(base, null)).status).toBe(200);
+    const left = structuredClone(base);
+    left.sprites[0].layers[0].cells[0] = { ch: 'L', fg: 'white', bg: 'black' };
+    const right = structuredClone(base);
+    right.sprites[0].layers[0].cells[1] = { ch: 'R', fg: 'white', bg: 'black' };
+    const responses = await Promise.all([save(left, base), save(right, base)]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect((await store.readSprite('shared')).sprites[0].layers[0].cells).toEqual([
+      left.sprites[0].layers[0].cells[0],
+      right.sprites[0].layers[0].cells[1],
+    ]);
+
+    const clash = structuredClone(base);
+    clash.sprites[0].layers[0].cells[0] = { ch: 'X', fg: 'white', bg: 'black' };
+    expect((await save(clash, base)).status).toBe(409);
+    expect((await store.readSprite('shared')).sprites[0].layers[0].cells[0]).toEqual(
+      left.sprites[0].layers[0].cells[0],
+    );
+    expect((await save(right, null)).status).toBe(409);
+    expect(
+      (await dispatchAssetRequest(store, 'PUT', '/api/sprites/shared', JSON.stringify(right)))
+        .status,
+    ).toBe(400);
+  });
+
+  it('does not recreate a deleted sprite from a stale editor', async () => {
+    const store = await tempStore();
+    const base = createSprite('gone', 1, 1);
+    await store.saveSprite('gone', base);
+    await store.deleteSprite('gone');
+    const response = await dispatchAssetRequest(
+      store,
+      'PUT',
+      '/api/sprites/gone',
+      JSON.stringify({ base, doc: base }),
+    );
+    expect(response.status).toBe(409);
+    expect((await store.listSprites()).includes('gone')).toBe(false);
+  });
+
   it('round-trips a sprite and keeps the last valid file', async () => {
     const store = await tempStore();
     const sprite = createSprite('mark', 2, 1);
@@ -33,7 +83,7 @@ describe('asset API', () => {
       store,
       'PUT',
       '/api/sprites/mark',
-      JSON.stringify(sprite),
+      JSON.stringify({ base: null, doc: sprite }),
     );
     expect(response.status).toBe(200);
     const stored = JSON.parse(
@@ -48,7 +98,7 @@ describe('asset API', () => {
       store,
       'PUT',
       '/api/sprites/mark',
-      JSON.stringify(invalid),
+      JSON.stringify({ base: sprite, doc: invalid }),
     );
     expect(response.status).toBe(422);
     response = await dispatchAssetRequest(store, 'GET', '/api/sprites/mark', '');
@@ -72,7 +122,7 @@ describe('asset API', () => {
       store,
       'PUT',
       '/api/sprites/mark',
-      JSON.stringify({ ...sprite, id: 'other' }),
+      JSON.stringify({ base: null, doc: { ...sprite, id: 'other' } }),
     );
     expect(renamed.status).toBe(422);
     expect((await store.listSprites()).includes('mark')).toBe(false);
@@ -172,8 +222,14 @@ describe('asset API', () => {
     const store = await tempStore();
     const sprite = createSprite('mark', 4, 2);
     expect(
-      (await dispatchAssetRequest(store, 'PUT', '/api/sprites/mark', JSON.stringify(sprite)))
-        .status,
+      (
+        await dispatchAssetRequest(
+          store,
+          'PUT',
+          '/api/sprites/mark',
+          JSON.stringify({ base: null, doc: sprite }),
+        )
+      ).status,
     ).toBe(200);
 
     const missing = await dispatchAssetRequest(store, 'GET', '/api/references/mark', '');

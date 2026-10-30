@@ -1,0 +1,11 @@
+.game-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #000;
+  min-height: 0;
+}
+.game-missing {
+  max-width: 62ch;
+  line-height: 1.6;
+}

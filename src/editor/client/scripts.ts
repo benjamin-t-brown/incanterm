@@ -1,6 +1,8 @@
 import type { ScriptDiagnostic } from '../rpgscript/diagnose.js';
 import { isAssetId } from '../schema.js';
-import { jsonRequest, requestJson } from './api.js';
+import { ApiError, jsonRequest, requestJson } from './api.js';
+import { mergeText } from '../safe-save.js';
+import { saveDraft } from './save.js';
 import { alertModal, confirmModal } from './modal.js';
 import { askId, pageShell, setDirtyGuard } from './shell.js';
 
@@ -41,6 +43,8 @@ export function mountScripts(root: HTMLElement): () => void {
   let files: string[] = [];
   let currentId: string | null = null;
   let saved = '';
+  let hasSavedVersion = false;
+  let saving = false;
   let diagnoseTimer = 0;
 
   const dirty = () => currentId !== null && source.value !== saved;
@@ -65,6 +69,7 @@ export function mountScripts(root: HTMLElement): () => void {
     currentId = file.id;
     source.value = file.source;
     saved = file.source;
+    hasSavedVersion = true;
     title.textContent = file.id;
     await diagnose();
     await reload();
@@ -98,14 +103,33 @@ export function mountScripts(root: HTMLElement): () => void {
   }
 
   async function save(): Promise<void> {
-    if (!currentId) return;
-    await requestJson(
-      `/api/scripts/${encodeURIComponent(currentId)}`,
-      jsonRequest('PUT', { id: currentId, source: source.value }),
-    );
-    saved = source.value;
-    await diagnose();
-    await reload();
+    if (!currentId || saving) return;
+    const id = currentId;
+    const sent = source.value;
+    const base: ScriptFile | null = hasSavedVersion ? { id, source: saved } : null;
+    saving = true;
+    try {
+      const stored = await saveDraft<ScriptFile>(
+        `/api/scripts/${encodeURIComponent(id)}`,
+        { id, source: sent }, base,
+      );
+      if (currentId === id) {
+        const rebased = mergeText(sent, source.value, stored.source);
+        if (rebased.ok) {
+          source.value = rebased.value;
+          saved = stored.source;
+          hasSavedVersion = true;
+          await diagnose();
+        } else await alertModal('Saved, but newer edits could not be rebased. Review your draft.');
+      }
+      await reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save script';
+      await alertModal(error instanceof ApiError && error.status === 409
+        ? `${message}. Your unsaved script remains open.` : message);
+    } finally {
+      saving = false;
+    }
   }
 
   source.addEventListener('input', scheduleDiagnose);
@@ -119,10 +143,12 @@ export function mountScripts(root: HTMLElement): () => void {
         return;
       }
       if (dirty() && !(await confirmModal('Discard unsaved script changes?', 'DISCARD'))) return;
-      void requestJson(
-        `/api/scripts/${encodeURIComponent(id)}`,
-        jsonRequest('PUT', { id, source: `@${id}\n` }),
-      ).then(() => openScript(id));
+      try {
+        await saveDraft(`/api/scripts/${encodeURIComponent(id)}`, { id, source: `@${id}\n` }, null);
+        await openScript(id);
+      } catch (error) {
+        await alertModal(error instanceof Error ? error.message : 'Could not create script');
+      }
     })();
   });
   root.querySelector('#duplicate-script')?.addEventListener('click', () => {
@@ -145,6 +171,7 @@ export function mountScripts(root: HTMLElement): () => void {
       currentId = null;
       source.value = '';
       saved = '';
+      hasSavedVersion = false;
       title.textContent = 'No script';
       diagnostics.replaceChildren();
       await reload();

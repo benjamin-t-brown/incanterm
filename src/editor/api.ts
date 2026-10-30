@@ -1,5 +1,6 @@
 import { exportTruecolor } from './schema.js';
 import { AssetError, AssetStore } from './store.js';
+import { SaveConflict } from './safe-save.js';
 
 export type AssetResponse = {
   status: number;
@@ -37,7 +38,9 @@ export async function dispatchAssetRequest(
     }
     return json(404, { error: 'Not found' });
   } catch (error) {
-    if (error instanceof AssetError) return json(error.status, { error: error.message });
+    if (error instanceof AssetError || error instanceof SaveConflict) {
+      return json(error.status, { error: error.message });
+    }
     if (error instanceof SyntaxError) return json(400, { error: 'Invalid JSON' });
     console.error(error);
     return json(500, { error: 'Asset request failed' });
@@ -50,7 +53,10 @@ async function palette(
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (method === 'GET') return json(200, await store.palette());
-  if (method === 'PUT') return json(200, await store.savePalette(parseJson(rawBody)));
+  if (method === 'PUT') {
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.savePaletteDraft(doc, base));
+  }
   return json(405, { error: 'Method not allowed' });
 }
 
@@ -65,7 +71,8 @@ async function sprites(
   if (parts.length === 1 && method === 'GET')
     return json(200, await store.readSprite(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    return json(200, await store.saveSprite(decode(parts[0]), parseJson(rawBody)));
+    const body = draftBody(rawBody);
+    return json(200, await store.saveSpriteDraft(decode(parts[0]), body.doc, body.base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteSprite(decode(parts[0]));
@@ -97,7 +104,8 @@ async function animations(
     return json(200, await store.readAnimation(decode(parts[0])));
   }
   if (parts.length === 1 && method === 'PUT') {
-    return json(200, await store.saveAnimation(decode(parts[0]), parseJson(rawBody)));
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.saveAnimationDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteAnimation(decode(parts[0]));
@@ -124,11 +132,8 @@ async function scripts(
   if (parts.length === 1 && method === 'GET')
     return json(200, await store.readScript(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const body = asRecord(parseJson(rawBody));
-    if (body.id !== decode(parts[0]) || typeof body.source !== 'string') {
-      return json(422, { error: 'Script id does not match its file' });
-    }
-    return json(200, await store.saveScript(decode(parts[0]), body.source));
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.saveScriptDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteScript(decode(parts[0]));
@@ -204,6 +209,14 @@ function parseJson(rawBody: string | Buffer): unknown {
   const text = typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
   if (text.length > 4_000_000) throw new AssetError('File is too large', 413);
   return JSON.parse(text) as unknown;
+}
+
+function draftBody(rawBody: string | Buffer): { base: unknown; doc: unknown } {
+  const body = asRecord(parseJson(rawBody));
+  if (!('base' in body) || !('doc' in body)) {
+    throw new AssetError('Save needs a base snapshot and doc', 400);
+  }
+  return { base: body.base, doc: body.doc };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

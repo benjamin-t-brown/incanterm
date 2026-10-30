@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { defaultPalette, type PaletteDocument } from './palette.js';
 import { diagnoseScript, scriptNames, type ScriptDiagnostic } from './rpgscript/diagnose.js';
@@ -22,6 +23,8 @@ import {
   type SpriteReference,
 } from './reference.js';
 import { encodeStoredSprite, parseStoredSprite } from './sprite-storage.js';
+import { mergeSprite } from './sprite-merge.js';
+import { SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
 
 export class AssetError extends Error {
   constructor(
@@ -45,6 +48,8 @@ export type AudioFile = {
 const AUDIO_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(wav|ogg|mp3)$/i;
 
 export class AssetStore {
+  private readonly saves = new SaveCoordinator();
+
   constructor(readonly root: string) {}
 
   async palette(): Promise<PaletteDocument> {
@@ -84,6 +89,80 @@ export class AssetStore {
     if (parsed.value.id !== id) throw new AssetError('Sprite id does not match its file', 422);
     await this.writeText(this.file('sprites', id, '.json'), encodeStoredSprite(parsed.value));
     return parsed.value;
+  }
+
+  async saveSpriteDraft(id: string, draft: unknown, base: unknown): Promise<SpriteDocument> {
+    this.requireId(id);
+    const file = this.file('sprites', id, '.json');
+    return this.saves.save({
+      key: file, base, doc: draft,
+      validate: (value) => {
+        const parsed = parseSprite(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id) throw new AssetError('Sprite id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readSprite(id)),
+      write: (value) => this.writeAtomic(file, encodeStoredSprite(value)),
+      merge: mergeSprite,
+    });
+  }
+
+  async savePaletteDraft(draft: unknown, base: unknown): Promise<PaletteDocument> {
+    return this.saves.save({
+      key: this.palettePath(), base, doc: draft,
+      validate: (value) => {
+        const parsed = parsePalette(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        return parsed.value;
+      },
+      read: () => this.palette(),
+      write: (value) => this.writeAtomic(this.palettePath(), json(value)),
+      merge: mergeJson,
+    });
+  }
+
+  async saveAnimationDraft(id: string, draft: unknown, base: unknown): Promise<AnimationDocument> {
+    this.requireId(id);
+    const file = this.file('animations', id, '.json');
+    return this.saves.save({
+      key: file, base, doc: draft,
+      validate: (value) => {
+        const parsed = parseAnimation(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id) throw new AssetError('Animation id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readAnimation(id)),
+      write: async (value) => {
+        await this.checkAnimationReferences(value);
+        await this.writeAtomic(file, json(value));
+      },
+      merge: mergeJson,
+    });
+  }
+
+  async saveScriptDraft(id: string, draft: unknown, base: unknown): Promise<ScriptFile> {
+    this.requireId(id);
+    const file = this.file('scripts', id, '.rpgscript');
+    return this.saves.save({
+      key: file, base, doc: draft,
+      validate: (value) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value) ||
+            (value as ScriptFile).id !== id || typeof (value as ScriptFile).source !== 'string') {
+          throw new AssetError('Script needs a matching id and source', 422);
+        }
+        const source = (value as ScriptFile).source;
+        if (source.length > 1_000_000) throw new AssetError('Script is too large', 413);
+        return { id, source };
+      },
+      read: () => this.readOptional(() => this.readScript(id)),
+      write: (value) => this.writeAtomic(file, value.source),
+      merge: (old, local, remote) => {
+        const merged = mergeText(old.source, local.source, remote.source);
+        return merged.ok ? { ok: true, value: { id, source: merged.value } } : merged;
+      },
+    });
   }
 
   async deleteSprite(id: string): Promise<void> {
@@ -162,15 +241,21 @@ export class AssetStore {
     const parsed = parseAnimation(value);
     if (!parsed.ok) throw new AssetError(parsed.error, 422);
     if (parsed.value.id !== id) throw new AssetError('Animation id does not match its file', 422);
+    await this.checkAnimationReferences(parsed.value);
+    await this.writeText(this.file('animations', id, '.json'), json(parsed.value));
+    return parsed.value;
+  }
+
+  private async checkAnimationReferences(animation: AnimationDocument): Promise<void> {
     const sprites = new Set(await this.listSprites());
-    const missing = parsed.value.frames.find(
+    const missing = animation.frames.find(
       (frame) => !isInvisibleFrame(frame) && !sprites.has(frame.sprite),
     );
     if (missing && !isInvisibleFrame(missing)) {
       throw new AssetError(`Animation references missing sprite "${missing.sprite}"`, 422);
     }
     const sheets = new Map<string, SpriteDocument>();
-    for (const frame of parsed.value.frames) {
+    for (const frame of animation.frames) {
       if (isInvisibleFrame(frame)) continue;
       let sheet = sheets.get(frame.sprite);
       if (!sheet) {
@@ -184,8 +269,6 @@ export class AssetStore {
         );
       }
     }
-    await this.writeText(this.file('animations', id, '.json'), json(parsed.value));
-    return parsed.value;
   }
 
   async deleteAnimation(id: string): Promise<void> {
@@ -381,6 +464,25 @@ export class AssetStore {
 
   private async writeText(file: string, text: string): Promise<void> {
     await this.writeBytes(file, Buffer.from(text, 'utf8'));
+  }
+
+  private async readOptional<T>(read: () => Promise<T>): Promise<T | null> {
+    try { return await read(); }
+    catch (error) {
+      if (error instanceof AssetError && error.status === 404) return null;
+      throw error;
+    }
+  }
+
+  private async writeAtomic(file: string, text: string): Promise<void> {
+    const temporary = `${file}.${randomUUID()}.tmp`;
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    try {
+      await fs.writeFile(temporary, text);
+      await fs.rename(temporary, file);
+    } finally {
+      await fs.rm(temporary, { force: true });
+    }
   }
 
   private async writeBytes(file: string, bytes: Buffer): Promise<void> {

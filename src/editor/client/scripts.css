@@ -1,0 +1,26 @@
+.script-box {
+  width: 100%;
+  min-height: 360px;
+  background: var(--inset);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 12px;
+  resize: vertical;
+}
+.diagnostics {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.diagnostic {
+  padding: 6px 8px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.diagnostic.error {
+  color: #e8a197;
+}
+.diagnostic.warning {
+  color: #efcf80;
+}

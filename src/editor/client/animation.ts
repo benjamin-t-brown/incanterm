@@ -19,7 +19,9 @@ import {
   terminalCellAtZoom,
   terminalFont,
 } from '../terminal-cell.js';
-import { jsonRequest, requestJson } from './api.js';
+import { ApiError, jsonRequest, requestJson } from './api.js';
+import { saveDraft } from './save.js';
+import { mergeJson } from '../safe-save.js';
 import { alertModal, askFrameDuration, confirmModal, isModalOpen } from './modal.js';
 import { askId, pageShell, setDirtyGuard } from './shell.js';
 
@@ -116,6 +118,7 @@ export function mountAnimation(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: AnimationDocument | null = null;
   let saved = '';
+  let saving = false;
   let timer = 0;
   let playing = false;
   let playIndex = 0;
@@ -713,22 +716,35 @@ export function mountAnimation(root: HTMLElement): () => void {
   }
 
   async function save(): Promise<void> {
-    if (!current) return;
+    if (!current || saving) return;
+    const sent = structuredClone(current);
+    const base = saved ? (JSON.parse(saved) as AnimationDocument) : null;
+    saving = true;
     try {
-      const stored = await requestJson<AnimationDocument>(
-        `/api/animations/${encodeURIComponent(current.id)}`,
-        jsonRequest('PUT', current),
-      );
-      current = stored;
-      saved = JSON.stringify(stored);
-      const message = `Saved ${stored.id}`;
+      const stored = await saveDraft(`/api/animations/${encodeURIComponent(sent.id)}`, sent, base);
+      let rebased = true;
+      if (current?.id === sent.id) {
+        const result = mergeJson(sent, current, stored);
+        if (result.ok) {
+          current = result.value;
+          saved = JSON.stringify(stored);
+          renderReel();
+          void drawPreview();
+        } else rebased = false;
+      }
+      const message = rebased ? `Saved ${stored.id}` : `Saved ${stored.id}; newer edits need review`;
       setStatus(message);
-      toast(message);
+      toast(message, !rebased);
       refreshToolbar();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Save failed';
       setStatus(message);
       toast(message, true);
+      if (error instanceof ApiError && error.status === 409) {
+        await alertModal(`${message}. Your unsaved animation is still open.`);
+      }
+    } finally {
+      saving = false;
     }
   }
 

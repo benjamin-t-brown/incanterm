@@ -168,6 +168,23 @@ describe('art tab store', () => {
     expect(store.sessions).toEqual({});
   });
 
+  it('discards drafts on exit without forgetting open tabs', () => {
+    const storage = memoryStorage();
+    writeArtTabStore(
+      storage,
+      buildArtTabStore(['crate', 'test1'], 'crate', new Map([['crate', dirtySession('crate')]])),
+    );
+    expect(readArtTabStore(storage).sessions.crate).toBeDefined();
+
+    writeArtTabStore(storage, buildArtTabStore(['crate', 'test1'], 'crate', []));
+    expect(readArtTabStore(storage)).toEqual({
+      version: 1,
+      tabs: ['crate', 'test1'],
+      active: 'crate',
+      sessions: {},
+    });
+  });
+
   it('reports quota failures without throwing', () => {
     const storage: ArtTabStorage = {
       getItem: () => null,

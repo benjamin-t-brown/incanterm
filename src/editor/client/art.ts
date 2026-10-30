@@ -68,6 +68,8 @@ import {
   type ArtTabDirtySession,
 } from '../art-tabs.js';
 import { jsonRequest, requestJson, putBytes, getBytes, ApiError } from './api.js';
+import { mergeSprite } from '../sprite-merge.js';
+import { saveDraft } from './save.js';
 import { artCursorCss } from './cursors.js';
 import {
   alertModal,
@@ -77,7 +79,7 @@ import {
   confirmModal,
   isModalOpen,
 } from './modal.js';
-import { askId, brandLink, setDirtyGuard } from './shell.js';
+import { askId, brandLink, editorNav, setDirtyGuard } from './shell.js';
 
 type Stamp = { width: number; height: number; cells: (SpriteCell | null)[] };
 type Point = { x: number; y: number; sx: number; sy: number };
@@ -223,6 +225,7 @@ export function mountArt(root: HTMLElement): () => void {
   let activeLayerId: string | null = null;
   let renamingLayer = false;
   let savedState = '';
+  let saving = false;
   let spriteId: string | null = null;
   let tool: Tool = 'brush';
   let brushSize = 1;
@@ -281,6 +284,7 @@ export function mountArt(root: HTMLElement): () => void {
   const sessions = new Map<string, TabSession>();
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let persistWarned = false;
+  let discardOnLeave = false;
   let switchToken = 0;
 
   const stops: (() => void)[] = [];
@@ -1442,6 +1446,7 @@ export function mountArt(root: HTMLElement): () => void {
     persistWarned = false;
   }
   function schedulePersist(): void {
+    if (discardOnLeave) return;
     if (persistTimer !== null) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       persistTimer = null;
@@ -1449,11 +1454,20 @@ export function mountArt(root: HTMLElement): () => void {
     }, ART_TAB_PERSIST_MS);
   }
   function flushPersist(): void {
+    if (discardOnLeave) return;
     if (persistTimer !== null) {
       clearTimeout(persistTimer);
       persistTimer = null;
     }
     writeOpenTabs();
+  }
+  function discardDrafts(): void {
+    discardOnLeave = true;
+    if (persistTimer !== null) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    writeArtTabStore(localStorage, buildArtTabStore(openTabs, spriteId, []));
   }
   function dropSession(id: string): void {
     const session = sessions.get(id);
@@ -1630,7 +1644,9 @@ export function mountArt(root: HTMLElement): () => void {
     if (count === 0) return true;
     const message =
       count === 1 ? 'Discard unsaved changes?' : `Discard unsaved changes in ${count} sprites?`;
-    return confirmModal(message, 'DISCARD');
+    const confirmed = await confirmModal(message, 'DISCARD');
+    if (confirmed) discardDrafts();
+    return confirmed;
   }
 
   async function syncOpenTabs(files: string[]): Promise<void> {
@@ -1735,22 +1751,75 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Open or create a sprite');
       return;
     }
+    if (saving) return;
+    const id = spriteId;
+    const sent = cloneDoc(doc);
+    let base: SpriteDocument | null;
     try {
-      const saved = await requestJson<SpriteDocument>(
-        `/api/sprites/${encodeURIComponent(spriteId)}`,
-        jsonRequest('PUT', doc),
+      base = savedState ? (JSON.parse(savedState) as SpriteDocument) : null;
+    } catch {
+      announce('Saved snapshot is invalid; reopen or save as a new id');
+      return;
+    }
+    saving = true;
+    try {
+      const saved = await saveDraft<SpriteDocument>(
+        `/api/sprites/${encodeURIComponent(id)}`,
+        sent,
+        base,
       );
-      doc = saved;
-      savedState = JSON.stringify(saved);
+      const mergedOnDisk = JSON.stringify(sent) !== JSON.stringify(saved);
+      let rebased = true;
+      if (spriteId === id && doc) {
+        const current = mergeSprite(sent, doc, saved);
+        if (current.ok) {
+          const resized = doc.width !== current.value.width || doc.height !== current.value.height;
+          doc = current.value;
+          savedState = JSON.stringify(saved);
+          if (mergedOnDisk) {
+            undoStack = [];
+            redoStack = [];
+          }
+          if (resized) fit();
+          refreshControls();
+        } else {
+          rebased = false;
+        }
+      } else {
+        const session = sessions.get(id);
+        if (session) {
+          const current = mergeSprite(sent, session.doc, saved);
+          if (current.ok) {
+            session.doc = current.value;
+            session.savedState = JSON.stringify(saved);
+            if (mergedOnDisk) {
+              session.undoStack = [];
+              session.redoStack = [];
+            }
+          } else {
+            rebased = false;
+          }
+        }
+      }
       flushPersist();
       updateTitle();
-      announce(`Saved ${spriteId}`);
-      toast(`Saved ${spriteId}`);
+      const message = rebased
+        ? mergedOnDisk
+          ? `Saved and merged ${id}`
+          : `Saved ${id}`
+        : `Saved ${id}, but newer edits remain unsaved; review this draft`;
+      announce(message);
+      toast(message, !rebased);
       void refreshFiles();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Save failed';
       announce(message);
       toast(message, true);
+      if (error instanceof ApiError && error.status === 409) {
+        await alertModal(`${message}. Your unsaved draft is still open. Review or use Save As.`);
+      }
+    } finally {
+      saving = false;
     }
   }
   async function saveAs(): Promise<void> {
@@ -1758,9 +1827,12 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Open or create a sprite');
       return;
     }
-    const id = await askSaveAs(spriteId);
+    if (saving) return;
+    const from = spriteId;
+    const id = await askSaveAs(from);
     if (id === null) return;
-    if (id === spriteId) {
+    if (spriteId !== from || !doc) return;
+    if (id === from) {
       await save();
       return;
     }
@@ -1774,15 +1846,18 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
     }
+    if (spriteId !== from || !doc) return;
     const next = cloneDoc(doc);
     next.id = id;
-    const from = spriteId;
     try {
-      const saved = await requestJson<SpriteDocument>(
+      const saved = await saveDraft<SpriteDocument>(
         `/api/sprites/${encodeURIComponent(id)}`,
-        jsonRequest('PUT', next),
+        next,
+        null,
       );
-      doc = saved;
+      if (spriteId !== from || !doc) return;
+      const current = mergeSprite(next, doc, saved);
+      doc = { ...(current.ok ? current.value : doc), id: saved.id };
       spriteId = saved.id;
       savedState = JSON.stringify(saved);
       for (const entry of undoStack) entry.doc.id = saved.id;
@@ -1900,9 +1975,10 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       try {
-        const saved = await requestJson<SpriteDocument>(
+        const saved = await saveDraft<SpriteDocument>(
           `/api/sprites/${encodeURIComponent(draft.id)}`,
-          jsonRequest('PUT', sprite),
+          sprite,
+          null,
         );
         loadSprite(saved);
         announce(`Created ${draft.id}`);
@@ -2525,7 +2601,14 @@ export function mountArt(root: HTMLElement): () => void {
         color.id === paletteEdit ? { ...color, rgb: value.toLowerCase() } : color,
       ),
     };
-    palette = await requestJson<PaletteDocument>('/api/palette', jsonRequest('PUT', next));
+    try {
+      palette = await saveDraft('/api/palette', next, palette);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save palette';
+      announce(message);
+      if (error instanceof ApiError && error.status === 409) await alertModal(message);
+      return;
+    }
     refreshControls();
     announce(`Recolored ${paletteEdit}`);
   }
@@ -3388,12 +3471,15 @@ export function mountArt(root: HTMLElement): () => void {
   stops.push(() => observer.disconnect());
   setDirtyGuard(() => discardUnsaved());
   listen(window, 'beforeunload', (event) => {
-    if (!anyDirty()) return;
+    if (discardOnLeave || !anyDirty()) return;
     event.preventDefault();
     (event as BeforeUnloadEvent).returnValue = '';
   });
   listen(window, 'pagehide', () => {
-    flushPersist();
+    discardDrafts();
+  });
+  listen(window, 'pageshow', (event) => {
+    if (discardOnLeave && (event as PageTransitionEvent).persisted) location.reload();
   });
   listen(document, 'visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushPersist();
@@ -3444,7 +3530,8 @@ export function mountArt(root: HTMLElement): () => void {
 
   return () => {
     alive = false;
-    flushPersist();
+    if (discardOnLeave) discardDrafts();
+    else flushPersist();
     stopPlayback();
     for (const id of [...sessions.keys()]) dropSession(id);
     forgetReference();
@@ -3456,8 +3543,8 @@ export function mountArt(root: HTMLElement): () => void {
 function artMarkup(): string {
   return `<div class="app">
     <header class="topbar">
-      ${brandLink('ART')}
-      <div class="top-right"><a class="text-button" href="/">INDEX</a><button id="theme-toggle" class="text-button" type="button">☼ LIGHT MODE</button></div>
+      ${brandLink('ASSET EDITOR')}
+      <div class="top-right">${editorNav()}<button id="theme-toggle" class="text-button" type="button">☼ LIGHT MODE</button></div>
     </header>
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">

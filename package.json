@@ -15,6 +15,7 @@
     "editor": "vite --config vite.editor.config.ts",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:ui": "tsx src/renderer/ui/visual-test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.browser.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

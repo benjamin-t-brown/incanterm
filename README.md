@@ -6,6 +6,10 @@ The server draws one scene, [`assets/scenes/test-room.json`](assets/scenes/test-
 
 The [asset editor](docs/design/assets-and-scene-editor.md) runs with `npm run editor` on port 7104. The older ed-ascii painter remains in `ed-ascii/` as an import source.
 
+Art saves use a three-way merge against the sprite version last opened in that tab. Independent cell
+and property edits from multiple open editors are kept; conflicting edits or concurrent structural
+changes stop the save with a notice and leave the local draft intact. Save As uses a new id instead.
+
 ## Run
 
 ```text
@@ -13,6 +17,7 @@ npm install
 npm run dev       # server on 7101/7102 and the Vite browser client on 7103
 npm run client    # Node terminal client, in a second terminal
 npm run scene     # print the test scene in this terminal
+npm run test:ui   # interactive BorderBox gallery in this terminal
 ```
 
 The game server listens on `127.0.0.1:7101` (HTTP and WebSocket) and `127.0.0.1:7102` (SSH). The Vite game client uses port 7103 and proxies `/ws` to the game server. Any SSH login is accepted; there are no accounts yet. Each connection receives the test scene. Gameplay input, audio playback, and the SSH menu are not implemented.
@@ -21,6 +26,9 @@ The game server listens on `127.0.0.1:7101` (HTTP and WebSocket) and `127.0.0.1:
 ssh -p 7102 player@127.0.0.1
 npm test              Vitest watch mode
 npm run test:run      Tests once
+npm run test:ui -- border-box   Interactive UI component gallery (↑/↓ scroll, q quit)
+npm run test:ui -- --list       List available galleries
+npm run test:ui -- border-box --plain   Print a noninteractive, uncolored frame
 npm run typecheck
 npm run lint
 npm run format:check
@@ -28,6 +36,13 @@ npm run build         Server, terminal client, and browser
 npm start             Built server; serves dist/browser when it exists
 npm run editor        asset editor on port 7104
 ```
+
+## Visual UI tests
+
+Visual UI tests use the same `CellBuffer` and component drawing code as the game. Add a gallery to
+`src/renderer/ui/visual-tests.ts` and register it in `visualTests`; `test:ui` handles terminal input,
+resizing, and cleanup. Run the command in a real terminal for interaction; redirected output uses
+the plain-text frame. These tests complement, rather than replace, automated Vitest assertions.
 
 ## Design documents
 
