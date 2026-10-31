@@ -1,0 +1,119 @@
+.asset-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: 3px 6px 3px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.asset-tree-toolbar-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.asset-tree-toolbar button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 5px;
+  font: inherit;
+}
+.asset-tree-toolbar button:hover,
+.asset-tree-actions button:hover {
+  color: var(--highlight);
+}
+.asset-tree-root {
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.8px;
+}
+.asset-tree-folder-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.asset-tree-folder,
+.asset-tree-file {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px 6px 5px calc(6px + var(--depth) * 15px);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.asset-tree-folder {
+  flex: 1;
+}
+.asset-tree-rename.text-input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  margin-left: calc(22px + var(--depth) * 15px);
+  padding: 3px 4px;
+  font-size: 12px;
+}
+.asset-tree-folder-row.editing .asset-tree-actions {
+  display: none;
+}
+.asset-tree-file {
+  width: 100%;
+  padding-left: calc(22px + var(--depth) * 15px);
+}
+.asset-tree-arrow {
+  width: 10px;
+  flex: none;
+  color: var(--muted);
+}
+.asset-tree-icon,
+.asset-tree-file-icon {
+  flex: none;
+  color: var(--muted);
+}
+.asset-tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-tree-file:hover,
+.asset-tree-folder-row:hover,
+.asset-tree-root.drop-target,
+.asset-tree-folder-row.drop-target {
+  background: var(--surface);
+}
+.asset-tree-file.active {
+  background: var(--highlight);
+  color: var(--accent-text);
+}
+.asset-tree-file.active .asset-tree-file-icon {
+  color: inherit;
+}
+.asset-tree-actions {
+  display: flex;
+  flex: none;
+  opacity: 0;
+}
+.asset-tree-folder-row:hover .asset-tree-actions,
+.asset-tree-folder-row:focus-within .asset-tree-actions {
+  opacity: 1;
+}
+.asset-tree-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 3px;
+}

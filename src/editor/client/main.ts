@@ -1,13 +1,14 @@
 import faviconUrl from '../../../assets/editor-favicon.png';
-import { mountAnimation } from './animation.js';
-import { mountArt } from './art.js';
-import { mountGame } from './game.js';
-import { mountIndex } from './pages.js';
-import { mountScenes } from './scenes.js';
-import { mountProps } from './props.js';
-import { mountScripts } from './scripts.js';
+import { mountAnimation } from './animation/animation.js';
+import { mountArt } from './art/art.js';
+import { mountGame } from './game/game.js';
+import { mountIndex } from './index/index.js';
+import { mountScenes } from './scenes/scenes.js';
+import { mountProps } from './props/props.js';
+import { mountCharacters } from './characters/characters.js';
+import { mountScripts } from './scripts/scripts.js';
 import { allowLeave, setupThemeToggle } from './shell.js';
-import { mountSoundboard } from './soundboard.js';
+import { mountSoundboard } from './soundboard/soundboard.js';
 
 const icon = document.createElement('link');
 icon.rel = 'icon';
@@ -20,6 +21,7 @@ const titles: Record<string, string> = {
   '/art': 'Incanterm Editor - Art',
   '/animation': 'Incanterm Editor - Animation',
   '/props': 'Incanterm Editor - Props',
+  '/characters': 'Incanterm Editor - Characters',
   '/soundboard': 'Incanterm Editor - Soundboard',
   '/scripts': 'Incanterm Editor - Script Writer',
   '/scenes': 'Incanterm Editor - Scene',
@@ -31,6 +33,7 @@ const routes: Record<string, (root: HTMLElement) => void | (() => void)> = {
   '/art': mountArt,
   '/animation': mountAnimation,
   '/props': mountProps,
+  '/characters': mountCharacters,
   '/soundboard': mountSoundboard,
   '/scripts': mountScripts,
   '/scenes': mountScenes,

@@ -3,8 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { dispatchAssetRequest } from './api.js';
-import { createReference } from './reference.js';
-import { createSprite } from './schema.js';
+import { createReference } from './art/reference.js';
+import { createAnimation, createSprite } from './schema.js';
 import { AssetStore } from './store.js';
 
 const TINY_PNG = Buffer.from(
@@ -25,6 +25,42 @@ afterEach(async () => {
 });
 
 describe('asset API', () => {
+  it('copies an animation draft and renames without overwriting or losing a concurrent edit', async () => {
+    const store = await tempStore();
+    const original = createAnimation('blink');
+    await store.saveAnimationDraft('blink', original, null);
+    const copy = { ...original, id: 'blink_copy', loop: true };
+    const put = (id: string, doc: typeof copy) =>
+      dispatchAssetRequest(
+        store,
+        'PUT',
+        `/api/animations/${id}`,
+        JSON.stringify({ base: null, doc }),
+      );
+    expect((await put('blink_copy', copy)).status).toBe(200);
+    expect(await store.readAnimation('blink_copy')).toMatchObject(copy);
+    expect(await store.readAnimation('blink')).toMatchObject(original);
+    expect((await put('blink_copy', copy)).status).toBe(409);
+
+    const rename = (id: string, base: unknown = original) =>
+      dispatchAssetRequest(
+        store,
+        'POST',
+        '/api/animations/blink/rename',
+        JSON.stringify({ id, base }),
+      );
+    expect((await rename('blink_copy')).status).toBe(409);
+    expect((await rename('bad id')).status).toBe(400);
+    await store.saveAnimationDraft('blink', { ...original, loop: false }, original);
+    expect((await rename('blink_new')).status).toBe(409);
+    const latest = await store.readAnimation('blink');
+    expect((await rename('blink_new', latest)).status).toBe(200);
+    expect(await store.readAnimation('blink_new')).toMatchObject({ ...latest, id: 'blink_new' });
+    expect((await dispatchAssetRequest(store, 'GET', '/api/animations/blink', '')).status).toBe(
+      404,
+    );
+  });
+
   it('accepts a reference image replacement only from its latest revision', async () => {
     const store = await tempStore();
     const url = '/api/references/photo/image';

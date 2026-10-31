@@ -3,9 +3,10 @@ import {
   MAX_FRAME_DURATION_MS,
   MAX_SPRITE_HEIGHT,
   MAX_SPRITE_WIDTH,
+  spriteLabelError,
 } from '../schema.js';
 
-type SpriteDraft = { id: string; width: number; height: number };
+type SpriteDraft = { label: string; width: number; height: number };
 type ModalResult = string | boolean | null | SpriteDraft | number;
 
 type ModalRequest = {
@@ -15,6 +16,7 @@ type ModalRequest = {
   size: { width: number; height: number } | null;
   duration: boolean;
   assetId: boolean;
+  readonlyId?: string;
   confirmLabel: string;
   cancelLabel: string | null;
   resolve: (value: ModalResult) => void;
@@ -25,6 +27,8 @@ let titleNode: HTMLElement | null = null;
 let messageNode: HTMLElement | null = null;
 let field: HTMLElement | null = null;
 let idLabel: HTMLElement | null = null;
+let readonlyIdField: HTMLElement | null = null;
+let readonlyIdInput: HTMLInputElement | null = null;
 let sizeRow: HTMLElement | null = null;
 let widthInput: HTMLInputElement | null = null;
 let heightInput: HTMLInputElement | null = null;
@@ -90,15 +94,29 @@ export function askNewSprite(): Promise<SpriteDraft | null> {
   }).then((result) => (result !== null && typeof result === 'object' ? result : null));
 }
 
-export function askSaveAs(currentId: string): Promise<string | null> {
+export function askSaveAs(currentLabel: string): Promise<string | null> {
   return openModal({
     title: 'SAVE AS',
     message: '',
-    input: currentId,
+    input: currentLabel,
     size: null,
     duration: false,
-    assetId: true,
+    assetId: false,
     confirmLabel: 'SAVE',
+    cancelLabel: 'CANCEL',
+  }).then((result) => (typeof result === 'string' ? result : null));
+}
+
+export function askAssetMeta(kind: 'SPRITESHEET' | 'ANIMATION', label: string, id: string): Promise<string | null> {
+  return openModal({
+    title: `${kind} META`,
+    message: '',
+    input: label,
+    size: null,
+    duration: false,
+    assetId: false,
+    readonlyId: id,
+    confirmLabel: 'APPLY',
     cancelLabel: 'CANCEL',
   }).then((result) => (typeof result === 'string' ? result : null));
 }
@@ -146,8 +164,16 @@ function showNext(): void {
       ? 'Milliseconds between frames'
       : request.assetId
         ? 'Sprite id'
-        : request.message || 'Sprite id',
+        : request.readonlyId
+          ? 'Sprite label'
+          : request.message || (request.size ? 'Sprite label' : 'Label'),
   );
+  elements.readonlyIdField.hidden = request.readonlyId === undefined;
+  elements.readonlyIdInput.value = request.readonlyId ?? '';
+  if (request.readonlyId) {
+    elements.input.setAttribute('aria-label', `${request.title === 'ANIMATION META' ? 'Animation' : 'Spritesheet'} label`);
+    elements.readonlyIdInput.setAttribute('aria-label', `${request.title === 'ANIMATION META' ? 'Animation' : 'Spritesheet'} ID`);
+  }
   elements.confirmButton.textContent = request.confirmLabel;
   if (request.cancelLabel) {
     elements.cancelButton.hidden = false;
@@ -175,12 +201,13 @@ function showNext(): void {
   }
   if (request.size === null) {
     elements.sizeRow.hidden = true;
-    elements.idLabel.hidden = !request.duration && !request.assetId;
-    elements.idLabel.textContent = request.duration ? 'MS' : 'ID';
+    elements.idLabel.hidden =
+      !request.duration && !request.assetId && request.title !== 'SAVE AS' && !request.readonlyId;
+    elements.idLabel.textContent = request.duration ? 'MS' : request.assetId ? 'ID' : 'LABEL';
   } else {
     elements.sizeRow.hidden = false;
     elements.idLabel.hidden = false;
-    elements.idLabel.textContent = 'ID';
+    elements.idLabel.textContent = 'LABEL';
     elements.widthInput.value = String(request.size.width);
     elements.heightInput.value = String(request.size.height);
   }
@@ -201,10 +228,11 @@ function finish(value: ModalResult): void {
 }
 
 function readSpriteDraft(): SpriteDraft | string {
-  const id = (input?.value ?? '').trim();
+  const label = (input?.value ?? '').trim();
   const width = Number(widthInput?.value);
   const height = Number(heightInput?.value);
-  if (!isAssetId(id)) return 'Use a short lowercase id';
+  const labelError = spriteLabelError(label);
+  if (labelError) return labelError;
   if (
     !Number.isInteger(width) ||
     width < 1 ||
@@ -215,7 +243,7 @@ function readSpriteDraft(): SpriteDraft | string {
   ) {
     return `Width is 1–${MAX_SPRITE_WIDTH} and height is 1–${MAX_SPRITE_HEIGHT}`;
   }
-  return { id, width, height };
+  return { label, width, height };
 }
 
 function ensureDialog(): {
@@ -224,6 +252,8 @@ function ensureDialog(): {
   message: HTMLElement;
   field: HTMLElement;
   idLabel: HTMLElement;
+  readonlyIdField: HTMLElement;
+  readonlyIdInput: HTMLInputElement;
   sizeRow: HTMLElement;
   widthInput: HTMLInputElement;
   heightInput: HTMLInputElement;
@@ -237,6 +267,8 @@ function ensureDialog(): {
     messageNode &&
     field &&
     idLabel &&
+    readonlyIdField &&
+    readonlyIdInput &&
     sizeRow &&
     widthInput &&
     heightInput &&
@@ -250,6 +282,8 @@ function ensureDialog(): {
       message: messageNode,
       field,
       idLabel,
+      readonlyIdField,
+      readonlyIdInput,
       sizeRow,
       widthInput,
       heightInput,
@@ -264,6 +298,7 @@ function ensureDialog(): {
     <div class="dialog-heading"><span id="editor-modal-title">CONFIRM</span></div>
     <p id="editor-modal-message"></p>
     <label id="editor-modal-field"><span id="editor-modal-id-label" hidden>ID</span><input id="editor-modal-input" spellcheck="false" autocomplete="off"></label>
+    <label id="editor-modal-readonly-id" hidden>ID<input id="editor-modal-readonly-id-input" type="text" aria-label="Spritesheet ID" readonly></label>
     <div id="editor-modal-size" class="size-fields" hidden>
       <label>WIDTH<input id="editor-modal-width" type="number" min="1" max="256" step="1"></label>
       <span>×</span>
@@ -327,6 +362,10 @@ function ensureDialog(): {
   const nextMessage = element.querySelector<HTMLElement>('#editor-modal-message');
   const nextField = element.querySelector<HTMLElement>('#editor-modal-field');
   const nextIdLabel = element.querySelector<HTMLElement>('#editor-modal-id-label');
+  const nextReadonlyIdField = element.querySelector<HTMLElement>('#editor-modal-readonly-id');
+  const nextReadonlyIdInput = element.querySelector<HTMLInputElement>(
+    '#editor-modal-readonly-id-input',
+  );
   const nextSize = element.querySelector<HTMLElement>('#editor-modal-size');
   const nextWidth = element.querySelector<HTMLInputElement>('#editor-modal-width');
   const nextHeight = element.querySelector<HTMLInputElement>('#editor-modal-height');
@@ -338,6 +377,8 @@ function ensureDialog(): {
     !nextMessage ||
     !nextField ||
     !nextIdLabel ||
+    !nextReadonlyIdField ||
+    !nextReadonlyIdInput ||
     !nextSize ||
     !nextWidth ||
     !nextHeight ||
@@ -351,6 +392,8 @@ function ensureDialog(): {
   messageNode = nextMessage;
   field = nextField;
   idLabel = nextIdLabel;
+  readonlyIdField = nextReadonlyIdField;
+  readonlyIdInput = nextReadonlyIdInput;
   sizeRow = nextSize;
   widthInput = nextWidth;
   heightInput = nextHeight;
@@ -369,6 +412,8 @@ function ensureDialog(): {
     message: nextMessage,
     field: nextField,
     idLabel: nextIdLabel,
+    readonlyIdField: nextReadonlyIdField,
+    readonlyIdInput: nextReadonlyIdInput,
     sizeRow: nextSize,
     widthInput: nextWidth,
     heightInput: nextHeight,

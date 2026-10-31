@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServerMessage } from '../protocol/messages.js';
 import { createSprite } from '../editor/schema.js';
-import { encodeStoredSprite } from '../editor/sprite-storage.js';
+import { encodeStoredSprite } from '../editor/art/sprite-storage.js';
 import { startLoopback, type Loopback } from './start.js';
 
 describe('isolated loopback game', () => {

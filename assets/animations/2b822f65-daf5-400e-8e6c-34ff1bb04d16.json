@@ -1,0 +1,30 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "2b822f65-daf5-400e-8e6c-34ff1bb04d16",
+  "label": "johnathan3x3 walk left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "johnathan3x3",
+      "index": 0,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 1,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 3,
+      "durationMs": 135
+    }
+  ]
+}

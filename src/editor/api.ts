@@ -27,8 +27,11 @@ export async function dispatchAssetRequest(
     if (parts[0] !== 'api') return json(404, { error: 'Not found' });
     if (parts[1] === 'palette') return await palette(store, method, rawBody);
     if (parts[1] === 'sprites') return await sprites(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'animation-folders' && parts.length === 2)
+      return await animationFolders(store, method, rawBody);
     if (parts[1] === 'animations') return await animations(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'props') return await props(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'characters') return await characters(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'scenes') return await scenes(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'rpg-triggers' && parts.length === 2 && method === 'GET')
       return json(200, { names: await store.listRpgTriggers() });
@@ -78,8 +81,10 @@ async function sprites(
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
-  if (parts.length === 0 && method === 'GET')
-    return json(200, { files: await store.listSprites() });
+  if (parts.length === 0 && method === 'GET') {
+    const labels = await store.spriteLabels();
+    return json(200, { files: Object.keys(labels), labels });
+  }
   if (parts.length === 1 && method === 'GET')
     return json(200, await store.readSprite(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
@@ -110,7 +115,8 @@ async function animations(
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET') {
-    return json(200, { files: await store.listAnimations() });
+    const labels = await store.animationLabels();
+    return json(200, { files: Object.keys(labels), labels });
   }
   if (parts.length === 1 && method === 'GET') {
     return json(200, await store.readAnimation(decode(parts[0])));
@@ -123,7 +129,60 @@ async function animations(
     await store.deleteAnimation(decode(parts[0]));
     return json(200, { ok: true });
   }
+  if (parts.length === 2 && parts[1] === 'copy' && method === 'POST') {
+    const body = asRecord(parseJson(rawBody));
+    if (typeof body.id !== 'string') return json(400, { error: 'Copy needs an id' });
+    return json(200, await store.copyAnimation(decode(parts[0]), body.id, body.doc));
+  }
+  if (parts.length === 2 && parts[1] === 'rename' && method === 'POST') {
+    const body = asRecord(parseJson(rawBody));
+    if (typeof body.id !== 'string') return json(400, { error: 'Rename needs an id' });
+    return json(200, await store.renameAnimation(decode(parts[0]), body.id, body.base));
+  }
   return json(404, { error: 'Not found' });
+}
+
+async function animationFolders(
+  store: AssetStore,
+  method: string,
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (method === 'GET') return json(200, await store.animationFolders());
+  if (method === 'POST') {
+    const body = asRecord(parseJson(rawBody));
+    if (
+      body.action === 'create-character-animations' &&
+      typeof body.folder === 'string' &&
+      typeof body.name === 'string' &&
+      typeof body.sprite === 'string'
+    )
+      return json(200, await store.createCharacterAnimations(body.folder, body.name, body.sprite));
+    if (body.action === 'move' && typeof body.id === 'string' && typeof body.folder === 'string')
+      return json(
+        200,
+        await store.changeAnimationFolders({ action: 'move', id: body.id, folder: body.folder }),
+      );
+    if (
+      (body.action === 'create' || body.action === 'rename') &&
+      typeof body.folder === 'string' &&
+      typeof body.name === 'string'
+    )
+      return json(
+        200,
+        await store.changeAnimationFolders({
+          action: body.action,
+          folder: body.folder,
+          name: body.name,
+        }),
+      );
+    if (body.action === 'delete' && typeof body.folder === 'string')
+      return json(
+        200,
+        await store.changeAnimationFolders({ action: 'delete', folder: body.folder }),
+      );
+    return json(400, { error: 'Invalid folder operation' });
+  }
+  return json(405, { error: 'Method not allowed' });
 }
 
 async function scripts(
@@ -169,6 +228,27 @@ async function props(
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteProp(decode(parts[0]));
+    return json(200, { ok: true });
+  }
+  return json(404, { error: 'Not found' });
+}
+
+async function characters(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (parts.length === 0 && method === 'GET')
+    return json(200, { files: await store.listCharacters() });
+  if (parts.length === 1 && method === 'GET')
+    return json(200, await store.readCharacter(decode(parts[0])));
+  if (parts.length === 1 && method === 'PUT') {
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.saveCharacterDraft(decode(parts[0]), doc, base));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteCharacter(decode(parts[0]));
     return json(200, { ok: true });
   }
   return json(404, { error: 'Not found' });
@@ -257,13 +337,17 @@ async function duplicate(store: AssetStore, rawBody: string | Buffer): Promise<A
   if (typeof body.from !== 'string' || typeof body.id !== 'string') {
     return json(400, { error: 'Duplicate needs from and id' });
   }
-  return json(200, await store.duplicate(body.kind, body.from, body.id));
+  if (body.label !== undefined && typeof body.label !== 'string')
+    return json(400, { error: 'Label must be text' });
+  return json(200, await store.duplicate(body.kind, body.from, body.id, body.label));
 }
 
 async function importAscii(store: AssetStore, rawBody: string | Buffer): Promise<AssetResponse> {
   const body = asRecord(parseJson(rawBody));
   if (typeof body.id !== 'string') return json(400, { error: 'Import needs an id' });
-  return json(200, await store.importEdAscii(body.id, body.document));
+  if (body.label !== undefined && typeof body.label !== 'string')
+    return json(400, { error: 'Label must be text' });
+  return json(200, await store.importEdAscii(body.id, body.document, body.label));
 }
 
 function parseJson(rawBody: string | Buffer): unknown {

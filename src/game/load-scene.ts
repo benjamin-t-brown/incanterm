@@ -9,7 +9,7 @@ import {
   parseProp,
   type PropDocument,
 } from '../editor/schema.js';
-import { parseStoredSprite } from '../editor/sprite-storage.js';
+import { parseStoredSprite } from '../editor/art/sprite-storage.js';
 import { paletteRgb, defaultPalette, type PaletteDocument } from '../editor/palette.js';
 import type { Cell } from './cell-buffer.js';
 import { Background, Prop, Scene, type DepthMode } from './scene.js';

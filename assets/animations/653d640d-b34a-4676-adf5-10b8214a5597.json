@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "653d640d-b34a-4676-adf5-10b8214a5597",
+  "label": "vivi3x3 walk right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "johnathan3x3",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

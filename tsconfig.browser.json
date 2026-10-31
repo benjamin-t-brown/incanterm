@@ -19,8 +19,8 @@
     "src/editor/palette.ts",
     "src/editor/glyph.ts",
     "src/editor/terminal-cell.ts",
-    "src/editor/ascii-path.ts",
-    "src/editor/art-cursor.ts",
-    "src/editor/art-tabs.ts"
+    "src/editor/art/ascii-path.ts",
+    "src/editor/art/art-cursor.ts",
+    "src/editor/art/art-tabs.ts"
   ]
 }

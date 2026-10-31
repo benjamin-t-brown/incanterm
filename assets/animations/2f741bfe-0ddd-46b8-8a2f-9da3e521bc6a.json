@@ -1,0 +1,31 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "2f741bfe-0ddd-46b8-8a2f-9da3e521bc6a",
+  "label": "johnathan3x3 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "johnathan3x3",
+      "index": 0,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 6,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "johnathan3x3",
+      "index": 6,
+      "durationMs": 135,
+      "flipH": true
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAnimation, createSprite, emptySpriteFrame } from '../../editor/schema.js';
-import { encodeStoredSprite } from '../../editor/sprite-storage.js';
+import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
 import type { PortraitAssets } from '../portrait-assets.js';
 import { commands } from './scene-commands.js';
 import { loadRpgScripts } from './runtime.js';

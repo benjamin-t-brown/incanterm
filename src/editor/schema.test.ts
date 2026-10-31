@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { isSingleWidthGlyph } from './glyph.js';
 import { PALETTE_IDS, defaultPalette } from './palette.js';
 import {
+  animationFrameFlips,
   createAnimation,
   createSprite,
   DEFAULT_ANIMATION_DURATION_MS,
@@ -254,6 +255,7 @@ describe('editor schema', () => {
       format: 'incanterm-animation',
       version: 1,
       id: 'blink',
+      label: 'blink',
       loop: true,
       defaultDurationMs: DEFAULT_ANIMATION_DURATION_MS,
       frames: [],
@@ -321,6 +323,19 @@ describe('editor schema', () => {
         })),
       }).ok,
     ).toBe(false);
+  });
+
+  it('preserves independent animation and frame flips and rejects invalid flags', () => {
+    const clip = createAnimation('mirror');
+    clip.flipH = true;
+    clip.flipV = true;
+    const frame = { sprite: 'face', index: 0, durationMs: 100, flipH: true };
+    clip.frames.push(frame);
+    expect(parseAnimation(clip)).toEqual({ ok: true, value: clip });
+    expect(animationFrameFlips(clip, frame)).toEqual({ flipH: false, flipV: true });
+    expect(animationFrameFlips(clip, { flipV: true })).toEqual({ flipH: true, flipV: false });
+    expect(parseAnimation({ ...clip, flipH: 'yes' }).ok).toBe(false);
+    expect(parseAnimation({ ...clip, frames: [{ ...clip.frames[0], flipV: 1 }] }).ok).toBe(false);
   });
 
   it('defaults a missing spritesheet font and rejects an unknown typeface', () => {

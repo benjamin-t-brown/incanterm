@@ -41,6 +41,7 @@ export type SpriteDocument = {
   format: 'incanterm-sprite';
   version: 3;
   id: string;
+  label: string;
   width: number;
   height: number;
   originX: number;
@@ -53,6 +54,8 @@ export type VisibleAnimationFrame = {
   sprite: string;
   index: number;
   durationMs: number;
+  flipH?: boolean;
+  flipV?: boolean;
 };
 
 export type InvisibleAnimationFrame = {
@@ -66,7 +69,10 @@ export type AnimationDocument = {
   format: 'incanterm-animation';
   version: 1;
   id: string;
+  label: string;
   loop: boolean;
+  flipH?: boolean;
+  flipV?: boolean;
   defaultDurationMs: number;
   frames: AnimationFrame[];
 };
@@ -86,6 +92,98 @@ export type PropDocument = {
   groundOffsetY: number;
   depthOffset: number;
 };
+
+export const CHARACTER_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
+export type CharacterDirection = (typeof CHARACTER_DIRECTIONS)[number];
+export const CHARACTER_STATES = [
+  'idle-up',
+  'idle-down',
+  'idle-left',
+  'idle-right',
+  'walk-up',
+  'walk-down',
+  'walk-left',
+  'walk-right',
+  'talking',
+] as const;
+export type CharacterState = (typeof CHARACTER_STATES)[number];
+export type CharacterDocument = {
+  format: 'incanterm-character';
+  version: 1;
+  id: string;
+  defaultFacing: CharacterDirection;
+  animations: Record<CharacterState, string>;
+  customAnimations: Record<string, string>;
+};
+
+export function createCharacter(id: string, animation: string): CharacterDocument {
+  return {
+    format: 'incanterm-character',
+    version: 1,
+    id,
+    defaultFacing: 'down',
+    animations: Object.fromEntries(CHARACTER_STATES.map((state) => [state, animation])) as Record<
+      CharacterState,
+      string
+    >,
+    customAnimations: {},
+  };
+}
+
+export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> {
+  const record = asObject(value);
+  if (record?.format !== 'incanterm-character' || record.version !== 1)
+    return fail('Character must be incanterm-character version 1');
+  const id = readId(record.id, 'Character id');
+  if (!id.ok) return id;
+  if (!CHARACTER_DIRECTIONS.includes(record.defaultFacing as CharacterDirection))
+    return fail('Character defaultFacing must be up, down, left, or right');
+  const source = asObject(record.animations);
+  if (
+    !source ||
+    (Object.keys(source).length !== CHARACTER_STATES.length &&
+      Object.keys(source).length !== CHARACTER_STATES.length - 1) ||
+    Object.keys(source).some((key) => !CHARACTER_STATES.includes(key as CharacterState))
+  )
+    return fail(
+      'Character animations must define all eight idle/walk directions and optionally talking',
+    );
+  if (CHARACTER_STATES.slice(0, -1).some((state) => !(state in source)))
+    return fail('Character animations must define all eight idle/walk directions');
+  const extras = asObject(record.customAnimations);
+  if (!extras || Object.keys(extras).length > 64)
+    return fail('Character customAnimations must contain at most 64 states');
+  const animations = {} as Record<CharacterState, string>;
+  for (const state of CHARACTER_STATES) {
+    const value =
+      state === 'talking' && !('talking' in source)
+        ? (extras.talking ?? source['idle-down'])
+        : source[state];
+    const animation = readId(value, `Character ${state} animation`);
+    if (!animation.ok) return animation;
+    animations[state] = animation.value;
+  }
+  const customAnimations: Record<string, string> = {};
+  for (const [state, value] of Object.entries(extras)) {
+    if (state === 'talking') continue;
+    if (!isAssetId(state) || CHARACTER_STATES.includes(state as CharacterState))
+      return fail(`Invalid custom animation state ${state}`);
+    const animation = readId(value, `Character ${state} animation`);
+    if (!animation.ok) return animation;
+    customAnimations[state] = animation.value;
+  }
+  return {
+    ok: true,
+    value: {
+      format: 'incanterm-character',
+      version: 1,
+      id: id.value,
+      defaultFacing: record.defaultFacing as CharacterDirection,
+      animations,
+      customAnimations,
+    },
+  };
+}
 
 export type SceneEntity =
   | { id: string; type: 'Background'; sprite: string; index: number; x: number; y: number }
@@ -163,11 +261,31 @@ export function emptySpriteFrame(width: number, height: number): SpriteFrame {
   return { layers: [emptyLayer('layer-1', 'Layer 1', width * height)] };
 }
 
-export function createSprite(id: string, width: number, height: number): SpriteDocument {
+export function spriteLabelError(label: string): string | null {
+  if (
+    !label.trim() ||
+    label.trim().length > 80 ||
+    [...label].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  )
+    return 'Sprite label must be 1 to 80 characters without control characters';
+  return null;
+}
+
+export function animationLabelError(label: string): string | null {
+  return spriteLabelError(label)?.replace('Sprite', 'Animation') ?? null;
+}
+
+export function createSprite(
+  id: string,
+  width: number,
+  height: number,
+  label = id,
+): SpriteDocument {
   return {
     format: 'incanterm-sprite',
     version: 3,
     id,
+    label,
     width,
     height,
     originX: 0,
@@ -177,14 +295,25 @@ export function createSprite(id: string, width: number, height: number): SpriteD
   };
 }
 
-export function createAnimation(id: string): AnimationDocument {
+export function createAnimation(id: string, label = id): AnimationDocument {
   return {
     format: 'incanterm-animation',
     version: 1,
     id,
+    label,
     loop: true,
     defaultDurationMs: DEFAULT_ANIMATION_DURATION_MS,
     frames: [],
+  };
+}
+
+export function animationFrameFlips(
+  animation: AnimationDocument,
+  frame: { flipH?: boolean; flipV?: boolean },
+): { flipH: boolean; flipV: boolean } {
+  return {
+    flipH: Boolean(animation.flipH) !== Boolean(frame.flipH),
+    flipV: Boolean(animation.flipV) !== Boolean(frame.flipV),
   };
 }
 
@@ -441,6 +570,10 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
   }
   const id = readId(record.id, 'Sprite id');
   if (!id.ok) return id;
+  // Existing sprites predate labels. Their stable id remains valid for all references.
+  const label = record.label === undefined ? id.value : record.label;
+  if (typeof label !== 'string' || spriteLabelError(label))
+    return fail('Sprite label must be 1 to 80 characters without control characters');
   const width = readInt(record.width, 'Sprite width', 1, MAX_SPRITE_WIDTH);
   if (!width.ok) return width;
   const height = readInt(record.height, 'Sprite height', 1, MAX_SPRITE_HEIGHT);
@@ -461,6 +594,7 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
       format: 'incanterm-sprite',
       version: 3,
       id: id.value,
+      label: label.trim(),
       width: width.value,
       height: height.value,
       originX: originX.value,
@@ -479,7 +613,15 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
   }
   const id = readId(record.id, 'Animation id');
   if (!id.ok) return id;
+  // Pre-label clips keep their original id and remain valid references.
+  const label = record.label === undefined ? id.value : record.label;
+  if (typeof label !== 'string' || animationLabelError(label))
+    return fail('Animation label must be 1 to 80 characters without control characters');
   if (typeof record.loop !== 'boolean') return fail('Animation loop must be true or false');
+  if (record.flipH !== undefined && typeof record.flipH !== 'boolean')
+    return fail('Animation flipH must be true or false');
+  if (record.flipV !== undefined && typeof record.flipV !== 'boolean')
+    return fail('Animation flipV must be true or false');
   const defaultDurationMs =
     record.defaultDurationMs === undefined
       ? { ok: true as const, value: DEFAULT_ANIMATION_DURATION_MS }
@@ -503,6 +645,10 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
       frames.push({ invisible: true, durationMs: durationMs.value });
       continue;
     }
+    if (frame.flipH !== undefined && typeof frame.flipH !== 'boolean')
+      return fail(`Animation frame ${index} flipH must be true or false`);
+    if (frame.flipV !== undefined && typeof frame.flipV !== 'boolean')
+      return fail(`Animation frame ${index} flipV must be true or false`);
     const sprite = readId(frame.sprite, `Animation frame ${index} sprite`);
     if (!sprite.ok) return sprite;
     const spriteIndex = readInt(frame.index, `Animation frame ${index} index`, 0, MAX_FRAMES - 1);
@@ -511,6 +657,8 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
       sprite: sprite.value,
       index: spriteIndex.value,
       durationMs: durationMs.value,
+      ...(frame.flipH ? { flipH: true } : {}),
+      ...(frame.flipV ? { flipV: true } : {}),
     });
   }
   return {
@@ -519,7 +667,10 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
       format: 'incanterm-animation',
       version: 1,
       id: id.value,
+      label: label.trim(),
       loop: record.loop,
+      ...(record.flipH ? { flipH: true } : {}),
+      ...(record.flipV ? { flipV: true } : {}),
       defaultDurationMs: defaultDurationMs.value,
       frames,
     },
@@ -624,6 +775,7 @@ export function importEdAscii(id: string, value: unknown): SchemaResult<SpriteDo
       format: 'incanterm-sprite',
       version: 3,
       id,
+      label: id,
       width: width.value,
       height: height.value,
       originX: 0,

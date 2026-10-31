@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAnimation, createSprite, emptySpriteFrame } from '../editor/schema.js';
-import { encodeStoredSprite } from '../editor/sprite-storage.js';
+import { encodeStoredSprite } from '../editor/art/sprite-storage.js';
 import { loadPortraitAssets, portraitFrameAt, portraitNextFrameDelay } from './portrait-assets.js';
 
 describe('portrait assets', () => {
@@ -49,6 +49,26 @@ describe('portrait assets', () => {
     const ending = { ...talking, loop: false };
     expect(portraitFrameAt(ending, 200).cells?.[0].ch).toBe('B');
     expect(portraitNextFrameDelay(ending, 80)).toBeUndefined();
+  });
+
+  it('mirrors portrait cells per axis and cancels a clip flip with a frame flip', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-portraits-'));
+    await fs.mkdir(path.join(root, 'sprites'));
+    await fs.mkdir(path.join(root, 'animations'));
+    const sprite = createSprite('face', 2, 2);
+    for (const [index, ch] of ['A', 'B', 'C', 'D'].entries())
+      sprite.sprites[0].layers[0].cells[index] = { ch, fg: 'white', bg: 'black' };
+    await fs.writeFile(path.join(root, 'sprites', 'face.json'), encodeStoredSprite(sprite));
+    const clip = createAnimation('mirror');
+    clip.flipH = true;
+    clip.frames.push(
+      { sprite: 'face', index: 0, durationMs: 100 },
+      { sprite: 'face', index: 0, durationMs: 100, flipH: true, flipV: true },
+    );
+    await fs.writeFile(path.join(root, 'animations', 'mirror.json'), JSON.stringify(clip));
+    const frames = (await loadPortraitAssets(root)).get('mirror')?.frames;
+    expect(frames?.[0].cells?.map((cell) => cell.ch)).toEqual(['B', 'A', 'D', 'C']);
+    expect(frames?.[1].cells?.map((cell) => cell.ch)).toEqual(['C', 'D', 'A', 'B']);
   });
 
   it('handles asset roots without portrait directories', async () => {

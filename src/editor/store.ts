@@ -4,7 +4,10 @@ import path from 'node:path';
 import { defaultPalette, type PaletteDocument } from './palette.js';
 import { diagnoseScript, scriptNames, type ScriptDiagnostic } from './rpgscript/diagnose.js';
 import {
+  CHARACTER_STATES,
+  createAnimation,
   importEdAscii,
+  parseCharacter,
   isAssetId,
   isInvisibleFrame,
   parseAnimation,
@@ -13,6 +16,7 @@ import {
   parseScene,
   parseSprite,
   type AnimationDocument,
+  type CharacterDocument,
   type PropDocument,
   type SceneDocument,
   type SpriteDocument,
@@ -25,9 +29,15 @@ import {
   referenceMime,
   type ReferenceExt,
   type SpriteReference,
-} from './reference.js';
-import { encodeStoredSprite, parseStoredSprite } from './sprite-storage.js';
-import { mergeSprite } from './sprite-merge.js';
+} from './art/reference.js';
+import { encodeStoredSprite, parseStoredSprite } from './art/sprite-storage.js';
+import { mergeSprite } from './art/sprite-merge.js';
+import {
+  isFolderPath,
+  parentFolder,
+  parseAssetFolders,
+  type AssetFolders,
+} from './asset-folders.js';
 import { SaveConflict, SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
 
 export class AssetError extends Error {
@@ -77,6 +87,12 @@ export class AssetStore {
 
   async listSprites(): Promise<string[]> {
     return this.listValid('sprites', '.json', (text) => parseStoredSprite(JSON.parse(text)).ok);
+  }
+
+  async spriteLabels(): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of await this.listSprites()) labels[id] = (await this.readSprite(id)).label;
+    return labels;
   }
 
   async readSprite(id: string): Promise<SpriteDocument> {
@@ -290,6 +306,127 @@ export class AssetStore {
     return this.listValid('animations', '.json', (text) => parseAnimation(JSON.parse(text)).ok);
   }
 
+  async animationLabels(): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of await this.listAnimations()) labels[id] = (await this.readAnimation(id)).label;
+    return labels;
+  }
+
+  private animationFoldersPath(): string {
+    return path.join(this.root, 'animation-folders.json');
+  }
+
+  async animationFolders(): Promise<AssetFolders> {
+    let value: unknown;
+    try {
+      value = await this.readJson(this.animationFoldersPath());
+    } catch (error) {
+      if (error instanceof AssetError && error.status === 404)
+        return { folders: [], placements: {} };
+      throw error;
+    }
+    const parsed = parseAssetFolders(value);
+    if (!parsed) throw new AssetError('Invalid animation folder index', 422);
+    return parsed;
+  }
+
+  async changeAnimationFolders(
+    change:
+      | { action: 'create' | 'rename'; folder: string; name: string }
+      | { action: 'delete'; folder: string }
+      | { action: 'move'; id: string; folder: string },
+  ): Promise<AssetFolders> {
+    return this.saves.run(this.animationFoldersPath(), async () => {
+      const tree = await this.animationFolders();
+      if (change.action === 'move') {
+        if (change.folder && !tree.folders.includes(change.folder))
+          throw new AssetError('Folder not found', 404);
+        await this.readAnimation(change.id);
+        if (change.folder) tree.placements[change.id] = change.folder;
+        else delete tree.placements[change.id];
+      } else if (change.action === 'create' || change.action === 'rename') {
+        if (!isAssetId(change.name)) throw new AssetError('Use a short lowercase folder name', 400);
+        const parent = change.action === 'create' ? change.folder : parentFolder(change.folder);
+        if (parent && !tree.folders.includes(parent)) throw new AssetError('Folder not found', 404);
+        if (change.action === 'rename' && !tree.folders.includes(change.folder))
+          throw new AssetError('Folder not found', 404);
+        const next = parent ? `${parent}/${change.name}` : change.name;
+        if (!isFolderPath(next)) throw new AssetError('Folder path is too long', 400);
+        if (change.action === 'rename' && next === change.folder) return tree;
+        if (tree.folders.includes(next)) throw new AssetError('Folder already exists', 409);
+        if (change.action === 'create') tree.folders.push(next);
+        else {
+          const replace = (folder: string) =>
+            folder === change.folder || folder.startsWith(`${change.folder}/`)
+              ? next + folder.slice(change.folder.length)
+              : folder;
+          if (tree.folders.some((folder) => replace(folder).length > 256))
+            throw new AssetError('Folder path is too long', 400);
+          tree.folders = tree.folders.map(replace);
+          for (const [id, folder] of Object.entries(tree.placements))
+            tree.placements[id] = replace(folder);
+        }
+      } else {
+        if (!tree.folders.includes(change.folder)) throw new AssetError('Folder not found', 404);
+        if (
+          tree.folders.some((folder) => parentFolder(folder) === change.folder) ||
+          Object.values(tree.placements).includes(change.folder)
+        )
+          throw new AssetError('Move assets and subfolders out before deleting this folder', 409);
+        tree.folders = tree.folders.filter((folder) => folder !== change.folder);
+      }
+      await this.writeAtomic(this.animationFoldersPath(), json(tree));
+      return tree;
+    });
+  }
+
+  async createCharacterAnimations(
+    parent: string,
+    name: string,
+    spriteId: string,
+  ): Promise<{ folder: string; ids: string[] }> {
+    if (!isAssetId(name)) throw new AssetError('Use a short lowercase folder name', 400);
+    this.requireId(spriteId);
+    const folder = parent ? `${parent}/${name}` : name;
+    if (!isFolderPath(folder)) throw new AssetError('Folder path is too long', 400);
+    const ids = CHARACTER_STATES.map(() => randomUUID());
+    const sprite = await this.readSprite(spriteId);
+    if (sprite.sprites.length === 0) throw new AssetError('Sprite sheet has no frames', 422);
+    const files = ids.map((id) => this.file('animations', id, '.json'));
+    const withLocks = async <T>(index: number, operation: () => Promise<T>): Promise<T> =>
+      index === files.length
+        ? operation()
+        : this.saves.run(files[index], () => withLocks(index + 1, operation));
+    return withLocks(0, () =>
+      this.saves.run(this.animationFoldersPath(), async () => {
+        const tree = await this.animationFolders();
+        if (parent && !tree.folders.includes(parent)) throw new AssetError('Folder not found', 404);
+        if (tree.folders.includes(folder)) throw new AssetError('Folder already exists', 409);
+        for (const file of files) await this.ensureAbsent(file);
+        const created: string[] = [];
+        try {
+          for (const [index, id] of ids.entries()) {
+            const animation = createAnimation(id, `${name} ${CHARACTER_STATES[index].replace('-', ' ')}`);
+            animation.frames.push({
+              sprite: spriteId,
+              index: 0,
+              durationMs: animation.defaultDurationMs,
+            });
+            await this.writeAtomic(files[index], json(animation));
+            created.push(files[index]);
+          }
+          tree.folders.push(folder);
+          for (const id of ids) tree.placements[id] = folder;
+          await this.writeAtomic(this.animationFoldersPath(), json(tree));
+        } catch (error) {
+          for (const file of created) await this.removeIfExists(file);
+          throw error;
+        }
+        return { folder, ids };
+      }),
+    );
+  }
+
   async readAnimation(id: string): Promise<AnimationDocument> {
     const parsed = parseAnimation(await this.readJson(this.file('animations', id, '.json')));
     if (!parsed.ok) throw new AssetError(parsed.error, 422);
@@ -334,7 +471,65 @@ export class AssetStore {
 
   async deleteAnimation(id: string): Promise<void> {
     const file = this.file('animations', id, '.json');
-    await this.saves.run(file, () => this.remove(file));
+    await this.saves.run(file, async () => {
+      await this.remove(file);
+      await this.saves.run(this.animationFoldersPath(), async () => {
+        const tree = await this.animationFolders();
+        if (tree.placements[id]) {
+          delete tree.placements[id];
+          await this.writeAtomic(this.animationFoldersPath(), json(tree));
+        }
+      });
+    });
+  }
+
+  async copyAnimation(from: string, id: string, draft: unknown): Promise<AnimationDocument> {
+    this.requireId(from);
+    this.requireId(id);
+    if (from === id) throw new AssetError('Choose a different id', 400);
+    const source = this.file('animations', from, '.json');
+    return this.saves.run(source, async () => {
+      await this.readAnimation(from);
+      const copy = await this.saveAnimationDraft(id, draft, null);
+      await this.saves.run(this.animationFoldersPath(), async () => {
+        const tree = await this.animationFolders();
+        const folder = tree.placements[from];
+        if (folder) {
+          tree.placements[id] = folder;
+          await this.writeAtomic(this.animationFoldersPath(), json(tree));
+        }
+      });
+      return copy;
+    });
+  }
+
+  async renameAnimation(from: string, id: string, base: unknown): Promise<AnimationDocument> {
+    this.requireId(from);
+    this.requireId(id);
+    const original = this.file('animations', from, '.json');
+    const destination = this.file('animations', id, '.json');
+    if (from === id) throw new AssetError('Choose a different id', 400);
+    return this.saves.run(original, () =>
+      this.saves.run(destination, async () => {
+        const animation = await this.readAnimation(from);
+        if (JSON.stringify(animation) !== JSON.stringify(base)) {
+          throw new SaveConflict('Animation changed in another editor; nothing was renamed');
+        }
+        await this.ensureAbsent(destination);
+        const renamed = { ...animation, id };
+        await this.writeAtomic(destination, json(renamed));
+        await this.remove(original);
+        await this.saves.run(this.animationFoldersPath(), async () => {
+          const tree = await this.animationFolders();
+          if (tree.placements[from]) {
+            tree.placements[id] = tree.placements[from];
+            delete tree.placements[from];
+            await this.writeAtomic(this.animationFoldersPath(), json(tree));
+          }
+        });
+        return renamed;
+      }),
+    );
   }
 
   async listProps(): Promise<string[]> {
@@ -382,6 +577,52 @@ export class AssetStore {
 
   async deleteProp(id: string): Promise<void> {
     const file = this.file('props', id, '.json');
+    await this.saves.run(file, () => this.remove(file));
+  }
+
+  async listCharacters(): Promise<string[]> {
+    return this.listValid('characters', '.json', (text) => parseCharacter(JSON.parse(text)).ok);
+  }
+
+  async readCharacter(id: string): Promise<CharacterDocument> {
+    const parsed = parseCharacter(await this.readJson(this.file('characters', id, '.json')));
+    if (!parsed.ok) throw new AssetError(parsed.error, 422);
+    if (parsed.value.id !== id) throw new AssetError('Character id does not match its file', 422);
+    return parsed.value;
+  }
+
+  async saveCharacterDraft(id: string, draft: unknown, base: unknown): Promise<CharacterDocument> {
+    this.requireId(id);
+    const file = this.file('characters', id, '.json');
+    return this.saves.save({
+      key: file,
+      base,
+      doc: draft,
+      validate: (value) => {
+        const parsed = parseCharacter(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id)
+          throw new AssetError('Character id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readCharacter(id)),
+      write: async (value) => {
+        const available = new Set(await this.listAnimations());
+        for (const animation of [
+          ...Object.values(value.animations),
+          ...Object.values(value.customAnimations),
+        ]) {
+          if (!available.has(animation))
+            throw new AssetError(`Character references missing animation "${animation}"`, 422);
+        }
+        await this.writeAtomic(file, json(value));
+      },
+      merge: mergeJson,
+    });
+  }
+
+  async deleteCharacter(id: string): Promise<void> {
+    const file = this.file('characters', id, '.json');
     await this.saves.run(file, () => this.remove(file));
   }
 
@@ -533,12 +774,13 @@ export class AssetStore {
     kind: 'sprite' | 'animation' | 'script',
     from: string,
     id: string,
+    label?: string,
   ): Promise<SpriteDocument | AnimationDocument | ScriptFile> {
     this.requireId(id);
     if (kind === 'sprite') {
       const sprite = await this.readSprite(from);
       await this.ensureAbsent(this.file('sprites', id, '.json'));
-      const saved = await this.saveSpriteDraft(id, { ...sprite, id }, null);
+      const saved = await this.saveSpriteDraft(id, { ...sprite, id, label: label ?? sprite.label }, null);
       await this.copyReference(from, id);
       return saved;
     }
@@ -555,12 +797,12 @@ export class AssetStore {
     throw new AssetError('Unknown asset kind', 400);
   }
 
-  async importEdAscii(id: string, document: unknown): Promise<SpriteDocument> {
+  async importEdAscii(id: string, document: unknown, label?: string): Promise<SpriteDocument> {
     this.requireId(id);
     const imported = importEdAscii(id, document);
     if (!imported.ok) throw new AssetError(imported.error, 422);
     await this.ensureAbsent(this.file('sprites', id, '.json'));
-    return this.saveSpriteDraft(id, imported.value, null);
+    return this.saveSpriteDraft(id, { ...imported.value, label: label ?? id }, null);
   }
 
   private requireId(id: string): string {

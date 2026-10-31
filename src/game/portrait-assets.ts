@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { defaultPalette, paletteRgb, type PaletteDocument } from '../editor/palette.js';
-import { flattenSprite, parseAnimation, parsePalette } from '../editor/schema.js';
-import { parseStoredSprite } from '../editor/sprite-storage.js';
+import { animationFrameFlips, flattenSprite, parseAnimation, parsePalette } from '../editor/schema.js';
+import { parseStoredSprite } from '../editor/art/sprite-storage.js';
 import type { Cell } from './cell-buffer.js';
 import { parseHexColor } from './color.js';
 
@@ -87,10 +87,19 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
       if ('invisible' in entry)
         return { width: 0, height: 0, cells: null, durationMs: entry.durationMs };
       const sprite = sprites.get(`${entry.sprite}_${entry.index}`);
+      const flips = animationFrameFlips(animation, entry);
+      const cells = sprite?.cells;
       return {
         width: sprite?.width ?? 0,
         height: sprite?.height ?? 0,
-        cells: sprite?.cells ?? null,
+        cells: cells && sprite && (flips.flipH || flips.flipV)
+          ? Array.from({ length: cells.length }, (_, at) => {
+              const x = at % sprite.width;
+              const y = Math.floor(at / sprite.width);
+              return cells[(flips.flipV ? sprite.height - 1 - y : y) * sprite.width +
+                (flips.flipH ? sprite.width - 1 - x : x)];
+            })
+          : cells ?? null,
         durationMs: entry.durationMs,
       };
     });

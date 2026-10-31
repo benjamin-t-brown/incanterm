@@ -10,9 +10,10 @@ Extend the asset editor from an ASCII art maker into Incanterm's scene authoring
 
 `npm run editor` serves the Vite editor at `http://localhost:7104/`. The index has an authoring zone and a Game zone.
 
-- **Art** paints `incanterm-sprite` documents. Cells store palette color ids. `assets/palette.json` holds exactly 16 named colors with explicit RGB, seeded from the old ed-ascii palette. The editor can recolor those entries and cannot add or remove them. Glyphs are single-width. Ids are chosen when a file is created or duplicated and are not renamed.
-- **Animation** writes flat `incanterm-animation` clips: ordered sprite frames, a duration per frame, and a loop flag. Playback stays on that page.
+- **Art** paints `incanterm-sprite` documents. Cells store palette color ids. `assets/palette.json` holds exactly 16 named colors with explicit RGB, seeded from the old ed-ascii palette. The editor can recolor those entries and cannot add or remove them. Glyphs are single-width. New spritesheets receive a UUID id and a separately editable human-readable label; the id remains stable when the label changes. Legacy spritesheets without a label display their existing id as the label, preserving references from animations, props, and scenes. Edit → Spritesheet meta opens the editable label alongside a read-only id.
+- **Animation** writes flat `incanterm-animation` clips: ordered sprite frames, a duration per frame, and a loop flag. Playback stays on that page. New clips (including generated character-state clips and copies) have UUID ids and separately editable labels. Existing clips without a label display their unchanged id as the label. Meta shows the read-only id alongside the editable label; changing the label does not change character or prop references.
 - **Props** writes `incanterm-prop` definitions. A searchable list selects a prop; the center editor sets its visual, space, movement blocking, and depth offsets. The selected prop is linked by `/props?id=<prop-id>` so refreshing or sharing the URL reopens it. Choosing a visual opens a two-column picker: first select a sprite sheet, then select a sprite frame or one of the animations using that sheet, with previews. The selection applies only after OK. Props are reusable assets, not scene instances.
+- **Characters** writes reusable `incanterm-character` version 1 definitions in `assets/characters/`. Each assigns animation clip IDs to eight required idle/walk directions and up to 64 named custom states, with a default facing. The editor lists, creates, previews, saves, and deletes these assets at `/characters?id=<id>`. Animation and sprite editing remain in their respective tools. Characters are not yet placeable in scenes or instantiated by the runtime.
 
 The Props editor links the chosen visual to its Art spritesheet or Animation clip in a new tab, preserving the prop draft in the current tab.
 
@@ -32,7 +33,7 @@ Sprite export writes truecolor SGR from the palette. `POST /api/import/ed-ascii`
 
 Art spritesheets use compact JSON on disk. A top-level `cellPalette` contains each distinct `[character, foreground id, background id]` tuple once. Each layer stores palette indexes (0 means a transparent layer cell), using either `indices` for varied art or `runs` as `[length, index]` pairs for repeated cells. The asset API expands this into the editor's ordinary cell objects when loading and compresses it when saving. The `test1` sheet is about 0.9 KB in this layout instead of about 21 KB as pretty-printed cell objects. This storage change keeps the existing sprite version number.
 
-Character facing sets, action-region interaction, and Play Scene remain later work.
+Character scene placement and runtime facing, action-region interaction, and Play Scene remain later work.
 
 ### Concurrent editor saves
 
@@ -64,6 +65,7 @@ Use versioned JSON as the authoring and runtime interchange. The editor writes s
 | Sprite | Single-width Unicode character cells, opaque foreground/background colors, dimensions, and origin/anchor |
 | Animation | Sprite-frame references, per-frame duration, and loop behavior |
 | Prop | Reusable sprite or animation visual, occupied space, movement blocking, and ground/depth offsets |
+| Character | Reusable four-direction idle/walk animation set, custom animation states, and default facing |
 | Scene | Dimensions, depth mode, entity instances, asset references, markers, trigger regions, and script bindings |
 | RPGScript | Separate `.rpgscript` source assets referenced by stable script names |
 | Audio | Sound/music files referenced by stable asset IDs |
@@ -75,6 +77,7 @@ assets/
   sprites/
   animations/
   props/
+  characters/
   scenes/
   scripts/
   audio/

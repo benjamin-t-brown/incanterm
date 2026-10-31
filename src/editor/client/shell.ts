@@ -26,6 +26,7 @@ export function editorNav(): string {
         <a href="/art">ART</a>
         <a href="/animation">ANIMATION</a>
         <a href="/props">PROPS</a>
+        <a href="/characters">CHARACTERS</a>
         <a href="/soundboard">SOUNDBOARD</a>
         <a href="/scripts">SCRIPTS</a>
         <a href="/scenes">SCENE</a>
