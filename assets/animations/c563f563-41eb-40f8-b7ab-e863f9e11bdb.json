@@ -1,0 +1,30 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "c563f563-41eb-40f8-b7ab-e863f9e11bdb",
+  "label": "ada3x3 walk up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "eaf0a5e9-90cb-4f2e-af8e-74b858117cfc",
+      "index": 6,
+      "durationMs": 135
+    },
+    {
+      "sprite": "eaf0a5e9-90cb-4f2e-af8e-74b858117cfc",
+      "index": 14,
+      "durationMs": 135
+    },
+    {
+      "sprite": "eaf0a5e9-90cb-4f2e-af8e-74b858117cfc",
+      "index": 6,
+      "durationMs": 135
+    },
+    {
+      "sprite": "eaf0a5e9-90cb-4f2e-af8e-74b858117cfc",
+      "index": 15,
+      "durationMs": 135
+    }
+  ]
+}

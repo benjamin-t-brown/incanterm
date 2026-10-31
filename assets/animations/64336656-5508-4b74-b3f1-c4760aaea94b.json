@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "64336656-5508-4b74-b3f1-c4760aaea94b",
+  "label": "eva3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "0681c7b4-062a-4fc3-9045-6a814da4b08c",
+      "index": 4,
+      "durationMs": 500
+    },
+    {
+      "sprite": "0681c7b4-062a-4fc3-9045-6a814da4b08c",
+      "index": 5,
+      "durationMs": 500
+    }
+  ]
+}

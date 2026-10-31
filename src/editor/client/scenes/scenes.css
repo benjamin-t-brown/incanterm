@@ -286,7 +286,8 @@
   font-size: 13px;
   font-weight: bold;
 }
-#scene-prop-search {
+#scene-prop-search,
+#scene-character-search {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--line);

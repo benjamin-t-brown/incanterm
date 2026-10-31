@@ -3,7 +3,9 @@ import path from 'node:path';
 import { parseHexColor, type Rgb } from './color.js';
 import {
   flattenSprite,
+  characterAnimation,
   isInvisibleFrame,
+  parseCharacter,
   parseAnimation,
   parsePalette,
   parseProp,
@@ -122,7 +124,36 @@ async function readProp(
       sprite,
     );
   }
-  if (record.type !== 'Prop') throw new Error(`${label} type must be Prop or Background`);
+  if (record.type === 'Character') {
+    const characterId = readId(record.character, `${label} character`);
+    const file = path.join(assetsRoot, 'characters', `${characterId}.json`);
+    const parsed = parseCharacter(await readJson(file));
+    if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
+    if (parsed.value.id !== characterId)
+      throw new Error(`${file} id does not match ${characterId}`);
+    const facing = record.facing;
+    if (facing !== 'up' && facing !== 'down' && facing !== 'left' && facing !== 'right')
+      throw new Error(`${label} facing must be up, down, left, or right`);
+    const state = readId(record.state, `${label} state`);
+    const animationId = characterAnimation(parsed.value, state, facing);
+    if (!animationId) throw new Error(`${label} has no animation state ${state}`);
+    const clipFile = path.join(assetsRoot, 'animations', `${animationId}.json`);
+    const clip = parseAnimation(await readJson(clipFile));
+    if (!clip.ok) throw new Error(`${clipFile}: ${clip.error}`);
+    const first = clip.value.frames.find((frame) => !isInvisibleFrame(frame));
+    if (!first || isInvisibleFrame(first)) throw new Error(`${clipFile} has no visible frame`);
+    const sprite = await loadSprite(assetsRoot, first.sprite, sprites, first.index);
+    return new Prop(
+      id,
+      readInt(record.x, `${label} x`, 0, width - 1),
+      readInt(record.y, `${label} y`, 0, height - 1),
+      0,
+      readInt(record.z ?? 0, `${label} z`, -1000, 1000),
+      sprite,
+    );
+  }
+  if (record.type !== 'Prop')
+    throw new Error(`${label} type must be Prop, Character or Background`);
   let sprite: Sprite;
   let depthOffset = readInt(record.depthOffset ?? 0, `${label} depthOffset`, -1000, 1000);
   if (record.prop !== undefined) {

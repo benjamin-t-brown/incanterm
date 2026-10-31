@@ -1,4 +1,4 @@
-import { CHARACTER_STATES, type CharacterDocument } from '../schema.js';
+import { CHARACTER_STATES, createCharacter, type CharacterDocument } from '../schema.js';
 import type { AssetFolders } from '../asset-folders.js';
 
 export function assignCharacterAnimations(
@@ -23,4 +23,21 @@ export function assignCharacterAnimations(
     } else if (matches.length > 1) ambiguous.push(state);
   }
   return { animations, matched, ambiguous };
+}
+
+export function characterFromAnimationFolder(
+  id: string,
+  folder: string,
+  folders: AssetFolders,
+  labels: Record<string, string>,
+): { character: CharacterDocument | null; missing: string[]; ambiguous: string[] } {
+  const character = createCharacter(id, '');
+  const result = assignCharacterAnimations(character, folder, folders, labels);
+  const missing = CHARACTER_STATES.filter(
+    (state) => !result.animations[state] && !result.ambiguous.includes(state),
+  );
+  if (missing.length || result.ambiguous.length)
+    return { character: null, missing, ambiguous: result.ambiguous };
+  character.animations = result.animations;
+  return { character, missing: [], ambiguous: [] };
 }

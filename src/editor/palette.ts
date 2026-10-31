@@ -30,6 +30,10 @@ export const PALETTE_COLORS: readonly PaletteColor[] = [
 
 export const PALETTE_IDS = PALETTE_COLORS.map((color) => color.id);
 
+export function isSpriteColor(value: string): boolean {
+  return PALETTE_IDS.includes(value) || /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
 export function defaultPalette(): PaletteDocument {
   return {
     format: 'incanterm-palette',
@@ -39,5 +43,6 @@ export function defaultPalette(): PaletteDocument {
 }
 
 export function paletteRgb(palette: PaletteDocument, id: string): string | undefined {
+  if (/^#[0-9a-fA-F]{6}$/.test(id)) return id.toLowerCase();
   return palette.colors.find((color) => color.id === id)?.rgb;
 }

@@ -20,7 +20,7 @@ describe('portrait assets', () => {
     const sprite = createSprite('face', 2, 1);
     sprite.sprites[0].layers[0].cells[0] = { ch: 'A', fg: 'bright-red', bg: 'black' };
     const second = emptySpriteFrame(2, 1);
-    second.layers[0].cells[0] = { ch: 'B', fg: 'bright-blue', bg: 'black' };
+    second.layers[0].cells[0] = { ch: 'B', fg: '#123456', bg: '#abcdef' };
     sprite.sprites.push(second);
     await fs.writeFile(path.join(root, 'sprites', 'face.json'), encodeStoredSprite(sprite));
     const animation = createAnimation('talking');
@@ -35,6 +35,8 @@ describe('portrait assets', () => {
     expect(assets.get('face_0')?.frames[0].cells?.[0].ch).toBe('A');
     expect(assets.get('face_1')?.frames[0].cells?.[0].ch).toBe('B');
     expect(assets.get('face_0')?.frames[0].cells?.[0].fg).toEqual({ r: 255, g: 85, b: 85 });
+    expect(assets.get('face_1')?.frames[0].cells?.[0].fg).toEqual({ r: 18, g: 52, b: 86 });
+    expect(assets.get('face_1')?.frames[0].cells?.[0].bg).toEqual({ r: 171, g: 205, b: 239 });
     const talking = assets.get('talking');
     expect(talking).toBeDefined();
     if (!talking) return;

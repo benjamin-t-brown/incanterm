@@ -189,6 +189,10 @@ summary:focus-visible {
   color: var(--muted);
   font-size: 16px;
   line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: min(55vh, 480px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 #editor-modal-field {
   display: block;

@@ -1,9 +1,13 @@
 import { paletteRgb, type PaletteDocument } from '../../palette.js';
 import type { AssetFolders } from '../../asset-folders.js';
-import { assignCharacterAnimations } from '../../characters/auto-assign.js';
-import { mergeJson } from '../../safe-save.js';
+import {
+  assignCharacterAnimations,
+  characterFromAnimationFolder,
+} from '../../characters/auto-assign.js';
+import { rebaseJsonDraft } from '../../safe-save.js';
 import {
   CHARACTER_STATES,
+  characterLabelError,
   createCharacter,
   flattenSprite,
   isAssetId,
@@ -16,10 +20,11 @@ import {
 import { preloadSpriteFonts, terminalCellAtZoom } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { ApiError, requestJson } from '../api.js';
-import { alertModal, confirmModal } from '../modal.js';
+import { alertModal, askAssetMeta, confirmModal } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { characterListEntries } from './character-list.js';
 
 export function mountCharacters(root: HTMLElement): () => void {
   root.innerHTML = pageShell(
@@ -29,15 +34,17 @@ export function mountCharacters(root: HTMLElement): () => void {
     <div id="character-list" class="asset-list anim-library-list"></div>
   </aside><section class="character-app" aria-label="Character editor">
     <div class="toolbar-row"><button id="new-character" type="button">NEW</button>
+      <button id="new-character-from-folder" type="button">NEW FROM ANIMATION FOLDER</button>
+      <button id="rename-character" type="button" disabled>RENAME</button>
       <button id="save-character" type="button" disabled>SAVE</button>
       <button id="delete-character" type="button" disabled>DELETE</button>
-      <strong id="character-id">NO CHARACTER</strong></div>
+      <strong id="character-id">NO CHARACTER</strong><small id="character-stable-id"></small></div>
     <p id="character-status" class="page-copy" role="status">Create a character or select one from the list.</p>
     <div id="character-fields" class="character-fields" hidden>
       <div><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
         <option value="up">UP</option><option value="down">DOWN</option>
         <option value="left">LEFT</option><option value="right">RIGHT</option></select></label>
-        <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip to each state. Diagonal walking uses horizontal facing.</p>
+        <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
         <div class="character-folder-fill"><label class="character-label">ANIMATION FOLDER
           <span id="character-folder-picker"></span></label>
           <button id="character-fill-folder" type="button">FILL FROM FOLDER</button></div>
@@ -50,7 +57,17 @@ export function mountCharacters(root: HTMLElement): () => void {
         <p id="character-preview-info" class="page-copy"></p>
         <p class="page-copy">Animation clips and sprites can be edited in their own tools.</p>
         <a id="character-edit-animation" href="/animation" target="_blank" rel="noopener noreferrer">EDIT ANIMATION ↗</a>
-      </div></div>
+       </div></div>
+    <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
+      <form id="character-from-folder-form">
+        <h2 id="character-from-folder-title">NEW FROM ANIMATION FOLDER</h2>
+        <p class="page-copy">Choose a folder with all 12 idle, walk, and talking animations.</p>
+        <label class="character-label">ANIMATION FOLDER<span id="new-character-folder-picker"></span></label>
+        <label class="character-label">CHARACTER LABEL<input id="new-character-label" class="text-input" type="text" maxlength="80" autocomplete="off" spellcheck="false" required></label>
+        <p id="character-from-folder-error" class="page-copy" role="alert" hidden></p>
+        <div class="character-from-folder-actions"><button id="cancel-character-from-folder" type="button">CANCEL</button><button type="submit">CREATE CHARACTER</button></div>
+      </form>
+    </dialog>
   </section>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
@@ -75,6 +92,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   let previewToken = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let files: string[] = [];
+  let characterLabels: Record<string, string> = {};
   let clips: string[] = [];
   let clipLabels: Record<string, string> = {};
   let animationFolders: AssetFolders = { folders: [], placements: {} };
@@ -90,12 +108,13 @@ export function mountCharacters(root: HTMLElement): () => void {
 
   function renderList(): void {
     list.replaceChildren();
-    const matches = files.filter((id) => id.includes(search.value.trim().toLowerCase()));
-    if (!matches.length) list.textContent = files.length ? 'No matches.' : 'No characters.';
-    for (const id of matches) {
+    const matches = characterListEntries(files, characterLabels, current, search.value);
+    if (!matches.length)
+      list.textContent = files.length || current ? 'No matches.' : 'No characters.';
+    for (const { id, label } of matches) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = id;
+      button.textContent = label;
       button.classList.toggle('active', id === current?.id);
       button.addEventListener('click', () => void open(id));
       list.append(button);
@@ -155,8 +174,10 @@ export function mountCharacters(root: HTMLElement): () => void {
     renderList();
     $<HTMLElement>('#character-fields').hidden = !current;
     $<HTMLButtonElement>('#save-character').disabled = !current;
+    $<HTMLButtonElement>('#rename-character').disabled = !current;
     $<HTMLButtonElement>('#delete-character').disabled = !current;
-    $<HTMLElement>('#character-id').textContent = current?.id ?? 'NO CHARACTER';
+    $<HTMLElement>('#character-id').textContent = current?.label ?? 'NO CHARACTER';
+    $<HTMLElement>('#character-stable-id').textContent = current ? `ID ${current.id}` : '';
     states.replaceChildren();
     custom.replaceChildren();
     const selected = previewState.value;
@@ -288,13 +309,14 @@ export function mountCharacters(root: HTMLElement): () => void {
 
   async function refresh(): Promise<void> {
     const [characters, animations, colors, folders] = await Promise.all([
-      requestJson<{ files: string[] }>('/api/characters'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/characters'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
       requestJson<PaletteDocument>('/api/palette'),
       requestJson<AssetFolders>('/api/animation-folders'),
     ]);
     if (!alive) return;
     files = characters.files;
+    characterLabels = characters.labels;
     clips = animations.files;
     clipLabels = animations.labels;
     animationFolders = folders;
@@ -328,9 +350,9 @@ export function mountCharacters(root: HTMLElement): () => void {
     try {
       const stored = await saveDraft(`/api/characters/${encodeURIComponent(sent.id)}`, sent, base);
       if (alive && current?.id === sent.id) {
-        const merged = mergeJson(sent, current, stored);
-        saved = stored;
-        if (merged.ok) current = merged.value;
+        const merged = rebaseJsonDraft(sent, current, stored);
+        saved = merged.ok ? merged.value.baseline : structuredClone(stored);
+        if (merged.ok) current = merged.value.draft;
         status.textContent = merged.ok
           ? `Saved ${sent.id}`
           : `Saved ${sent.id}; newer edits need review`;
@@ -363,6 +385,78 @@ export function mountCharacters(root: HTMLElement): () => void {
     );
   }
   renderFolderPicker();
+  const fromFolderDialog = $<HTMLDialogElement>('#character-from-folder-dialog');
+  const fromFolderPicker = $<HTMLElement>('#new-character-folder-picker');
+  const newCharacterLabel = $<HTMLInputElement>('#new-character-label');
+  const fromFolderError = $<HTMLElement>('#character-from-folder-error');
+  function showFolderError(text: string): void {
+    fromFolderError.textContent = text;
+    fromFolderError.hidden = false;
+  }
+  $<HTMLButtonElement>('#new-character-from-folder').addEventListener('click', () => {
+    void (async () => {
+      try {
+        await refresh();
+        if (!alive) return;
+        newCharacterLabel.value = '';
+        fromFolderError.hidden = true;
+        fromFolderPicker.replaceChildren(
+          createSearchSelect({
+            value: '',
+            choices: animationFolders.folders,
+            placeholder: 'Search animation folders…',
+            ariaLabel: 'New character animation folder',
+            onInput: () => {},
+            onCommit: (folder) => {
+              if (animationFolders.folders.includes(folder)) {
+                const name = folder.split('/').at(-1) ?? '';
+                if (!newCharacterLabel.value.trim()) newCharacterLabel.value = name;
+              }
+            },
+          }),
+        );
+        fromFolderDialog.showModal();
+        fromFolderPicker.querySelector('input')?.focus();
+      } catch (error) {
+        status.textContent = message(error);
+      }
+    })();
+  });
+  $<HTMLButtonElement>('#cancel-character-from-folder').addEventListener('click', () =>
+    fromFolderDialog.close(),
+  );
+  $<HTMLFormElement>('#character-from-folder-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    void (async () => {
+      const folder = fromFolderPicker.querySelector<HTMLInputElement>('input')?.value.trim() ?? '';
+      const label = newCharacterLabel.value.trim();
+      if (!animationFolders.folders.includes(folder))
+        return showFolderError('Select an existing animation folder.');
+      const labelError = characterLabelError(label);
+      if (labelError) return showFolderError(labelError);
+      const id = crypto.randomUUID();
+      const result = characterFromAnimationFolder(id, folder, animationFolders, clipLabels);
+      if (!result.character)
+        return showFolderError(
+          [
+            result.missing.length ? `Missing: ${result.missing.join(', ')}.` : '',
+            result.ambiguous.length ? `Ambiguous: ${result.ambiguous.join(', ')}.` : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
+      if (dirty() && !(await confirmModal('Discard unsaved character changes?', 'DISCARD'))) return;
+      if (!alive) return;
+      ++loading;
+      current = result.character;
+      current.label = label;
+      saved = null;
+      setEditorAssetUrl(null);
+      fromFolderDialog.close();
+      status.textContent = `New character ${label} from ${folder} · save to keep it`;
+      render();
+    })();
+  });
   $<HTMLButtonElement>('#character-fill-folder').addEventListener('click', () => {
     if (!current) return;
     const folder = folderPicker.querySelector<HTMLInputElement>('input')?.value.trim() ?? '';
@@ -401,17 +495,31 @@ export function mountCharacters(root: HTMLElement): () => void {
   });
   $<HTMLButtonElement>('#new-character').addEventListener('click', () => {
     void (async () => {
-      const id = await askId('New character id');
-      if (!id) return;
-      if (!isAssetId(id)) return void alertModal('Use a short lowercase id');
-      if (files.includes(id)) return void alertModal('An asset with that id already exists');
+      const entered = await askId('New character label');
+      if (entered === null) return;
+      const labelError = characterLabelError(entered);
+      if (labelError) return void alertModal(labelError);
       if (!clips.length) return void alertModal('Create an animation before creating a character');
       if (dirty() && !(await confirmModal('Discard unsaved character changes?', 'DISCARD'))) return;
+      if (!alive) return;
+      const id = crypto.randomUUID();
       ++loading;
-      current = createCharacter(id, clips[0]);
+      current = createCharacter(id, clips[0], entered);
       saved = null;
       setEditorAssetUrl(null);
-      status.textContent = `New character ${id}`;
+      status.textContent = `New character ${entered}`;
+      render();
+    })();
+  });
+  $<HTMLButtonElement>('#rename-character').addEventListener('click', () => {
+    void (async () => {
+      const character = current;
+      if (!character) return;
+      const entered = await askAssetMeta('CHARACTER', character.label, character.id);
+      if (entered === null || !alive || current !== character) return;
+      const error = characterLabelError(entered);
+      if (error) return void alertModal(error);
+      character.label = entered.trim();
       render();
     })();
   });

@@ -2,6 +2,7 @@
   "format": "incanterm-character",
   "version": 1,
   "id": "johnathan",
+  "label": "johnathan3x3_ch",
   "defaultFacing": "down",
   "animations": {
     "idle-up": "4ac360eb-fb6f-417c-8c4b-5da97bf62f54",
@@ -12,7 +13,10 @@
     "walk-down": "2f741bfe-0ddd-46b8-8a2f-9da3e521bc6a",
     "walk-left": "2b822f65-daf5-400e-8e6c-34ff1bb04d16",
     "walk-right": "b986b778-6551-441a-8c7c-d721c74c368c",
-    "talking": "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b"
+    "talking-up": "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b",
+    "talking-down": "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b",
+    "talking-left": "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b",
+    "talking-right": "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b"
   },
   "customAnimations": {
     "sit-left": "f556379f-8647-4a09-85e8-26c37b913603"

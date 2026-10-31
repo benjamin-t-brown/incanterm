@@ -107,7 +107,11 @@ export function askSaveAs(currentLabel: string): Promise<string | null> {
   }).then((result) => (typeof result === 'string' ? result : null));
 }
 
-export function askAssetMeta(kind: 'SPRITESHEET' | 'ANIMATION', label: string, id: string): Promise<string | null> {
+export function askAssetMeta(
+  kind: 'SPRITESHEET' | 'ANIMATION' | 'CHARACTER',
+  label: string,
+  id: string,
+): Promise<string | null> {
   return openModal({
     title: `${kind} META`,
     message: '',
@@ -171,8 +175,9 @@ function showNext(): void {
   elements.readonlyIdField.hidden = request.readonlyId === undefined;
   elements.readonlyIdInput.value = request.readonlyId ?? '';
   if (request.readonlyId) {
-    elements.input.setAttribute('aria-label', `${request.title === 'ANIMATION META' ? 'Animation' : 'Spritesheet'} label`);
-    elements.readonlyIdInput.setAttribute('aria-label', `${request.title === 'ANIMATION META' ? 'Animation' : 'Spritesheet'} ID`);
+    const kind = request.title.replace(' META', '').toLowerCase();
+    elements.input.setAttribute('aria-label', `${kind} label`);
+    elements.readonlyIdInput.setAttribute('aria-label', `${kind} ID`);
   }
   elements.confirmButton.textContent = request.confirmLabel;
   if (request.cancelLabel) {

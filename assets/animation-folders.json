@@ -1,7 +1,9 @@
 {
   "folders": [
     "johnathan3x3",
-    "vivi3x3"
+    "vivi3x3",
+    "ada3x3",
+    "eva3x3"
   ],
   "placements": {
     "4ac360eb-fb6f-417c-8c4b-5da97bf62f54": "johnathan3x3",
@@ -22,6 +24,30 @@
     "653d640d-b34a-4676-adf5-10b8214a5597": "vivi3x3",
     "52400829-699c-4155-92c9-bf7bc49d6922": "vivi3x3",
     "5a1e1275-8d3a-4b6f-88a5-0f984616bc0b": "johnathan3x3",
-    "f556379f-8647-4a09-85e8-26c37b913603": "johnathan3x3"
+    "f556379f-8647-4a09-85e8-26c37b913603": "johnathan3x3",
+    "701b9ce5-c062-4d5b-a423-3fdaf705f83e": "ada3x3",
+    "656b9f2a-021f-4d29-b7aa-e10178395407": "ada3x3",
+    "a14f935a-5e77-4b1f-a5fc-85b9fc352b96": "ada3x3",
+    "a66a29ad-dc64-4542-8b4b-dde2c226b00b": "ada3x3",
+    "c563f563-41eb-40f8-b7ab-e863f9e11bdb": "ada3x3",
+    "34006ff0-b555-418e-b3ba-5819c4d88146": "ada3x3",
+    "087bdf53-1d6e-4696-a77e-a6a5aa5bc849": "ada3x3",
+    "19b520dd-b414-4ddc-9c28-792f04528d4e": "ada3x3",
+    "02b21ba9-9e1a-4e1c-bb34-8668e7fb77f2": "ada3x3",
+    "572ba041-3cbd-4b39-96b3-53d08d501383": "ada3x3",
+    "f545d543-088a-4633-8b86-7f5fc7aef216": "ada3x3",
+    "9bb0e6d7-34c2-42be-8567-0684bdccd173": "ada3x3",
+    "1c702888-59c9-4810-bed9-564e561bbf0e": "eva3x3",
+    "7a74903a-eff3-4b08-a3d6-5428248ab68e": "eva3x3",
+    "7ed7da5e-3f7e-4e0c-8aa4-9bc19939e17c": "eva3x3",
+    "e55bb8bc-d251-44ca-8ca6-6fefbfccc29e": "eva3x3",
+    "f3d6ffd2-80cc-45e2-92c5-e67d4ac8746e": "eva3x3",
+    "3a10e82d-5cd3-4301-b7ce-7e71bab6a8eb": "eva3x3",
+    "e3e2913d-2da5-46c5-a059-fb9271da0706": "eva3x3",
+    "1338c787-6b17-4b95-9ce2-3eca380173dd": "eva3x3",
+    "41048a08-1587-48c9-8e8c-fa68e1ef8bb2": "eva3x3",
+    "4cbb131e-b0fd-4772-8554-9a6fd3002577": "eva3x3",
+    "edb339b4-16fe-4490-b62e-03ef12a2326b": "eva3x3",
+    "64336656-5508-4b74-b3f1-c4760aaea94b": "eva3x3"
   }
 }

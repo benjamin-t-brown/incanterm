@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "a66a29ad-dc64-4542-8b4b-dde2c226b00b",
+  "label": "ada3x3 idle right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "eaf0a5e9-90cb-4f2e-af8e-74b858117cfc",
+      "index": 4,
+      "durationMs": 135
+    }
+  ]
+}

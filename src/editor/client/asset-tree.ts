@@ -2,7 +2,7 @@ import { folderAncestors, parentFolder, type AssetFolders } from '../asset-folde
 
 export type TreeChange =
   | { action: 'create' | 'rename'; folder: string; name: string }
-  | { action: 'delete'; folder: string }
+  | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
   | { action: 'move'; id: string; folder: string };
 
 type TreeOptions = {
@@ -14,7 +14,7 @@ type TreeOptions = {
   onCreateAsset?: (folder: string) => void;
   onChange: (change: TreeChange) => Promise<AssetFolders>;
   askName: (label: string, suggestion?: string) => Promise<string | null>;
-  confirmDelete: (folder: string) => Promise<boolean>;
+  confirmDelete: (folder: string, animations: { id: string; label: string }[], subfolders: string[]) => Promise<boolean>;
   onError: (message: string) => void;
 };
 
@@ -299,7 +299,14 @@ export function createAssetTree(options: TreeOptions) {
     input.addEventListener('blur', () => commit(false));
   }
   async function deleteFolder(folder: string): Promise<void> {
-    if (await options.confirmDelete(folder)) await change({ action: 'delete', folder });
+    const expectedFolders = tree.folders.filter((path) => path === folder || path.startsWith(`${folder}/`));
+    const expectedIds = files.filter((id) => {
+      const placement = tree.placements[id];
+      return placement === folder || placement?.startsWith(`${folder}/`);
+    });
+    const animations = expectedIds.map((id) => ({ id, label: labels[id] ?? id }));
+    if (await options.confirmDelete(folder, animations, expectedFolders.slice(1)))
+      await change({ action: 'delete', folder, expectedIds, expectedFolders });
   }
   search.addEventListener('input', render);
   function expand(folder: string): void {

@@ -19,9 +19,13 @@ import {
   terminalFont,
 } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
-import { mergeJson } from '../../safe-save.js';
+import { rebaseJsonDraft } from '../../safe-save.js';
 import { resizeBlockedCells } from '../../props/prop-blocking.js';
-import { animationsUsingSheet, propVisualEditHref, propVisualSize } from '../../props/prop-picker.js';
+import {
+  animationsUsingSheet,
+  propVisualEditHref,
+  propVisualSize,
+} from '../../props/prop-picker.js';
 import { ApiError, requestJson } from '../api.js';
 import { alertModal, confirmModal } from '../modal.js';
 import { saveDraft } from '../save.js';
@@ -241,7 +245,11 @@ export function mountProps(root: HTMLElement): () => void {
 
   async function loadVisualFrame(
     visual: PropVisual,
-  ): Promise<{ sprite: SpriteDocument; index: number; flips?: { flipH: boolean; flipV: boolean } } | null> {
+  ): Promise<{
+    sprite: SpriteDocument;
+    index: number;
+    flips?: { flipH: boolean; flipV: boolean };
+  } | null> {
     if (visual.type === 'sprite')
       return { sprite: await loadSheet(visual.id), index: visual.index };
     const animation = await requestJson<AnimationDocument>(
@@ -249,7 +257,11 @@ export function mountProps(root: HTMLElement): () => void {
     );
     const first = animation.frames.find((frame) => !isInvisibleFrame(frame));
     if (!first || isInvisibleFrame(first)) return null;
-    return { sprite: await loadSheet(first.sprite), index: first.index, flips: animationFrameFlips(animation, first) };
+    return {
+      sprite: await loadSheet(first.sprite),
+      index: first.index,
+      flips: animationFrameFlips(animation, first),
+    };
   }
 
   function renderPickerSheets(): void {
@@ -293,7 +305,12 @@ export function mountProps(root: HTMLElement): () => void {
       const sheet = await loadSheet(sheetId);
       if (!alive || !picker.open || token !== pickerToken) return;
       pickerStatus.textContent = '';
-      const items: { visual: PropVisual; frame: number; title: string; flips?: { flipH: boolean; flipV: boolean } }[] =
+      const items: {
+        visual: PropVisual;
+        frame: number;
+        title: string;
+        flips?: { flipH: boolean; flipV: boolean };
+      }[] =
         pickerType === 'sprite'
           ? sheet.sprites.map((_frame, index) => ({
               visual: { type: 'sprite', id: sheetId, index },
@@ -302,9 +319,9 @@ export function mountProps(root: HTMLElement): () => void {
             }))
           : entries.map(({ animation, frame }) => ({
               visual: { type: 'animation', id: animation.id },
-               frame: frame.index,
-               flips: animationFrameFlips(animation, frame),
-               title: animation.label,
+              frame: frame.index,
+              flips: animationFrameFlips(animation, frame),
+              title: animation.label,
             }));
       for (const item of items) {
         const button = document.createElement('button');
@@ -649,10 +666,10 @@ export function mountProps(root: HTMLElement): () => void {
       const stored = await saveDraft(`/api/props/${encodeURIComponent(sent.id)}`, sent, base);
       if (alive && current?.id === sent.id) {
         setEditorAssetUrl(sent.id);
-        const merged = mergeJson(sent, current, stored);
+        const merged = rebaseJsonDraft(sent, current, stored);
         if (merged.ok) {
-          current = merged.value;
-          saved = stored;
+          current = merged.value.draft;
+          saved = merged.value.baseline;
           status.textContent = `Saved ${stored.id}`;
           render();
         } else status.textContent = `Saved ${stored.id}; newer edits need review`;

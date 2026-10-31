@@ -596,6 +596,7 @@ input[type='range'] {
 }
 #reference-dialog,
 #size-dialog,
+#generate-character-dialog,
 #font-dialog {
   width: min(420px, calc(100vw - 32px));
   padding: 0;
@@ -608,9 +609,14 @@ input[type='range'] {
   width: min(640px, calc(100vw - 32px));
   max-height: min(90vh, 780px);
 }
+#generate-character-dialog {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
 #file-dialog::backdrop,
 #reference-dialog::backdrop,
 #size-dialog::backdrop,
+#generate-character-dialog::backdrop,
 #font-dialog::backdrop {
   background: #071d1cd9;
 }
@@ -623,6 +629,7 @@ input[type='range'] {
   max-height: min(420px, 45vh);
 }
 #size-form,
+#generate-character-form,
 #font-form {
   padding: 19px 20px 20px;
 }
@@ -632,7 +639,37 @@ input[type='range'] {
   min-height: 0;
   max-height: calc(90vh - 52px);
 }
+#generate-character-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-weight: bold;
+}
+.generate-shirt-field {
+  margin: 0 0 14px;
+  font-weight: bold;
+}
+.generate-shirt-field .palette {
+  margin-top: 8px;
+}
+#generate-character-form input[type='text'] {
+  width: 100%;
+  padding: 8px;
+  background: var(--inset);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+#generate-character-form > label.generate-hair {
+  flex-direction: row;
+  align-items: center;
+}
+#generate-character-error {
+  color: var(--warning, var(--text));
+  min-height: 1.4em;
+}
 #size-description,
+#generate-description,
 #font-description {
   margin: 0 0 17px;
   flex: none;

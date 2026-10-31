@@ -62,6 +62,19 @@ export function mergeJson<T>(base: T, ours: T, theirs: T): MergeResult<T> {
   return mergeValue(base, ours, theirs, 'document') as MergeResult<T>;
 }
 
+// A successful merge can return `theirs` directly. Keep the editable draft and
+// saved baseline independent so the next edit does not mutate its own base.
+export function rebaseJsonDraft<T>(
+  sent: T,
+  current: T,
+  stored: T,
+): MergeResult<{ draft: T; baseline: T }> {
+  const merged = mergeJson(sent, current, stored);
+  return merged.ok
+    ? { ok: true, value: { draft: merged.value, baseline: structuredClone(stored) } }
+    : merged;
+}
+
 function mergeValue(
   base: unknown,
   ours: unknown,

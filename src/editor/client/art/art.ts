@@ -10,12 +10,13 @@ import {
   type PathStyle,
 } from '../../art/ascii-path.js';
 import { artCursorKind, type ArtCursorGesture, type ArtTool } from '../../art/art-cursor.js';
+import { generateCharacter3x3 } from '../../art/character-generator.js';
 import { brushValue } from '../../art/art-brush.js';
 import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
 import { fillCells } from '../../art/art-fill.js';
 import { moveSelectedCells, type SelectionRect } from '../../art/art-move.js';
 import { isSingleWidthGlyph } from '../../glyph.js';
-import { paletteRgb, type PaletteDocument } from '../../palette.js';
+import { PALETTE_COLORS, PALETTE_IDS, paletteRgb, type PaletteDocument } from '../../palette.js';
 import {
   blankCell,
   createSprite,
@@ -261,6 +262,19 @@ export function mountArt(root: HTMLElement): () => void {
   let bg = 'black';
   let colorTarget: 'fg' | 'bg' = 'fg';
   let paletteEdit = 'bright-white';
+  const generateColors = { shirt: 'bright-yellow', letter: 'bright-black' };
+  function generatorColorHex(kind: 'shirt' | 'letter'): string {
+    const color = generateColors[kind];
+    return (
+      paletteRgb(palette, color) ??
+      PALETTE_COLORS.find((entry) => entry.id === color)?.rgb ??
+      color
+    );
+  }
+  function generatorColorValue(kind: 'shirt' | 'letter'): string {
+    const typed = $<HTMLInputElement>(`#generate-${kind}-hex`).value.trim();
+    return typed.toLowerCase() === generatorColorHex(kind) ? generateColors[kind] : typed;
+  }
   let stamp: Stamp | null = null;
   let clipboard: Stamp | null = null;
   let layerClipboard: (SpriteCell | null)[] | null = null;
@@ -588,6 +602,8 @@ export function mountArt(root: HTMLElement): () => void {
     $<HTMLElement>('#bg-target').classList.toggle('active', colorTarget === 'bg');
     $<HTMLElement>('#fg-chip').style.background = rgb(fg);
     $<HTMLElement>('#bg-chip').style.background = rgb(bg);
+    const paintHex = $<HTMLInputElement>('#paint-hex');
+    if (document.activeElement !== paintHex) paintHex.value = rgb(colorTarget === 'fg' ? fg : bg);
     $<HTMLElement>('#glyph-capture-char').textContent = glyph;
     $<HTMLButtonElement>('#glyph-capture').setAttribute('aria-pressed', String(keyMode));
     $<HTMLElement>('#key-mode-hint').hidden = !keyMode;
@@ -633,6 +649,7 @@ export function mountArt(root: HTMLElement): () => void {
       button.classList.toggle('selected', id === fg || id === bg || id === paletteEdit);
       button.style.background = rgb(id);
     });
+    refreshGenerateColors();
     updateTitle();
     schedulePersist();
     redraw();
@@ -2064,6 +2081,39 @@ export function mountArt(root: HTMLElement): () => void {
       }
     }
   }
+  async function generateCharacter(): Promise<void> {
+    const form = $<HTMLFormElement>('#generate-character-form');
+    const button = $<HTMLButtonElement>('#generate-character-submit');
+    if (button.disabled) return;
+    const id = crypto.randomUUID();
+    let sprite: SpriteDocument;
+    try {
+      sprite = generateCharacter3x3(
+        id,
+        $<HTMLInputElement>('#generate-character-label').value,
+        generatorColorValue('shirt'),
+        $<HTMLInputElement>('#generate-shirt-letter').value,
+        $<HTMLInputElement>('#generate-hair').checked,
+        generatorColorValue('letter'),
+      );
+    } catch (error) {
+      $<HTMLElement>('#generate-character-error').textContent = error instanceof Error ? error.message : 'Invalid character';
+      return;
+    }
+    button.disabled = true;
+    try {
+      const saved = await saveDraft<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`, sprite, null);
+      if (!alive) return;
+      $<HTMLDialogElement>('#generate-character-dialog').close();
+      form.reset();
+      loadSprite(saved);
+      announce(`Created ${saved.label}`);
+    } catch (error) {
+      $<HTMLElement>('#generate-character-error').textContent = error instanceof Error ? error.message : 'Create failed';
+    } finally {
+      button.disabled = false;
+    }
+  }
   async function duplicateSprite(): Promise<void> {
     if (!spriteId) {
       announce('Open or create a sprite');
@@ -2756,6 +2806,46 @@ export function mountArt(root: HTMLElement): () => void {
     });
     paletteHost.append(button);
   }
+  function refreshGenerateColors(): void {
+    for (const kind of ['shirt', 'letter'] as const) {
+      root.querySelectorAll<HTMLButtonElement>(`#generate-${kind}-colors button`).forEach((button) => {
+        const selected = button.dataset.color === generateColors[kind];
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', String(selected));
+        const id = button.dataset.color ?? '';
+        button.style.background =
+          paletteRgb(palette, id) ??
+          PALETTE_COLORS.find((entry) => entry.id === id)?.rgb ??
+          '#000000';
+      });
+      $<HTMLElement>(`#generate-${kind}-color-name`).textContent = generateColors[kind];
+      const input = $<HTMLInputElement>(`#generate-${kind}-hex`);
+      if (document.activeElement !== input) input.value = generatorColorHex(kind);
+    }
+  }
+  for (const kind of ['shirt', 'letter'] as const) {
+    const host = $<HTMLElement>(`#generate-${kind}-colors`);
+    for (const color of PALETTE_IDS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.color = color;
+      button.title = color;
+      button.setAttribute('aria-label', color);
+      button.addEventListener('click', () => {
+        generateColors[kind] = color;
+        refreshGenerateColors();
+      });
+      host.append(button);
+    }
+    $<HTMLInputElement>(`#generate-${kind}-hex`).addEventListener('input', (event) => {
+      const value = (event.target as HTMLInputElement).value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+        generateColors[kind] = value.toLowerCase();
+        refreshGenerateColors();
+      }
+    });
+  }
+  refreshGenerateColors();
   const glyphSets = $<HTMLElement>('#glyph-sets');
   const glyphTabs = $<HTMLElement>('#glyph-tabs');
   let glyphTab: GlyphTabId = GLYPH_TABS[0].id;
@@ -2832,6 +2922,14 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Redo');
     },
     resize: () => openResizeDialog(),
+    generate: () => {
+      $<HTMLElement>('#generate-character-error').textContent = '';
+      generateColors.shirt = 'bright-yellow';
+      generateColors.letter = 'bright-black';
+      refreshGenerateColors();
+      $<HTMLDialogElement>('#generate-character-dialog').showModal();
+      $<HTMLInputElement>('#generate-character-label').focus();
+    },
     font: () => openFontDialog(),
     'animation-speed': () => void changeAnimationSpeed(),
     'select-all': () => {
@@ -2984,6 +3082,18 @@ export function mountArt(root: HTMLElement): () => void {
   $<HTMLInputElement>('#palette-rgb').addEventListener('change', (event) => {
     void savePaletteColor((event.target as HTMLInputElement).value.trim());
   });
+  $<HTMLInputElement>('#paint-hex').addEventListener('change', (event) => {
+    const value = (event.target as HTMLInputElement).value.trim();
+    if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
+      announce('Use an #rrggbb color');
+      (event.target as HTMLInputElement).value = rgb(colorTarget === 'fg' ? fg : bg);
+      return;
+    }
+    if (colorTarget === 'fg') fg = value.toLowerCase();
+    else bg = value.toLowerCase();
+    refreshControls();
+  });
+  $<HTMLInputElement>('#paint-hex').addEventListener('blur', refreshControls);
   for (const id of ['#origin-x', '#origin-y']) {
     const input = $<HTMLInputElement>(id);
     input.addEventListener('focus', () => redraw());
@@ -3016,6 +3126,16 @@ export function mountArt(root: HTMLElement): () => void {
   $<HTMLButtonElement>('#cancel-size').addEventListener('click', () =>
     $<HTMLDialogElement>('#size-dialog').close(),
   );
+  $<HTMLButtonElement>('#close-generate-character').addEventListener('click', () =>
+    $<HTMLDialogElement>('#generate-character-dialog').close(),
+  );
+  $<HTMLButtonElement>('#cancel-generate-character').addEventListener('click', () =>
+    $<HTMLDialogElement>('#generate-character-dialog').close(),
+  );
+  $<HTMLFormElement>('#generate-character-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    void generateCharacter();
+  });
   $<HTMLButtonElement>('#close-font').addEventListener('click', () =>
     $<HTMLDialogElement>('#font-dialog').close(),
   );
@@ -3461,8 +3581,10 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       if (altDown) altUsed = true;
-      const modal = $<HTMLDialogElement>('#size-dialog').open
-        ? $<HTMLDialogElement>('#size-dialog')
+      const modal = $<HTMLDialogElement>('#generate-character-dialog').open
+        ? $<HTMLDialogElement>('#generate-character-dialog')
+        : $<HTMLDialogElement>('#size-dialog').open
+          ? $<HTMLDialogElement>('#size-dialog')
         : $<HTMLDialogElement>('#font-dialog').open
           ? $<HTMLDialogElement>('#font-dialog')
           : $<HTMLDialogElement>('#file-dialog').open
@@ -3716,6 +3838,7 @@ function artMarkup(): string {
         <button type="button" data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
         <button type="button" data-action="redo">Redo <kbd>Ctrl+Y</kbd></button>
         <button type="button" data-action="resize">Resize canvas…</button>
+        <button type="button" data-action="generate">Generate…</button>
         <button type="button" data-action="font">Font…</button>
         <button type="button" data-action="animation-speed">Animation speed…</button>
         <hr><button type="button" data-action="select-all">Select all <kbd>Ctrl+A</kbd></button>
@@ -3791,8 +3914,10 @@ function artMarkup(): string {
         <section class="panel">
           <div class="section-title"><span>03</span> PALETTE</div>
           <div class="color-targets"><button id="fg-target" class="color-target active" type="button"><span id="fg-chip" class="color-chip"></span><span>FG</span></button><button id="bg-target" class="color-target" type="button"><span id="bg-chip" class="color-chip"></span><span>BG</span></button><button id="swap-colors" type="button">⇄</button></div>
-          <div id="palette" class="palette"></div>
-          <label class="field-head" for="palette-rgb">SELECTED RGB</label>
+           <div id="palette" class="palette"></div>
+           <label class="field-head" for="paint-hex">PAINT HEX · ACTIVE FG/BG</label>
+           <input id="paint-hex" class="palette-rgb" spellcheck="false" value="#ffffff" maxlength="7">
+           <label class="field-head" for="palette-rgb">SELECTED RGB</label>
           <input id="palette-rgb" class="palette-rgb" spellcheck="false" value="#000000">
         </section>
         <section class="panel">
@@ -3845,6 +3970,21 @@ function artMarkup(): string {
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="file-dialog"><div class="dialog-heading"><span>SPRITES</span><button id="close-files" type="button">×</button></div><section class="panel files-panel"><div id="file-list" class="file-list"></div></section></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
+    <dialog id="generate-character-dialog">
+      <div class="dialog-heading"><span>GENERATE · 3×3 CHARACTER</span><button id="close-generate-character" type="button">×</button></div>
+      <form id="generate-character-form">
+        <p id="generate-description">Create a 22-frame spritesheet using the ada3x3 template.</p>
+        <label>SPRITESHEET LABEL<input id="generate-character-label" type="text" maxlength="80" required></label>
+        <div class="generate-shirt-field"><span>SHIRT COLOR · <span id="generate-shirt-color-name">bright-yellow</span></span><div id="generate-shirt-colors" class="palette" role="group" aria-label="Shirt color"></div></div>
+        <label>SHIRT HEX<input id="generate-shirt-hex" type="text" spellcheck="false" maxlength="7" value="#ffff55" required></label>
+        <label>SHIRT LETTER<input id="generate-shirt-letter" type="text" value="A" required></label>
+        <div class="generate-shirt-field"><span>LETTER COLOR · <span id="generate-letter-color-name">bright-black</span></span><div id="generate-letter-colors" class="palette" role="group" aria-label="Shirt letter color"></div></div>
+        <label>LETTER HEX<input id="generate-letter-hex" type="text" spellcheck="false" maxlength="7" value="#555555" required></label>
+        <label class="generate-hair"><input id="generate-hair" type="checkbox" checked> HAIR (TOP CORNER MARKS)</label>
+        <p id="generate-character-error" role="alert"></p>
+        <div class="size-dialog-actions"><button id="generate-character-submit" type="submit">GENERATE</button><button id="cancel-generate-character" type="button">CANCEL</button></div>
+      </form>
+    </dialog>
     <dialog id="font-dialog"><div class="dialog-heading"><span>FONT</span><button id="close-font" type="button">×</button></div><form id="font-form"><p id="font-description">Preview this sprite in a terminal typeface. Cell size follows the font.</p><div id="font-choices" class="font-choices">${SPRITE_FONTS.map((font) => `<label><input type="radio" name="sprite-font" value="${font.id}"><span class="font-choice-name">${font.label}</span><span class="font-sample" style="font-family:${font.family}">█▓░ ╔═╗ Aa</span></label>`).join('')}</div><div class="size-dialog-actions"><button id="apply-font" type="submit">APPLY</button><button id="cancel-font" type="button">CANCEL</button></div></form></dialog>
     <div id="toast-stack" class="toast-stack"></div>
     <footer class="statusbar"><div><span id="status">READY</span></div><div><span id="tool-status">BRUSH</span><span class="status-separator">│</span><span id="frame-status">NO FRAME</span><span class="status-separator">│</span><span id="layer-status">NO LAYER</span><span class="status-separator">│</span><span id="cursor-status">X: --  Y: --</span></div></footer>

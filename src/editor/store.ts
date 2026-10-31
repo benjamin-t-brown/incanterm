@@ -5,7 +5,7 @@ import { defaultPalette, type PaletteDocument } from './palette.js';
 import { diagnoseScript, scriptNames, type ScriptDiagnostic } from './rpgscript/diagnose.js';
 import {
   CHARACTER_STATES,
-  createAnimation,
+  characterAnimation,
   importEdAscii,
   parseCharacter,
   isAssetId,
@@ -31,6 +31,10 @@ import {
   type SpriteReference,
 } from './art/reference.js';
 import { encodeStoredSprite, parseStoredSprite } from './art/sprite-storage.js';
+import {
+  CHARACTER_TEMPLATE_FRAMES,
+  characterTemplateAnimation,
+} from './animation/character-template.js';
 import { mergeSprite } from './art/sprite-merge.js';
 import {
   isFolderPath,
@@ -333,9 +337,54 @@ export class AssetStore {
   async changeAnimationFolders(
     change:
       | { action: 'create' | 'rename'; folder: string; name: string }
-      | { action: 'delete'; folder: string }
+      | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
       | { action: 'move'; id: string; folder: string },
   ): Promise<AssetFolders> {
+    if (change.action === 'delete') {
+      const snapshot = await this.animationFolders();
+      if (!snapshot.folders.includes(change.folder)) throw new AssetError('Folder not found', 404);
+      const inside = (folder: string) =>
+        folder === change.folder || folder.startsWith(`${change.folder}/`);
+      const ids = Object.entries(snapshot.placements)
+        .filter(([, folder]) => inside(folder))
+        .map(([id]) => id)
+        .sort();
+      const folders = snapshot.folders.filter(inside).sort();
+      const same = (actual: string[], expected: string[]) =>
+        JSON.stringify(actual) === JSON.stringify([...expected].sort());
+      if (!same(ids, change.expectedIds) || !same(folders, change.expectedFolders))
+        throw new AssetError('Folder contents changed; review before deleting', 409);
+      const lockFiles = ids.map((id) => this.file('animations', id, '.json'));
+      const withLocks = async (
+        index: number,
+        operation: () => Promise<AssetFolders>,
+      ): Promise<AssetFolders> =>
+        index === lockFiles.length
+          ? operation()
+          : this.saves.run(lockFiles[index], () => withLocks(index + 1, operation));
+      return withLocks(0, () =>
+        this.saves.run(this.animationFoldersPath(), async () => {
+          const tree = await this.animationFolders();
+          if (!tree.folders.includes(change.folder)) throw new AssetError('Folder not found', 404);
+          const currentIds = Object.entries(tree.placements)
+            .filter(([, folder]) => inside(folder))
+            .map(([id]) => id)
+            .sort();
+          const currentFolders = tree.folders.filter(inside).sort();
+          if (
+            !same(currentIds, ids) ||
+            !same(currentFolders, folders) ||
+            ids.some((id) => tree.placements[id] !== snapshot.placements[id])
+          )
+            throw new AssetError('Folder contents changed; review before deleting', 409);
+          for (const id of ids) await this.remove(this.file('animations', id, '.json'));
+          for (const id of ids) delete tree.placements[id];
+          tree.folders = tree.folders.filter((folder) => !inside(folder));
+          await this.writeAtomic(this.animationFoldersPath(), json(tree));
+          return tree;
+        }),
+      );
+    }
     return this.saves.run(this.animationFoldersPath(), async () => {
       const tree = await this.animationFolders();
       if (change.action === 'move') {
@@ -366,14 +415,6 @@ export class AssetStore {
           for (const [id, folder] of Object.entries(tree.placements))
             tree.placements[id] = replace(folder);
         }
-      } else {
-        if (!tree.folders.includes(change.folder)) throw new AssetError('Folder not found', 404);
-        if (
-          tree.folders.some((folder) => parentFolder(folder) === change.folder) ||
-          Object.values(tree.placements).includes(change.folder)
-        )
-          throw new AssetError('Move assets and subfolders out before deleting this folder', 409);
-        tree.folders = tree.folders.filter((folder) => folder !== change.folder);
       }
       await this.writeAtomic(this.animationFoldersPath(), json(tree));
       return tree;
@@ -391,7 +432,15 @@ export class AssetStore {
     if (!isFolderPath(folder)) throw new AssetError('Folder path is too long', 400);
     const ids = CHARACTER_STATES.map(() => randomUUID());
     const sprite = await this.readSprite(spriteId);
-    if (sprite.sprites.length === 0) throw new AssetError('Sprite sheet has no frames', 422);
+    if (
+      sprite.width !== 3 ||
+      sprite.height !== 3 ||
+      sprite.sprites.length < CHARACTER_TEMPLATE_FRAMES
+    )
+      throw new AssetError(
+        `Character animations need a 3×3 sprite sheet with at least ${CHARACTER_TEMPLATE_FRAMES} frames in the ada3x3 order`,
+        422,
+      );
     const files = ids.map((id) => this.file('animations', id, '.json'));
     const withLocks = async <T>(index: number, operation: () => Promise<T>): Promise<T> =>
       index === files.length
@@ -406,12 +455,12 @@ export class AssetStore {
         const created: string[] = [];
         try {
           for (const [index, id] of ids.entries()) {
-            const animation = createAnimation(id, `${name} ${CHARACTER_STATES[index].replace('-', ' ')}`);
-            animation.frames.push({
-              sprite: spriteId,
-              index: 0,
-              durationMs: animation.defaultDurationMs,
-            });
+            const animation = characterTemplateAnimation(
+              id,
+              `${name} ${CHARACTER_STATES[index].replace('-', ' ')}`,
+              spriteId,
+              CHARACTER_STATES[index],
+            );
             await this.writeAtomic(files[index], json(animation));
             created.push(files[index]);
           }
@@ -584,6 +633,12 @@ export class AssetStore {
     return this.listValid('characters', '.json', (text) => parseCharacter(JSON.parse(text)).ok);
   }
 
+  async characterLabels(): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of await this.listCharacters()) labels[id] = (await this.readCharacter(id)).label;
+    return labels;
+  }
+
   async readCharacter(id: string): Promise<CharacterDocument> {
     const parsed = parseCharacter(await this.readJson(this.file('characters', id, '.json')));
     if (!parsed.ok) throw new AssetError(parsed.error, 422);
@@ -672,6 +727,12 @@ export class AssetStore {
             }
             if (entity.type === 'Background' && sprite && entity.index >= sprite.sprites.length)
               throw new AssetError(`Background ${entity.id} references missing frame`, 422);
+          } else if (entity.type === 'Character') {
+            const character = await this.readCharacter(entity.character);
+            const animationId = characterAnimation(character, entity.state, entity.facing);
+            if (!animationId)
+              throw new AssetError(`Character ${entity.id} has no state ${entity.state}`, 422);
+            await this.readAnimation(animationId);
           } else {
             const prop = await this.readProp(entity.prop);
             if (prop.visual.type === 'sprite') {
@@ -780,7 +841,11 @@ export class AssetStore {
     if (kind === 'sprite') {
       const sprite = await this.readSprite(from);
       await this.ensureAbsent(this.file('sprites', id, '.json'));
-      const saved = await this.saveSpriteDraft(id, { ...sprite, id, label: label ?? sprite.label }, null);
+      const saved = await this.saveSpriteDraft(
+        id,
+        { ...sprite, id, label: label ?? sprite.label },
+        null,
+      );
       await this.copyReference(from, id);
       return saved;
     }

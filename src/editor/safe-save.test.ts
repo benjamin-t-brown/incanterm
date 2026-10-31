@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { SaveConflict, SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
+import {
+  SaveConflict,
+  SaveCoordinator,
+  mergeJson,
+  mergeText,
+  rebaseJsonDraft,
+} from './safe-save.js';
 
 describe('shared editor saves', () => {
+  it('keeps the next editable draft separate from its saved merge baseline', () => {
+    const sent = { entities: [{ id: 'hero', x: 1 }] };
+    const result = rebaseJsonDraft(sent, sent, { entities: [{ id: 'hero', x: 1 }] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    result.value.draft.entities[0].x = 2;
+    expect(result.value.baseline.entities[0].x).toBe(1);
+  });
   it('serializes disk reads and merges concurrent independent edits', async () => {
     const coordinator = new SaveCoordinator();
     const base = { left: 0, right: 0 };

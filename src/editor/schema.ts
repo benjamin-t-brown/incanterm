@@ -2,6 +2,7 @@ import { isSingleWidthGlyph } from './glyph.js';
 import {
   PALETTE_IDS,
   defaultPalette,
+  isSpriteColor,
   paletteRgb,
   type PaletteColor,
   type PaletteDocument,
@@ -104,23 +105,42 @@ export const CHARACTER_STATES = [
   'walk-down',
   'walk-left',
   'walk-right',
-  'talking',
+  'talking-up',
+  'talking-down',
+  'talking-left',
+  'talking-right',
 ] as const;
 export type CharacterState = (typeof CHARACTER_STATES)[number];
 export type CharacterDocument = {
   format: 'incanterm-character';
   version: 1;
   id: string;
+  label: string;
   defaultFacing: CharacterDirection;
   animations: Record<CharacterState, string>;
   customAnimations: Record<string, string>;
 };
 
-export function createCharacter(id: string, animation: string): CharacterDocument {
+export function characterAnimation(
+  character: CharacterDocument,
+  state: string,
+  facing: CharacterDirection,
+): string | undefined {
+  if (state === 'idle' || state === 'walk' || state === 'talking')
+    return character.animations[`${state}-${facing}`];
+  return character.customAnimations[state];
+}
+
+export function characterLabelError(label: string): string | null {
+  return spriteLabelError(label)?.replace('Sprite', 'Character') ?? null;
+}
+
+export function createCharacter(id: string, animation: string, label = id): CharacterDocument {
   return {
     format: 'incanterm-character',
     version: 1,
     id,
+    label,
     defaultFacing: 'down',
     animations: Object.fromEntries(CHARACTER_STATES.map((state) => [state, animation])) as Record<
       CharacterState,
@@ -136,28 +156,32 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
     return fail('Character must be incanterm-character version 1');
   const id = readId(record.id, 'Character id');
   if (!id.ok) return id;
+  const label = record.label === undefined ? id.value : record.label;
+  if (typeof label !== 'string' || characterLabelError(label))
+    return fail('Character label must be 1 to 80 characters without control characters');
   if (!CHARACTER_DIRECTIONS.includes(record.defaultFacing as CharacterDirection))
     return fail('Character defaultFacing must be up, down, left, or right');
   const source = asObject(record.animations);
+  if (!source) return fail('Character animations must be an object');
+  const legacyStates = CHARACTER_STATES.slice(0, 8);
+  const keys = Object.keys(source);
   if (
-    !source ||
-    (Object.keys(source).length !== CHARACTER_STATES.length &&
-      Object.keys(source).length !== CHARACTER_STATES.length - 1) ||
-    Object.keys(source).some((key) => !CHARACTER_STATES.includes(key as CharacterState))
+    keys.some((key) => !CHARACTER_STATES.includes(key as CharacterState) && key !== 'talking') ||
+    (legacyStates as readonly string[]).some((state) => !(state in source)) ||
+    (keys.some((key) => key.startsWith('talking-')) &&
+      CHARACTER_DIRECTIONS.some((direction) => !(`talking-${direction}` in source)))
   )
     return fail(
-      'Character animations must define all eight idle/walk directions and optionally talking',
+      'Character animations must define all idle/walk directions and all four talking directions',
     );
-  if (CHARACTER_STATES.slice(0, -1).some((state) => !(state in source)))
-    return fail('Character animations must define all eight idle/walk directions');
   const extras = asObject(record.customAnimations);
   if (!extras || Object.keys(extras).length > 64)
     return fail('Character customAnimations must contain at most 64 states');
   const animations = {} as Record<CharacterState, string>;
   for (const state of CHARACTER_STATES) {
     const value =
-      state === 'talking' && !('talking' in source)
-        ? (extras.talking ?? source['idle-down'])
+      state.startsWith('talking-') && !(state in source)
+        ? (source.talking ?? extras.talking ?? source[`idle-${state.slice(8)}`])
         : source[state];
     const animation = readId(value, `Character ${state} animation`);
     if (!animation.ok) return animation;
@@ -178,6 +202,7 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
       format: 'incanterm-character',
       version: 1,
       id: id.value,
+      label: label.trim(),
       defaultFacing: record.defaultFacing as CharacterDirection,
       animations,
       customAnimations,
@@ -188,6 +213,17 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
 export type SceneEntity =
   | { id: string; type: 'Background'; sprite: string; index: number; x: number; y: number }
   | { id: string; type: 'Prop'; name?: string; prop: string; x: number; y: number; z: number }
+  | {
+      id: string;
+      type: 'Character';
+      name?: string;
+      character: string;
+      facing: CharacterDirection;
+      state: string;
+      x: number;
+      y: number;
+      z: number;
+    }
   // Existing test-room scenes refer directly to a sprite instead of a reusable prop.
   | {
       id: string;
@@ -406,6 +442,31 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         x: x.value,
         y: y.value,
       });
+    } else if (entry.type === 'Character') {
+      if (
+        entry.name !== undefined &&
+        (typeof entry.name !== 'string' || !entry.name.trim() || entry.name.length > 80)
+      )
+        return fail(`Scene character ${index} name must be 1 to 80 characters`);
+      const character = readId(entry.character, `Scene character ${index} asset`);
+      if (!character.ok) return character;
+      if (!CHARACTER_DIRECTIONS.includes(entry.facing as CharacterDirection))
+        return fail(`Scene character ${index} facing must be up, down, left, or right`);
+      const state = readId(entry.state, `Scene character ${index} state`);
+      if (!state.ok) return state;
+      const z = readInt(entry.z ?? 0, `Scene character ${index} z`, -1000, 1000);
+      if (!z.ok) return z;
+      entities.push({
+        id: entityId.value,
+        type: 'Character',
+        ...(typeof entry.name === 'string' ? { name: entry.name.trim() } : {}),
+        character: character.value,
+        facing: entry.facing as CharacterDirection,
+        state: state.value,
+        x: x.value,
+        y: y.value,
+        z: z.value,
+      });
     } else if (entry.type === 'Prop') {
       if (
         entry.name !== undefined &&
@@ -448,7 +509,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           depthOffset: depthOffset.value,
         });
       }
-    } else return fail(`Scene entity ${index} must be a Background or Prop`);
+    } else return fail(`Scene entity ${index} must be a Background, Prop, or Character`);
   }
   for (const [index, raw] of (scene.triggers ?? []).entries()) {
     if (typeof raw === 'string') {
@@ -938,13 +999,20 @@ function readCell(value: unknown, label: string): SchemaResult<SpriteCell> {
   if (typeof cell.ch !== 'string' || !isSingleWidthGlyph(cell.ch)) {
     return fail(`${label} character must be one single-width glyph`);
   }
-  if (typeof cell.fg !== 'string' || !PALETTE_IDS.includes(cell.fg)) {
-    return fail(`${label} foreground must be a palette id`);
+  if (typeof cell.fg !== 'string' || !isSpriteColor(cell.fg)) {
+    return fail(`${label} foreground must be a palette color or #rrggbb`);
   }
-  if (typeof cell.bg !== 'string' || !PALETTE_IDS.includes(cell.bg)) {
-    return fail(`${label} background must be a palette id`);
+  if (typeof cell.bg !== 'string' || !isSpriteColor(cell.bg)) {
+    return fail(`${label} background must be a palette color or #rrggbb`);
   }
-  return { ok: true, value: { ch: cell.ch, fg: cell.fg, bg: cell.bg } };
+  return {
+    ok: true,
+    value: {
+      ch: cell.ch,
+      fg: cell.fg.startsWith('#') ? cell.fg.toLowerCase() : cell.fg,
+      bg: cell.bg.startsWith('#') ? cell.bg.toLowerCase() : cell.bg,
+    },
+  };
 }
 
 function readRgb(palette: PaletteDocument, id: string, label: string): SchemaResult<string> {

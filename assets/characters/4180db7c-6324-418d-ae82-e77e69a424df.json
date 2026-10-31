@@ -1,0 +1,22 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "4180db7c-6324-418d-ae82-e77e69a424df",
+  "label": "ada3x3_ch",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "701b9ce5-c062-4d5b-a423-3fdaf705f83e",
+    "idle-down": "656b9f2a-021f-4d29-b7aa-e10178395407",
+    "idle-left": "a14f935a-5e77-4b1f-a5fc-85b9fc352b96",
+    "idle-right": "a66a29ad-dc64-4542-8b4b-dde2c226b00b",
+    "walk-up": "c563f563-41eb-40f8-b7ab-e863f9e11bdb",
+    "walk-down": "34006ff0-b555-418e-b3ba-5819c4d88146",
+    "walk-left": "087bdf53-1d6e-4696-a77e-a6a5aa5bc849",
+    "walk-right": "19b520dd-b414-4ddc-9c28-792f04528d4e",
+    "talking-up": "02b21ba9-9e1a-4e1c-bb34-8668e7fb77f2",
+    "talking-down": "572ba041-3cbd-4b39-96b3-53d08d501383",
+    "talking-left": "f545d543-088a-4633-8b86-7f5fc7aef216",
+    "talking-right": "9bb0e6d7-34c2-42be-8567-0684bdccd173"
+  },
+  "customAnimations": {}
+}

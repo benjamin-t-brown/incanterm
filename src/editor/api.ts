@@ -175,10 +175,22 @@ async function animationFolders(
           name: body.name,
         }),
       );
-    if (body.action === 'delete' && typeof body.folder === 'string')
+    if (
+      body.action === 'delete' &&
+      typeof body.folder === 'string' &&
+      Array.isArray(body.expectedIds) &&
+      body.expectedIds.every((id) => typeof id === 'string') &&
+      Array.isArray(body.expectedFolders) &&
+      body.expectedFolders.every((folder) => typeof folder === 'string')
+    )
       return json(
         200,
-        await store.changeAnimationFolders({ action: 'delete', folder: body.folder }),
+        await store.changeAnimationFolders({
+          action: 'delete',
+          folder: body.folder,
+          expectedIds: body.expectedIds,
+          expectedFolders: body.expectedFolders,
+        }),
       );
     return json(400, { error: 'Invalid folder operation' });
   }
@@ -240,7 +252,10 @@ async function characters(
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET')
-    return json(200, { files: await store.listCharacters() });
+    return json(200, {
+      files: await store.listCharacters(),
+      labels: await store.characterLabels(),
+    });
   if (parts.length === 1 && method === 'GET')
     return json(200, await store.readCharacter(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {

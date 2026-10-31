@@ -68,6 +68,32 @@ export function groupSceneDelta(
   };
 }
 
+export function moveSceneGroup(
+  scene: SceneDocument,
+  starts: Array<SceneMove & { ref: SceneObjectRef }>,
+  dx: number,
+  dy: number,
+): boolean {
+  const delta = groupSceneDelta(starts, dx, dy, scene.width, scene.height);
+  let changed = false;
+  for (const start of starts) {
+    const item =
+      start.ref.kind === 'entity'
+        ? scene.entities.find((entry) => entry.id === start.ref.id)
+        : scene.triggers.find((entry) => typeof entry !== 'string' && entry.id === start.ref.id);
+    if (
+      !item ||
+      typeof item === 'string' ||
+      (item.x === start.x + delta.x && item.y === start.y + delta.y)
+    )
+      continue;
+    item.x = start.x + delta.x;
+    item.y = start.y + delta.y;
+    changed = true;
+  }
+  return changed;
+}
+
 export function canSelectSceneObject(
   scene: SceneDocument,
   ref: SceneObjectRef,

@@ -15,6 +15,10 @@
 #character-id {
   margin-left: auto;
 }
+#character-stable-id {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
 .character-fields {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(220px, 360px);
@@ -101,6 +105,49 @@
 }
 .character-preview a {
   color: var(--highlight);
+}
+#character-from-folder-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: visible;
+  padding: 0;
+  border: 2px solid var(--mint);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 8px 8px 0 #071d1c;
+}
+#character-from-folder-dialog::backdrop {
+  background: #071d1cd9;
+}
+#character-from-folder-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+#character-from-folder-form h2,
+#character-from-folder-form p {
+  margin: 0;
+}
+#character-from-folder-form .search-select,
+#character-from-folder-form input {
+  width: 100%;
+}
+#character-from-folder-form .search-select input {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+}
+.character-from-folder-actions {
+  display: flex;
+  justify-content: end;
+  gap: 8px;
+}
+.character-from-folder-actions button {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
 }
 @media (max-width: 850px) {
   .character-fields {

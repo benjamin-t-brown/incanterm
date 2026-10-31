@@ -109,11 +109,12 @@ export function mountAnimation(root: HTMLElement): () => void {
           <label class="character-animation-field">BASE SPRITE SHEET
             <input id="character-animation-search" class="text-input" type="search" placeholder="SEARCH SPRITE SHEETS" autocomplete="off" spellcheck="false">
           </label>
+          <p class="page-copy">Use a 3×3 sheet with at least 16 frames in the ada3x3 order.</p>
           <div id="character-animation-sheets" class="character-animation-sheets" role="group" aria-label="Base sprite sheet"></div>
           <p id="character-animation-error" class="character-animation-error" role="alert" hidden></p>
           <div class="character-animation-actions">
             <button id="character-animation-cancel" type="button">CANCEL</button>
-            <button id="character-animation-create" type="submit">CREATE 9 ANIMATIONS</button>
+            <button id="character-animation-create" type="submit">CREATE 12 ANIMATIONS</button>
           </div>
         </form>
       </dialog>
@@ -219,10 +220,33 @@ export function mountAnimation(root: HTMLElement): () => void {
     storageKey: 'incanterm-animation-folders-expanded',
     onSelect: (id) => void openAnimation(id),
     onCreateAsset: (folder) => void createNewAnimation(folder),
-    onChange: (change) =>
-      requestJson<AssetFolders>('/api/animation-folders', jsonRequest('POST', change)),
+    onChange: async (change) => {
+      const folders = await requestJson<AssetFolders>('/api/animation-folders', jsonRequest('POST', change));
+      if (change.action === 'delete') {
+        if (current && change.expectedIds.includes(current.id)) {
+          ++openToken;
+          current = null;
+          assetTree.select(null);
+          saved = '';
+          setEditorAssetUrl(null);
+          inspect = null;
+          playIndex = 0;
+          stop();
+          renderReel();
+          refreshToolbar();
+          void drawPreview();
+        }
+        await reloadLists();
+      }
+      return folders;
+    },
     askName: askId,
-    confirmDelete: (folder) => confirmModal(`Delete empty folder ${folder}?`, 'DELETE'),
+    confirmDelete: (folder, clips, subfolders) => confirmModal(
+      clips.length || subfolders.length
+        ? `Delete folder ${folder} and everything inside it?${subfolders.length ? `\nSubfolders: ${subfolders.join(', ')}` : ''}${clips.length ? `\nAnimations to delete (${clips.length}):\n${clips.map(({ label, id }) => `• ${label} (${id})`).join('\n')}` : ''}\nThis cannot be undone.`
+        : `Delete empty folder ${folder}?`,
+      'DELETE',
+    ),
     onError: (message) => {
       setStatus(message);
       toast(message, true);

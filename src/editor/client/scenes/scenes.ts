@@ -4,20 +4,31 @@ import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { compareSceneDrawRank, sceneDepth } from '../../../game/scene-order.js';
 import {
   animationFrameFlips,
+  characterAnimation,
+  CHARACTER_DIRECTIONS,
   createScene,
   flattenSprite,
   isAssetId,
   isInvisibleFrame,
   type AnimationDocument,
+  type CharacterDocument,
+  type CharacterDirection,
   type PropDocument,
   type SceneDocument,
   type SceneEntity,
   type SceneTrigger,
   type SpriteDocument,
 } from '../../schema.js';
-import { mergeJson } from '../../safe-save.js';
+import { rebaseJsonDraft } from '../../safe-save.js';
 import { setSceneBackground } from '../../scenes/scene-background.js';
+import { removeSelectedSceneObjects } from '../../scenes/scene-delete.js';
+import {
+  copySceneObjects,
+  pasteSceneObjects,
+  type SceneClipboard,
+} from '../../scenes/scene-clipboard.js';
 import { addSceneProp } from '../../scenes/scene-props.js';
+import { addSceneCharacter } from '../../scenes/scene-characters.js';
 import { sceneTriggerColors } from '../../scenes/scene-trigger-colors.js';
 import {
   newSceneTrigger,
@@ -28,7 +39,7 @@ import {
 import {
   boxesInSceneRect,
   canSelectSceneObject,
-  groupSceneDelta,
+  moveSceneGroup,
   sameSceneObject,
   selectableSceneObjects,
   type SceneHitBox,
@@ -59,7 +70,7 @@ export function mountScenes(root: HTMLElement): () => void {
       <div class="toolbar-row"><button id="scene-new" type="button">NEW</button><button id="scene-save" type="button">SAVE</button><button id="scene-delete" type="button">DELETE</button><strong id="scene-title">NO SCENE</strong></div>
       <p id="scene-status" role="status">Create a scene or open one from the list.</p>
       <div id="scene-workspace" class="scene-workspace" hidden>
-        <section class="scene-stage"><div class="scene-tools"><button type="button" id="scene-add-prop">+ PROP</button><button type="button" id="scene-add-trigger">+ TRIGGER</button><span>Box select · Ctrl+click to add · Ctrl+A all · Hold Tab for names · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
+         <section class="scene-stage"><div class="scene-tools"><button type="button" id="scene-add-prop">+ PROP</button><button type="button" id="scene-add-character">+ CHARACTER</button><button type="button" id="scene-add-trigger">+ TRIGGER</button><span>Box select · Ctrl+click to add · Ctrl+A all · Ctrl+C, then hover scene &amp; Ctrl+V · Hold Tab for names · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
           <div class="scene-scroll" id="scene-viewport"><canvas id="scene-canvas" aria-label="Scene placement canvas"></canvas><canvas id="scene-hover" aria-hidden="true"></canvas></div></section>
         <aside class="scene-sidebar"><h2>SCENE</h2><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
           <label>DEPTH MODE<select id="scene-depth"><option value="bottom-up">BOTTOM UP</option><option value="regular-z">REGULAR Z</option></select></label>
@@ -81,6 +92,14 @@ export function mountScenes(root: HTMLElement): () => void {
         <div id="scene-prop-results" class="scene-prop-results"></div>
         <p id="scene-prop-status" role="status"></p>
         <div class="scene-background-actions"><button id="scene-prop-cancel" type="button">CANCEL</button><button id="scene-prop-add" type="button" disabled>ADD TO SCENE</button></div>
+      </dialog>
+      <dialog id="scene-character-picker" class="scene-prop-picker" aria-labelledby="scene-character-picker-title">
+        <h2 id="scene-character-picker-title">ADD EXISTING CHARACTER</h2>
+        <label for="scene-character-search">SEARCH CHARACTERS</label>
+        <input id="scene-character-search" type="search" placeholder="Search characters…" autocomplete="off">
+        <div id="scene-character-results" class="scene-prop-results"></div>
+        <p id="scene-character-status" role="status"></p>
+        <div class="scene-background-actions"><button id="scene-character-cancel" type="button">CANCEL</button><button id="scene-character-add" type="button" disabled>ADD TO SCENE</button></div>
       </dialog>
       <div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
@@ -106,6 +125,11 @@ export function mountScenes(root: HTMLElement): () => void {
   const propResults = $<HTMLElement>('#scene-prop-results');
   const propStatus = $<HTMLElement>('#scene-prop-status');
   const propAdd = $<HTMLButtonElement>('#scene-prop-add');
+  const characterPicker = $<HTMLDialogElement>('#scene-character-picker');
+  const characterSearch = $<HTMLInputElement>('#scene-character-search');
+  const characterResults = $<HTMLElement>('#scene-character-results');
+  const characterStatus = $<HTMLElement>('#scene-character-status');
+  const characterAdd = $<HTMLButtonElement>('#scene-character-add');
   const toastStack = $<HTMLElement>('#toast-stack');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Scene canvas unavailable');
@@ -126,6 +150,8 @@ export function mountScenes(root: HTMLElement): () => void {
   let current: SceneDocument | null = null;
   let saved: SceneDocument | null = null;
   let selected: ObjectRef[] = [];
+  let objectClipboard: SceneClipboard | null = null;
+  let canvasMouse: { clientX: number; clientY: number } | null = null;
   let hovered: ObjectRef | null = null;
   let showPropNames = false;
   let propLabels: Array<{ id: string; name: string; x: number; y: number; width: number }> = [];
@@ -137,6 +163,8 @@ export function mountScenes(root: HTMLElement): () => void {
   let propPickerToken = 0;
   let propLoadToken = 0;
   let propChoice: string | null = null;
+  let characterChoice: CharacterDocument | null = null;
+  let characterPickerToken = 0;
   let drag: {
     pointerId: number;
     x: number;
@@ -173,6 +201,7 @@ export function mountScenes(root: HTMLElement): () => void {
   const sheetCache = new Map<string, Promise<SpriteDocument | null>>();
   const propCache = new Map<string, Promise<PropDocument | null>>();
   const animationCache = new Map<string, Promise<AnimationDocument | null>>();
+  const characterCache = new Map<string, Promise<CharacterDocument | null>>();
   const dirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
   const message = (error: unknown) =>
     error instanceof Error ? error.message : 'Scene request failed';
@@ -213,6 +242,8 @@ export function mountScenes(root: HTMLElement): () => void {
   const prop = (id: string) => cache(propCache, id, `/api/props/${encodeURIComponent(id)}`);
   const animation = (id: string) =>
     cache(animationCache, id, `/api/animations/${encodeURIComponent(id)}`);
+  const character = (id: string) =>
+    cache(characterCache, id, `/api/characters/${encodeURIComponent(id)}`);
 
   function background(): Extract<SceneEntity, { type: 'Background' }> | undefined {
     return current?.entities.find((entity) => entity.type === 'Background') as
@@ -318,7 +349,7 @@ export function mountScenes(root: HTMLElement): () => void {
     if (index !== -1) setZoom(SCENE_ZOOM_STEPS[index], x, y);
   }
 
-  function viewportPixel(event: MouseEvent): { x: number; y: number } {
+  function viewportPixel(event: Pick<MouseEvent, 'clientX' | 'clientY'>): { x: number; y: number } {
     const rect = viewport.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
@@ -560,7 +591,9 @@ export function mountScenes(root: HTMLElement): () => void {
         ? 'TRIGGER'
         : typeof item !== 'string' && 'type' in item && item.type === 'Background'
           ? 'BACKGROUND'
-          : 'PROP';
+          : typeof item !== 'string' && 'type' in item && item.type === 'Character'
+            ? 'CHARACTER'
+            : 'PROP';
     inspector.append(heading);
     const id = typeof item === 'string' ? item : item.id;
     const idRow = document.createElement('div');
@@ -661,7 +694,7 @@ export function mountScenes(root: HTMLElement): () => void {
         inspector.append(note);
       }
     } else {
-      if (item.type === 'Prop')
+      if (item.type === 'Prop' || item.type === 'Character')
         field(
           'INSTANCE NAME',
           item.name ?? item.id,
@@ -678,10 +711,16 @@ export function mountScenes(root: HTMLElement): () => void {
           { max: 80 },
         );
       if (item.type === 'Background') {
-        selectField('SPRITE SHEET', item.sprite, sprites, (v) => {
-          item.sprite = v;
-          item.index = 0;
-        }, spriteLabels);
+        selectField(
+          'SPRITE SHEET',
+          item.sprite,
+          sprites,
+          (v) => {
+            item.sprite = v;
+            item.index = 0;
+          },
+          spriteLabels,
+        );
         numberField('FRAME (ZERO BASED)', item.index, 0, 255, (v) => {
           item.index = v;
         });
@@ -701,6 +740,55 @@ export function mountScenes(root: HTMLElement): () => void {
           footprint.textContent = sprite
             ? `Footprint: ${sprite.width} × ${sprite.height} cells (sprite size). No blocked cells. Background depth.`
             : 'Sprite unavailable.';
+        });
+      } else if (item.type === 'Character') {
+        const assetId = item.character;
+        const assetLabel = document.createElement('p');
+        assetLabel.textContent = `Character asset: ${assetId}`;
+        inspector.append(assetLabel);
+        const link = document.createElement('a');
+        link.href = `/characters?id=${encodeURIComponent(assetId)}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'EDIT CHARACTER ↗';
+        inspector.append(link);
+        selectField('FACING', item.facing, [...CHARACTER_DIRECTIONS], (v) => {
+          item.facing = v as CharacterDirection;
+        });
+        const itemId = item.id;
+        const stateLabel = document.createElement('label');
+        stateLabel.textContent = 'STARTING ANIMATION STATE';
+        const stateSelect = document.createElement('select');
+        stateSelect.disabled = true;
+        stateSelect.append(new Option(item.state, item.state));
+        stateLabel.append(stateSelect);
+        inspector.append(stateLabel);
+        void character(assetId).then((asset) => {
+          if (
+            !alive ||
+            !stateLabel.isConnected ||
+            onlySelected()?.id !== itemId ||
+            item.character !== assetId
+          )
+            return;
+          if (!asset) return;
+          stateSelect.replaceChildren();
+          for (const choice of [
+            ...new Set([
+              item.state,
+              'idle',
+              'walk',
+              'talking',
+              ...Object.keys(asset.customAnimations),
+            ]),
+          ])
+            stateSelect.append(new Option(choice, choice));
+          stateSelect.value = item.state;
+          stateSelect.disabled = false;
+        });
+        stateSelect.addEventListener('change', () => {
+          item.state = stateSelect.value;
+          render();
         });
       } else if ('prop' in item) {
         selectField('PROP ASSET', item.prop, props, (v) => {
@@ -774,6 +862,26 @@ export function mountScenes(root: HTMLElement): () => void {
       scene.entities.map(async (entry) => {
         if (entry.type === 'Background')
           return { entry, sprite: await sheet(entry.sprite), index: entry.index, depth: 0 };
+        if (entry.type === 'Character') {
+          const asset = await character(entry.character);
+          const animationId = asset && characterAnimation(asset, entry.state, entry.facing);
+          const clip = animationId ? await animation(animationId) : null;
+          const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
+          if (!clip || !first || isInvisibleFrame(first))
+            return {
+              entry,
+              sprite: null,
+              index: 0,
+              depth: sceneDepth(scene.depthMode, entry.y, entry.z, 0),
+            };
+          return {
+            entry,
+            sprite: await sheet(first.sprite),
+            index: first.index,
+            flips: animationFrameFlips(clip, first),
+            depth: sceneDepth(scene.depthMode, entry.y, entry.z, 0),
+          };
+        }
         if ('sprite' in entry)
           return {
             entry,
@@ -835,7 +943,7 @@ export function mountScenes(root: HTMLElement): () => void {
     );
     for (const visual of visuals) {
       const { entry, sprite, index } = visual;
-      if (entry.type === 'Prop')
+      if (entry.type === 'Prop' || entry.type === 'Character')
         propLabels.push({
           id: entry.id,
           name: entry.name ?? entry.id,
@@ -943,6 +1051,7 @@ export function mountScenes(root: HTMLElement): () => void {
       ? 'REPLACE BACKGROUND SPRITE'
       : 'ADD BACKGROUND SPRITE';
     $<HTMLButtonElement>('#scene-add-prop').disabled = backgroundEdit;
+    $<HTMLButtonElement>('#scene-add-character').disabled = backgroundEdit;
     const addTriggerButton = $<HTMLButtonElement>('#scene-add-trigger');
     addTriggerButton.disabled = backgroundEdit;
     addTriggerButton.setAttribute('aria-pressed', String(placingTrigger));
@@ -1006,10 +1115,10 @@ export function mountScenes(root: HTMLElement): () => void {
       const stored = await saveDraft(`/api/scenes/${encodeURIComponent(sent.id)}`, sent, base);
       if (alive && current?.id === sent.id) {
         const mergedOnDisk = JSON.stringify(stored) !== JSON.stringify(sent);
-        const rebased = mergeJson(sent, current, stored);
+        const rebased = rebaseJsonDraft(sent, current, stored);
         if (rebased.ok) {
-          current = rebased.value;
-          saved = stored;
+          current = rebased.value.draft;
+          saved = rebased.value.baseline;
           status.textContent = mergedOnDisk ? `Saved and merged ${sent.id}` : `Saved ${sent.id}`;
         } else status.textContent = `Saved ${sent.id}; newer edits need review`;
         toast(status.textContent, !rebased.ok);
@@ -1030,23 +1139,30 @@ export function mountScenes(root: HTMLElement): () => void {
     }
   }
 
-  function drawThumbnail(canvas: HTMLCanvasElement, sprite: SpriteDocument, index: number): void {
+  function drawThumbnail(
+    canvas: HTMLCanvasElement,
+    sprite: SpriteDocument,
+    index: number,
+    flips: { flipH: boolean; flipV: boolean } = { flipH: false, flipV: false },
+  ): void {
     const preview = canvas.getContext('2d');
     if (!preview) return;
     preview.fillStyle = '#000';
     preview.fillRect(0, 0, canvas.width, canvas.height);
-    const native = terminalCellAtZoom(preview, 1, 'msdos-80x25');
+    const native = terminalCellAtZoom(preview, 1, sprite.font);
     const scale = Math.min(
       3,
       (canvas.width - 8) / (sprite.width * native.width),
       (canvas.height - 8) / (sprite.height * native.height),
     );
-    const grid = terminalCellAtZoom(preview, scale, 'msdos-80x25');
+    const grid = terminalCellAtZoom(preview, scale, sprite.font);
     const x0 = (canvas.width - sprite.width * grid.width) / 2;
     const y0 = (canvas.height - sprite.height * grid.height) / 2;
     flattenSprite(sprite, index).forEach((cell, at) => {
-      const x = x0 + (at % sprite.width) * grid.width;
-      const y = y0 + Math.floor(at / sprite.width) * grid.height;
+      const column = at % sprite.width;
+      const row = Math.floor(at / sprite.width);
+      const x = x0 + (flips.flipH ? sprite.width - 1 - column : column) * grid.width;
+      const y = y0 + (flips.flipV ? sprite.height - 1 - row : row) * grid.height;
       preview.fillStyle = palette ? (paletteRgb(palette, cell.bg) ?? '#000') : '#000';
       fillTerminalCell(preview, grid, x, y);
       if (cell.ch !== ' ') {
@@ -1242,6 +1358,129 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
   });
 
+  async function openCharacterPicker(): Promise<void> {
+    if (!current || backgroundEdit) return;
+    characterCache.clear();
+    animationCache.clear();
+    sheetCache.clear();
+    characterPicker.showModal();
+    characterSearch.value = '';
+    characterChoice = null;
+    characterAdd.disabled = true;
+    characterStatus.textContent = 'Loading characters…';
+    const picker = ++characterPickerToken;
+    try {
+      const result = await requestJson<{ files: string[]; labels: Record<string, string> }>(
+        '/api/characters',
+      );
+      if (!alive || !characterPicker.open || picker !== characterPickerToken) return;
+      const renderResults = () => {
+        characterResults.replaceChildren();
+        characterChoice = null;
+        characterAdd.disabled = true;
+        const matches = result.files.filter(
+          (id) =>
+            id.toLowerCase().includes(characterSearch.value.trim().toLowerCase()) ||
+            (result.labels[id] ?? id)
+              .toLowerCase()
+              .includes(characterSearch.value.trim().toLowerCase()),
+        );
+        characterStatus.textContent = matches.length
+          ? `${matches.length} character${matches.length === 1 ? '' : 's'}`
+          : 'No matching characters.';
+        for (const id of matches) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'scene-prop-card';
+          const thumbnail = document.createElement('canvas');
+          thumbnail.width = 160;
+          thumbnail.height = 100;
+          const name = document.createElement('strong');
+          name.textContent = result.labels[id] ?? id;
+          const details = document.createElement('span');
+          details.textContent = 'Loading idle-down preview…';
+          button.append(thumbnail, name, details);
+          button.disabled = true;
+          characterResults.append(button);
+          void (async () => {
+            const asset = await character(id);
+            if (
+              !alive ||
+              !characterPicker.open ||
+              !button.isConnected ||
+              picker !== characterPickerToken
+            )
+              return;
+            if (!asset) {
+              details.textContent = 'Character unavailable';
+              return;
+            }
+            button.disabled = false;
+            button.addEventListener('click', () => {
+              characterChoice = asset;
+              characterAdd.disabled = false;
+              characterResults.querySelectorAll('.scene-prop-card').forEach((card) => {
+                card.classList.toggle('active', card === button);
+              });
+            });
+            const clip = await animation(asset.animations['idle-down']);
+            const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
+            const sprite = first && !isInvisibleFrame(first) ? await sheet(first.sprite) : null;
+            if (
+              !alive ||
+              !characterPicker.open ||
+              !button.isConnected ||
+              picker !== characterPickerToken
+            )
+              return;
+            if (
+              !clip ||
+              !first ||
+              isInvisibleFrame(first) ||
+              !sprite ||
+              first.index >= sprite.sprites.length
+            ) {
+              details.textContent = 'No idle-down preview';
+              return;
+            }
+            drawThumbnail(thumbnail, sprite, first.index, animationFrameFlips(clip, first));
+            details.textContent = 'IDLE DOWN';
+          })().catch(() => {
+            if (alive && button.isConnected && picker === characterPickerToken)
+              details.textContent = 'Preview unavailable';
+          });
+        }
+      };
+      characterSearch.oninput = renderResults;
+      renderResults();
+      characterSearch.focus();
+    } catch (error) {
+      if (alive && picker === characterPickerToken) characterStatus.textContent = message(error);
+    }
+  }
+  $<HTMLButtonElement>('#scene-character-cancel').addEventListener('click', () =>
+    characterPicker.close(),
+  );
+  characterPicker.addEventListener('close', () => {
+    ++characterPickerToken;
+    characterChoice = null;
+  });
+  characterAdd.addEventListener('click', () => {
+    if (!current || !characterChoice || backgroundEdit) return;
+    const center = sceneCellAt(
+      view,
+      viewport.clientWidth / 2,
+      viewport.clientHeight / 2,
+      cell.width,
+      cell.height,
+    );
+    const entry = addSceneCharacter(current, characterChoice, center.x, center.y);
+    selected = [{ kind: 'entity', id: entry.id }];
+    characterPicker.close();
+    status.textContent = `Added ${entry.character} to the scene. Drag it to position it.`;
+    render();
+  });
+
   $<HTMLButtonElement>('#scene-background-mode').addEventListener('click', () => {
     const bg = background();
     if (!bg) return;
@@ -1273,7 +1512,9 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
     syncCursor();
   }
-  function canvasPoint(event: PointerEvent | MouseEvent): { x: number; y: number } | null {
+  function canvasPoint(
+    event: Pick<MouseEvent, 'clientX' | 'clientY'>,
+  ): { x: number; y: number } | null {
     if (!current) return null;
     const pixel = viewportPixel(event);
     const { x, y } = sceneCellAt(view, pixel.x, pixel.y, cell.width, cell.height);
@@ -1326,6 +1567,7 @@ export function mountScenes(root: HTMLElement): () => void {
     }
   }
   canvas.addEventListener('pointerdown', (event) => {
+    canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (event.button !== 0 || spaceHeld) return;
     const point = canvasPoint(event);
     if (placingTrigger) {
@@ -1412,7 +1654,21 @@ export function mountScenes(root: HTMLElement): () => void {
       render();
     }
   });
+  function updateDrag(event: PointerEvent): void {
+    if (!drag || drag.pointerId !== event.pointerId || !current) return;
+    const pixel = scenePixel(event);
+    if (
+      moveSceneGroup(
+        current,
+        drag.items,
+        Math.floor(pixel.x) - drag.x,
+        Math.floor(pixel.y) - drag.y,
+      )
+    )
+      render();
+  }
   canvas.addEventListener('pointermove', (event) => {
+    canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (pan) return;
     if (drawingTrigger?.pointerId === event.pointerId && current) {
       const point = scenePixel(event);
@@ -1437,24 +1693,7 @@ export function mountScenes(root: HTMLElement): () => void {
       setHover(point ? hitAt(point.x, point.y) : null);
       syncCursor(event);
     }
-    if (!drag || drag.pointerId !== event.pointerId || !current) return;
-    const pixel = scenePixel(event);
-    const delta = groupSceneDelta(
-      drag.items,
-      Math.floor(pixel.x) - drag.x,
-      Math.floor(pixel.y) - drag.y,
-      current.width,
-      current.height,
-    );
-    let changed = false;
-    for (const start of drag.items) {
-      const item = positioned(start.ref);
-      if (!item || (item.x === start.x + delta.x && item.y === start.y + delta.y)) continue;
-      item.x = start.x + delta.x;
-      item.y = start.y + delta.y;
-      changed = true;
-    }
-    if (changed) render();
+    updateDrag(event);
   });
   canvas.addEventListener('pointerup', (event) => {
     if (drawingTrigger?.pointerId === event.pointerId && current) {
@@ -1483,7 +1722,10 @@ export function mountScenes(root: HTMLElement): () => void {
       syncCursor(event);
       return;
     }
-    if (drag?.pointerId === event.pointerId) drag = null;
+    if (drag?.pointerId === event.pointerId) {
+      updateDrag(event);
+      drag = null;
+    }
     if (marquee?.pointerId !== event.pointerId) return;
     const box = marquee;
     marquee = null;
@@ -1505,6 +1747,7 @@ export function mountScenes(root: HTMLElement): () => void {
     paintHover();
   });
   canvas.addEventListener('pointerleave', () => {
+    canvasMouse = null;
     if (!drag && !drawingTrigger && !resizing) {
       setHover(null);
       syncCursor();
@@ -1551,6 +1794,10 @@ export function mountScenes(root: HTMLElement): () => void {
   $<HTMLButtonElement>('#scene-fit').addEventListener('click', fitView);
   $<HTMLButtonElement>('#scene-add-background').addEventListener('click', openBackgroundPicker);
   $<HTMLButtonElement>('#scene-add-prop').addEventListener('click', () => void openPropPicker());
+  $<HTMLButtonElement>('#scene-add-character').addEventListener(
+    'click',
+    () => void openCharacterPicker(),
+  );
   $<HTMLButtonElement>('#scene-add-trigger').addEventListener('click', addTrigger);
   for (const dimension of ['width', 'height'] as const) {
     const input = $<HTMLInputElement>(`#scene-${dimension}`);
@@ -1632,6 +1879,76 @@ export function mountScenes(root: HTMLElement): () => void {
   const onKey = (event: KeyboardEvent) => {
     if (!root.isConnected) return;
     if (
+      event.key === 'Delete' &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      current &&
+      !backgroundEdit &&
+      !backgroundPicker.open &&
+      !propPicker.open &&
+      !characterPicker.open &&
+      !isModalOpen() &&
+      !(event.target instanceof HTMLInputElement) &&
+      !(event.target instanceof HTMLTextAreaElement) &&
+      !(event.target instanceof HTMLSelectElement) &&
+      !(event.target instanceof HTMLElement && event.target.isContentEditable)
+    ) {
+      const removed = removeSelectedSceneObjects(current, selected);
+      if (removed.length) {
+        event.preventDefault();
+        selected = selected.filter((ref) => !removed.some((item) => sameSceneObject(ref, item)));
+        const hoveredRef = hovered;
+        if (hoveredRef && removed.some((item) => sameSceneObject(hoveredRef, item))) hovered = null;
+        drag = null;
+        status.textContent = `Removed ${removed.length} object${removed.length === 1 ? '' : 's'} from the scene · save to keep changes`;
+        render();
+        return;
+      }
+    }
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      current &&
+      !backgroundEdit &&
+      !backgroundPicker.open &&
+      !propPicker.open &&
+      !characterPicker.open &&
+      !isModalOpen() &&
+      !(event.target instanceof HTMLInputElement) &&
+      !(event.target instanceof HTMLTextAreaElement) &&
+      !(event.target instanceof HTMLSelectElement) &&
+      !(event.target instanceof HTMLElement && event.target.isContentEditable)
+    ) {
+      const key = event.key.toLowerCase();
+      if (key === 'c') {
+        const copied = copySceneObjects(current, selected);
+        if (copied.entities.length || copied.triggers.length) {
+          objectClipboard = copied;
+          event.preventDefault();
+          status.textContent = `Copied ${copied.entities.length + copied.triggers.length} scene objects`;
+        }
+        return;
+      }
+      if (key === 'v' && objectClipboard) {
+        event.preventDefault();
+        const point = canvasMouse && canvasPoint(canvasMouse);
+        if (!point) {
+          status.textContent = 'Move the mouse over the scene to paste objects';
+          return;
+        }
+        const pasted = pasteSceneObjects(current, objectClipboard, point);
+        if (!pasted.length) {
+          status.textContent = 'Copied objects do not fit in this scene';
+          return;
+        }
+        selected = pasted;
+        status.textContent = `Pasted ${pasted.length} scene objects · drag to move`;
+        render();
+        return;
+      }
+    }
+    if (
       event.key === 'Tab' &&
       current &&
       !event.ctrlKey &&
@@ -1639,6 +1956,7 @@ export function mountScenes(root: HTMLElement): () => void {
       !event.altKey &&
       !backgroundPicker.open &&
       !propPicker.open &&
+      !characterPicker.open &&
       !isModalOpen() &&
       !(event.target instanceof HTMLInputElement) &&
       !(event.target instanceof HTMLTextAreaElement) &&
@@ -1656,6 +1974,7 @@ export function mountScenes(root: HTMLElement): () => void {
       event.key === 'Escape' &&
       !backgroundPicker.open &&
       !propPicker.open &&
+      !characterPicker.open &&
       !isModalOpen() &&
       (placingTrigger || selected.length)
     ) {
@@ -1677,6 +1996,7 @@ export function mountScenes(root: HTMLElement): () => void {
       current &&
       !backgroundPicker.open &&
       !propPicker.open &&
+      !characterPicker.open &&
       !isModalOpen() &&
       !(event.target instanceof HTMLInputElement) &&
       !(event.target instanceof HTMLTextAreaElement) &&
@@ -1695,6 +2015,7 @@ export function mountScenes(root: HTMLElement): () => void {
       !event.altKey &&
       !backgroundPicker.open &&
       !propPicker.open &&
+      !characterPicker.open &&
       !isModalOpen() &&
       !(event.target instanceof HTMLInputElement) &&
       !(event.target instanceof HTMLTextAreaElement) &&
@@ -1754,8 +2075,10 @@ export function mountScenes(root: HTMLElement): () => void {
     ++pickerToken;
     ++propPickerToken;
     ++propLoadToken;
+    ++characterPickerToken;
     if (backgroundPicker.open) backgroundPicker.close();
     if (propPicker.open) propPicker.close();
+    if (characterPicker.open) characterPicker.close();
     resizeObserver.disconnect();
     document.removeEventListener('keydown', onKey);
     document.removeEventListener('keyup', onKeyUp);

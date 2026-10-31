@@ -34,6 +34,91 @@
       "x": 80,
       "y": 5,
       "z": 0
+    },
+    {
+      "id": "johnathan-1",
+      "type": "Character",
+      "name": "johnathan-1",
+      "character": "johnathan",
+      "facing": "down",
+      "state": "sit-left",
+      "x": 91,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "3f8987bd-5919-4f35-bbcf-86eb5e403f75",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 47,
+      "y": 14,
+      "z": 0
+    },
+    {
+      "id": "bf9f3b47-c2fd-4c97-8e1a-5c00f7608f9a",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 69,
+      "y": 14,
+      "z": 0
+    },
+    {
+      "id": "9ed51c3e-4f7a-4d19-adf6-63d24b92187c",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 58,
+      "y": 14,
+      "z": 0
+    },
+    {
+      "id": "3ac7d48c-25b6-494a-acec-8014989a2195",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 80,
+      "y": 14,
+      "z": 0
+    },
+    {
+      "id": "1b32b421-4222-4b23-9856-d80405b6f2ee",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 76,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "9ec0fe5e-ee02-4cb4-ad28-2e8ff52241c0",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 65,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "e90d9482-cfcc-4cc7-b477-5661c1b35fb4",
+      "type": "Prop",
+      "name": "desk1-1",
+      "prop": "desk1",
+      "x": 54,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "be64804a-0f95-4067-9151-76ec698c58cf-1",
+      "type": "Character",
+      "name": "be64804a-0f95-4067-9151-76ec698c58cf-1",
+      "character": "be64804a-0f95-4067-9151-76ec698c58cf",
+      "facing": "down",
+      "state": "idle",
+      "x": 57,
+      "y": 18,
+      "z": 0
     }
   ],
   "triggers": [
@@ -41,12 +126,13 @@
       "id": "4d49af56-5a36-4d13-971a-799096818b3d",
       "trigger": "trigger6",
       "event": "action",
-      "x": 31,
-      "y": 13,
+      "x": 37,
+      "y": 8,
       "width": 17,
       "height": 2,
       "actionEnabled": false,
-      "stepEnabled": true
+      "stepEnabled": true,
+      "description": ""
     }
   ]
 }

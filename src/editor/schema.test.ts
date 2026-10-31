@@ -40,7 +40,7 @@ describe('editor schema', () => {
     expect(parsePalette(renamed).ok).toBe(false);
   });
 
-  it('accepts a sprite of palette ids and rejects wide glyphs and inline colors', () => {
+  it('accepts palette ids or inline hex colors and rejects wide glyphs and invalid colors', () => {
     const sprite = createSprite('crate-mark', 1, 1);
     sprite.sprites[0].layers[0].cells[0] = { ch: '█', fg: 'bright-white', bg: 'black' };
     expect(parseSprite(sprite)).toMatchObject({
@@ -62,7 +62,17 @@ describe('editor schema', () => {
     const hex = structuredClone(sprite);
     const hexCell = hex.sprites[0].layers[0].cells[0];
     if (!hexCell) throw new Error('expected a painted cell');
-    hexCell.fg = '#ffffff';
+    hexCell.fg = '#ABCDEF';
+    hexCell.bg = '#123456';
+    expect(parseSprite(hex)).toMatchObject({
+      ok: true,
+      value: { sprites: [{ layers: [{ cells: [{ fg: '#abcdef', bg: '#123456' }] }] }] },
+    });
+    expect(exportTruecolor(hex, defaultPalette())).toMatchObject({
+      ok: true,
+      value: expect.stringContaining('171;205;239;48;2;18;52;86'),
+    });
+    hexCell.fg = '#abcd';
     expect(parseSprite(hex).ok).toBe(false);
   });
 
