@@ -33,6 +33,11 @@ describe('server messages', () => {
     });
     expect(
       parseServerMessage(
+        JSON.stringify({ type: 'terminal-data', data: 'frame', cols: 40, rows: 16 }),
+      ),
+    ).toEqual({ type: 'terminal-data', data: 'frame', cols: 40, rows: 16 });
+    expect(
+      parseServerMessage(
         JSON.stringify({ type: 'session-status', status: 'connected', sessionId: 'abc' }),
       ),
     ).toEqual({ type: 'session-status', status: 'connected', sessionId: 'abc' });
@@ -51,6 +56,12 @@ describe('server messages', () => {
       parseServerMessage(JSON.stringify({ type: 'session-status', status: 'closed' })),
     ).toBeNull();
     expect(parseServerMessage(JSON.stringify({ type: 'play-sound', assetId: '' }))).toBeNull();
+    expect(
+      parseServerMessage(JSON.stringify({ type: 'terminal-data', data: 'x', cols: 40 })),
+    ).toBeNull();
+    expect(
+      parseServerMessage(JSON.stringify({ type: 'terminal-data', data: 'x', cols: 40, rows: 0 })),
+    ).toBeNull();
     expect(parseServerMessage('[]')).toBeNull();
   });
 });

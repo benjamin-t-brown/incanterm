@@ -46,6 +46,10 @@ describe('editor schema', () => {
       ok: true,
       value: { id: 'crate-mark', version: 3 },
     });
+    expect(parseSprite({ ...sprite, id: 'crate_mark' })).toMatchObject({
+      ok: true,
+      value: { id: 'crate_mark' },
+    });
 
     const wide = structuredClone(sprite);
     const wideCell = wide.sprites[0].layers[0].cells[0];

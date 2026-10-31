@@ -1,13 +1,10 @@
-import { brandLink } from './shell.js';
+import { assetEditorTopbar } from './shell.js';
 
 const GAME_CLIENT = 'http://127.0.0.1:7103/';
 
 export function mountGame(root: HTMLElement): () => void {
   root.innerHTML = `<div class="simple-layout">
-    <header class="topbar">
-      ${brandLink('GAME')}
-      <nav class="editor-nav"><a href="/">INDEX</a></nav>
-    </header>
+    ${assetEditorTopbar()}
     <div id="game-host" class="simple-main" style="padding:0; display:flex; flex-direction:column;"></div>
   </div>`;
   const host = root.querySelector<HTMLElement>('#game-host');

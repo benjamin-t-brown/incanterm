@@ -1,8 +1,9 @@
 export type ClientMessage =
-  { type: 'input'; data: string } | { type: 'resize'; cols: number; rows: number };
+  | { type: 'input'; data: string }
+  | { type: 'resize'; cols: number; rows: number };
 
 export type ServerMessage =
-  | { type: 'terminal-data'; data: string }
+  | { type: 'terminal-data'; data: string; cols?: number; rows?: number }
   | { type: 'session-status'; status: 'connected'; sessionId: string }
   | { type: 'play-sound'; assetId: string }
   | { type: 'stop-sound'; assetId: string };
@@ -28,7 +29,10 @@ export function parseServerMessage(raw: string): ServerMessage | null {
   const value = decode(raw);
   if (!value) return null;
   if (value.type === 'terminal-data' && isBoundedString(value.data, MAX_TERMINAL_CHARS)) {
-    return { type: 'terminal-data', data: value.data };
+    if (value.cols === undefined && value.rows === undefined)
+      return { type: 'terminal-data', data: value.data };
+    if (!isCellCount(value.cols) || !isCellCount(value.rows)) return null;
+    return { type: 'terminal-data', data: value.data, cols: value.cols, rows: value.rows };
   }
   if (
     value.type === 'session-status' &&

@@ -1,0 +1,29 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "clock",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "clock",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "clock",
+      "index": 1,
+      "durationMs": 500
+    },
+    {
+      "sprite": "clock",
+      "index": 2,
+      "durationMs": 500
+    },
+    {
+      "sprite": "clock",
+      "index": 3,
+      "durationMs": 500
+    }
+  ]
+}

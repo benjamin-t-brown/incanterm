@@ -1,0 +1,292 @@
+.simple-main.prop-main {
+  overflow: hidden;
+  display: flex;
+  padding: 12px 16px 16px;
+  gap: 10px;
+}
+.prop-app {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.prop-app .toolbar-row {
+  margin-bottom: 14px;
+}
+#prop-id {
+  margin-left: auto;
+}
+.prop-fields {
+  display: grid;
+  grid-template-columns: minmax(220px, 350px) minmax(220px, 1fr);
+  gap: 24px;
+}
+.prop-fields[hidden] {
+  display: none;
+}
+.prop-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prop-form h2,
+.prop-preview h2 {
+  margin: 8px 0 0;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.prop-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.prop-form .text-input {
+  width: 100%;
+}
+.prop-asset-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+#prop-visual-label {
+  overflow-wrap: anywhere;
+  color: var(--highlight);
+  font-size: 15px;
+}
+.prop-edit-link {
+  align-self: flex-start;
+  color: var(--highlight);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.prop-edit-link:hover {
+  color: var(--text);
+}
+.prop-block-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+#prop-block-count {
+  color: var(--muted);
+  font-weight: normal;
+  letter-spacing: 0;
+}
+.prop-default-size {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: normal;
+  letter-spacing: 0;
+}
+.prop-asset-field button,
+.prop-block-field button,
+.prop-preview button,
+.prop-block-actions button,
+.prop-picker-actions button {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+  padding: 7px 12px;
+  font-weight: bold;
+}
+.prop-asset-field button:hover,
+.prop-block-field button:hover,
+.prop-preview button:hover,
+.prop-block-actions button:hover,
+.prop-picker-actions button:hover:not(:disabled) {
+  background: var(--highlight);
+  color: var(--accent-text);
+}
+.prop-field-row {
+  display: flex;
+  gap: 12px;
+}
+.prop-field-row label {
+  flex: 1;
+  min-width: 0;
+}
+.prop-preview canvas {
+  display: block;
+  width: min(100%, 540px);
+  height: auto;
+  margin-top: 12px;
+  background: #000;
+  border: 1px solid var(--line);
+}
+.prop-preview canvas:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+.prop-preview button {
+  margin-top: 12px;
+}
+.prop-preview button[aria-pressed="true"] {
+  border-color: #ffae95;
+}
+.prop-preview p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.prop-asset-dialog {
+  width: min(860px, calc(100vw - 32px));
+  max-height: min(740px, calc(100vh - 32px));
+  padding: 0;
+  border: 2px solid var(--mint);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 8px 8px 0 #071d1c;
+}
+.prop-asset-dialog::backdrop {
+  background: #071d1cd9;
+}
+.prop-picker-body {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  height: min(470px, calc(100vh - 185px));
+}
+.prop-picker-sheets,
+.prop-picker-results {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+.prop-picker-sheets {
+  border-right: 1px solid var(--line);
+}
+.prop-picker-sheets label,
+.prop-picker-results h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+}
+.prop-picker-sheets input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+#prop-picker-sheets {
+  min-width: 0;
+  overflow-y: auto;
+}
+.prop-picker-grid {
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  align-content: start;
+  gap: 9px;
+}
+.prop-picker-card {
+  min-width: 0;
+  padding: 6px;
+  border: 2px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+  text-align: center;
+}
+.prop-picker-card:hover,
+.prop-picker-card.active {
+  border-color: var(--highlight);
+  color: var(--highlight);
+}
+.prop-picker-card canvas {
+  display: block;
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  background: #000;
+}
+.prop-picker-card span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 5px;
+  font-size: 12px;
+}
+.prop-picker-status {
+  min-height: 24px;
+  margin: 0;
+  padding: 4px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.prop-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--line);
+}
+.prop-picker-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.prop-block-dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 2px solid var(--mint);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 8px 8px 0 #071d1c;
+}
+.prop-block-dialog::backdrop {
+  background: #071d1cd9;
+}
+.prop-block-help {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.prop-block-scroll {
+  max-height: min(520px, calc(100vh - 190px));
+  overflow: auto;
+  margin: 0 16px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+}
+.prop-block-scroll canvas {
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+.prop-block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+#prop-block-status {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 850px) {
+  .prop-fields {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 540px) {
+  .prop-picker-body {
+    grid-template-columns: 145px minmax(0, 1fr);
+  }
+  .prop-picker-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

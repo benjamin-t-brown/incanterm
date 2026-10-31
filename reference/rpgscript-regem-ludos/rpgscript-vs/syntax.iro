@@ -29,9 +29,9 @@ file_extensions []     = rpgscript;
 
 __MY_CONSTANT \= (\b[a-z][a-z0-9]*)
 __LOGICKEYWORD \= (\?)
-__LOGIC \= (\b(isnot|gt|lt|is|all|any|oncePerInstance|one|as|once|eq|this|with|func)\b)
+__LOGIC \= (\b(isnot|gt|lt|is|all|any|else|oncePerInstance|one|as|once|eq|this|with|func)\b)
 __TRIGGERNAME \= (^#(.)+$)
-__SCENENAME \= (^(\s)*@(.)+$)
+__SCENENAME \= (^(\s)*@[^\s()]+)
 __INLINE \= (^(\s)*\+(.)+$)
 __DIALOG \= ((^(\s)*[\w &]*:)|(^(\s)+([\w&])+:))
 __TRIGGERTYPE \= (^(\s)*(action|step|item|step-first|step-off|load),)
@@ -80,6 +80,10 @@ styles [] {
    pygments_scope        = String
 }
 
+## Call parentheses use .control or .inline_function to match the call type.
+## Keep parentheses out of language-configuration.json's colorizedBracketPairs
+## so VS Code/Cursor uses
+## these TextMate scopes instead of overriding them with nesting-depth colors.
 .control : style {
    color                 = red
    ace_scope             = control
@@ -143,15 +147,18 @@ contexts [] {
 ##############################################
 
 main : context {
-   : pattern {
-      regex          \= (^(\s)*@this)
-      styles []       = .scene;
-   }
-
    : inline_push {
       regex          \= $${__STORAGE}
       styles []       = .control;
       : eol_pop {}
+      : pattern {
+         regex       \= (\()
+         styles []    = .control;
+      }
+      : pattern {
+         regex       \= (\))
+         styles []    = .control;
+      }
       : include "in_parens" ;
    }
    
@@ -159,12 +166,22 @@ main : context {
       regex          \= $${__INLINE_SCRIPT}
       styles []       = .inline_function;
       : eol_pop {}
+      : pattern {
+         regex       \= ([()])
+         styles []    = .inline_function;
+      }
       : include "in_parens" ;
    }
 
-   : pattern {
+   : inline_push {
       regex          \= $${__SCENENAME}
-      styles []       = .scene;
+      styles []       = .function;
+      : eol_pop {}
+      : pattern {
+         regex       \= ([()])
+         styles []    = .function;
+      }
+      : include "in_parens" ;
    }
    
    : pattern {
@@ -179,7 +196,7 @@ main : context {
 
    : push {
       regex          \= $${__TRIGGERTYPE}
-      styles []       = .function;
+      styles []       = .dialog;
       context []      = trigger;
    }
 
@@ -198,6 +215,7 @@ main : context {
       regex          \= (^(\s)*\+)
       styles []       = .control;
       : eol_pop {}
+      : include "storage_assignment" ;
       : inline_push {
          regex          \= (')
          styles []       = .punctuation;
@@ -209,10 +227,10 @@ main : context {
       }
       : inline_push {
          regex          \= (\()
-         styles []       = .punctuation;
+         styles []       = .control;
          : pop {
             regex       \= (\))
-            styles []    = .punctuation;
+            styles []    = .control;
          }
          : pattern {
             regex       \= (,)
@@ -286,9 +304,18 @@ main : context {
 ## End of Contexts
 #################################################
 
+storage_assignment : context {
+   : inline_push {
+      regex          \= (([A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=)
+      styles []       = .control;
+      : eol_pop {}
+      : include "in_parens" ;
+   }
+}
+
 logic_prefix : context {
    : inline_push {
-      regex          \= (\?)
+      regex          \= (\+?\?)
       styles []       = .control;
       : pop {
          regex       \= (:)
@@ -299,17 +326,21 @@ logic_prefix : context {
 }
 
 logic : context {
+   : pattern {
+      regex          \= (\belse\b(?=\s*:))
+      styles []       = .control;
+   }
    : inline_push {
       regex          \= $${__LOGIC}
       styles []       = .control;
-      : pop {  
-         regex       \= (\))
-         styles []    = .punctuation;
-      }
-      : pattern {
-         regex \= (\()
-         styles []    = .punctuation;
-      }
+       : pop {
+          regex       \= (\))
+          styles []    = .control;
+       }
+       : pattern {
+          regex \= (\()
+          styles []    = .control;
+       }
       : include "logic";
       : include "in_parens";
    }
@@ -323,8 +354,8 @@ trigger : context {
       styles [] = .parameter;
    }
    : pattern {
-      regex \= (.*$)
-      styles [] = .dialog;
+      regex \= ([\w-]+)
+      styles [] = .function;
    }
 }
 
@@ -403,11 +434,11 @@ in_parens : context {
       styles [] = .punctuation;
    }
    :  pattern {
-      regex          \= (-?[0-9])
+      regex          \= (-?[0-9]|\b(true|false)\b(?![\w.-]))
       styles []       = .number;
    }
    :  pattern {
-      regex          \= ([a-zA-Z\-_]([0-9])*)
+      regex          \= ([a-zA-Z_\-][\w.-]*)
       styles []       = .parameter;
    }
    : inline_push {

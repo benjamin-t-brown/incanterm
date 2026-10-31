@@ -1,5 +1,5 @@
 import { exportTruecolor } from './schema.js';
-import { AssetError, AssetStore } from './store.js';
+import { AssetError, AssetStore, imageRevision } from './store.js';
 import { SaveConflict } from './safe-save.js';
 
 export type AssetResponse = {
@@ -19,6 +19,7 @@ export async function dispatchAssetRequest(
   url: string,
   rawBody: string | Buffer,
   contentType = '',
+  expectedRevision?: string | null,
 ): Promise<AssetResponse> {
   const request = new URL(url, 'http://editor.local');
   const parts = request.pathname.split('/').filter(Boolean);
@@ -27,10 +28,21 @@ export async function dispatchAssetRequest(
     if (parts[1] === 'palette') return await palette(store, method, rawBody);
     if (parts[1] === 'sprites') return await sprites(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'animations') return await animations(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'props') return await props(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'scenes') return await scenes(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'rpg-triggers' && parts.length === 2 && method === 'GET')
+      return json(200, { names: await store.listRpgTriggers() });
     if (parts[1] === 'scripts') return await scripts(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'audio') return await audio(store, method, parts.slice(2));
     if (parts[1] === 'references') {
-      return await references(store, method, parts.slice(2), rawBody, contentType);
+      return await references(
+        store,
+        method,
+        parts.slice(2),
+        rawBody,
+        contentType,
+        expectedRevision,
+      );
     }
     if (parts[1] === 'duplicate' && method === 'POST') return await duplicate(store, rawBody);
     if (parts[1] === 'import' && parts[2] === 'ed-ascii' && method === 'POST') {
@@ -142,6 +154,46 @@ async function scripts(
   return json(404, { error: 'Not found' });
 }
 
+async function props(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (parts.length === 0 && method === 'GET') return json(200, { files: await store.listProps() });
+  if (parts.length === 1 && method === 'GET')
+    return json(200, await store.readProp(decode(parts[0])));
+  if (parts.length === 1 && method === 'PUT') {
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.savePropDraft(decode(parts[0]), doc, base));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteProp(decode(parts[0]));
+    return json(200, { ok: true });
+  }
+  return json(404, { error: 'Not found' });
+}
+
+async function scenes(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (parts.length === 0 && method === 'GET') return json(200, { files: await store.listScenes() });
+  if (parts.length === 1 && method === 'GET')
+    return json(200, await store.readScene(decode(parts[0])));
+  if (parts.length === 1 && method === 'PUT') {
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.saveSceneDraft(decode(parts[0]), doc, base));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteScene(decode(parts[0]));
+    return json(200, { ok: true });
+  }
+  return json(404, { error: 'Not found' });
+}
+
 async function audio(store: AssetStore, method: string, parts: string[]): Promise<AssetResponse> {
   if (method !== 'GET') return json(405, { error: 'Method not allowed' });
   if (parts.length === 0) return json(200, { files: await store.listAudio() });
@@ -162,12 +214,14 @@ async function references(
   parts: string[],
   rawBody: string | Buffer,
   contentType: string,
+  expectedRevision?: string | null,
 ): Promise<AssetResponse> {
   if (parts.length === 1 && method === 'GET') {
     return json(200, await store.readReference(decode(parts[0])));
   }
   if (parts.length === 1 && method === 'PUT') {
-    return json(200, await store.saveReference(decode(parts[0]), parseJson(rawBody)));
+    const { base, doc } = draftBody(rawBody);
+    return json(200, await store.saveReferenceDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteReference(decode(parts[0]));
@@ -177,13 +231,20 @@ async function references(
     const image = await store.readReferenceImage(decode(parts[0]));
     return {
       status: 200,
-      headers: { 'content-type': image.type, 'cache-control': 'no-store' },
+      headers: {
+        'content-type': image.type,
+        'cache-control': 'no-store',
+        'x-asset-revision': imageRevision(image.bytes),
+      },
       body: image.bytes,
     };
   }
   if (parts.length === 2 && parts[1] === 'image' && method === 'PUT') {
     const bytes = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
-    return json(200, await store.saveReferenceImage(decode(parts[0]), bytes, contentType));
+    return json(
+      200,
+      await store.saveReferenceImage(decode(parts[0]), bytes, contentType, expectedRevision),
+    );
   }
   return json(404, { error: 'Not found' });
 }

@@ -2,7 +2,7 @@
   "source": "C:\\progs\\regem-ludos",
   "sourceCommit": "6e2d6e0641b50b80e4c17a606db5c16ceb4c4d18",
   "extractedOn": "2026-10-26",
-  "note": "Copied working-tree files; may include changes newer than sourceCommit. Original bytes preserved. Runtime references require adaptation, not a standalone build.",
+  "note": "Copied working-tree files; may include changes newer than sourceCommit. Extension parser, TextMate grammar, and Iro syntax updated for Incanterm else() support and control-flow scopes on conditional and command-call parentheses; checksums reflect these changes. Runtime references require adaptation, not a standalone build.",
   "excluded": [
     "node_modules",
     "dist/out generated output",
@@ -205,8 +205,8 @@
     },
     {
       "path": "rpgscript-vs/src/server/src/rpgscript/rpgscript.ts",
-      "sha256": "2AD08CAC12D4E45A605018E7C395DBBF0DA98816E4791AE659A1856AC488F749",
-      "bytes": 25631
+      "sha256": "8AABCA6E61D6503F974E20D7F682D843B7D4750AC35D18E71F373136000DA29C",
+      "bytes": 25642
     },
     {
       "path": "rpgscript-vs/src/server/src/server.ts",
@@ -225,13 +225,13 @@
     },
     {
       "path": "rpgscript-vs/syntax.iro",
-      "sha256": "E44103BE979652016DBECA079E9852AD6C044C344C3EC932ACF24BB388039403",
-      "bytes": 12180
+      "sha256": "5A20CAC5DAC493D38DE3F69D669352668E00DC3516AD935E39F5CF213ED9FFCC",
+      "bytes": 12333
     },
     {
       "path": "rpgscript-vs/syntaxes/rpgscript.tmLanguage",
-      "sha256": "556D87D320786757888988202707089597538C0D0647A74377F3D5A1FD67333D",
-      "bytes": 28517
+      "sha256": "8FFBF1675B7B9263D6ED3F54E1B37DC9C023EF421C3DF98AF2559CD2E9362AC0",
+      "bytes": 28824
     },
     {
       "path": "rpgscript-vs/test-file.rpgscript",

@@ -1,8 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseHexColor, type Rgb } from './color.js';
+import {
+  flattenSprite,
+  isInvisibleFrame,
+  parseAnimation,
+  parsePalette,
+  parseProp,
+  type PropDocument,
+} from '../editor/schema.js';
+import { parseStoredSprite } from '../editor/sprite-storage.js';
+import { paletteRgb, defaultPalette, type PaletteDocument } from '../editor/palette.js';
 import type { Cell } from './cell-buffer.js';
-import { Prop, Scene, type DepthMode } from './scene.js';
+import { Background, Prop, Scene, type DepthMode } from './scene.js';
 import { Sprite } from './sprite.js';
 
 export const TEST_SCENE_ID = 'test-room';
@@ -22,11 +32,18 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
   const depthMode = readDepthMode(record.depthMode, `${scenePath} depthMode`);
   const clear = readCell(record.clear, `${scenePath} clear`);
   if (!Array.isArray(record.entities)) throw new Error(`${scenePath} entities must be an array`);
+  const triggers = readTriggers(record.triggers, scenePath);
 
   const sprites = new Map<string, Sprite>();
   const seen = new Set<string>();
   const entities: Prop[] = [];
+  let hasBackground = false;
   for (let index = 0; index < record.entities.length; index++) {
+    const entry = readObject(record.entities[index], `${scenePath} entity ${index}`);
+    if (entry.type === 'Background') {
+      if (hasBackground) throw new Error(`${scenePath} can contain only one background`);
+      hasBackground = true;
+    }
     entities.push(
       await readProp(
         assetsRoot,
@@ -35,17 +52,43 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
         index,
         width,
         height,
+        depthMode,
         sprites,
         seen,
       ),
     );
   }
-  return new Scene(id, width, height, depthMode, clear, entities);
+  return new Scene(id, width, height, depthMode, clear, entities, triggers);
+}
+
+function readTriggers(value: unknown, scenePath: string): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`${scenePath} triggers must be an array`);
+  const names = new Set<string>();
+  const seen = new Set<string>();
+  for (const trigger of value) {
+    const name =
+      typeof trigger === 'string'
+        ? trigger
+        : (readObject(trigger, `${scenePath} trigger`).trigger ?? (trigger as { id?: unknown }).id);
+    const event = typeof trigger === 'string' ? 'load' : (trigger as { event?: unknown }).event;
+    if (
+      typeof name !== 'string' ||
+      !/^[\w-]+$/.test(name) ||
+      (event !== 'load' && event !== 'action')
+    ) {
+      throw new Error(`${scenePath} trigger names must be nonempty identifiers`);
+    }
+    if (seen.has(name)) throw new Error(`${scenePath} duplicates trigger ${name}`);
+    seen.add(name);
+    if (event === 'load') names.add(name);
+  }
+  return [...names];
 }
 
 function assetPath(root: string, folder: 'scenes' | 'sprites', id: string): string {
-  if (!/^[a-z0-9-]+$/.test(id)) {
-    throw new Error(`Asset id ${id} must use lowercase letters, numbers, and hyphens`);
+  if (!/^[a-z0-9_-]+$/.test(id)) {
+    throw new Error(`Asset id ${id} must use lowercase letters, numbers, hyphens, and underscores`);
   }
   return path.join(root, folder, `${id}.json`);
 }
@@ -57,6 +100,7 @@ async function readProp(
   index: number,
   width: number,
   height: number,
+  depthMode: DepthMode,
   sprites: Map<string, Sprite>,
   seen: Set<string>,
 ): Promise<Prop> {
@@ -65,13 +109,51 @@ async function readProp(
   const id = readId(record.id, `${label} id`);
   if (seen.has(id)) throw new Error(`${label} duplicates id ${id}`);
   seen.add(id);
-  if (record.type !== 'Prop') throw new Error(`${label} type must be Prop`);
-  const sprite = await loadSprite(assetsRoot, readId(record.sprite, `${label} sprite`), sprites);
+  if (record.type === 'Background') {
+    const spriteId = readId(record.sprite, `${label} sprite`);
+    const index = readInt(record.index ?? 0, `${label} index`, 0, 255);
+    const sprite = await loadSprite(assetsRoot, spriteId, sprites, index);
+    return new Background(
+      id,
+      readInt(record.x, `${label} x`, 0, width - 1),
+      readInt(record.y, `${label} y`, 0, height - 1),
+      0,
+      0,
+      sprite,
+    );
+  }
+  if (record.type !== 'Prop') throw new Error(`${label} type must be Prop or Background`);
+  let sprite: Sprite;
+  let depthOffset = readInt(record.depthOffset ?? 0, `${label} depthOffset`, -1000, 1000);
+  if (record.prop !== undefined) {
+    const propId = readId(record.prop, `${label} prop`);
+    const file = path.join(assetsRoot, 'props', `${propId}.json`);
+    const parsed = parseProp(await readJson(file));
+    if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
+    const asset: PropDocument = parsed.value;
+    if (asset.id !== propId) throw new Error(`${file} id does not match ${propId}`);
+    let spriteId: string;
+    let frameIndex: number;
+    if (asset.visual.type === 'sprite') {
+      spriteId = asset.visual.id;
+      frameIndex = asset.visual.index;
+    } else {
+      const clipFile = path.join(assetsRoot, 'animations', `${asset.visual.id}.json`);
+      const clip = parseAnimation(await readJson(clipFile));
+      if (!clip.ok) throw new Error(`${clipFile}: ${clip.error}`);
+      const first = clip.value.frames.find((frame) => !isInvisibleFrame(frame));
+      if (!first || isInvisibleFrame(first)) throw new Error(`${clipFile} has no visible frame`);
+      spriteId = first.sprite;
+      frameIndex = first.index;
+    }
+    sprite = await loadSprite(assetsRoot, spriteId, sprites, frameIndex);
+    depthOffset = asset.depthOffset + (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
+  } else sprite = await loadSprite(assetsRoot, readId(record.sprite, `${label} sprite`), sprites);
   return new Prop(
     id,
     readInt(record.x, `${label} x`, 0, width - 1),
     readInt(record.y, `${label} y`, 0, height - 1),
-    readInt(record.depthOffset ?? 0, `${label} depthOffset`, -1000, 1000),
+    depthOffset,
     readInt(record.z ?? 0, `${label} z`, -1000, 1000),
     sprite,
   );
@@ -81,11 +163,44 @@ async function loadSprite(
   assetsRoot: string,
   spriteId: string,
   cache: Map<string, Sprite>,
+  frameIndex = 0,
 ): Promise<Sprite> {
-  const cached = cache.get(spriteId);
+  const key = `${spriteId}:${frameIndex}`;
+  const cached = cache.get(key);
   if (cached) return cached;
   const file = assetPath(assetsRoot, 'sprites', spriteId);
   const record = readObject(await readJson(file), file);
+  if (record.version === 3) {
+    const parsed = parseStoredSprite(record);
+    if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
+    if (parsed.value.id !== spriteId || !parsed.value.sprites[frameIndex])
+      throw new Error(`${file} has no sprite ${spriteId} frame ${frameIndex}`);
+    let palette: PaletteDocument = defaultPalette();
+    try {
+      const source = parsePalette(
+        JSON.parse(await fs.readFile(path.join(assetsRoot, 'palette.json'), 'utf8')) as unknown,
+      );
+      if (!source.ok) throw new Error(`Invalid scene palette: ${source.error}`);
+      palette = source.value;
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+    }
+    const cells = flattenSprite(parsed.value, frameIndex).map((cell) => ({
+      ch: cell.ch,
+      fg: parseHexColor(paletteRgb(palette, cell.fg) ?? '#ffffff'),
+      bg: parseHexColor(paletteRgb(palette, cell.bg) ?? '#000000'),
+    }));
+    const sprite = new Sprite(
+      spriteId,
+      parsed.value.width,
+      parsed.value.height,
+      parsed.value.originX,
+      parsed.value.originY,
+      cells,
+    );
+    cache.set(key, sprite);
+    return sprite;
+  }
   expectFormat(record, file, 'incanterm-sprite');
   const id = readId(record.id, `${file} id`);
   if (id !== spriteId) throw new Error(`${file} id is ${id}, expected ${spriteId}`);
@@ -100,7 +215,7 @@ async function loadSprite(
     readInt(record.originY, `${file} originY`, 0, height - 1),
     cells,
   );
-  cache.set(spriteId, sprite);
+  cache.set(key, sprite);
   return sprite;
 }
 
@@ -182,8 +297,10 @@ function readObject(value: unknown, label: string): Record<string, unknown> {
 }
 
 function readId(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !/^[a-z0-9-]+$/.test(value) || value.length > 64) {
-    throw new Error(`${label} must be a short id of lowercase letters, numbers, and hyphens`);
+  if (typeof value !== 'string' || !/^[a-z0-9_-]+$/.test(value) || value.length > 64) {
+    throw new Error(
+      `${label} must be a short id of lowercase letters, numbers, hyphens, and underscores`,
+    );
   }
   return value;
 }

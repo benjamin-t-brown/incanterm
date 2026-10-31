@@ -1,7 +1,8 @@
 import { CellBuffer, type Cell } from './cell-buffer.js';
-import { Sprite } from './sprite.js';
+import type { Sprite } from './sprite.js';
+import { compareSceneDrawRank, sceneDepth, type DepthMode } from './scene-order.js';
 
-export type DepthMode = 'bottom-up' | 'regular-z';
+export type { DepthMode } from './scene-order.js';
 
 const MARGIN: Cell = {
   ch: ' ',
@@ -21,7 +22,7 @@ export abstract class Entity {
   abstract draw(buffer: CellBuffer, originX: number, originY: number): void;
 
   depth(mode: DepthMode): number {
-    return mode === 'bottom-up' ? this.y + this.depthOffset : this.z;
+    return sceneDepth(mode, this.y, this.z, this.depthOffset);
   }
 }
 
@@ -42,6 +43,8 @@ export class Prop extends Entity {
   }
 }
 
+export class Background extends Prop {}
+
 export class Scene {
   constructor(
     readonly id: string,
@@ -50,13 +53,24 @@ export class Scene {
     readonly depthMode: DepthMode,
     readonly clear: Cell,
     readonly entities: readonly Entity[],
+    readonly triggers: readonly string[] = [],
   ) {}
 
   draw(buffer: CellBuffer, originX: number, originY: number): void {
     const ranked = this.entities.map((entity, index) => ({ entity, index }));
-    ranked.sort(
-      (a, b) =>
-        a.entity.depth(this.depthMode) - b.entity.depth(this.depthMode) || a.index - b.index,
+    ranked.sort((a, b) =>
+      compareSceneDrawRank(
+        {
+          background: a.entity instanceof Background,
+          depth: a.entity.depth(this.depthMode),
+          order: a.index,
+        },
+        {
+          background: b.entity instanceof Background,
+          depth: b.entity.depth(this.depthMode),
+          order: b.index,
+        },
+      ),
     );
     for (const { entity } of ranked) entity.draw(buffer, originX, originY);
   }

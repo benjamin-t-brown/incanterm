@@ -26,7 +26,10 @@ const startClient = (context: ExtensionContext) => {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'rpgscript' }],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher('**/.clientrc'),
+      fileEvents: [
+        workspace.createFileSystemWatcher('**/.clientrc'),
+        workspace.createFileSystemWatcher('**/*.rpgscript'),
+      ],
       configurationSection: 'rpgscript',
     },
   };

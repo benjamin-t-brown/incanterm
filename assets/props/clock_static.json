@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "clock_static",
+  "visual": {
+    "type": "sprite",
+    "id": "clock",
+    "index": 1
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

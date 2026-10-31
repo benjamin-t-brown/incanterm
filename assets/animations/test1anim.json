@@ -3,21 +3,22 @@
   "version": 1,
   "id": "test1anim",
   "loop": true,
+  "defaultDurationMs": 120,
   "frames": [
     {
       "sprite": "johnathan1",
       "index": 2,
-      "durationMs": 100
+      "durationMs": 120
     },
     {
       "sprite": "johnathan1",
       "index": 3,
-      "durationMs": 100
+      "durationMs": 120
     },
     {
       "sprite": "johnathan1",
       "index": 4,
-      "durationMs": 100
+      "durationMs": 120
     }
   ]
 }

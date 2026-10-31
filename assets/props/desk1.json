@@ -1,0 +1,23 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "desk1",
+  "visual": {
+    "type": "sprite",
+    "id": "desk",
+    "index": 0
+  },
+  "width": 6,
+  "height": 3,
+  "blockedCells": [
+    6,
+    7,
+    8,
+    9,
+    13,
+    14,
+    15
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

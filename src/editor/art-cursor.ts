@@ -22,7 +22,8 @@ export type ArtTool =
   | 'fg-path'
   | 'bg-path'
   | 'fg'
-  | 'bg';
+  | 'bg'
+  | 'move';
 
 export type ArtCursorKind =
   | 'brush'
@@ -40,7 +41,8 @@ export type ArtCursorKind =
   | 'bg-path'
   | 'paste'
   | 'pick'
-  | 'pan';
+  | 'pan'
+  | 'move';
 
 export type ArtCursorGesture = 'pan' | 'pick' | 'paint' | 'select' | 'path';
 
@@ -72,6 +74,7 @@ const KIND_ICON = {
   'fg-erase': 'large-paint-brush',
   'bg-erase': 'large-paint-brush',
   select: 'select',
+  move: 'mouse',
   path: 'pencil',
   'fg-path': 'pencil',
   'bg-path': 'pencil',

@@ -11,6 +11,11 @@
         ["[", "]"],
         ["(", ")"]
     ],
+    // Parentheses use the Iro/TextMate function color, independent of block depth.
+    "colorizedBracketPairs": [
+        ["{", "}"],
+        ["[", "]"]
+    ],
     // symbols that are auto closed when typing
     "autoClosingPairs": [
         ["{", "}"],

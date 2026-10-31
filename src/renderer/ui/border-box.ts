@@ -57,6 +57,36 @@ export function isBorderStyle(value: string): value is BorderStyle {
   return (BORDER_STYLES as readonly string[]).includes(value);
 }
 
+export function paintBox(
+  ctx: DrawContext,
+  width: number,
+  height: number,
+  border: BorderStyle,
+  ink: (ch: string) => Cell,
+): void {
+  const fill = ink(' ');
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) ctx.set(x, y, fill);
+  }
+  const glyphs = BORDER_GLYPHS[border];
+  const lastX = width - 1;
+  const lastY = height - 1;
+  const horizontal = ink(glyphs.horizontal);
+  const vertical = ink(glyphs.vertical);
+  for (let x = 1; x < lastX; x++) {
+    ctx.set(x, 0, horizontal);
+    ctx.set(x, lastY, horizontal);
+  }
+  for (let y = 1; y < lastY; y++) {
+    ctx.set(0, y, vertical);
+    ctx.set(lastX, y, vertical);
+  }
+  ctx.set(0, 0, ink(glyphs.topLeft));
+  ctx.set(lastX, 0, ink(glyphs.topRight));
+  ctx.set(0, lastY, ink(glyphs.bottomLeft));
+  ctx.set(lastX, lastY, ink(glyphs.bottomRight));
+}
+
 export class BorderBox extends UIElement {
   border: BorderStyle;
   fg: Rgb;
@@ -135,27 +165,7 @@ export class BorderBox extends UIElement {
   }
 
   protected paint(ctx: DrawContext): void {
-    const fill = this.ink(' ');
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) ctx.set(x, y, fill);
-    }
-    const glyphs = BORDER_GLYPHS[this.border];
-    const lastX = this.width - 1;
-    const lastY = this.height - 1;
-    const horizontal = this.ink(glyphs.horizontal);
-    const vertical = this.ink(glyphs.vertical);
-    for (let x = 1; x < lastX; x++) {
-      ctx.set(x, 0, horizontal);
-      ctx.set(x, lastY, horizontal);
-    }
-    for (let y = 1; y < lastY; y++) {
-      ctx.set(0, y, vertical);
-      ctx.set(lastX, y, vertical);
-    }
-    ctx.set(0, 0, this.ink(glyphs.topLeft));
-    ctx.set(lastX, 0, this.ink(glyphs.topRight));
-    ctx.set(0, lastY, this.ink(glyphs.bottomLeft));
-    ctx.set(lastX, lastY, this.ink(glyphs.bottomRight));
+    paintBox(ctx, this.width, this.height, this.border, (ch) => this.ink(ch));
   }
 
   protected drawChildren(ctx: DrawContext): void {

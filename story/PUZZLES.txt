@@ -1,0 +1,14 @@
+Rooms
+
+- School + School Hallway
+
+- Science closet 
+
+  - Johnathan and Vivi get teleported into the Science Closet.  It's locked from the outside by a thin metal door.  Inside the closet is a bunch of old machines/crates and storage from years past.  To get out of the room they must use the massive focus magnet on a cart to pull it towards the door at high speed to knock it down.  To activate the magnet, it needs power: two batteries that can be found elsewhere in the room.  Battery 1 can be found powering an old terminal that seems to connect to a database of school stuff.  To get the battery, terminal must be put in maintenance mode, which unlocks its internals.  Maintenance mode requires a password (user has to type this in), the password is written on the last page an old text book, by a forgetful teacher.  One of these books is on a shelf in the room, but it's last page is ripped so the password is incomplete.  Johnathan can look up what other books are assigned to that teacher, then use another machine to fetch books from the Book Vault.
+
+  - Storage Escape-the-room 
+    - Move boxes
+    - Find batteries
+    - Activate magnet
+    - Old terminal that requires a combination to open
+    - Get Vivi to stand on Johnathan's shoulders

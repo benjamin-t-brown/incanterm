@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { defaultPalette, type PaletteDocument } from './palette.js';
 import { diagnoseScript, scriptNames, type ScriptDiagnostic } from './rpgscript/diagnose.js';
@@ -9,8 +9,12 @@ import {
   isInvisibleFrame,
   parseAnimation,
   parsePalette,
+  parseProp,
+  parseScene,
   parseSprite,
   type AnimationDocument,
+  type PropDocument,
+  type SceneDocument,
   type SpriteDocument,
 } from './schema.js';
 import {
@@ -24,7 +28,7 @@ import {
 } from './reference.js';
 import { encodeStoredSprite, parseStoredSprite } from './sprite-storage.js';
 import { mergeSprite } from './sprite-merge.js';
-import { SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
+import { SaveConflict, SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
 
 export class AssetError extends Error {
   constructor(
@@ -95,7 +99,9 @@ export class AssetStore {
     this.requireId(id);
     const file = this.file('sprites', id, '.json');
     return this.saves.save({
-      key: file, base, doc: draft,
+      key: file,
+      base,
+      doc: draft,
       validate: (value) => {
         const parsed = parseSprite(value);
         if (!parsed.ok) throw new AssetError(parsed.error, 422);
@@ -110,7 +116,9 @@ export class AssetStore {
 
   async savePaletteDraft(draft: unknown, base: unknown): Promise<PaletteDocument> {
     return this.saves.save({
-      key: this.palettePath(), base, doc: draft,
+      key: this.palettePath(),
+      base,
+      doc: draft,
       validate: (value) => {
         const parsed = parsePalette(value);
         if (!parsed.ok) throw new AssetError(parsed.error, 422);
@@ -126,11 +134,14 @@ export class AssetStore {
     this.requireId(id);
     const file = this.file('animations', id, '.json');
     return this.saves.save({
-      key: file, base, doc: draft,
+      key: file,
+      base,
+      doc: draft,
       validate: (value) => {
         const parsed = parseAnimation(value);
         if (!parsed.ok) throw new AssetError(parsed.error, 422);
-        if (parsed.value.id !== id) throw new AssetError('Animation id does not match its file', 422);
+        if (parsed.value.id !== id)
+          throw new AssetError('Animation id does not match its file', 422);
         return parsed.value;
       },
       read: () => this.readOptional(() => this.readAnimation(id)),
@@ -146,10 +157,17 @@ export class AssetStore {
     this.requireId(id);
     const file = this.file('scripts', id, '.rpgscript');
     return this.saves.save({
-      key: file, base, doc: draft,
+      key: file,
+      base,
+      doc: draft,
       validate: (value) => {
-        if (!value || typeof value !== 'object' || Array.isArray(value) ||
-            (value as ScriptFile).id !== id || typeof (value as ScriptFile).source !== 'string') {
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          Array.isArray(value) ||
+          (value as ScriptFile).id !== id ||
+          typeof (value as ScriptFile).source !== 'string'
+        ) {
           throw new AssetError('Script needs a matching id and source', 422);
         }
         const source = (value as ScriptFile).source;
@@ -166,8 +184,11 @@ export class AssetStore {
   }
 
   async deleteSprite(id: string): Promise<void> {
-    await this.remove(this.file('sprites', id, '.json'));
-    await this.deleteReference(id, true);
+    const file = this.file('sprites', id, '.json');
+    await this.saves.run(file, async () => {
+      await this.remove(file);
+      await this.deleteReference(id, true);
+    });
   }
 
   async readReference(id: string): Promise<SpriteReference> {
@@ -186,13 +207,37 @@ export class AssetStore {
     return parsed.value;
   }
 
+  async saveReferenceDraft(id: string, draft: unknown, base: unknown): Promise<SpriteReference> {
+    this.requireId(id);
+    const file = this.file('references', id, '.json');
+    return this.saves.save({
+      key: file,
+      base,
+      doc: draft,
+      validate: (value) => {
+        const parsed = parseReference(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id)
+          throw new AssetError('Reference id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readReference(id)),
+      write: (value) => this.writeAtomic(file, json(value)),
+      merge: mergeJson,
+    });
+  }
+
   async deleteReference(id: string, missingOk = false): Promise<void> {
     this.requireId(id);
-    const jsonRemoved = await this.removeIfExists(this.file('references', id, '.json'));
-    const imageRemoved = await this.removeReferenceImages(id);
-    if (!jsonRemoved && !imageRemoved && !missingOk) {
-      throw new AssetError('File not found', 404);
-    }
+    await this.saves.run(this.file('references', id, '.json'), () =>
+      this.saves.run(this.file('references', id, '.image'), async () => {
+        const jsonRemoved = await this.removeIfExists(this.file('references', id, '.json'));
+        const imageRemoved = await this.removeReferenceImages(id);
+        if (!jsonRemoved && !imageRemoved && !missingOk) {
+          throw new AssetError('File not found', 404);
+        }
+      }),
+    );
   }
 
   async readReferenceImage(
@@ -208,21 +253,37 @@ export class AssetStore {
     };
   }
 
-  async saveReferenceImage(id: string, bytes: Buffer, mime = ''): Promise<{ ext: ReferenceExt }> {
+  async saveReferenceImage(
+    id: string,
+    bytes: Buffer,
+    mime = '',
+    expected?: string | null,
+  ): Promise<{ ext: ReferenceExt; revision: string }> {
     this.requireId(id);
+    if (expected === undefined) throw new AssetError('Image upload needs a base revision', 428);
     if (bytes.length > MAX_REFERENCE_IMAGE_BYTES) throw new AssetError('File is too large', 413);
     if (bytes.length === 0) throw new AssetError('Image is empty', 422);
     const ext = detectReferenceImage(bytes, mime);
     if (!ext) throw new AssetError('Reference must be a png, jpeg, webp, or gif image', 422);
-    await this.removeReferenceImages(id, ext);
-    await this.writeBytes(this.file('references', id, `.${ext}`), bytes);
-    try {
-      const meta = await this.readReference(id);
-      if (meta.ext !== ext) await this.saveReference(id, { ...meta, ext });
-    } catch (error) {
-      if (!(error instanceof AssetError) || error.status !== 404) throw error;
-    }
-    return { ext };
+    const revision = imageRevision(bytes);
+    await this.saves.run(this.file('references', id, '.json'), () =>
+      this.saves.run(this.file('references', id, '.image'), async () => {
+        const disk = await this.findReferenceImage(id);
+        const current = disk ? imageRevision(disk.bytes) : null;
+        if (current !== expected && current !== revision) {
+          throw new SaveConflict('Reference image changed in another editor; nothing was saved');
+        }
+        if (current !== revision || disk?.ext !== ext) {
+          await this.writeAtomic(this.file('references', id, `.${ext}`), bytes);
+          await this.removeReferenceImages(id, ext);
+        }
+        const meta = await this.readOptional(() => this.readReference(id));
+        if (meta && meta.ext !== ext) {
+          await this.writeAtomic(this.file('references', id, '.json'), json({ ...meta, ext }));
+        }
+      }),
+    );
+    return { ext, revision };
   }
 
   async listAnimations(): Promise<string[]> {
@@ -272,11 +333,138 @@ export class AssetStore {
   }
 
   async deleteAnimation(id: string): Promise<void> {
-    await this.remove(this.file('animations', id, '.json'));
+    const file = this.file('animations', id, '.json');
+    await this.saves.run(file, () => this.remove(file));
+  }
+
+  async listProps(): Promise<string[]> {
+    return this.listValid('props', '.json', (text) => parseProp(JSON.parse(text)).ok);
+  }
+
+  async readProp(id: string): Promise<PropDocument> {
+    const parsed = parseProp(await this.readJson(this.file('props', id, '.json')));
+    if (!parsed.ok) throw new AssetError(parsed.error, 422);
+    if (parsed.value.id !== id) throw new AssetError('Prop id does not match its file', 422);
+    return parsed.value;
+  }
+
+  async savePropDraft(id: string, draft: unknown, base: unknown): Promise<PropDocument> {
+    this.requireId(id);
+    const file = this.file('props', id, '.json');
+    return this.saves.save({
+      key: file,
+      base,
+      doc: draft,
+      validate: (value) => {
+        const parsed = parseProp(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id) throw new AssetError('Prop id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readProp(id)),
+      write: async (value) => {
+        if (value.visual.type === 'sprite') {
+          if (!(await this.listSprites()).includes(value.visual.id)) {
+            throw new AssetError(`Prop references missing sprite "${value.visual.id}"`, 422);
+          }
+          const sprite = await this.readSprite(value.visual.id);
+          if (value.visual.index >= sprite.sprites.length) {
+            throw new AssetError('Prop references a missing sprite frame', 422);
+          }
+        } else if (!(await this.listAnimations()).includes(value.visual.id)) {
+          throw new AssetError(`Prop references missing animation "${value.visual.id}"`, 422);
+        }
+        await this.writeAtomic(file, json(value));
+      },
+      merge: mergeJson,
+    });
+  }
+
+  async deleteProp(id: string): Promise<void> {
+    const file = this.file('props', id, '.json');
+    await this.saves.run(file, () => this.remove(file));
+  }
+
+  async listScenes(): Promise<string[]> {
+    return this.listValid('scenes', '.json', (text) => parseScene(JSON.parse(text)).ok);
+  }
+
+  async readScene(id: string): Promise<SceneDocument> {
+    const parsed = parseScene(await this.readJson(this.file('scenes', id, '.json')));
+    if (!parsed.ok) throw new AssetError(parsed.error, 422);
+    if (parsed.value.id !== id) throw new AssetError('Scene id does not match its file', 422);
+    return parsed.value;
+  }
+
+  async saveSceneDraft(id: string, draft: unknown, base: unknown): Promise<SceneDocument> {
+    this.requireId(id);
+    const file = this.file('scenes', id, '.json');
+    return this.saves.save({
+      key: file,
+      base,
+      doc: draft,
+      validate: (value) => {
+        const parsed = parseScene(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id) throw new AssetError('Scene id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readScene(id)),
+      write: async (value) => {
+        for (const entity of value.entities) {
+          if (entity.type === 'Background' || 'sprite' in entity) {
+            let sprite: SpriteDocument | null = null;
+            try {
+              sprite = await this.readSprite(entity.sprite);
+            } catch (error) {
+              // The hand-authored test-room crate predates the editor sprite format.
+              if (entity.type !== 'Prop' || !(error instanceof AssetError) || error.status !== 422)
+                throw error;
+              const legacy = await this.readJson(this.file('sprites', entity.sprite, '.json'));
+              if (
+                !legacy ||
+                typeof legacy !== 'object' ||
+                (legacy as { id?: unknown }).id !== entity.sprite ||
+                (legacy as { format?: unknown }).format !== 'incanterm-sprite'
+              )
+                throw error;
+            }
+            if (entity.type === 'Background' && sprite && entity.index >= sprite.sprites.length)
+              throw new AssetError(`Background ${entity.id} references missing frame`, 422);
+          } else {
+            const prop = await this.readProp(entity.prop);
+            if (prop.visual.type === 'sprite') {
+              const sprite = await this.readSprite(prop.visual.id);
+              if (prop.visual.index >= sprite.sprites.length)
+                throw new AssetError(`Prop ${entity.id} references missing frame`, 422);
+            } else await this.readAnimation(prop.visual.id);
+          }
+        }
+        await this.writeAtomic(file, json(value));
+      },
+      merge: mergeJson,
+    });
+  }
+
+  async deleteScene(id: string): Promise<void> {
+    const file = this.file('scenes', id, '.json');
+    await this.saves.run(file, () => this.remove(file));
   }
 
   async listScripts(): Promise<string[]> {
     return this.listNames('scripts', '.rpgscript');
+  }
+
+  async listRpgTriggers(): Promise<string[]> {
+    const names = new Set<string>();
+    for (const id of await this.listScripts()) {
+      const { source } = await this.readScript(id);
+      for (const line of source.split(/\r?\n/)) {
+        const match = /^\s*#([\w-]+)\s*$/.exec(line);
+        if (match) names.add(match[1]);
+      }
+    }
+    return [...names].sort();
   }
 
   async readScript(id: string): Promise<ScriptFile> {
@@ -295,7 +483,8 @@ export class AssetStore {
   }
 
   async deleteScript(id: string): Promise<void> {
-    await this.remove(this.file('scripts', id, '.rpgscript'));
+    const file = this.file('scripts', id, '.rpgscript');
+    await this.saves.run(file, () => this.remove(file));
   }
 
   async diagnose(id: string, source: string): Promise<ScriptDiagnostic[]> {
@@ -349,19 +538,19 @@ export class AssetStore {
     if (kind === 'sprite') {
       const sprite = await this.readSprite(from);
       await this.ensureAbsent(this.file('sprites', id, '.json'));
-      const saved = await this.saveSprite(id, { ...sprite, id });
+      const saved = await this.saveSpriteDraft(id, { ...sprite, id }, null);
       await this.copyReference(from, id);
       return saved;
     }
     if (kind === 'animation') {
       const animation = await this.readAnimation(from);
       await this.ensureAbsent(this.file('animations', id, '.json'));
-      return this.saveAnimation(id, { ...animation, id });
+      return this.saveAnimationDraft(id, { ...animation, id }, null);
     }
     if (kind === 'script') {
       const script = await this.readScript(from);
       await this.ensureAbsent(this.file('scripts', id, '.rpgscript'));
-      return this.saveScript(id, script.source);
+      return this.saveScriptDraft(id, { id, source: script.source }, null);
     }
     throw new AssetError('Unknown asset kind', 400);
   }
@@ -371,7 +560,7 @@ export class AssetStore {
     const imported = importEdAscii(id, document);
     if (!imported.ok) throw new AssetError(imported.error, 422);
     await this.ensureAbsent(this.file('sprites', id, '.json'));
-    return this.saveSprite(id, imported.value);
+    return this.saveSpriteDraft(id, imported.value, null);
   }
 
   private requireId(id: string): string {
@@ -467,14 +656,15 @@ export class AssetStore {
   }
 
   private async readOptional<T>(read: () => Promise<T>): Promise<T | null> {
-    try { return await read(); }
-    catch (error) {
+    try {
+      return await read();
+    } catch (error) {
       if (error instanceof AssetError && error.status === 404) return null;
       throw error;
     }
   }
 
-  private async writeAtomic(file: string, text: string): Promise<void> {
+  private async writeAtomic(file: string, text: string | Buffer): Promise<void> {
     const temporary = `${file}.${randomUUID()}.tmp`;
     await fs.mkdir(path.dirname(file), { recursive: true });
     try {
@@ -502,13 +692,10 @@ export class AssetStore {
     }
     const image = await this.findReferenceImage(from);
     if (!meta && !image) return;
-    if (image) await this.writeBytes(this.file('references', id, `.${image.ext}`), image.bytes);
     if (meta) {
-      await this.writeText(
-        this.file('references', id, '.json'),
-        json({ ...meta, id, ext: image?.ext ?? meta.ext }),
-      );
+      await this.saveReferenceDraft(id, { ...meta, id, ext: image?.ext ?? meta.ext }, null);
     }
+    if (image) await this.saveReferenceImage(id, image.bytes, referenceMime(image.ext), null);
   }
 
   private async findReferenceImage(
@@ -569,6 +756,10 @@ export class AssetStore {
       return false;
     }
   }
+}
+
+export function imageRevision(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex');
 }
 
 function json(value: unknown): string {

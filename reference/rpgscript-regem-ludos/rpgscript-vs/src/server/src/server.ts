@@ -28,7 +28,7 @@ import {
   resolveWorkspacePath,
 } from './paths';
 import { getCompletionObjects } from './rpgscript/autocomplete';
-import { getHoverContents } from './rpgscript/hover';
+import { getHoverContents, getStorageAssignmentHover } from './rpgscript/hover';
 import { getDefinition } from './rpgscript/definition';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -128,17 +128,18 @@ connection.onDidChangeConfiguration((change) => {
 // Only keep settings for open documents
 documents.onDidClose((e) => {
   getDocumentSettings().delete(e.document.uri);
+  connection.sendDiagnostics({ uri: e.document.uri, diagnostics: [] });
+  documents.all().forEach(validateTextDocument);
 });
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent((change) => {
-  validateTextDocument(change.document);
+documents.onDidChangeContent(() => {
+  documents.all().forEach(validateTextDocument);
 });
 
 connection.onDidChangeWatchedFiles((_change) => {
-  // Monitored files have change in VSCode
-  connection.console.log('We received an file change event');
+  documents.all().forEach(validateTextDocument);
 });
 
 // This handler provides the initial list of the completion items.
@@ -168,12 +169,12 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
 
 connection.onHover((params: TextDocumentPositionParams): Hover | undefined => {
   const text = documents.get(params.textDocument.uri)?.getText() ?? '';
-  const word = getWordFromLine(
-    text.split('\n')[params.position.line] ?? '',
-    params.position.character
-  );
+  const line = text.split('\n')[params.position.line] ?? '';
+  const word = getWordFromLine(line, params.position.character);
 
-  const doc = getHoverContents(word ?? '');
+  const doc =
+    getStorageAssignmentHover(line, params.position.character) ??
+    getHoverContents(word ?? '');
 
   if (!doc) {
     return;
@@ -202,7 +203,9 @@ connection.onDefinition((params: DefinitionParams) => {
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   logger.log('Validate rpgscript document.', textDocument.uri);
+  const version = textDocument.version;
   const settings = await getSettingsForDocument(textDocument.uri);
+  if (documents.get(textDocument.uri) !== textDocument || textDocument.version !== version) return;
   setCurrentSettings(settings);
 
   if (settings.debug) {
@@ -219,7 +222,15 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const filePath = url.fileURLToPath(textDocument.uri);
 
   logger.log('Lint file', filePath, scriptsRoot);
-  const { diagnostics, parser } = lintFile(filePath, scriptsRoot, text);
+  const openFiles = new Map(
+    documents.all()
+      .filter(document => document.uri.startsWith('file:'))
+      .map(document => [url.fileURLToPath(document.uri), document.getText()] as [string, string])
+  );
+  const { diagnostics, parser } = lintFile(filePath, scriptsRoot, text, openFiles);
+  if (!getBaseSettings().hasDiagnosticRelatedInformationCapability) {
+    diagnostics.forEach(diagnostic => { delete diagnostic.relatedInformation; });
+  }
   setCurrentParser(parser);
   logger.log('send diagnostics', textDocument.uri, diagnostics);
 

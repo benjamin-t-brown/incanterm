@@ -3,6 +3,8 @@ import http from 'node:http';
 import path from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { Scene } from '../game/scene.js';
+import type { ScriptLibrary } from '../game/rpgscript/index.js';
+import type { PortraitAssets } from '../game/portrait-assets.js';
 import { encodeMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.js';
 import { createGameSession } from './game-session.js';
 import { closeServer, listen } from './listen.js';
@@ -32,6 +34,8 @@ export async function startHttpServer(options: {
   port: number;
   staticRoot?: string;
   scene: Scene;
+  scripts: ScriptLibrary;
+  portraits?: PortraitAssets;
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -47,7 +51,7 @@ export async function startHttpServer(options: {
   });
 
   webSocketServer.on('connection', (socket) => {
-    attachSocket(socket, options.scene);
+    attachSocket(socket, options.scene, options.scripts, options.portraits);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -68,10 +72,21 @@ export async function startHttpServer(options: {
   };
 }
 
-function attachSocket(socket: WebSocket, scene: Scene): void {
-  const session = createGameSession(scene, (text) => {
-    send(socket, { type: 'terminal-data', data: text });
-  });
+function attachSocket(
+  socket: WebSocket,
+  scene: Scene,
+  scripts: ScriptLibrary,
+  portraits?: PortraitAssets,
+): void {
+  const session = createGameSession(
+    scene,
+    (text, cols, rows) => {
+      send(socket, { type: 'terminal-data', data: text, cols, rows });
+    },
+    scripts,
+    portraits,
+  );
+  socket.on('close', () => session.close());
   send(socket, { type: 'session-status', status: 'connected', sessionId: session.id });
   session.open();
 

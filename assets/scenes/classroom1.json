@@ -1,0 +1,52 @@
+{
+  "format": "incanterm-scene",
+  "version": 1,
+  "id": "classroom1",
+  "width": 120,
+  "height": 40,
+  "depthMode": "bottom-up",
+  "clear": {
+    "ch": " ",
+    "fg": "#e0e9db",
+    "bg": "#102b2a"
+  },
+  "entities": [
+    {
+      "id": "background-1",
+      "type": "Background",
+      "sprite": "bg_classroom1",
+      "index": 0,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "desk1-1",
+      "type": "Prop",
+      "prop": "desk1",
+      "x": 87,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "clock_static-1",
+      "type": "Prop",
+      "prop": "clock_static",
+      "x": 80,
+      "y": 5,
+      "z": 0
+    }
+  ],
+  "triggers": [
+    {
+      "id": "4d49af56-5a36-4d13-971a-799096818b3d",
+      "trigger": "trigger6",
+      "event": "action",
+      "x": 31,
+      "y": 13,
+      "width": 17,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true
+    }
+  ]
+}

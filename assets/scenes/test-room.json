@@ -6,6 +6,7 @@
   "height": 10,
   "depthMode": "bottom-up",
   "clear": { "ch": ".", "fg": "#5c6b63", "bg": "#14201c" },
+  "triggers": ["testRoomEntry"],
   "entities": [
     {
       "id": "crate",

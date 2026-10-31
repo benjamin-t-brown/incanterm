@@ -111,7 +111,8 @@ export function mountScripts(root: HTMLElement): () => void {
     try {
       const stored = await saveDraft<ScriptFile>(
         `/api/scripts/${encodeURIComponent(id)}`,
-        { id, source: sent }, base,
+        { id, source: sent },
+        base,
       );
       if (currentId === id) {
         const rebased = mergeText(sent, source.value, stored.source);
@@ -125,8 +126,11 @@ export function mountScripts(root: HTMLElement): () => void {
       await reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not save script';
-      await alertModal(error instanceof ApiError && error.status === 409
-        ? `${message}. Your unsaved script remains open.` : message);
+      await alertModal(
+        error instanceof ApiError && error.status === 409
+          ? `${message}. Your unsaved script remains open.`
+          : message,
+      );
     } finally {
       saving = false;
     }

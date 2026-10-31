@@ -1,5 +1,6 @@
 import { CellBuffer, type Cell } from '../../game/cell-buffer.js';
 import { BorderBox, BORDER_STYLES } from './border-box.js';
+import { Button } from './button.js';
 import { DrawContext, UIElement } from './element.js';
 import { ParagraphWrapped } from './paragraph-wrapped.js';
 import { Quad } from './quad.js';
@@ -135,6 +136,41 @@ const quadTest: VisualTest = {
   },
 };
 
+const buttonTest: VisualTest = {
+  name: 'button',
+  contentHeight: 18,
+  draw(buffer, scrollY) {
+    const root = new UIElement('button-gallery', 0, -scrollY, buffer.width, this.contentHeight);
+    root.addChild(new Label('heading', 0, 0, 'Button — text in a fixed-width border'));
+
+    const x = buffer.width < 6 ? 0 : 2;
+    const fg = background.fg;
+    const bg = background.bg;
+
+    root.addChild(new Label('wide-label', x, 2, 'width 12'));
+    root.addChild(new Button('wide', x, 3, 12, 'Start', { fg, bg }));
+
+    root.addChild(new Label('clip-label', x, 7, 'width 8 clips the label'));
+    root.addChild(new Button('clip', x, 8, 8, 'Continue', { fg, bg }));
+
+    root.addChild(new Label('style-label', x, 12, 'border styles'));
+    for (const [index, border] of BORDER_STYLES.entries()) {
+      const width = 6;
+      const gap = 1;
+      const bx = x + index * (width + gap);
+      if (bx + width > buffer.width) break;
+      root.addChild(
+        new Button(`${border}-btn`, bx, 13, width, 'OK', {
+          border,
+          fg: { r: 110 + index * 30, g: 205 - index * 20, b: 230 - index * 20 },
+          bg,
+        }),
+      );
+    }
+    root.render(buffer);
+  },
+};
+
 class GlyphGrid extends UIElement {
   constructor(
     id: string,
@@ -157,7 +193,12 @@ class GlyphGrid extends UIElement {
 }
 
 // Add new component galleries here; the terminal runner handles selection, sizing and scrolling.
-export const visualTests: readonly VisualTest[] = [borderBoxTest, paragraphWrappedTest, quadTest];
+export const visualTests: readonly VisualTest[] = [
+  borderBoxTest,
+  paragraphWrappedTest,
+  quadTest,
+  buttonTest,
+];
 
 export function renderVisualTest(
   test: VisualTest,

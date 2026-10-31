@@ -1,0 +1,85 @@
+#testRoomEntry
+  load,testRoomEntry
+@testRoomEntry
+  Guide: "Welcome to Incanterm."
+  Guide: "The crate is waiting for you."
+
+@testRoomEntry2
+  Guide: "See you soon."
+  +a=true
+  +someVar=a
+  +{someVar}=2
+  +vars.tmp=2
+  +b={vars.tmp}
+  +c=4
+  +log("Result {vars.tmp}, {b}, {c}")
+  +log("A is set")
+  +?is(a):{
+    +a=false
+    +log("A is set")
+  }
+
+@testArgs
+  +:testArgs2("a")
+  +:testArgs2("")
+
+@testArgs2(arg1)
+  +log("Args [arg1]")
+  +?is([arg1]):{
+    +log("Arg 1 is good")
+  }
+  +?else:{
+    +log("Arg1 is bad")
+  }
+
+@lint_demo(arg1, true, false)
+  +arg1="updated"
+  +setStorage(arg1, "updated")
+  +:lint_receiver(arg1)
+
+@lint_receiver(value)
+  +log("[value]")
+
+#trigger1
+  action,trigger1
+@trigger1
+  +log("Clicked trigger1")
+
+#trigger2
+  action,trigger3
+  action,+?eq({vars.a}, {vars.b}):trigger2
+@trigger2
+  +log("Clicked trigger2 under a condition")
+@trigger3
+  +log("Clicked trigger3 under a condition")
+
+
+@testFalse
+  +a=false
+  +b=1
+  +?is(a):{
+    +log("A is true")
+  }
+  +?else:{
+    +log("A is false")
+  }
+
+@testPort
+  +setConv("johnathan1_0")
+  Guide: "Welcome to Incanterm."
+  Guide: "The crate is waiting for you."
+
+#trigger4
+  action,trigger4
+@trigger4
+  +log("Clicked trigger4")
+
+#trigger5
+  action,trigger5
+@trigger5
+  +log("Clicked trigger5")
+
+#trigger6
+  action,trigger6
+@trigger6
+  +log("Clicked trigger6")

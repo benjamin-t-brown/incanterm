@@ -4,6 +4,8 @@ import * as path from 'path';
 import { RPGScriptParser } from './rpgscript';
 import { getSceneCommands } from './commands';
 import { logger } from '../logger';
+import { declaredScriptSignatures, duplicateNameDiagnostics } from './duplicates';
+import { localScopeDiagnostics } from './local-scope';
 
 const createErrorDiagnostic = (
   fileName: string,
@@ -33,61 +35,70 @@ const createErrorDiagnostic = (
 };
 
 const checkCallScriptCommands = (
-  name: string,
+  filePath: string,
+  source: string,
+  scripts: ReadonlyMap<string, readonly string[]>,
   parser: RPGScriptParser,
   diagnostics: Diagnostic[]
 ) => {
-  const scripts = Object.keys(parser.getScripts());
+  const lines = source.split(/\r?\n/);
   const callScriptStrings = parser.getCallScriptStrings();
-  callScriptStrings.forEach(({ scriptName, lineNum, fileName }) => {
-    if (fileName === 'linter' && !scripts.includes(scriptName)) {
-      diagnostics.push(
-        createErrorDiagnostic(
-          name,
-          lineNum,
-          'Error',
-          'No script exists with name "' + scriptName + '".'
-        )
-      );
+  callScriptStrings.forEach(({ scriptName, lineNum, fileName, argCount }) => {
+    const parameters = scripts.get(scriptName);
+    if (canonicalPath(fileName) === filePath && (!parameters || parameters.length !== argCount)) {
+      const line = lines[lineNum - 1] ?? '';
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        code: parameters ? 'script-argument-count' : 'unknown-script',
+        range: {
+          start: { line: lineNum - 1, character: line.length - line.trimStart().length },
+          end: { line: lineNum - 1, character: line.trimEnd().length },
+        },
+        message: parameters
+          ? `Script ${scriptName} expects ${parameters.length} argument(s), got ${argCount}.`
+          : `No script exists with name "${scriptName}".`,
+        source: 'RPGScript:' + path.basename(filePath),
+      });
     }
   });
 };
 
-const getAllRpgscriptFiles = (scriptsDir: string, ignoreFileName: string) => {
+const canonicalPath = (file: string) => {
+  const resolved = path.resolve(file);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+};
+
+const getAllRpgscriptFiles = (scriptsDir: string) => {
   const files = fs.readdirSync(scriptsDir);
   let rpgscriptFileNames: string[] = [];
 
   for (let i = 0; i < files.length; i++) {
-    const nextFileName = scriptsDir + '/' + files[i];
-
-    if (files[i] === ignoreFileName) {
-      continue;
-    }
+    const nextFileName = path.join(scriptsDir, files[i]);
 
     const stat = fs.statSync(nextFileName);
     if (stat.isDirectory()) {
       rpgscriptFileNames = rpgscriptFileNames.concat(
-        getAllRpgscriptFiles(nextFileName, ignoreFileName)
+        getAllRpgscriptFiles(nextFileName)
       );
     } else if (path.extname(nextFileName) === '.rpgscript') {
       rpgscriptFileNames.push(nextFileName);
     }
   }
 
-  return rpgscriptFileNames;
+  return rpgscriptFileNames.sort();
 };
 
 export const lintFile = (
   filePath: string,
   scriptRoot: string,
-  fileSrc: string
+  fileSrc: string,
+  openFiles: ReadonlyMap<string, string> = new Map()
 ) => {
-  const folderPath = scriptRoot;
+  const folderPath = canonicalPath(scriptRoot);
+  filePath = canonicalPath(filePath);
   const parser = new RPGScriptParser({
     commands: getSceneCommands(),
   });
-
-  const diagnostics: Diagnostic[] = [];
 
   // logger.log('Lint: ', filePath, folderPath);
 
@@ -95,18 +106,28 @@ export const lintFile = (
     throw new Error('No folder exists with name: ' + folderPath);
   }
 
-  if (!fs.existsSync(filePath)) {
-    throw new Error('No file exists with name: ' + filePath);
-  }
-
   const fileName = path.basename(filePath);
-
-  const rpgscriptFileNames = getAllRpgscriptFiles(folderPath, fileName);
-  for (let i = 0; i < rpgscriptFileNames.length; i++) {
-    const localFileName = rpgscriptFileNames[i];
-    const fileSrc = fs.readFileSync(localFileName).toString();
+  const sources = new Map<string, string>();
+  for (const file of getAllRpgscriptFiles(folderPath)) {
+    sources.set(canonicalPath(file), fs.readFileSync(file, 'utf8'));
+  }
+  for (const [file, source] of openFiles) {
+    const normalized = canonicalPath(file);
+    const relative = path.relative(folderPath, normalized);
+    if (!path.isAbsolute(relative) && relative !== '..' &&
+        !relative.startsWith('..' + path.sep) && path.extname(normalized) === '.rpgscript') {
+      sources.set(normalized, source);
+    }
+  }
+  sources.set(filePath, fileSrc);
+  const diagnostics = [
+    ...duplicateNameDiagnostics(filePath, folderPath, sources),
+    ...localScopeDiagnostics(filePath, fileSrc),
+  ];
+  for (const [localFileName, source] of sources) {
+    if (localFileName === filePath) continue;
     try {
-      parser.parse(localFileName, fileSrc);
+      parser.parse(localFileName, source);
     } catch (e) {
       diagnostics.push(
         createErrorDiagnostic(
@@ -118,10 +139,6 @@ export const lintFile = (
           )}: ${String(e)}`
         )
       );
-      return {
-        diagnostics,
-        parser,
-      };
     }
   }
 
@@ -149,7 +166,21 @@ export const lintFile = (
     }
   }
 
-  checkCallScriptCommands(fileName, parser, diagnostics);
+  checkCallScriptCommands(filePath, fileSrc, declaredScriptSignatures(sources), parser, diagnostics);
+  for (const script of Object.values(parser.getScripts())) {
+    if (canonicalPath(script.filename) !== filePath) continue;
+    for (const block of script.blocks) {
+      for (const command of block.commands) {
+        if (command.type !== 'setLocal' || script.parameters.includes(String(command.args[0]))) continue;
+        const message = `Unknown local [${command.args[0]}].`;
+        if (diagnostics.some(d => d.code === 'unknown-local' && d.range.start.line === command.i - 1 && d.message === message)) continue;
+        diagnostics.push({
+          ...createErrorDiagnostic(fileName, command.i, 'error', message),
+          code: 'unknown-local',
+        });
+      }
+    }
+  }
 
   // logger.log('Linting done!');
 

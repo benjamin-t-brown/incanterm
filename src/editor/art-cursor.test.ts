@@ -34,6 +34,7 @@ describe('art cursor', () => {
     expect(artCursorKind(state({ tool: 'fg' }))).toBe('fg-brush');
     expect(artCursorKind(state({ tool: 'bg' }))).toBe('bg-brush');
     expect(artCursorKind(state({ tool: 'select' }))).toBe('select');
+    expect(artCursorKind(state({ tool: 'move' }))).toBe('move');
     expect(artCursorKind(state({ tool: 'path' }))).toBe('path');
     expect(artCursorKind(state({ tool: 'fg-path' }))).toBe('fg-path');
   });

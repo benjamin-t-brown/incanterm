@@ -45,6 +45,21 @@ describe('UI visual tests', () => {
     expect(frame).not.toContain('mountain pass.');
   });
 
+  const button = visualTests.find((test) => test.name === 'button');
+  if (!button) throw new Error('Missing button gallery');
+
+  it('renders labels inside fixed-width borders', () => {
+    const frame = plainText(renderVisualTest(button, 40, 24));
+    expect(frame).toContain('┌──────────┐');
+    expect(frame).toContain('│  Start   │');
+    expect(frame).toContain('┌──────┐');
+    expect(frame).toContain('│Contin│');
+    expect(frame).not.toContain('Continue');
+    expect(frame).toContain('╔════╗');
+    expect(frame).toContain('┃ OK ┃');
+    expect(frame).toContain('│ OK │');
+  });
+
   it('scrolls a small viewport without overwriting the controls', () => {
     const first = plainText(renderVisualTest(borderBox, 20, 8));
     const last = plainText(renderVisualTest(borderBox, 20, 8, 999));

@@ -14,6 +14,7 @@
   "include": [
     "src/server/**/*.ts",
     "src/client/**/*.ts",
+    "src/loopback/**/*.ts",
     "src/game/**/*.ts",
     "src/renderer/**/*.ts",
     "src/protocol/**/*.ts",

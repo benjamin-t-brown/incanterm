@@ -1,0 +1,17 @@
+// A small integration smoke test. Each keypress advances one spoken line.
+@testDialogue1
+  Guide: "Welcome to Incanterm."
+  Guide: "The crate is waiting for you."
+  +:testDialogue2()
+
+@testDialogue2
+  Guide: "See you soon."
+  +setStorage(a, true)
+  +log("A is set")
+  +?is(a):{
+    +setStorage(a, false)
+    +log("A is set")
+  }
+  +?else():{
+
+  }

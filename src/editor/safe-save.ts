@@ -22,14 +22,7 @@ export class SaveCoordinator {
   async save<T>(options: SaveOptions<T>): Promise<T> {
     const ours = options.validate(options.doc);
     const base = options.base === null ? null : options.validate(options.base);
-    const waiting = this.pending.get(options.key) ?? Promise.resolve();
-    let release!: () => void;
-    const next = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    this.pending.set(options.key, next);
-    await waiting;
-    try {
+    return this.run(options.key, async () => {
       const disk = await options.read();
       if (disk === null && base !== null) {
         throw new SaveConflict('File was deleted since it was opened; save as a new id');
@@ -37,16 +30,28 @@ export class SaveCoordinator {
       if (disk !== null && base === null) {
         throw new SaveConflict('File already exists; open it before saving');
       }
-      const merged = disk && base
-        ? options.merge(base, ours, disk)
-        : { ok: true as const, value: ours };
+      const merged =
+        disk && base ? options.merge(base, ours, disk) : { ok: true as const, value: ours };
       if (!merged.ok) throw new SaveConflict(`${merged.reason}; nothing was saved`);
       const valid = options.validate(merged.value);
       if (disk === null || !same(disk, valid)) await options.write(valid);
       return valid;
+    });
+  }
+
+  async run<T>(key: string, operation: () => Promise<T>): Promise<T> {
+    const waiting = this.pending.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const next = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.pending.set(key, next);
+    await waiting;
+    try {
+      return await operation();
     } finally {
       release();
-      if (this.pending.get(options.key) === next) this.pending.delete(options.key);
+      if (this.pending.get(key) === next) this.pending.delete(key);
     }
   }
 }
@@ -57,7 +62,12 @@ export function mergeJson<T>(base: T, ours: T, theirs: T): MergeResult<T> {
   return mergeValue(base, ours, theirs, 'document') as MergeResult<T>;
 }
 
-function mergeValue(base: unknown, ours: unknown, theirs: unknown, at: string): MergeResult<unknown> {
+function mergeValue(
+  base: unknown,
+  ours: unknown,
+  theirs: unknown,
+  at: string,
+): MergeResult<unknown> {
   if (same(ours, base)) return { ok: true, value: theirs };
   if (same(theirs, base) || same(ours, theirs)) return { ok: true, value: ours };
   if (isRecord(base) && isRecord(ours) && isRecord(theirs)) {
@@ -73,8 +83,12 @@ function mergeValue(base: unknown, ours: unknown, theirs: unknown, at: string): 
     }
     return { ok: true, value: result };
   }
-  if (Array.isArray(base) && Array.isArray(ours) && Array.isArray(theirs) &&
-      stableIds(base, ours, theirs)) {
+  if (
+    Array.isArray(base) &&
+    Array.isArray(ours) &&
+    Array.isArray(theirs) &&
+    stableIds(base, ours, theirs)
+  ) {
     const result: unknown[] = [];
     for (let index = 0; index < base.length; index++) {
       const part = mergeValue(base[index], ours[index], theirs[index], `${at}[${index}]`);
@@ -88,10 +102,13 @@ function mergeValue(base: unknown, ours: unknown, theirs: unknown, at: string): 
 
 function stableIds(base: unknown[], ours: unknown[], theirs: unknown[]): boolean {
   if (base.length !== ours.length || base.length !== theirs.length) return false;
-  const ids = (values: unknown[]) => values.map((value) => isRecord(value) ? value.id : null);
+  const ids = (values: unknown[]) => values.map((value) => (isRecord(value) ? value.id : null));
   const original = ids(base);
-  return original.every((id) => typeof id === 'string') &&
-    same(original, ids(ours)) && same(original, ids(theirs));
+  return (
+    original.every((id) => typeof id === 'string') &&
+    same(original, ids(ours)) &&
+    same(original, ids(theirs))
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

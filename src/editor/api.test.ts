@@ -25,6 +25,88 @@ afterEach(async () => {
 });
 
 describe('asset API', () => {
+  it('accepts a reference image replacement only from its latest revision', async () => {
+    const store = await tempStore();
+    const url = '/api/references/photo/image';
+    const first = await dispatchAssetRequest(store, 'PUT', url, TINY_PNG, 'image/png', null);
+    expect(first.status).toBe(200);
+    const revision = (JSON.parse(String(first.body)) as { revision: string }).revision;
+    const changed = Buffer.concat([TINY_PNG, Buffer.from([0])]);
+    const replacement = await dispatchAssetRequest(
+      store,
+      'PUT',
+      url,
+      changed,
+      'image/png',
+      revision,
+    );
+    expect(replacement.status).toBe(200);
+    expect(
+      (await dispatchAssetRequest(store, 'PUT', url, TINY_PNG, 'image/png', revision)).status,
+    ).toBe(409);
+    expect((await store.readReferenceImage('photo')).bytes.equals(changed)).toBe(true);
+    expect((await dispatchAssetRequest(store, 'PUT', url, changed, 'image/png')).status).toBe(428);
+  });
+
+  it('uses the same safe save path for scripts, animations, palette and reference metadata', async () => {
+    const store = await tempStore();
+    const put = (url: string, base: unknown, doc: unknown) =>
+      dispatchAssetRequest(store, 'PUT', url, JSON.stringify({ base, doc }));
+    const script = { id: 'intro', source: 'one\ntwo\n' };
+    expect((await put('/api/scripts/intro', null, script)).status).toBe(200);
+    const mergedScript = await put('/api/scripts/intro', script, {
+      ...script,
+      source: 'ONE\ntwo\n',
+    });
+    expect(mergedScript.status).toBe(200);
+    expect(
+      (await put('/api/scripts/intro', script, { ...script, source: 'one\nTWO\n' })).body,
+    ).toContain('ONE\\nTWO');
+    expect(
+      (await put('/api/scripts/intro', script, { ...script, source: 'X\ntwo\n' })).status,
+    ).toBe(409);
+    expect((await store.readScript('intro')).source).toBe('ONE\nTWO\n');
+
+    const animation = {
+      format: 'incanterm-animation',
+      version: 1,
+      id: 'blink',
+      loop: false,
+      defaultDurationMs: 100,
+      frames: [],
+    };
+    expect((await put('/api/animations/blink', null, animation)).status).toBe(200);
+    expect(
+      (await put('/api/animations/blink', animation, { ...animation, loop: true })).status,
+    ).toBe(200);
+    expect(
+      (await put('/api/animations/blink', animation, { ...animation, defaultDurationMs: 200 }))
+        .status,
+    ).toBe(200);
+    expect(await store.readAnimation('blink')).toMatchObject({
+      loop: true,
+      defaultDurationMs: 200,
+    });
+
+    const palette = await store.palette();
+    const color = (index: number, rgb: string) => ({
+      ...palette,
+      colors: palette.colors.map((entry, at) => (at === index ? { ...entry, rgb } : entry)),
+    });
+    expect((await put('/api/palette', palette, color(0, '#111111'))).status).toBe(200);
+    expect((await put('/api/palette', palette, color(1, '#222222'))).status).toBe(200);
+    expect((await store.palette()).colors.slice(0, 2).map((entry) => entry.rgb)).toEqual([
+      '#111111',
+      '#222222',
+    ]);
+
+    const reference = createReference('test', 'png', { x: 0, y: 0, width: 2, height: 2 });
+    expect((await put('/api/references/test', null, reference)).status).toBe(200);
+    expect((await put('/api/references/test', reference, { ...reference, x: 1 })).status).toBe(200);
+    expect((await put('/api/references/test', reference, { ...reference, y: 2 })).status).toBe(200);
+    expect(await store.readReference('test')).toMatchObject({ x: 1, y: 2 });
+  });
+
   it('merges two concurrent editors saving distinct cells and rejects conflicting edits', async () => {
     const store = await tempStore();
     const base = createSprite('shared', 2, 1);
@@ -113,7 +195,7 @@ describe('asset API', () => {
       store,
       'PUT',
       '/api/palette',
-      JSON.stringify(extra),
+      JSON.stringify({ base: palette, doc: extra }),
     );
     expect(response.status).toBe(422);
 
@@ -137,11 +219,14 @@ describe('asset API', () => {
       'PUT',
       '/api/animations/blink',
       JSON.stringify({
-        format: 'incanterm-animation',
-        version: 1,
-        id: 'blink',
-        loop: false,
-        frames: [{ sprite: 'gone', index: 0, durationMs: 100 }],
+        base: null,
+        doc: {
+          format: 'incanterm-animation',
+          version: 1,
+          id: 'blink',
+          loop: false,
+          frames: [{ sprite: 'gone', index: 0, durationMs: 100 }],
+        },
       }),
     );
     expect(missing.status).toBe(422);
@@ -152,11 +237,14 @@ describe('asset API', () => {
       'PUT',
       '/api/animations/blink',
       JSON.stringify({
-        format: 'incanterm-animation',
-        version: 1,
-        id: 'blink',
-        loop: false,
-        frames: [{ sprite: 'lamp', index: 1, durationMs: 100 }],
+        base: null,
+        doc: {
+          format: 'incanterm-animation',
+          version: 1,
+          id: 'blink',
+          loop: false,
+          frames: [{ sprite: 'lamp', index: 1, durationMs: 100 }],
+        },
       }),
     );
     expect(tooFar.status).toBe(422);
@@ -183,11 +271,14 @@ describe('asset API', () => {
       'PUT',
       '/api/animations/hold',
       JSON.stringify({
-        format: 'incanterm-animation',
-        version: 1,
-        id: 'hold',
-        loop: true,
-        frames: [{ invisible: true, durationMs: 120 }],
+        base: null,
+        doc: {
+          format: 'incanterm-animation',
+          version: 1,
+          id: 'hold',
+          loop: true,
+          frames: [{ invisible: true, durationMs: 120 }],
+        },
       }),
     );
     expect(hold.status).toBe(200);
@@ -243,6 +334,7 @@ describe('asset API', () => {
       '/api/references/mark/image',
       Buffer.from('not-an-image'),
       'text/plain',
+      null,
     );
     expect(rejected.status).toBe(422);
 
@@ -252,16 +344,17 @@ describe('asset API', () => {
       '/api/references/mark/image',
       TINY_PNG,
       'image/png',
+      null,
     );
     expect(uploaded.status).toBe(200);
-    expect(JSON.parse(String(uploaded.body))).toEqual({ ext: 'png' });
+    expect(JSON.parse(String(uploaded.body))).toMatchObject({ ext: 'png' });
 
     const meta = createReference('mark', 'png', { x: -1, y: 0.5, width: 4, height: 2 }, 0.4);
     const saved = await dispatchAssetRequest(
       store,
       'PUT',
       '/api/references/mark',
-      JSON.stringify(meta),
+      JSON.stringify({ base: null, doc: meta }),
     );
     expect(saved.status).toBe(200);
     expect(JSON.parse(String(saved.body))).toMatchObject({
@@ -273,8 +366,19 @@ describe('asset API', () => {
 
     const image = await dispatchAssetRequest(store, 'GET', '/api/references/mark/image', '');
     expect(image.status).toBe(200);
+    expect(image.headers['x-asset-revision']).toBe(JSON.parse(String(uploaded.body)).revision);
     expect(image.headers['content-type']).toBe('image/png');
     expect(Buffer.isBuffer(image.body) ? image.body.equals(TINY_PNG) : false).toBe(true);
+    const staleUpload = await dispatchAssetRequest(
+      store,
+      'PUT',
+      '/api/references/mark/image',
+      Buffer.concat([TINY_PNG, Buffer.from([0])]),
+      'image/png',
+      null,
+    );
+    expect(staleUpload.status).toBe(409);
+    expect((await store.readReferenceImage('mark')).bytes.equals(TINY_PNG)).toBe(true);
 
     const copy = await dispatchAssetRequest(
       store,

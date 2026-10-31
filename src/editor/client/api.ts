@@ -27,10 +27,17 @@ export function jsonRequest(method: string, body: unknown): RequestInit {
   };
 }
 
-export async function putBytes<T>(url: string, body: Blob): Promise<T> {
+export async function putBytes<T>(
+  url: string,
+  body: Blob,
+  baseRevision: string | null,
+): Promise<T> {
   const response = await fetch(url, {
     method: 'PUT',
-    headers: { 'content-type': body.type || 'application/octet-stream' },
+    headers: {
+      'content-type': body.type || 'application/octet-stream',
+      'x-asset-base-revision': baseRevision ?? 'new',
+    },
     body,
   });
   let value: { error?: string };
@@ -44,6 +51,10 @@ export async function putBytes<T>(url: string, body: Blob): Promise<T> {
 }
 
 export async function getBytes(url: string): Promise<Blob> {
+  return (await getBytesWithRevision(url)).blob;
+}
+
+export async function getBytesWithRevision(url: string): Promise<{ blob: Blob; revision: string }> {
   const response = await fetch(url);
   if (!response.ok) {
     let value: { error?: string };
@@ -54,5 +65,7 @@ export async function getBytes(url: string): Promise<Blob> {
     }
     throw new ApiError(value.error || 'Request failed', response.status);
   }
-  return response.blob();
+  const revision = response.headers.get('x-asset-revision');
+  if (!revision) throw new ApiError('Image revision missing from the editor API', response.status);
+  return { blob: await response.blob(), revision };
 }

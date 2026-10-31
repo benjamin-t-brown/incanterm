@@ -10,6 +10,10 @@ import {
   type PathStyle,
 } from '../ascii-path.js';
 import { artCursorKind, type ArtCursorGesture, type ArtTool } from '../art-cursor.js';
+import { brushValue } from '../art-brush.js';
+import { wrappedFrameIndex } from '../animation-navigation.js';
+import { fillCells } from '../art-fill.js';
+import { moveSelectedCells, type SelectionRect } from '../art-move.js';
 import { isSingleWidthGlyph } from '../glyph.js';
 import { paletteRgb, type PaletteDocument } from '../palette.js';
 import {
@@ -31,7 +35,6 @@ import {
   type SpriteLayer,
 } from '../schema.js';
 import {
-  applyTerminalGlyphStyle,
   DEFAULT_SPRITE_FONT,
   isSpriteFontId,
   preloadSpriteFonts,
@@ -43,6 +46,7 @@ import {
   type SpriteFontId,
   type TerminalCell,
 } from '../terminal-cell.js';
+import { drawTerminalGlyph, fillTerminalCell } from './terminal-renderer.js';
 import {
   createReference,
   DEFAULT_REFERENCE_OPACITY,
@@ -67,8 +71,16 @@ import {
   type ArtTabChrome,
   type ArtTabDirtySession,
 } from '../art-tabs.js';
-import { jsonRequest, requestJson, putBytes, getBytes, ApiError } from './api.js';
+import {
+  jsonRequest,
+  requestJson,
+  putBytes,
+  getBytes,
+  getBytesWithRevision,
+  ApiError,
+} from './api.js';
 import { mergeSprite } from '../sprite-merge.js';
+import { mergeJson } from '../safe-save.js';
 import { saveDraft } from './save.js';
 import { artCursorCss } from './cursors.js';
 import {
@@ -79,7 +91,13 @@ import {
   confirmModal,
   isModalOpen,
 } from './modal.js';
-import { askId, brandLink, editorNav, setDirtyGuard } from './shell.js';
+import {
+  askId,
+  assetEditorTopbar,
+  setDirtyGuard,
+  setEditorAssetUrl,
+  setupThemeToggle,
+} from './shell.js';
 
 type Stamp = { width: number; height: number; cells: (SpriteCell | null)[] };
 type Point = { x: number; y: number; sx: number; sy: number };
@@ -88,11 +106,14 @@ type HistoryEntry = {
   doc: SpriteDocument;
   selectedFrame: number;
   activeLayerId: string | null;
+  selection?: SelectionRect | null;
 };
 type TabSession = ArtTabDirtySession & {
   undoStack: HistoryEntry[];
   redoStack: HistoryEntry[];
   reference: SpriteReference | null;
+  referenceBase: SpriteReference | null;
+  referenceRevision: string | null;
   referenceImage: HTMLImageElement | null;
   referenceUrl: string | null;
   referenceEdit: boolean;
@@ -206,6 +227,8 @@ export function mountArt(root: HTMLElement): () => void {
   const wrap = $<HTMLElement>('#canvas-wrap');
 
   let palette: PaletteDocument = { format: 'incanterm-palette', version: 1, colors: [] };
+  let paletteSaved: PaletteDocument = palette;
+  let paletteSaving = false;
   let doc: SpriteDocument | null = null;
   let selectedFrame = 0;
   let playFrom = 0;
@@ -261,11 +284,15 @@ export function mountArt(root: HTMLElement): () => void {
     ox?: number;
     oy?: number;
     rect?: { x: number; y: number; width: number; height: number };
+    sourceCells?: (SpriteCell | null)[];
     handle?: ReferenceHandle;
     path?: GridPoint[];
     shift?: boolean;
   } | null = null;
   let reference: SpriteReference | null = null;
+  let referenceBase: SpriteReference | null = null;
+  let referenceRevision: string | null = null;
+  let referenceSaving = false;
   let referenceImage: HTMLImageElement | null = null;
   let referenceUrl: string | null = null;
   let referenceEdit = false;
@@ -314,10 +341,10 @@ export function mountArt(root: HTMLElement): () => void {
   }
   function paintBlocked(): boolean {
     const layer = activeLayer();
-    if (!layer?.locked || spaceHeld) return false;
+    if (!layer || (layer.visible && !layer.locked) || spaceHeld) return false;
     if (pasteMode) return true;
     const base = toolBase(tool);
-    return base === 'brush' || base === 'fill' || base === 'erase' || base === 'path';
+    return base === 'brush' || base === 'fill' || base === 'erase' || base === 'path' || base === 'move';
   }
   function syncCanvasCursor(): void {
     if (referenceEdit && referenceShown() && !spaceHeld && gesture?.kind !== 'pan') {
@@ -342,6 +369,16 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       canvas.style.cursor = 'default';
+      return;
+    }
+    if (tool === 'move' && (gesture?.kind === 'move' || (!spaceHeld && gesture?.kind !== 'pan'))) {
+      canvas.style.cursor = paintBlocked()
+        ? 'not-allowed'
+        : gesture?.kind === 'move'
+          ? 'grabbing'
+          : selection && hover && selectionContains(selection, hover)
+            ? 'grab'
+            : 'default';
       return;
     }
     const kind = gesture?.kind;
@@ -441,7 +478,12 @@ export function mountArt(root: HTMLElement): () => void {
   }
   function captureHistory(): HistoryEntry | null {
     if (!doc) return null;
-    return { doc: cloneDoc(doc), selectedFrame, activeLayerId };
+    return {
+      doc: cloneDoc(doc),
+      selectedFrame,
+      activeLayerId,
+      selection: selection ? { ...selection } : null,
+    };
   }
   function stopPlayback(): void {
     playing = false;
@@ -526,11 +568,14 @@ export function mountArt(root: HTMLElement): () => void {
     root.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((button) => {
       button.classList.toggle('active', button.dataset.tool === toolBase(tool));
     });
-    const variant = $<HTMLSelectElement>('#tool-variant');
-    variant.value = toolVariant(tool);
-    variant.disabled = toolBase(tool) === 'select';
+    root.querySelectorAll<HTMLButtonElement>('[data-variant]').forEach((button) => {
+      const active = button.dataset.variant === toolVariant(tool);
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+      button.disabled = toolBase(tool) === 'select' || toolBase(tool) === 'move';
+    });
     const pathActive = toolBase(tool) === 'path';
-    $<HTMLInputElement>('#brush-size').disabled = pathActive;
+    $<HTMLInputElement>('#brush-size').disabled = pathActive || tool === 'move';
     $<HTMLElement>('#path-settings').hidden = !pathActive;
     $<HTMLSelectElement>('#path-mode').value = pathMode;
     $<HTMLSelectElement>('#path-style').value = pathStyle;
@@ -544,7 +589,9 @@ export function mountArt(root: HTMLElement): () => void {
     $<HTMLInputElement>('#brush-size').value = String(brushSize);
     $<HTMLElement>('#brush-size-label').textContent = `${brushSize} × ${brushSize}`;
     const variantLabel = { full: 'GLYPH', fg: 'FG', bg: 'BG' }[toolVariant(tool)];
-    $<HTMLElement>('#tool-status').textContent = pathActive
+    $<HTMLElement>('#tool-status').textContent = tool === 'move'
+      ? selection ? `MOVE / ${selection.width} × ${selection.height}` : 'MOVE / SELECT AREA'
+      : pathActive
       ? `${toolBase(tool).toUpperCase()} / ${pathMode.toUpperCase()} / ${pathStyle.toUpperCase()} / ${variantLabel}`
       : stamp && ['brush', 'fg-brush', 'bg-brush'].includes(tool)
         ? `${toolBase(tool).toUpperCase()} / ${variantLabel} / ${stamp.width} × ${stamp.height} STAMP`
@@ -635,7 +682,6 @@ export function mountArt(root: HTMLElement): () => void {
       );
       context.restore();
     }
-    applyTerminalGlyphStyle(context, grid);
     const flat = flattenSprite(doc, selectedFrame);
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
@@ -644,11 +690,11 @@ export function mountArt(root: HTMLElement): () => void {
         const py = oy + y * ch;
         if (entry.bg !== 'black') {
           context.fillStyle = rgb(entry.bg);
-          context.fillRect(px, py, cw + 0.3, ch + 0.3);
+          fillTerminalCell(context, grid, px, py);
         }
         if (entry.ch !== ' ') {
           context.fillStyle = rgb(entry.fg);
-          context.fillText(entry.ch, px, py + grid.ascent);
+          drawTerminalGlyph(context, grid, entry.ch, px, py);
         }
       }
     }
@@ -672,7 +718,7 @@ export function mountArt(root: HTMLElement): () => void {
     if (gesture?.kind === 'path' && gesture.start && gesture.end) {
       paintPathPreview(pathGestureCells(gesture.end, gesture.shift === true));
     }
-    if (hover && inside(hover.x, hover.y) && !referenceEdit) {
+    if (hover && inside(hover.x, hover.y) && !referenceEdit && tool !== 'move') {
       if (
         !gesture &&
         !paintBlocked() &&
@@ -724,16 +770,15 @@ export function mountArt(root: HTMLElement): () => void {
     const grid = cell();
     context.save();
     context.globalAlpha = 0.45;
-    applyTerminalGlyphStyle(context, grid);
     const place = (x: number, y: number, value: SpriteCell | null) => {
       if (!value || !inside(x, y)) return;
       const px = ox + x * grid.width;
       const py = oy + y * grid.height;
       context.fillStyle = rgb(value.bg);
-      context.fillRect(px, py, grid.width + 0.3, grid.height + 0.3);
+      fillTerminalCell(context, grid, px, py);
       if (value.ch !== ' ') {
         context.fillStyle = rgb(value.fg);
-        context.fillText(value.ch, px, py + grid.ascent);
+        drawTerminalGlyph(context, grid, value.ch, px, py);
       }
     };
     if (stamp) {
@@ -744,7 +789,7 @@ export function mountArt(root: HTMLElement): () => void {
           place(
             origin.x + x,
             origin.y + y,
-            brushValue(sample, layerCell(origin.x + x, origin.y + y)),
+            brushValue(tool, sample, layerCell(origin.x + x, origin.y + y)),
           );
         }
       }
@@ -752,7 +797,7 @@ export function mountArt(root: HTMLElement): () => void {
       const rect = brushRect(origin);
       for (let y = rect.y; y < rect.y + rect.height; y++) {
         for (let x = rect.x; x < rect.x + rect.width; x++) {
-          place(x, y, brushValue(source, layerCell(x, y)));
+          place(x, y, brushValue(tool, source, layerCell(x, y)));
         }
       }
     }
@@ -762,7 +807,6 @@ export function mountArt(root: HTMLElement): () => void {
     const grid = cell();
     context.save();
     context.globalAlpha = 0.45;
-    applyTerminalGlyphStyle(context, grid);
     for (const write of applyPath(cells, pathStyle, (x, y) => layerCell(x, y)?.ch ?? null)) {
       if (!inside(write.x, write.y)) continue;
       const existing = layerCell(write.x, write.y);
@@ -775,10 +819,10 @@ export function mountArt(root: HTMLElement): () => void {
       const px = ox + write.x * grid.width;
       const py = oy + write.y * grid.height;
       context.fillStyle = rgb(value.bg);
-      context.fillRect(px, py, grid.width + 0.3, grid.height + 0.3);
+      fillTerminalCell(context, grid, px, py);
       if (value.ch !== ' ') {
         context.fillStyle = rgb(value.fg);
-        context.fillText(value.ch, px, py + grid.ascent);
+        drawTerminalGlyph(context, grid, value.ch, px, py);
       }
     }
     context.restore();
@@ -814,6 +858,16 @@ export function mountArt(root: HTMLElement): () => void {
       width: Math.abs(a.x - b.x) + 1,
       height: Math.abs(a.y - b.y) + 1,
     };
+  }
+  function selectionContains(rect: SelectionRect, point: Point): boolean {
+    return point.x >= rect.x && point.x < rect.x + rect.width &&
+      point.y >= rect.y && point.y < rect.y + rect.height;
+  }
+  function cancelMove(): void {
+    if (gesture?.kind !== 'move') return;
+    const layer = activeLayer();
+    if (layer && gesture.sourceCells) layer.cells = gesture.sourceCells;
+    if (gesture.rect) selection = gesture.rect;
   }
   function brushTools(): Tool[] {
     return ['brush', 'fg-brush', 'bg-brush', 'erase', 'fg-erase', 'bg-erase', 'fg', 'bg'];
@@ -980,20 +1034,47 @@ export function mountArt(root: HTMLElement): () => void {
     if (referenceUrl) URL.revokeObjectURL(referenceUrl);
     referenceUrl = null;
     reference = null;
+    referenceBase = null;
+    referenceRevision = null;
     referenceImage = null;
     referenceEdit = false;
   }
   async function persistReference(): Promise<void> {
     if (!spriteId || !reference) return;
+    if (referenceSaving) return;
+    const id = spriteId;
+    const sent = structuredClone(reference);
+    const base = referenceBase;
+    referenceSaving = true;
     try {
-      reference = await requestJson<SpriteReference>(
-        `/api/references/${encodeURIComponent(spriteId)}`,
-        jsonRequest('PUT', reference),
-      );
+      const stored = await saveDraft(`/api/references/${encodeURIComponent(id)}`, sent, base);
+      if (spriteId === id && reference) {
+        const merged = mergeJson(sent, reference, stored);
+        if (merged.ok) {
+          reference = merged.value;
+          referenceBase = stored;
+          redraw();
+        } else announce('Reference saved, but newer edits need review');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not save reference';
       announce(message);
       toast(message, true);
+      if (error instanceof ApiError && error.status === 409) {
+        await alertModal(`${message}. Your reference placement remains open.`);
+      }
+    } finally {
+      referenceSaving = false;
+      if (
+        spriteId === id &&
+        reference &&
+        referenceBase &&
+        JSON.stringify(reference) !== JSON.stringify(referenceBase)
+      ) {
+        // A drag may have produced more edits while the request was in flight.
+        // Only retry automatically after a successful save with a new base.
+        if (referenceBase !== base) void persistReference();
+      }
     }
   }
   async function blobToImage(blob: Blob): Promise<HTMLImageElement> {
@@ -1014,12 +1095,14 @@ export function mountArt(root: HTMLElement): () => void {
     forgetReference();
     try {
       const meta = await requestJson<SpriteReference>(`/api/references/${encodeURIComponent(id)}`);
-      const blob = await getBytes(
+      const image = await getBytesWithRevision(
         `/api/references/${encodeURIComponent(id)}/image?t=${Date.now()}`,
       );
       if (!alive || spriteId !== id) return;
       reference = meta;
-      referenceImage = await blobToImage(blob);
+      referenceBase = meta;
+      referenceRevision = image.revision;
+      referenceImage = await blobToImage(image.blob);
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 404)) {
         announce(error instanceof Error ? error.message : 'Could not load reference');
@@ -1036,10 +1119,12 @@ export function mountArt(root: HTMLElement): () => void {
     }
     const id = spriteId;
     try {
-      const saved = await putBytes<{ ext: SpriteReference['ext'] }>(
+      const saved = await putBytes<{ ext: SpriteReference['ext']; revision: string }>(
         `/api/references/${encodeURIComponent(id)}/image`,
         blob,
+        referenceRevision,
       );
+      referenceRevision = saved.revision;
       const image = await blobToImage(blob);
       if (!alive || spriteId !== id || !doc) return;
       const grid = terminalCellAtZoom(context, 1, spriteFont());
@@ -1059,10 +1144,12 @@ export function mountArt(root: HTMLElement): () => void {
         rect,
         reference?.opacity ?? DEFAULT_REFERENCE_OPACITY,
       );
-      reference = await requestJson<SpriteReference>(
+      reference = await saveDraft<SpriteReference>(
         `/api/references/${encodeURIComponent(id)}`,
-        jsonRequest('PUT', next),
+        next,
+        referenceBase,
       );
+      referenceBase = reference;
       referenceImage = image;
       announce(`Reference ${id}.${saved.ext}`);
       refreshControls();
@@ -1151,6 +1238,7 @@ export function mountArt(root: HTMLElement): () => void {
     doc = cloneDoc(previous.doc);
     selectedFrame = previous.selectedFrame;
     activeLayerId = previous.activeLayerId;
+    if (previous.selection !== undefined) selection = previous.selection;
     clampSelectedFrame();
     if (selectedFrame < playFrom || selectedFrame > playTo) {
       playFrom = selectedFrame;
@@ -1170,23 +1258,6 @@ export function mountArt(root: HTMLElement): () => void {
     if (!layer || layer.locked) return;
     layer.cells[y * doc.width + x] = value ? { ...value } : null;
   }
-  function brushValue(source: SpriteCell, target: SpriteCell | null): SpriteCell | null {
-    if (tool === 'erase') return null;
-    const partial =
-      tool === 'fg-brush' ||
-      tool === 'bg-brush' ||
-      tool === 'fg' ||
-      tool === 'bg' ||
-      tool === 'fg-erase' ||
-      tool === 'bg-erase';
-    if (!target) return partial ? null : source;
-    if (tool === 'fg-brush') return { ...target, ch: source.ch, fg: source.fg };
-    if (tool === 'bg-brush' || tool === 'bg') return { ...target, bg: source.bg };
-    if (tool === 'fg') return { ...target, fg: source.fg };
-    if (tool === 'fg-erase') return { ...target, ch: ' ', fg: 'white' };
-    if (tool === 'bg-erase') return { ...target, bg: 'black' };
-    return source;
-  }
   function applyBrush(p: Point): void {
     if (!doc) return;
     if (playing) stopPlayback();
@@ -1197,7 +1268,7 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       if (!source) return;
-      const next = brushValue(source, layerCell(x, y));
+      const next = brushValue(tool, source, layerCell(x, y));
       if (next) setCell(x, y, next);
     };
     if (stamp && ['brush', 'fg-brush', 'bg-brush'].includes(tool)) {
@@ -1214,51 +1285,21 @@ export function mountArt(root: HTMLElement): () => void {
     }
     redraw();
   }
-  function sameCell(left: SpriteCell | null, right: SpriteCell | null): boolean {
-    if (left === null || right === null) return left === right;
-    return left.ch === right.ch && left.fg === right.fg && left.bg === right.bg;
-  }
   function flood(p: Point): void {
-    if (!doc || !inside(p.x, p.y)) return;
+    if (
+      !doc ||
+      !inside(p.x, p.y) ||
+      (tool !== 'fill' && tool !== 'fg-fill' && tool !== 'bg-fill')
+    ) return;
     if (playing) stopPlayback();
     const layer = activeLayer();
     if (!layer || layer.locked) return;
-    const original = layer.cells[p.y * doc.width + p.x] ?? null;
-    if (tool === 'fg-fill' || tool === 'bg-fill') {
-      if (!original) return;
-      if (tool === 'fg-fill' ? original.fg === fg : original.bg === bg) return;
-    } else if (
-      original !== null &&
-      original.ch === glyph &&
-      original.fg === fg &&
-      original.bg === bg
-    ) {
-      return;
-    }
     const before = captureHistory();
-    const visited = new Uint8Array(doc.width * doc.height);
-    const stack = [p.y * doc.width + p.x];
-    while (stack.length) {
-      const index = stack.pop();
-      if (index === undefined || visited[index]) continue;
-      visited[index] = 1;
-      const entry = layer.cells[index] ?? null;
-      if (tool === 'fg-fill' || tool === 'bg-fill') {
-        if (!entry || !original) continue;
-        if (tool === 'fg-fill' ? entry.fg !== original.fg : entry.bg !== original.bg) continue;
-        layer.cells[index] = tool === 'fg-fill' ? { ...entry, fg } : { ...entry, bg };
-      } else {
-        if (!sameCell(entry, original)) continue;
-        layer.cells[index] = { ch: glyph, fg, bg };
-      }
-      const x = index % doc.width;
-      const y = Math.floor(index / doc.width);
-      if (x > 0) stack.push(index - 1);
-      if (x < doc.width - 1) stack.push(index + 1);
-      if (y > 0) stack.push(index - doc.width);
-      if (y < doc.height - 1) stack.push(index + doc.width);
-    }
-    remember(before);
+    if (fillCells(layer.cells, doc.width, doc.height, p.x, p.y, tool, {
+      ch: glyph,
+      fg,
+      bg,
+    })) remember(before);
   }
   function capture(
     rect: { x: number; y: number; width: number; height: number },
@@ -1273,8 +1314,9 @@ export function mountArt(root: HTMLElement): () => void {
     }
     return { width: rect.width, height: rect.height, cells };
   }
-  function toolBase(value: Tool): 'brush' | 'fill' | 'erase' | 'select' | 'path' {
+  function toolBase(value: Tool): 'brush' | 'fill' | 'erase' | 'select' | 'path' | 'move' {
     if (value === 'select') return 'select';
+    if (value === 'move') return 'move';
     if (value.endsWith('path')) return 'path';
     if (value.endsWith('fill')) return 'fill';
     if (value.endsWith('erase')) return 'erase';
@@ -1286,10 +1328,10 @@ export function mountArt(root: HTMLElement): () => void {
     return 'full';
   }
   function composeTool(
-    base: 'brush' | 'fill' | 'erase' | 'select' | 'path',
+    base: 'brush' | 'fill' | 'erase' | 'select' | 'path' | 'move',
     variant: 'full' | 'fg' | 'bg',
   ): Tool {
-    if (base === 'select' || variant === 'full') return base === 'select' ? 'select' : base;
+    if (base === 'select' || base === 'move' || variant === 'full') return base;
     return `${variant}-${base}` as Tool;
   }
   function pathCellValue(ch: string, target: SpriteCell | null): SpriteCell {
@@ -1376,7 +1418,7 @@ export function mountArt(root: HTMLElement): () => void {
     moveArmed = chrome.moveArmed;
     activeLayerId = chrome.activeLayerId;
     selection = chrome.selection;
-    stamp = chrome.stamp;
+    // Keep the current sampled brush instead of restoring this tab's older stamp.
     pasteMode = chrome.pasteMode;
     celMarked = chrome.celMarked;
     zoom = chrome.zoom;
@@ -1484,11 +1526,15 @@ export function mountArt(root: HTMLElement): () => void {
       redoStack,
       ...currentChrome(),
       reference,
+      referenceBase,
+      referenceRevision,
       referenceImage,
       referenceUrl,
       referenceEdit,
     });
     reference = null;
+    referenceBase = null;
+    referenceRevision = null;
     referenceImage = null;
     referenceUrl = null;
     referenceEdit = false;
@@ -1499,6 +1545,8 @@ export function mountArt(root: HTMLElement): () => void {
       undoStack: [],
       redoStack: [],
       reference: null,
+      referenceBase: null,
+      referenceRevision: null,
       referenceImage: null,
       referenceUrl: null,
       referenceEdit: false,
@@ -1512,11 +1560,14 @@ export function mountArt(root: HTMLElement): () => void {
     pressing = false;
     doc = session.doc;
     spriteId = session.doc.id;
+    setEditorAssetUrl(session.doc.id);
     savedState = session.savedState;
     undoStack = session.undoStack;
     redoStack = session.redoStack;
     applyChrome(session);
     reference = session.reference;
+    referenceBase = session.referenceBase;
+    referenceRevision = session.referenceRevision;
     referenceImage = session.referenceImage;
     referenceUrl = session.referenceUrl;
     referenceEdit = session.referenceEdit;
@@ -1539,6 +1590,8 @@ export function mountArt(root: HTMLElement): () => void {
     forgetReference();
     doc = null;
     spriteId = null;
+    setEditorAssetUrl(null);
+    localStorage.removeItem(LAST_SPRITE_KEY);
     savedState = '';
     applyChrome(defaultArtTabChrome());
     undoStack = [];
@@ -1634,6 +1687,7 @@ export function mountArt(root: HTMLElement): () => void {
         clearWorkspace();
         refreshControls();
       }
+      setEditorAssetUrl(spriteId);
     }
     flushPersist();
     renderTabs();
@@ -1715,13 +1769,13 @@ export function mountArt(root: HTMLElement): () => void {
     moveArmed = false;
     selectTopLayer();
     spriteId = next.id;
+    setEditorAssetUrl(next.id);
     savedState = JSON.stringify(next);
     openTabs = addOpenTab(openTabs, next.id);
     localStorage.setItem(LAST_SPRITE_KEY, next.id);
     undoStack = [];
     redoStack = [];
     selection = null;
-    stamp = null;
     pasteMode = false;
     celMarked = false;
     gesture = null;
@@ -1859,6 +1913,7 @@ export function mountArt(root: HTMLElement): () => void {
       const current = mergeSprite(next, doc, saved);
       doc = { ...(current.ok ? current.value : doc), id: saved.id };
       spriteId = saved.id;
+      setEditorAssetUrl(saved.id);
       savedState = JSON.stringify(saved);
       for (const entry of undoStack) entry.doc.id = saved.id;
       for (const entry of redoStack) entry.doc.id = saved.id;
@@ -1888,14 +1943,18 @@ export function mountArt(root: HTMLElement): () => void {
         if (response.ok) blob = await response.blob();
       }
       if (!blob) blob = await getBytes(`/api/references/${encodeURIComponent(from)}/image`);
-      const saved = await putBytes<{ ext: SpriteReference['ext'] }>(
+      const saved = await putBytes<{ ext: SpriteReference['ext']; revision: string }>(
         `/api/references/${encodeURIComponent(to)}/image`,
         blob,
+        null,
       );
-      reference = await requestJson<SpriteReference>(
+      referenceRevision = saved.revision;
+      reference = await saveDraft<SpriteReference>(
         `/api/references/${encodeURIComponent(to)}`,
-        jsonRequest('PUT', { ...current, id: to, ext: saved.ext }),
+        { ...current, id: to, ext: saved.ext },
+        null,
       );
+      referenceBase = reference;
     } catch {
       if (reference) reference = { ...reference, id: to };
     }
@@ -1917,6 +1976,7 @@ export function mountArt(root: HTMLElement): () => void {
         clearWorkspace();
         refreshControls();
       }
+      setEditorAssetUrl(spriteId);
     }
     flushPersist();
     await refreshFiles();
@@ -2595,22 +2655,41 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Use an #rrggbb color');
       return;
     }
-    const next = {
+    palette = {
       ...palette,
       colors: palette.colors.map((color) =>
         color.id === paletteEdit ? { ...color, rgb: value.toLowerCase() } : color,
       ),
     };
+    refreshControls();
+    await persistPalette();
+  }
+  async function persistPalette(): Promise<void> {
+    if (paletteSaving || JSON.stringify(palette) === JSON.stringify(paletteSaved)) return;
+    const sent = structuredClone(palette);
+    paletteSaving = true;
+    let committed = false;
     try {
-      palette = await saveDraft('/api/palette', next, palette);
+      const stored = await saveDraft('/api/palette', sent, paletteSaved);
+      const rebased = mergeJson(sent, palette, stored);
+      if (rebased.ok) {
+        palette = rebased.value;
+        paletteSaved = stored;
+        committed = true;
+      } else announce('Palette saved, but newer edits need review');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not save palette';
       announce(message);
       if (error instanceof ApiError && error.status === 409) await alertModal(message);
       return;
+    } finally {
+      paletteSaving = false;
     }
     refreshControls();
-    announce(`Recolored ${paletteEdit}`);
+    if (committed) announce(`Recolored ${paletteEdit}`);
+    if (committed && JSON.stringify(palette) !== JSON.stringify(paletteSaved)) {
+      void persistPalette();
+    }
   }
 
   const paletteHost = $<HTMLElement>('#palette');
@@ -2820,15 +2899,17 @@ export function mountArt(root: HTMLElement): () => void {
         return;
       }
       const variant = toolBase(tool) === 'select' ? 'full' : toolVariant(tool);
-      setTool(composeTool(base as 'brush' | 'fill' | 'erase' | 'path', variant));
+      setTool(composeTool(base as 'brush' | 'fill' | 'erase' | 'path' | 'move', variant));
     });
   });
-  $<HTMLSelectElement>('#tool-variant').addEventListener('change', () => {
-    const base = toolBase(tool);
-    if (base === 'select') return;
-    const value = $<HTMLSelectElement>('#tool-variant').value;
-    const variant = value === 'fg' || value === 'bg' ? value : 'full';
-    setTool(composeTool(base, variant));
+  root.querySelectorAll<HTMLButtonElement>('[data-variant]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const base = toolBase(tool);
+      if (base === 'select' || base === 'move') return;
+      const value = button.dataset.variant;
+      if (value !== 'full' && value !== 'fg' && value !== 'bg') return;
+      setTool(composeTool(base, value));
+    });
   });
   $<HTMLInputElement>('#brush-size').addEventListener('input', (event) => {
     brushSize = Math.min(16, Math.max(1, Number((event.target as HTMLInputElement).value) || 1));
@@ -3019,13 +3100,6 @@ export function mountArt(root: HTMLElement): () => void {
   $<HTMLButtonElement>('#frame-add').addEventListener('click', addEmptyFrame);
   $<HTMLButtonElement>('#frame-copy').addEventListener('click', copyFrame);
   $<HTMLButtonElement>('#frame-delete').addEventListener('click', deleteFrame);
-  $<HTMLButtonElement>('#theme-toggle').addEventListener('click', () => {
-    document.body.classList.toggle('light');
-    const light = document.body.classList.contains('light');
-    $<HTMLButtonElement>('#theme-toggle').textContent = light ? '◐ DARK MODE' : '☼ LIGHT MODE';
-    localStorage.setItem('incanterm-editor-theme', light ? 'light' : 'dark');
-    redraw();
-  });
   function pickBrush(picked: SpriteCell, part: 'tile' | 'ink' | 'paper'): void {
     stamp = null;
     pasteMode = false;
@@ -3116,7 +3190,19 @@ export function mountArt(root: HTMLElement): () => void {
       gesture = { kind: 'pick', start: p, end: p };
     } else if (inside(p.x, p.y)) {
       if (tool !== 'select' && paintBlocked()) {
-        announce('Layer is locked');
+        announce(activeLayer()?.locked ? 'Layer is locked' : 'Layer is hidden');
+      } else if (tool === 'move') {
+        if (!selection) announce('Select an area first');
+        else if (!selectionContains(selection, p)) announce('Drag inside the selection to move it');
+        else {
+          gesture = {
+            kind: 'move',
+            start: p,
+            rect: { ...selection },
+            sourceCells: activeLayer()?.cells.slice(),
+            before: captureHistory() ?? undefined,
+          };
+        }
       } else if (pasteMode && clipboard) {
         const before = captureHistory();
         for (let y = 0; y < clipboard.height; y++) {
@@ -3188,6 +3274,19 @@ export function mountArt(root: HTMLElement): () => void {
       );
       reference = { ...reference, ...next };
     }
+    if (gesture?.kind === 'move' && gesture.start && gesture.rect && gesture.sourceCells && doc) {
+      const moved = moveSelectedCells(
+        gesture.sourceCells,
+        doc.width,
+        doc.height,
+        gesture.rect,
+        p.x - gesture.start.x,
+        p.y - gesture.start.y,
+      );
+      const layer = activeLayer();
+      if (layer) layer.cells = moved.cells;
+      selection = moved.selection;
+    }
     if (
       (gesture?.kind === 'select' || gesture?.kind === 'pick' || gesture?.kind === 'path') &&
       doc
@@ -3237,6 +3336,11 @@ export function mountArt(root: HTMLElement): () => void {
     }
     if (gesture.kind === 'ref-move' || gesture.kind === 'ref-resize') void persistReference();
     if (gesture.kind === 'paint') remember(gesture.before);
+    if (gesture.kind === 'move') {
+      if (event.type === 'pointercancel' || event.type === 'lostpointercapture') {
+        cancelMove();
+      } else remember(gesture.before);
+    }
     if (gesture.kind === 'path' && gesture.start && gesture.end) {
       const shift = event instanceof PointerEvent ? event.shiftKey : gesture.shift === true;
       commitPath(pathGestureCells(gesture.end, shift));
@@ -3353,6 +3457,7 @@ export function mountArt(root: HTMLElement): () => void {
           glyph = keyEvent.key;
           stamp = null;
           setGlyphCapture(false);
+          setTool('brush');
         }
         return;
       }
@@ -3406,7 +3511,15 @@ export function mountArt(root: HTMLElement): () => void {
           return;
         }
         keyEvent.preventDefault();
-        selectFrame(selectedFrame + (keyEvent.key === 'ArrowLeft' ? -1 : 1));
+        if (doc?.sprites.length) {
+          selectFrame(
+            wrappedFrameIndex(
+              selectedFrame,
+              keyEvent.key === 'ArrowLeft' ? -1 : 1,
+              doc.sprites.length,
+            ),
+          );
+        }
         return;
       }
       if (key === 'b' || key === 'f' || key === 'e') {
@@ -3415,6 +3528,10 @@ export function mountArt(root: HTMLElement): () => void {
       }
       if (key === 's') {
         setTool('select');
+        keyEvent.preventDefault();
+      }
+      if (key === 'm') {
+        setTool('move');
         keyEvent.preventDefault();
       }
       if (key === 'p') {
@@ -3436,7 +3553,8 @@ export function mountArt(root: HTMLElement): () => void {
       if (keyEvent.key === 'Escape') {
         pasteMode = false;
         if (referenceEdit) referenceEdit = false;
-        selection = null;
+        cancelMove();
+        if (gesture?.kind !== 'move') selection = null;
         gesture = null;
         refreshControls();
         redraw();
@@ -3484,24 +3602,22 @@ export function mountArt(root: HTMLElement): () => void {
   listen(document, 'visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushPersist();
   });
-  if (localStorage.getItem('incanterm-editor-theme') === 'light') {
-    document.body.classList.add('light');
-    $<HTMLButtonElement>('#theme-toggle').textContent = '◐ DARK MODE';
-  }
+  setupThemeToggle(root, redraw);
   syncCanvasCursor();
 
   void (async () => {
     palette = await requestJson<PaletteDocument>('/api/palette');
+    paletteSaved = structuredClone(palette);
     const stored = readArtTabStore(localStorage);
+    // Recover the last saved brush once; tab changes must not replace it.
+    stamp = stored.active ? (stored.sessions[stored.active]?.stamp ?? null) : null;
     openTabs = stored.tabs;
     for (const [id, session] of Object.entries(stored.sessions)) {
       sessions.set(id, sessionFromPersisted(session));
     }
     refreshControls();
-    const requested =
-      new URLSearchParams(location.search).get('id') ??
-      stored.active ??
-      localStorage.getItem(LAST_SPRITE_KEY);
+    const requestedFromUrl = new URLSearchParams(location.search).get('id');
+    const requested = requestedFromUrl ?? stored.active ?? localStorage.getItem(LAST_SPRITE_KEY);
     if (requested && isAssetId(requested)) {
       openTabs = addOpenTab(openTabs, requested);
       try {
@@ -3520,9 +3636,11 @@ export function mountArt(root: HTMLElement): () => void {
         openTabs = closeOpenTab(openTabs, requested);
         dropSession(requested);
         localStorage.removeItem(LAST_SPRITE_KEY);
+        setEditorAssetUrl(null);
         flushPersist();
       }
     }
+    if (requestedFromUrl && !isAssetId(requestedFromUrl)) setEditorAssetUrl(null);
     await refreshFiles();
     announce('Open or create a sprite');
     resizeView();
@@ -3541,11 +3659,12 @@ export function mountArt(root: HTMLElement): () => void {
 }
 
 function artMarkup(): string {
+  // Variant icons by Delapouite, CC BY 3.0:
+  // https://game-icons.net/1x1/delapouite/pencil-brush.html
+  // https://game-icons.net/1x1/delapouite/pencil.html
+  // https://game-icons.net/1x1/delapouite/highlighter.html
   return `<div class="app">
-    <header class="topbar">
-      ${brandLink('ASSET EDITOR')}
-      <div class="top-right">${editorNav()}<button id="theme-toggle" class="text-button" type="button">☼ LIGHT MODE</button></div>
-    </header>
+    ${assetEditorTopbar()}
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
@@ -3588,16 +3707,17 @@ function artMarkup(): string {
             <button class="tool" type="button" data-tool="fill"><span>FILL</span><kbd>F</kbd></button>
             <button class="tool" type="button" data-tool="erase"><span>ERASE</span><kbd>E</kbd></button>
             <button class="tool" type="button" data-tool="select"><span>SELECT</span><kbd>S</kbd></button>
+            <button class="tool" type="button" data-tool="move"><span>MOVE</span><kbd>M</kbd></button>
             <button class="tool" type="button" data-tool="path"><span>PATH</span><kbd>P</kbd></button>
           </div>
           <div class="tool-settings">
             <div class="tool-setting">
-              <label class="field-head" for="tool-variant">VARIANT</label>
-              <select id="tool-variant" class="tool-variant">
-                <option value="full">GLYPH + FG + BG</option>
-                <option value="fg">FG</option>
-                <option value="bg">BG</option>
-              </select>
+              <div class="field-head">VARIANT</div>
+              <div class="variant-buttons" role="group" aria-label="Tool variant">
+                <button class="variant-button active" type="button" data-variant="full" aria-label="Glyph, foreground and background" title="Glyph + FG + BG" aria-pressed="true"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M54.438 29.793a23.808 23.808 0 0 0-1.204.012c-4.688.157-7.914 1.734-10.113 3.933-2.932 2.932-4.76 7.689-3.588 15.305 1.174 7.616 5.683 17.754 15.272 28.941 67.894 79.21 132.935 155.56 183.703 211.97 12.273 13.636 23.693 26.079 34.125 37.134 12.095-31.902 34.57-54.144 62.902-64.715-10.825-10.199-22.936-21.313-36.197-33.248C242.93 178.357 166.578 113.314 87.369 45.42c-11.186-9.59-21.325-14.098-28.941-15.272a29.555 29.555 0 0 0-3.99-.355zm375.109 1.043c-.307-.003-.6.004-.875.023-2.212.147-3.34.654-4.576 1.891l-27.58 27.58 55.156 55.154 27.578-27.58c1.238-1.236 1.745-2.362 1.89-4.574.15-2.21-.37-5.434-1.804-9.164-2.87-7.46-9.277-16.667-17.055-24.445-7.778-7.778-16.985-14.185-24.445-17.055-3.264-1.255-6.138-1.81-8.287-1.83h-.002zm-45.758 42.22-9.9 9.901 9.9 9.898 12.727 12.729 9.9 9.898 12.729 12.729 9.898 9.9 9.9-9.9-55.154-55.154zm-22.627 22.628-87.389 87.39 10.467 9.332 86.822-86.822-9.9-9.9zm22.627 22.629-86.092 86.09 10.469 9.331 85.523-85.523-9.9-9.899zm22.629 22.624-84.795 84.795 10.469 9.332 84.226-84.226-9.898-9.9h-.002zm-213.857 123.35L72.664 384.186l9.898 9.898 119.342-119.342-9.343-10.455zm157.66 12.147c-30.461 7.627-53.24 29.184-63.608 65.218 5.652 5.785 10.956 11.085 15.78 15.707 7.58 7.264 14.096 13.007 19.21 16.957 1.777-17.225 10.045-33.062 21.645-44.691 10.601-10.628 24.496-18.006 39.125-19.092-3.87-4.836-9.139-10.75-15.629-17.523-4.838-5.047-10.416-10.623-16.523-16.576zm-136.303 11.748L95.289 406.809l9.9 9.902 118.075-118.074-9.346-10.455zm21.361 23.894L117.918 429.437l9.896 9.9 116.81-116.806-9.345-10.455zm150.293 16.307c-10.397.137-20.929 5.28-29.582 13.955-11.537 11.565-18.674 28.851-16.267 45.701 5.334 37.342 23.75 65.81 49.46 81.236 22.728 13.636 51.452 17.35 83.643 6.983-24.222-4.01-46.475-30.705-48.197-50.649 10.63 12.814 23.94 24.547 38.426 31.75-9.881-22.578-9.201-45.453-11.088-64.322-1.352-13.522-3.891-24.982-11.377-35.162-7.486-10.18-20.423-19.8-44.74-27.906a31.062 31.062 0 0 0-10.278-1.586zm-322.35 71.816-.003.002.002.002.002-.004zm-.001.004-12.117 30.3 30.392 30.395 30.305-12.12-6.61-6.612-12.732-12.727-9.898-9.898-12.73-12.728-6.61-6.61zm-19.395 48.485-12.992 32.476 32.478-12.992-19.486-19.485z"/></svg><span>ALL</span></button>
+                <button class="variant-button" type="button" data-variant="fg" aria-label="Foreground" title="Foreground only" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M429.548 30.836c-.307-.003-.6.005-.875.024-2.212.147-3.34.653-4.576 1.89l-27.58 27.58 55.156 55.154 27.578-27.58c1.238-1.236 1.744-2.363 1.89-4.575.15-2.21-.37-5.433-1.805-9.163-2.87-7.46-9.277-16.667-17.055-24.445-7.778-7.778-16.985-14.185-24.445-17.055-3.264-1.255-6.138-1.81-8.287-1.83zm-45.758 42.22-9.9 9.9 9.9 9.9 12.727 12.727 9.9 9.9 12.727 12.728 9.9 9.9 9.9-9.9-55.155-55.155zm-22.627 22.626L72.665 384.186l9.898 9.897 288.5-288.5-9.9-9.9zm22.627 22.63L95.29 406.808l9.9 9.902 288.5-288.5-9.9-9.9zm22.63 22.626-288.502 288.5 9.897 9.9 288.503-288.5-9.9-9.9zM63.223 400.198l-12.12 30.306 30.393 30.394 30.305-12.12-6.61-6.612L92.46 429.44l-9.9-9.9-12.73-12.728-6.61-6.612zm-19.395 48.488-12.993 32.478 32.478-12.992-19.486-19.485z"/></svg><span>FG</span></button>
+                <button class="variant-button" type="button" data-variant="bg" aria-label="Background" title="Background only" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="m414 22.77-10.8 5.41c14 9.72 29.1 22.93 43.4 37.19 14.3 14.24 27.5 29.48 37.2 43.33l5.4-10.71c-5.4-13.29-17.2-29.81-31.3-43.95-14.1-14.14-30.6-25.92-43.9-31.27zm-47.7 7.36L110.1 265.9 246 401.8l235.8-256.2c-.1 0 .1-.9-.7-3.9-1.1-4.1-4-10.2-8.4-17.1-8.8-13.8-23.1-30.83-38.8-46.5-15.7-15.68-32.8-30.07-46.6-38.86-6.9-4.39-13-7.33-17-8.43-3.4-.91-4.1-.56-4-.68zM96.89 278.1l-12.65 12.7L221.1 427.7l12.7-12.7zm-13.68 37.1c1.08 42.4-15.77 78.5-32.83 112.7l19.5 19.5 14.14 14.2c34.18-17.1 70.28-34 112.68-32.9zM39.56 442.5c-11.24 11.8-16.45 18.7-16.67 19.7-.12.7-.41.4 1.34 2.9s5.55 6.4 10.9 11.7c5.34 5.4 9.27 9.2 11.72 10.9 2.46 1.8 2.24 1.5 2.86 1.4 1.05-.2 7.91-5.4 19.66-16.7z"/></svg><span>BG</span></button>
+              </div>
             </div>
             <div class="tool-setting">
               <div class="field-head"><label for="brush-size">SIZE</label><span id="brush-size-label">1 × 1</span></div>
@@ -3689,8 +3809,8 @@ function artMarkup(): string {
     <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="file-dialog"><div class="dialog-heading"><span>SPRITES</span><button id="close-files" type="button">×</button></div><section class="panel files-panel"><div id="file-list" class="file-list"></div></section></dialog>
-    <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="cancel-size" type="button">CANCEL</button><button id="apply-size" type="submit">RESIZE</button></div></form></dialog>
-    <dialog id="font-dialog"><div class="dialog-heading"><span>FONT</span><button id="close-font" type="button">×</button></div><form id="font-form"><p id="font-description">Preview this sprite in a terminal typeface. Cell size follows the font.</p><div id="font-choices" class="font-choices">${SPRITE_FONTS.map((font) => `<label><input type="radio" name="sprite-font" value="${font.id}"><span class="font-choice-name">${font.label}</span><span class="font-sample" style="font-family:${font.family}">█▓░ ╔═╗ Aa</span></label>`).join('')}</div><div class="size-dialog-actions"><button id="cancel-font" type="button">CANCEL</button><button id="apply-font" type="submit">APPLY</button></div></form></dialog>
+    <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
+    <dialog id="font-dialog"><div class="dialog-heading"><span>FONT</span><button id="close-font" type="button">×</button></div><form id="font-form"><p id="font-description">Preview this sprite in a terminal typeface. Cell size follows the font.</p><div id="font-choices" class="font-choices">${SPRITE_FONTS.map((font) => `<label><input type="radio" name="sprite-font" value="${font.id}"><span class="font-choice-name">${font.label}</span><span class="font-sample" style="font-family:${font.family}">█▓░ ╔═╗ Aa</span></label>`).join('')}</div><div class="size-dialog-actions"><button id="apply-font" type="submit">APPLY</button><button id="cancel-font" type="button">CANCEL</button></div></form></dialog>
     <div id="toast-stack" class="toast-stack"></div>
     <footer class="statusbar"><div><span id="status">READY</span></div><div><span id="tool-status">BRUSH</span><span class="status-separator">│</span><span id="frame-status">NO FRAME</span><span class="status-separator">│</span><span id="layer-status">NO LAYER</span><span class="status-separator">│</span><span id="cursor-status">X: --  Y: --</span></div></footer>
   </div>`;

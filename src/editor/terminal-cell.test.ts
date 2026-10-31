@@ -6,6 +6,7 @@ import {
   TERMINAL_FONT_STACK,
   measureTerminalCell,
   spriteFontFamily,
+  spriteFontNativePx,
   terminalCellAtZoom,
   terminalFont,
   type TextMeasurer,
@@ -37,6 +38,7 @@ describe('terminal cell metrics', () => {
       height: 19,
       ascent: 15,
       font: terminalFont(16),
+      scale: 1,
     });
   });
 
@@ -49,12 +51,13 @@ describe('terminal cell metrics', () => {
     expect(scaled.ascent).toBe(FALLBACK_CELL.ascent * 2);
   });
 
-  it('keeps the measured aspect ratio when zooming', () => {
+  it('keeps native font metrics and scales the glyph with the cell when zooming', () => {
     const cell = terminalCellAtZoom(measurer(10, 16, 4), 2);
     expect(cell.width).toBe(20);
     expect(cell.height).toBe(40);
     expect(cell.ascent).toBe(32);
-    expect(cell.font).toBe(terminalFont(TERMINAL_FONT_PX * 2));
+    expect(cell.font).toBe(terminalFont(TERMINAL_FONT_PX));
+    expect(cell.scale).toBe(2);
   });
 
   it('remasures the cell for the selected spritesheet font', () => {
@@ -64,9 +67,25 @@ describe('terminal cell metrics', () => {
     expect(cell.width).toBe(9.6);
     expect(cell.height).toBe(18);
     expect(terminalCellAtZoom(measurer(9.6, 13, 5), 2, 'courier-new').font).toBe(
-      terminalFont(TERMINAL_FONT_PX * 2, family),
+      terminalFont(TERMINAL_FONT_PX, family),
     );
   });
+
+  it.each([0.01, 0.1, 0.35, 0.713, 1.25, 8])(
+    'keeps glyphs proportional to their cells at %sx for every font, without a minimum text size',
+    (zoom) => {
+      for (const font of SPRITE_FONTS) {
+        const metrics = measurer(8.8, 15, 4);
+        const base = terminalCellAtZoom(metrics, 1, font.id);
+        const cell = terminalCellAtZoom(metrics, zoom, font.id);
+        expect(cell.width / cell.scale).toBeCloseTo(base.width);
+        expect(cell.height / cell.scale).toBeCloseTo(base.height);
+        expect(cell.ascent / cell.scale).toBeCloseTo(base.ascent);
+        expect(cell.font).toBe(terminalFont(spriteFontNativePx(font.id), font.family));
+        expect(cell.scale).toBe(zoom);
+      }
+    },
+  );
 
   it('includes the classic ASCII faces and uses native size for MS-DOS 80x25', () => {
     expect(SPRITE_FONTS.map((font) => font.id)).toEqual([

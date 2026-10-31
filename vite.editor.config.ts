@@ -61,6 +61,11 @@ async function respond(
       request.url ?? '/api',
       body,
       String(request.headers['content-type'] ?? ''),
+      request.headers['x-asset-base-revision'] === 'new'
+        ? null
+        : typeof request.headers['x-asset-base-revision'] === 'string'
+          ? request.headers['x-asset-base-revision']
+          : undefined,
     );
     response.statusCode = result.status;
     for (const [key, value] of Object.entries(result.headers)) response.setHeader(key, value);

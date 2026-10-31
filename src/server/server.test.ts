@@ -37,19 +37,63 @@ describe('game server', () => {
       const welcome = parseServerMessage(await messages.next());
       expect(welcome?.type).toBe('terminal-data');
       if (welcome?.type === 'terminal-data') expect(visibleText(welcome.data)).toContain('+---+');
+      if (welcome?.type === 'terminal-data')
+        expect(visibleText(welcome.data)).toContain('Welcome to Incanterm.');
 
       socket.send(JSON.stringify({ type: 'input', data: 'hi' }));
       socket.send('not-json');
       socket.send(JSON.stringify({ type: 'resize', cols: 40, rows: 16 }));
+      const advanced = parseServerMessage(await messages.next());
+      if (advanced?.type === 'terminal-data')
+        expect(visibleText(advanced.data)).toContain('The crate is waiting for you.');
       const resized = parseServerMessage(await messages.next());
       expect(resized?.type).toBe('terminal-data');
       if (resized?.type === 'terminal-data') {
         const text = visibleText(resized.data);
         expect(text).toContain('| # |');
         expect(text).not.toContain('hi');
+        expect(text).toContain('The crate is waiting for you.');
       }
+      socket.send(JSON.stringify({ type: 'input', data: ' ' }));
+      const lastLine = parseServerMessage(await messages.next());
+      if (lastLine?.type === 'terminal-data')
+        expect(visibleText(lastLine.data)).toContain('See you soon.');
+      socket.send(JSON.stringify({ type: 'input', data: '\r' }));
+      const done = parseServerMessage(await messages.next());
+      if (done?.type === 'terminal-data')
+        expect(visibleText(done.data)).not.toContain('See you soon.');
     } finally {
       socket.close();
+    }
+  });
+
+  it('advances dialogue for only the player who sent input', async () => {
+    server = await start();
+    const first = new WebSocket(`ws://127.0.0.1:${server.httpPort}/ws`);
+    const second = new WebSocket(`ws://127.0.0.1:${server.httpPort}/ws`);
+    try {
+      const firstMessages = messageQueue(first);
+      const secondMessages = messageQueue(second);
+      await Promise.all([waitForOpen(first), waitForOpen(second)]);
+      await firstMessages.next(); // session status
+      await secondMessages.next();
+      await firstMessages.next(); // opening dialogue
+      await secondMessages.next();
+
+      first.send(JSON.stringify({ type: 'input', data: ' ' }));
+      const advanced = parseServerMessage(await firstMessages.next());
+      expect(advanced?.type).toBe('terminal-data');
+      if (advanced?.type === 'terminal-data')
+        expect(visibleText(advanced.data)).toContain('The crate is waiting for you.');
+
+      second.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+      const unchanged = parseServerMessage(await secondMessages.next());
+      expect(unchanged?.type).toBe('terminal-data');
+      if (unchanged?.type === 'terminal-data')
+        expect(visibleText(unchanged.data)).toContain('Welcome to Incanterm.');
+    } finally {
+      first.close();
+      second.close();
     }
   });
 

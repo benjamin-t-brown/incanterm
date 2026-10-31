@@ -1,6 +1,7 @@
 {
   "name": "rpgscript-vs",
   "displayName": "rpgscript-vs",
+  "publisher": "incanterm",
   "description": "Support for RPGScript",
   "version": "0.0.1",
   "engines": {
@@ -68,12 +69,18 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "yarn run package",
-    "build": "yarn build:client && yarn build:server",
+    "vscode:prepublish": "npm run package",
+    "build": "npm run build:client && npm run build:server",
     "build:client": "webpack",
-    "build:server": "cd src/server && tsc -p ./tsconfig.json && node ../../scripts/cp_server_files.js",
+    "build:server": "tsc -p src/server/tsconfig.json --rootDir src/server/src --outDir src/server/dist",
     "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map"
+    "test:assignments": "node scripts/test-storage-assignment.js",
+    "test:duplicates": "node scripts/test-duplicate-names.js",
+    "test:diagnostics": "node scripts/test-duplicate-diagnostics.js",
+    "test:references": "node scripts/test-script-references.js",
+    "test:locals": "node scripts/test-local-scope.js",
+    "test:arguments": "node scripts/test-arguments.js",
+    "package": "webpack --mode production --devtool hidden-source-map && npm run build:server"
   },
   "devDependencies": {
     "@types/babel__core": "7.20.5",

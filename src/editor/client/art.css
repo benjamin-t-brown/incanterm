@@ -10,15 +10,6 @@
 .app textarea {
   user-select: text;
 }
-.top-right {
-  color: var(--mint);
-  font-size: 13px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .live-indicator,
 .status-led {
   width: 7px;
@@ -30,17 +21,6 @@
 .top-divider {
   opacity: 0.5;
   margin: 0 5px;
-}
-.text-button {
-  border: 0;
-  color: #f1e8de;
-  background: transparent;
-  padding: 6px 0;
-  font-weight: bold;
-  letter-spacing: 0.6px;
-}
-.text-button:hover {
-  color: #f2bdaf;
 }
 .menubar {
   height: 46px;
@@ -277,6 +257,46 @@
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 10px;
   align-items: end;
+}
+.variant-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.variant-button {
+  min-width: 0;
+  height: 42px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.variant-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.variant-button:hover:not(:disabled),
+.variant-button.active {
+  background: var(--highlight);
+  color: var(--accent-text);
+  border-color: var(--highlight);
+}
+.variant-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.variant-button:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 .tool-setting .size-row {
   height: 34px;

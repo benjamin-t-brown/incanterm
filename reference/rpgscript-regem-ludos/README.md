@@ -1,6 +1,6 @@
 # RPGScript extraction from regem-ludos
 
-Source snapshot for adapting the user's RPGScript language to Incanterm. These are reference sources, not the implemented Incanterm runtime. The original project was not modified. Copied files retain their original contents.
+Source snapshot for adapting the user's RPGScript language to Incanterm. These are reference sources, not the implemented Incanterm runtime. The extension's parser, TextMate grammar, and Iro source were updated to recognize and highlight `else()` and to color conditional and command-call parentheses as control flow; other copied files retain their original contents.
 
 See [the adaptation design](../../docs/design/rpgscript.md) for the intended server implementation and [manifest.json](manifest.json) for source provenance and per-file SHA256 hashes. The snapshot captures working-tree contents, which may differ from the recorded Git commit.
 
@@ -24,7 +24,12 @@ See [the adaptation design](../../docs/design/rpgscript.md) for the intended ser
 
 The language extension includes `.rpgscript` registration, TextMate highlighting, language configuration, icon, syntax source, completion, lint/diagnostics, hover documentation, and definitions. Its language-server parser is customized for editor features and must not be blindly replaced by the runtime parser. The separate formatter is included too.
 
-The extension exposes `rpgscript.scriptsRoot` and `rpgscript.sceneCommandsPath` settings. Adapt these to Incanterm's future asset and command locations. Command discovery currently inspects a particular `commands` object and function-declaration layout; an arbitrary new registry format will require updating this discovery logic.
+Follow [Install RPGScript support in Cursor](../../docs/rpgscript-cursor-setup.md)
+to build and install the adapted extension from a fresh checkout. Configure
+`rpgscript.scriptsRoot` as `assets/scripts` and `rpgscript.sceneCommandsPath` as
+`src/game/rpgscript/scene-commands.ts`, relative to the workspace folder. Command
+discovery inspects the `commands` object and matching declarations; an arbitrary
+new registry format will require updating this discovery logic.
 
 ## Extraction boundaries
 

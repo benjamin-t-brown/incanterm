@@ -24,9 +24,9 @@ Exact pathfinding algorithm, blocked-destination behavior, arrival/interact dist
 
 ## Viewport and UI
 
-The target canvas is 120 by 40 cells, split into a top game area and a bottom UI area. Larger terminals center the target layout. Smaller terminals keep the UI accessible while the world camera/viewport scrolls. Do not scroll essential controls off-screen with the world.
+The standard canvas is 120 by 40 cells: a 24-row game world and a fixed 16-row UI panel, divided by an `=` line at the top of the UI. Larger terminals center the layout. Smaller terminals crop the centered width and frame the world around its center while retaining the UI's center and some world down to 40 by 16 cells. Below that size, display a minimum-size warning. Do not scroll essential controls off-screen with the world.
 
-Adjust the camera area to terminal dimensions. Exact game/UI height allocation, minimum terminal size, and scrolling/follow rules remain to be defined. Transform client coordinates through viewport offsets before scene hit testing; UI and world coordinates are distinct.
+Adjust the camera area to terminal dimensions. The minimum terminal size is 40 by 16 cells; scrolling/follow rules for moving scenes remain to be defined. Transform client coordinates through viewport offsets before scene hit testing; UI and world coordinates are distinct.
 
 ## Deferred content decisions
 

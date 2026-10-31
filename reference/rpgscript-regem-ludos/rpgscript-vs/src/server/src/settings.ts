@@ -30,7 +30,7 @@ export function getSettingsForDocument(
   resource: string
 ): Thenable<RPGScriptSettings> {
   if (!baseSettings.hasConfigurationCapability) {
-    return Promise.resolve({});
+    return Promise.resolve(currentSettings);
   }
   let result = documentSettings.get(resource);
   if (!result) {

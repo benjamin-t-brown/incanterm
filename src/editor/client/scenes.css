@@ -1,1 +1,338 @@
-/* Scene editor styles can be added here as the editor is built out. */
+.simple-main.scene-main {
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+  padding: 12px 16px;
+}
+.scene-library {
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.scene-library label {
+  font-weight: bold;
+  font-size: 13px;
+}
+.scene-library .asset-list {
+  overflow: auto;
+}
+.scene-app {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.scene-app .toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#scene-title {
+  margin-left: auto;
+}
+#scene-status {
+  min-height: 24px;
+  margin: 8px 0;
+  color: var(--muted);
+}
+.scene-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.scene-workspace[hidden] {
+  display: none;
+}
+.scene-stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.scene-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.scene-tools span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.scene-zoom-controls {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.scene-zoom-controls #scene-zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+}
+.scene-scroll {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  background: var(--canvas-outside);
+  border: 1px solid var(--line);
+  touch-action: none;
+}
+#scene-canvas,
+#scene-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  max-width: none;
+  transform-origin: top left;
+  touch-action: none;
+}
+#scene-canvas {
+  cursor: default;
+}
+#scene-hover {
+  pointer-events: none;
+}
+.scene-sidebar {
+  overflow: auto;
+  padding: 12px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.scene-sidebar h2 {
+  font-size: 14px;
+  margin: 8px 0;
+  letter-spacing: 1px;
+}
+.scene-background-controls {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.scene-background-controls h2 {
+  margin: 0;
+}
+#scene-background-mode[aria-pressed="true"] {
+  background: var(--highlight);
+  color: var(--accent-text);
+  border-color: var(--highlight);
+}
+.scene-sidebar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 12px;
+  font-weight: bold;
+}
+.scene-sidebar input,
+.scene-sidebar select,
+.scene-sidebar textarea,
+.scene-library input {
+  min-width: 0;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 6px;
+}
+.scene-sidebar textarea {
+  resize: vertical;
+}
+.scene-pair {
+  display: flex;
+  gap: 8px;
+}
+.scene-pair label {
+  min-width: 0;
+  flex: 1;
+}
+#scene-inspector {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}
+.scene-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.scene-id-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--muted);
+}
+.scene-id-row button {
+  flex: none;
+}
+#scene-inspector p {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: var(--muted);
+}
+#scene-inspector a {
+  display: inline-block;
+  margin: 8px 0;
+  color: var(--highlight);
+}
+.scene-sidebar #scene-inspector .scene-trigger-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.scene-sidebar #scene-inspector .scene-trigger-toggle input {
+  width: auto;
+  margin: 0;
+}
+#scene-add-trigger[aria-pressed="true"] {
+  border-color: var(--highlight);
+  color: var(--highlight);
+}
+.scene-app button {
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+  padding: 6px 10px;
+}
+.scene-app button:hover:not(:disabled) {
+  border-color: var(--highlight);
+}
+.scene-background-picker,
+.scene-prop-picker {
+  width: min(650px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 32px));
+  padding: 18px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  color: var(--text);
+}
+.scene-background-picker::backdrop,
+.scene-prop-picker::backdrop {
+  background: #071d1cd9;
+}
+.scene-background-picker h2,
+.scene-prop-picker h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.scene-background-picker p,
+.scene-prop-picker p {
+  color: var(--muted);
+}
+.scene-background-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: bold;
+}
+.scene-background-picker select {
+  padding: 8px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.scene-background-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  max-height: 350px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.scene-background-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--inset);
+  border: 2px solid var(--line);
+  color: var(--text);
+  padding: 8px;
+}
+.scene-background-frame.active {
+  border-color: var(--highlight);
+}
+.scene-background-frame canvas {
+  display: block;
+  max-width: 100%;
+}
+.scene-background-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.scene-background-actions button {
+  padding: 8px 12px;
+  background: var(--inset);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.scene-prop-picker label {
+  display: block;
+  margin: 14px 0 5px;
+  font-size: 13px;
+  font-weight: bold;
+}
+#scene-prop-search {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+}
+.scene-prop-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  max-height: min(410px, 50vh);
+  min-height: 140px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.scene-prop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  background: var(--inset);
+  color: var(--text);
+  border: 2px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.scene-prop-card.active {
+  border-color: var(--highlight);
+}
+.scene-prop-card canvas {
+  max-width: 100%;
+}
+.scene-prop-card span {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 850px) {
+  .scene-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+  .scene-scroll {
+    min-height: 300px;
+  }
+  .scene-sidebar {
+    max-height: 400px;
+  }
+}

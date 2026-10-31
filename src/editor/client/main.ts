@@ -2,9 +2,11 @@ import faviconUrl from '../../../assets/editor-favicon.png';
 import { mountAnimation } from './animation.js';
 import { mountArt } from './art.js';
 import { mountGame } from './game.js';
-import { mountIndex, mountScenes } from './pages.js';
+import { mountIndex } from './pages.js';
+import { mountScenes } from './scenes.js';
+import { mountProps } from './props.js';
 import { mountScripts } from './scripts.js';
-import { allowLeave } from './shell.js';
+import { allowLeave, setupThemeToggle } from './shell.js';
 import { mountSoundboard } from './soundboard.js';
 
 const icon = document.createElement('link');
@@ -17,6 +19,7 @@ const titles: Record<string, string> = {
   '/': 'Incanterm Editor',
   '/art': 'Incanterm Editor - Art',
   '/animation': 'Incanterm Editor - Animation',
+  '/props': 'Incanterm Editor - Props',
   '/soundboard': 'Incanterm Editor - Soundboard',
   '/scripts': 'Incanterm Editor - Script Writer',
   '/scenes': 'Incanterm Editor - Scene',
@@ -27,6 +30,7 @@ const routes: Record<string, (root: HTMLElement) => void | (() => void)> = {
   '/': mountIndex,
   '/art': mountArt,
   '/animation': mountAnimation,
+  '/props': mountProps,
   '/soundboard': mountSoundboard,
   '/scripts': mountScripts,
   '/scenes': mountScenes,
@@ -52,6 +56,8 @@ function render(): void {
   const result = mount(app);
   if (typeof result === 'function') cleanup = result;
   const active = currentPath();
+  // Art binds its own toggle so it can redraw the canvas when the theme changes.
+  if (active !== '/art') setupThemeToggle(app);
   document.title = titles[active] ?? 'Incanterm Editor';
   for (const link of app.querySelectorAll<HTMLAnchorElement>('a[href]')) {
     if (link.getAttribute('href') === active) link.setAttribute('aria-current', 'page');
@@ -66,9 +72,19 @@ async function navigate(url: URL): Promise<void> {
 }
 
 document.addEventListener('click', (event) => {
-  if (!(event.target instanceof Element)) return;
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    event.altKey ||
+    !(event.target instanceof Element)
+  )
+    return;
   const link = event.target.closest('a');
   if (!(link instanceof HTMLAnchorElement) || link.origin !== location.origin) return;
+  if (link.target && link.target !== '_self') return;
   const url = new URL(link.href);
   const path = url.pathname.replace(/\/$/, '') || '/';
   if (!(path in routes)) return;

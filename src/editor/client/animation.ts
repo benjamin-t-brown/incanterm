@@ -1,3 +1,4 @@
+import { wrappedFrameIndex } from '../animation-navigation.js';
 import { paletteRgb, type PaletteDocument } from '../palette.js';
 import {
   createAnimation,
@@ -12,18 +13,18 @@ import {
   type SpriteDocument,
 } from '../schema.js';
 import {
-  applyTerminalGlyphStyle,
   preloadSpriteFonts,
   spriteFontFamily,
   spriteFontNativePx,
   terminalCellAtZoom,
   terminalFont,
 } from '../terminal-cell.js';
-import { ApiError, jsonRequest, requestJson } from './api.js';
+import { drawTerminalGlyph, fillTerminalCell } from './terminal-renderer.js';
+import { ApiError, requestJson } from './api.js';
 import { saveDraft } from './save.js';
 import { mergeJson } from '../safe-save.js';
 import { alertModal, askFrameDuration, confirmModal, isModalOpen } from './modal.js';
-import { askId, pageShell, setDirtyGuard } from './shell.js';
+import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from './shell.js';
 
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 8;
@@ -59,7 +60,7 @@ export function mountAnimation(root: HTMLElement): () => void {
             <aside class="anim-controls" aria-label="Clip controls">
               <label class="anim-control-check"><input id="loop" type="checkbox" disabled> LOOP</label>
               <label class="anim-control-field">DEFAULT MS
-                <input id="default-ms" class="text-input" type="number" min="1" max="600000" value="120" disabled>
+                <input id="default-ms" class="text-input" type="number" min="1" max="600000" value="135" disabled>
               </label>
               <button type="button" id="modify-ms-all" disabled>MODIFY MS ALL</button>
               <button type="button" id="add-invisible" disabled>ADD INVISIBLE</button>
@@ -119,6 +120,7 @@ export function mountAnimation(root: HTMLElement): () => void {
   let current: AnimationDocument | null = null;
   let saved = '';
   let saving = false;
+  let openToken = 0;
   let timer = 0;
   let playing = false;
   let playIndex = 0;
@@ -226,7 +228,6 @@ export function mountAnimation(root: HTMLElement): () => void {
     const grid = terminalCellAtZoom(target, scale, sprite.font);
     const originX = Math.floor((width - sprite.width * grid.width) / 2);
     const originY = Math.floor((height - sprite.height * grid.height) / 2);
-    applyTerminalGlyphStyle(target, grid);
     const cells = flattenSprite(sprite, frameIndex);
     for (let index = 0; index < cells.length; index++) {
       const cell = cells[index];
@@ -234,10 +235,10 @@ export function mountAnimation(root: HTMLElement): () => void {
       const x = originX + (index % sprite.width) * grid.width;
       const y = originY + Math.floor(index / sprite.width) * grid.height;
       target.fillStyle = paletteRgb(palette, cell.bg) ?? '#000';
-      target.fillRect(x, y, grid.width, grid.height);
+      fillTerminalCell(target, grid, x, y);
       if (cell.ch !== ' ') {
         target.fillStyle = paletteRgb(palette, cell.fg) ?? '#fff';
-        target.fillText(cell.ch, x, y + grid.ascent);
+        drawTerminalGlyph(target, grid, cell.ch, x, y);
       }
     }
   }
@@ -724,6 +725,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       const stored = await saveDraft(`/api/animations/${encodeURIComponent(sent.id)}`, sent, base);
       let rebased = true;
       if (current?.id === sent.id) {
+        setEditorAssetUrl(sent.id);
         const result = mergeJson(sent, current, stored);
         if (result.ok) {
           current = result.value;
@@ -732,7 +734,9 @@ export function mountAnimation(root: HTMLElement): () => void {
           void drawPreview();
         } else rebased = false;
       }
-      const message = rebased ? `Saved ${stored.id}` : `Saved ${stored.id}; newer edits need review`;
+      const message = rebased
+        ? `Saved ${stored.id}`
+        : `Saved ${stored.id}; newer edits need review`;
       setStatus(message);
       toast(message, !rebased);
       refreshToolbar();
@@ -751,16 +755,27 @@ export function mountAnimation(root: HTMLElement): () => void {
   async function openAnimation(id: string): Promise<void> {
     if (current?.id === id) return;
     if (dirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
-    stop();
-    current = await requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`);
-    saved = JSON.stringify(current);
-    inspect = null;
-    playIndex = 0;
-    autoFit = true;
-    renderReel();
-    renderAnimList();
-    refreshToolbar();
-    void drawPreview();
+    const token = ++openToken;
+    try {
+      const animation = await requestJson<AnimationDocument>(
+        `/api/animations/${encodeURIComponent(id)}`,
+      );
+      if (!alive || token !== openToken) return;
+      stop();
+      current = animation;
+      saved = JSON.stringify(animation);
+      setEditorAssetUrl(id);
+      inspect = null;
+      playIndex = 0;
+      autoFit = true;
+      renderReel();
+      renderAnimList();
+      refreshToolbar();
+      void drawPreview();
+    } catch (error) {
+      if (alive && token === openToken)
+        setStatus(error instanceof Error ? error.message : 'Could not open animation');
+    }
   }
 
   function renderAnimList(): void {
@@ -853,9 +868,11 @@ export function mountAnimation(root: HTMLElement): () => void {
         return;
       }
       if (dirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
+      ++openToken;
       stop();
       current = createAnimation(id);
       saved = '';
+      setEditorAssetUrl(null);
       inspect = null;
       playIndex = 0;
       autoFit = true;
@@ -869,9 +886,13 @@ export function mountAnimation(root: HTMLElement): () => void {
   root.querySelector('#delete-animation')?.addEventListener('click', () => {
     void (async () => {
       if (!current || !(await confirmModal(`Delete ${current.id}?`, 'DELETE'))) return;
-      await requestJson(`/api/animations/${encodeURIComponent(current.id)}`, { method: 'DELETE' });
+      const id = current.id;
+      await requestJson(`/api/animations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!alive || current?.id !== id) return;
+      ++openToken;
       current = null;
       saved = '';
+      setEditorAssetUrl(null);
       inspect = null;
       playIndex = 0;
       stop();
@@ -950,7 +971,8 @@ export function mountAnimation(root: HTMLElement): () => void {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       if (!current || current.frames.length === 0) return;
       event.preventDefault();
-      selectFrame(playIndex + (event.key === 'ArrowLeft' ? -1 : 1));
+      const count = current.frames.length;
+      selectFrame(wrappedFrameIndex(playIndex, event.key === 'ArrowLeft' ? -1 : 1, count));
     }
   }
   document.addEventListener('keydown', onKeyDown, true);
@@ -968,15 +990,28 @@ export function mountAnimation(root: HTMLElement): () => void {
   observer.observe(wrap);
 
   void preloadSpriteFonts()
-    .then(() => reloadLists())
+    .then(async () => {
+      await reloadLists();
+      if (!alive) return;
+      const requested = new URLSearchParams(location.search).get('id');
+      if (requested) {
+        if (isAssetId(requested) && animations.includes(requested)) await openAnimation(requested);
+        else setStatus(`Animation ${requested} not found`);
+      }
+    })
     .then(() => {
+      if (!alive) return;
       renderReel();
       sizePreview();
       return drawPreview();
+    })
+    .catch((error: unknown) => {
+      if (alive) setStatus(error instanceof Error ? error.message : 'Could not load animations');
     });
 
   return () => {
     alive = false;
+    ++openToken;
     stop();
     observer.disconnect();
     document.removeEventListener('keydown', onKeyDown, true);

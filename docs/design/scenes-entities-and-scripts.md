@@ -45,6 +45,8 @@ Entities participate in update/render and relevant event handling. Invisible ent
 
 Entity objects are separate from [UIElement](ui.md) objects. A world door is a Prop; dialogue panels and inventory controls belong to UI trees. Scripts coordinate the world and UI through game functions.
 
+Reusable prop assets hold the visual, footprint, blocking, and depth offsets; scene entities supply position and instance identity. See [Prop definitions](assets-and-scene-editor.md#prop-definitions) for the authoring schema. Backgrounds and Items can reuse prop behavior, but have their own scene-level semantics.
+
 Scenes define operating modes, traversable tiles, and inventory interaction as described in [Interaction and navigation](interaction-and-navigation.md). Character animation states cover four-direction idle/facing and walking plus custom states; diagonal movement uses horizontal-facing animation.
 
 ## Drawing and space

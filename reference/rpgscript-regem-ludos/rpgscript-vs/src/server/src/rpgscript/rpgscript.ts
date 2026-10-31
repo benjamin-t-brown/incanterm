@@ -1,9 +1,13 @@
 import { logger } from '../logger';
+import { parseScriptSignature } from './script-signature';
 
 type Scene = any;
 
-// Code above this line exists for compatibility.  Don't forget about the line:
-//       callScriptStrings.push({ scriptName, lineNum, fileName: this.name });
+export const storageAssignmentPattern =
+  /^([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=\s*(.*)$/;
+
+// Code above this line exists for compatibility. Keep script-call reference
+// tracking below: the language server uses it for project-wide diagnostics.
 
 // Take care blindly pasting the parser stuff into this file, it has a few customizations
 // that, if removed, will break the lsp
@@ -140,6 +144,9 @@ export interface Command {
   args: (
     | string
     | number
+    | boolean
+    | { storageKey: string }
+    | { localName: string }
     | {
         text: string;
         target: any;
@@ -181,6 +188,7 @@ export class Trigger {
 
 export class Script {
   name: string;
+  parameters: string[];
   filename: string;
   lineNum: number;
   blocks: CommandBlock[];
@@ -190,8 +198,9 @@ export class Script {
   sounds: number;
   soundsPerCharacter: Record<string, number>;
 
-  constructor(name: string, filename: string, lineNum: number) {
+  constructor(name: string, filename: string, lineNum: number, parameters: string[] = []) {
     this.name = name;
+    this.parameters = parameters;
     this.filename = filename;
     this.lineNum = lineNum;
     this.blocks = [];
@@ -314,6 +323,18 @@ export class ScriptParser {
   parseCommand(commandSrc: string, lineNum: number, script?: Script): Command {
     commandSrc = commandSrc.trim();
 
+    // Keep assignment syntax aligned with Incanterm's runtime parser.
+    const assignment = storageAssignmentPattern.exec(commandSrc);
+    if (assignment) {
+      const value = assignment[2].replace(/;$/, '').trim();
+      if (!/^(?:"[^"]*"|'[^']*'|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|[^\s,;=(){}"']+)$/.test(value)) {
+        this.throwParsingError('Invalid storage assignment, expected one value', lineNum, commandSrc);
+      }
+      commandSrc = assignment[1].startsWith('[')
+        ? `setLocal(${assignment[1].slice(1, -1)}, ${value})`
+        : `setStorage(${assignment[1]}, ${value})`;
+    }
+
     // shorthand for callScript(scriptName, ...args)
     if (commandSrc[0] === ':') {
       const src = commandSrc.slice();
@@ -334,13 +355,8 @@ export class ScriptParser {
         );
       }
       const scriptName = src.slice(1, indFirstOpen);
-      const scriptArgs = src.slice(indFirstOpen + 1, indLastClose).split(',');
-      currentParser.callScriptStrings.push({
-        scriptName,
-        lineNum,
-        fileName: this.name,
-      });
-      commandSrc = `callScript(${scriptName},${scriptArgs.join(',')});`;
+      const scriptArgs = src.slice(indFirstOpen + 1, indLastClose).trim();
+      commandSrc = `callScript(${scriptName}${scriptArgs ? ',' + scriptArgs : ''});`;
     }
 
     const firstParenIndex = commandSrc.indexOf('(');
@@ -392,11 +408,51 @@ export class ScriptParser {
       }
     });
 
+    const type = commandSrc.substr(0, firstParenIndex);
+    const formattedArgs = formatArgs(args) as Command['args'];
+    if (type === 'callScript' || type === 'setLocal') {
+      for (let index = 1; index < args.length; index++) {
+        const arg = args[index];
+        if (arg.startsWith('"') || arg.startsWith("'")) formattedArgs[index] = arg.slice(1, -1);
+        else if (arg === 'true' || arg === 'false') formattedArgs[index] = arg === 'true';
+      }
+    }
+    if (['setStorage', 'setLocal', 'callScript', 'is', 'isnot', 'eq', 'gt', 'lt'].includes(type)) {
+      const indices = args.map((_, index) => index).filter(index =>
+        index > 0 || (type !== 'callScript' && type !== 'setLocal'));
+      for (const index of indices) {
+        if (args[index]?.startsWith('[')) {
+          const local = /^\[([A-Za-z_][\w-]*)\]$/.exec(args[index]);
+          if (!local) this.throwParsingError('Invalid local reference', lineNum, commandSrc);
+          else formattedArgs[index] = { localName: local[1] };
+          continue;
+        }
+        if (!args[index]?.startsWith('{')) continue;
+        const reference = /^\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}$/.exec(args[index]);
+        if (!reference) {
+          this.throwParsingError('Invalid storage reference', lineNum, commandSrc);
+        } else {
+          formattedArgs[index] = { storageKey: reference[1] };
+        }
+      }
+    }
+    if (type === 'callScript' && typeof formattedArgs[0] === 'string') {
+      this.recordScriptCall(formattedArgs[0], lineNum, formattedArgs.length - 1);
+    }
     return {
       i: lineNum,
-      type: commandSrc.substr(0, firstParenIndex),
-      args: formatArgs(args) as any[],
+      type,
+      args: formattedArgs,
     };
+  }
+
+  private recordScriptCall(scriptName: string, lineNum: number, argCount = 0) {
+    currentParser?.callScriptStrings.push({
+      scriptName: scriptName.trim(),
+      lineNum,
+      fileName: this.name,
+      argCount,
+    });
   }
 
   parseConditional(
@@ -404,6 +460,7 @@ export class ScriptParser {
     lineNum: number,
     script?: Script
   ): Conditional | boolean {
+    if (conditionalSrc.trim() === 'else') conditionalSrc = 'else()';
     const { type, args } = this.parseCommand(conditionalSrc, lineNum, script);
     const validTypes = [
       'is',
@@ -413,6 +470,7 @@ export class ScriptParser {
       'eq',
       'any',
       'all',
+      'else',
       'as',
       'once',
       'oncePerInstance',
@@ -544,11 +602,13 @@ export class ScriptParser {
         lastTriggerName = line.slice(1).trim();
       }
       if (line[0] === '@') {
-        let scriptName = line.slice(1).trim();
+        let signature: ReturnType<typeof parseScriptSignature>;
+        try { signature = parseScriptSignature(line.slice(1)); } catch { return; }
+        let scriptName = signature.name;
         if (scriptName === 'this') {
           scriptName = lastTriggerName;
         }
-        scripts[scriptName] = new Script(scriptName, this.name, lineNum);
+        scripts[scriptName] = new Script(scriptName, this.name, lineNum, signature.parameters);
       }
     });
 
@@ -585,7 +645,7 @@ export class ScriptParser {
       lastValidLine = lineNum;
 
       const firstCh = line[0];
-      if (firstCh === '{') {
+      if (line === '{') {
         isCodeBlock = true;
         conditionalStack.push(true);
       } else if (firstCh === '}') {
@@ -593,7 +653,14 @@ export class ScriptParser {
         currentBlock = null;
         conditionalStack.pop();
       } else if (firstCh === '@' && !isCodeBlock) {
-        let scriptName: string = line.substr(1, line.length - 1);
+        let signature: ReturnType<typeof parseScriptSignature>;
+        try {
+          signature = parseScriptSignature(line.slice(1));
+        } catch (error) {
+          this.throwParsingError((error as Error).message, lineNum, line);
+          return;
+        }
+        let scriptName = signature.name;
         if (scriptName === 'this') {
           scriptName = currentTriggerName || '';
         }
@@ -607,7 +674,7 @@ export class ScriptParser {
             this.throwParsingError(err, obj.lineNum ?? 0, '');
           }
         }
-        currentScript = new Script(scriptName, this.name, lineNum);
+        currentScript = new Script(scriptName, this.name, lineNum, signature.parameters);
         addScript(scriptName, currentScript);
         isTrigger = false;
         isChoice = false;
@@ -638,7 +705,7 @@ export class ScriptParser {
             currentScript
           );
           if (typeof conditional === 'object') {
-            if (commandContents[endIndex] === '{') {
+            if (commandContents.slice(endIndex).trim() === '{') {
               conditionalStack.push(conditional);
               isCodeBlock = true;
               currentBlock = currentScript.addCommandBlock();
@@ -747,6 +814,7 @@ export class ScriptParser {
             text: choiceText,
             target: target,
           });
+          this.recordScriptCall(target, lineNum);
         }
       } else if (isTrigger) {
         const firstCommaIndex = line.indexOf(',');
@@ -795,6 +863,7 @@ export class ScriptParser {
         }
         if (currentTrigger) {
           currentTrigger.addScriptCall(triggerType, conditional, scriptName);
+          this.recordScriptCall(scriptName, lineNum);
         }
       } else if (firstCh === '>') {
         if (currentBlock) {
@@ -803,6 +872,7 @@ export class ScriptParser {
             type: 'callScript',
             args: [line.substr(1)],
           });
+          this.recordScriptCall(line.substr(1), lineNum);
         }
       } else {
         isTrigger = false;
@@ -854,6 +924,7 @@ export class RPGScriptParser {
     scriptName: string;
     lineNum: number;
     fileName: string;
+    argCount: number;
   }[] = [];
   scene: Scene;
 

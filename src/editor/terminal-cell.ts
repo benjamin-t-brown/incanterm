@@ -74,7 +74,9 @@ export type TerminalCell = {
   width: number;
   height: number;
   ascent: number;
+  /** Native font, scaled by the canvas transform rather than resized independently. */
   font: string;
+  scale: number;
 };
 
 export type TextMeasurer = {
@@ -125,9 +127,10 @@ export function measureTerminalCell(
       height: FALLBACK_CELL.height * scale,
       ascent: FALLBACK_CELL.ascent * scale,
       font,
+      scale: 1,
     };
   }
-  return { width, height: ascent + descent, ascent, font };
+  return { width, height: ascent + descent, ascent, font, scale: 1 };
 }
 
 export function terminalCellAtZoom(
@@ -142,7 +145,8 @@ export function terminalCellAtZoom(
     width: base.width * zoom,
     height: base.height * zoom,
     ascent: base.ascent * zoom,
-    font: terminalFont(Math.max(6, nativePx * zoom), family),
+    font: base.font,
+    scale: zoom,
   };
 }
 

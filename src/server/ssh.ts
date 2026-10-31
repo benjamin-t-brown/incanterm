@@ -1,5 +1,7 @@
 import type { Connection, ServerChannel, Session } from 'ssh2';
 import type { Scene } from '../game/scene.js';
+import type { ScriptLibrary } from '../game/rpgscript/index.js';
+import type { PortraitAssets } from '../game/portrait-assets.js';
 import { Server } from './ssh2.js';
 import { createGameSession, type GameSession } from './game-session.js';
 import { closeServer, listen } from './listen.js';
@@ -14,6 +16,8 @@ export async function startSshServer(options: {
   port: number;
   hostKey: string;
   scene: Scene;
+  scripts: ScriptLibrary;
+  portraits?: PortraitAssets;
 }): Promise<SshListener> {
   const clients = new Set<Connection>();
   const server = new Server({ hostKeys: [options.hostKey] }, (client) => {
@@ -27,7 +31,7 @@ export async function startSshServer(options: {
     });
     client.on('ready', () => {
       client.on('session', (acceptSession) => {
-        attachSession(acceptSession(), options.scene);
+        attachSession(acceptSession(), options.scene, options.scripts, options.portraits);
       });
     });
   });
@@ -46,7 +50,12 @@ export async function startSshServer(options: {
   };
 }
 
-function attachSession(session: Session, scene: Scene): void {
+function attachSession(
+  session: Session,
+  scene: Scene,
+  scripts: ScriptLibrary,
+  portraits?: PortraitAssets,
+): void {
   let game: GameSession | undefined;
   let cols = 80;
   let rows = 24;
@@ -64,19 +73,32 @@ function attachSession(session: Session, scene: Scene): void {
   });
   session.on('shell', (accept) => {
     const stream = accept();
-    game = bindSession(stream, scene, cols, rows);
+    game = bindSession(stream, scene, scripts, cols, rows, portraits);
   });
 }
 
-function bindSession(stream: ServerChannel, scene: Scene, cols: number, rows: number): GameSession {
-  const game = createGameSession(scene, (text) => {
-    stream.write(text);
-  });
+function bindSession(
+  stream: ServerChannel,
+  scene: Scene,
+  scripts: ScriptLibrary,
+  cols: number,
+  rows: number,
+  portraits?: PortraitAssets,
+): GameSession {
+  const game = createGameSession(
+    scene,
+    (text) => {
+      stream.write(text);
+    },
+    scripts,
+    portraits,
+  );
   game.resize(cols, rows);
   game.open();
   stream.on('data', (chunk: Buffer | string) => {
     game.input(typeof chunk === 'string' ? chunk : chunk.toString('utf8'));
   });
   stream.on('error', () => {});
+  stream.on('close', () => game.close());
   return game;
 }
