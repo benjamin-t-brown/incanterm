@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { createSprite } from '../schema.js';
-import { mergeSprite } from './sprite-merge.js';
+import { mergeSprite, rebaseSpriteSaveAs } from './sprite-merge.js';
 
 const a = { ch: 'A', fg: 'white', bg: 'black' };
 const b = { ch: 'B', fg: 'white', bg: 'black' };
 
 describe('sprite three-way merge', () => {
+  it('keeps the new label and unsaved edits when saving a copy under a new id', () => {
+    const original = createSprite('original', 1, 1, 'Original label');
+    const sent = { ...structuredClone(original), id: 'copy', label: 'New label' };
+    const current = structuredClone(original);
+    current.sprites[0].layers[0].cells[0] = a;
+    const rebased = rebaseSpriteSaveAs(sent, current, structuredClone(sent));
+    expect(rebased).toMatchObject({ id: 'copy', label: 'New label' });
+    expect(rebased.sprites[0].layers[0].cells[0]).toEqual(a);
+    expect(original.label).toBe('Original label');
+  });
+
+  it('merges label changes independently of cell edits', () => {
+    const base = createSprite('test', 1, 1, 'Before');
+    const ours = structuredClone(base);
+    ours.sprites[0].layers[0].cells[0] = a;
+    const theirs = { ...structuredClone(base), label: 'After' };
+    expect(mergeSprite(base, ours, theirs)).toMatchObject({
+      ok: true,
+      value: { label: 'After', sprites: [{ layers: [{ cells: [a] }] }] },
+    });
+  });
   it('keeps independent edits to cells and properties', () => {
     const base = createSprite('test', 2, 1);
     const ours = structuredClone(base);

@@ -100,7 +100,7 @@ describe('isolated loopback game', () => {
     expect(opening.type).toBe('terminal-data');
     if (opening.type === 'terminal-data') {
       expect(opening.data).toContain('Guide: First');
-      expect(opening.data).toContain('.....');
+      expect(opening.data).toContain('\x1b[38;2;0;0;0;48;2;0;0;0m');
     }
 
     game.sendInput(' ');
@@ -160,7 +160,7 @@ describe('isolated loopback game', () => {
     const frame = await received.next();
     expect(frame.type).toBe('terminal-data');
     if (frame.type === 'terminal-data') {
-      expect(frame.data).toContain('.....');
+      expect(frame.data).toContain('\x1b[38;2;0;0;0;48;2;0;0;0m');
       expect(frame.data).not.toContain('Guide: First');
     }
   });

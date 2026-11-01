@@ -10,6 +10,12 @@ const MARGIN: Cell = {
   bg: { r: 12, g: 14, b: 13 },
 };
 
+const EMPTY: Cell = {
+  ch: ' ',
+  fg: { r: 0, g: 0, b: 0 },
+  bg: { r: 0, g: 0, b: 0 },
+};
+
 export abstract class Entity {
   constructor(
     readonly id: string,
@@ -57,6 +63,7 @@ export class Scene {
   ) {}
 
   draw(buffer: CellBuffer, originX: number, originY: number): void {
+    const sceneBuffer = new CellBuffer(this.width, this.height, EMPTY);
     const ranked = this.entities.map((entity, index) => ({ entity, index }));
     ranked.sort((a, b) =>
       compareSceneDrawRank(
@@ -72,7 +79,12 @@ export class Scene {
         },
       ),
     );
-    for (const { entity } of ranked) entity.draw(buffer, originX, originY);
+    for (const { entity } of ranked) entity.draw(sceneBuffer, 0, 0);
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        buffer.set(originX + x, originY + y, sceneBuffer.get(x, y));
+      }
+    }
   }
 }
 
@@ -83,11 +95,6 @@ export function renderView(scene: Scene, cols: number, rows: number): CellBuffer
   const buffer = new CellBuffer(cols, rows, MARGIN);
   const originX = Math.floor((cols - scene.width) / 2);
   const originY = Math.floor((rows - scene.height) / 2);
-  for (let y = 0; y < scene.height; y++) {
-    for (let x = 0; x < scene.width; x++) {
-      buffer.set(originX + x, originY + y, scene.clear);
-    }
-  }
   scene.draw(buffer, originX, originY);
   return buffer;
 }

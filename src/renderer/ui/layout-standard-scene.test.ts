@@ -10,6 +10,7 @@ import {
   STANDARD_WIDTH,
   STANDARD_WORLD_HEIGHT,
 } from './layout-standard-scene.js';
+import { renderStandardUiPreview } from './standard-ui.js';
 
 describe('LayoutStandardScene', () => {
   async function frame(cols: number, rows: number): Promise<string[]> {
@@ -32,6 +33,16 @@ describe('LayoutStandardScene', () => {
     expect(lines.slice(25).join('\n')).not.toContain('Inventory');
     expect(lines.slice(25).join('\n')).toContain('Guide: The crate is waiting for you.');
     expect(lines.slice(0, 24).join('\n')).toContain('| # |');
+  });
+
+  it('renders the same default UI for an editor-only preview', async () => {
+    const scene = await loadScene(defaultAssetsRoot(), TEST_SCENE_ID);
+    const layout = new LayoutStandardScene(scene);
+    const buffer = new CellBuffer(120, 40, STANDARD_BACKGROUND);
+    layout.render(buffer);
+    expect(plainText(renderStandardUiPreview(120)).split('\n')).toEqual(
+      plainText(buffer).split('\n').slice(24),
+    );
   });
 
   it('centers the full canvas on a larger terminal', async () => {

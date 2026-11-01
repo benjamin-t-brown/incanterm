@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { dispatchAssetRequest } from '../api.js';
-import { resizeBlockedCells } from './prop-blocking.js';
+import {
+  blockPreviewGrid,
+  blockPreviewPoint,
+  paintPropBlockedCells,
+  resizeBlockedCells,
+} from './prop-blocking.js';
 import { createAnimation, createProp, createSprite, parseProp } from '../schema.js';
 import { AssetStore } from '../store.js';
 
@@ -41,6 +46,36 @@ it('migrates legacy movement flags and keeps blocked cells in place when resized
   });
   expect(resizeBlockedCells([1, 4, 5], 3, 2, 2)).toEqual([1, 3]);
   expect(resizeBlockedCells([1, 4, 5], 3, 4, 3)).toEqual([1, 5, 6]);
+});
+
+it('maps preview clicks to the centered footprint, not the entire canvas or sprite', () => {
+  const canvas = { width: 360, height: 240 };
+  const footprint = { width: 2, height: 2 };
+  const grid = blockPreviewGrid(canvas, footprint, {
+    width: 3,
+    height: 3,
+    cellWidth: 10,
+    cellHeight: 20,
+  });
+  expect(
+    blockPreviewPoint(
+      { x: grid.x + grid.cellWidth * 1.5, y: grid.y + grid.cellHeight * 1.5 },
+      grid,
+      footprint,
+    ),
+  ).toEqual({ x: 1, y: 1 });
+  expect(
+    blockPreviewPoint({ x: grid.x + grid.cellWidth * 2.5, y: grid.y }, grid, footprint),
+  ).toBeNull();
+  expect(blockPreviewPoint({ x: grid.x - 1, y: grid.y }, grid, footprint)).toBeNull();
+  const empty = blockPreviewGrid(canvas, footprint, null);
+  expect(blockPreviewPoint({ x: empty.x, y: empty.y }, empty, footprint)).toEqual({ x: 0, y: 0 });
+});
+
+it('paints a continuous blocked-cell stroke and erases it on a second stroke', () => {
+  const painted = paintPropBlockedCells([], 4, { x: 0, y: 0 }, { x: 3, y: 0 }, true);
+  expect(painted).toEqual([0, 1, 2, 3]);
+  expect(paintPropBlockedCells(painted, 4, { x: 1, y: 0 }, { x: 2, y: 0 }, false)).toEqual([0, 3]);
 });
 
 it('loads existing legacy prop files and saves edited masks without the old flag', async () => {

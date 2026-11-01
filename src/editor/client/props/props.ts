@@ -20,7 +20,19 @@ import {
 } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
-import { resizeBlockedCells } from '../../props/prop-blocking.js';
+import {
+  neighborPropTab,
+  OPEN_PROPS_KEY,
+  readPropTabs,
+  type PropTabSession,
+} from '../../props/prop-tabs.js';
+import {
+  blockPreviewGrid,
+  blockPreviewPoint,
+  paintPropBlockedCells,
+  resizeBlockedCells,
+  type BlockPreviewGrid,
+} from '../../props/prop-blocking.js';
 import {
   animationsUsingSheet,
   propVisualEditHref,
@@ -39,6 +51,7 @@ export function mountProps(root: HTMLElement): () => void {
       <div id="prop-list" class="asset-list anim-library-list"></div>
     </aside>
     <section class="prop-app" aria-label="Prop editor">
+      <div id="prop-tabs" class="prop-tabs" role="tablist" aria-label="Open props"></div>
       <div class="toolbar-row">
         <button id="new-prop" type="button">NEW</button>
         <button id="save-prop" type="button" disabled>SAVE</button>
@@ -46,6 +59,7 @@ export function mountProps(root: HTMLElement): () => void {
         <strong id="prop-id">NO PROP</strong>
       </div>
       <p id="prop-status" class="page-copy" role="status">Create a prop or select one from the list.</p>
+      <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
       <div id="prop-fields" class="prop-fields" hidden>
         <div class="prop-form">
           <h2>APPEARANCE</h2>
@@ -56,11 +70,11 @@ export function mountProps(root: HTMLElement): () => void {
             <label>WIDTH <input id="prop-width" class="text-input" type="number" min="1" max="256"></label>
             <label>HEIGHT <input id="prop-height" class="text-input" type="number" min="1" max="128"></label>
           </div>
-          <div class="prop-block-field"><span>BLOCKED CELLS</span><span id="prop-block-count"></span><button id="edit-prop-blocks" type="button">EDIT BLOCKED CELLS…</button></div>
+          <div class="prop-block-field"><span>BLOCKED CELLS</span><span id="prop-block-count"></span></div>
           <label>GROUND OFFSET Y <input id="prop-ground" class="text-input" type="number" min="-1024" max="1024"></label>
           <label>DEPTH OFFSET <input id="prop-depth" class="text-input" type="number" min="-1024" max="1024"></label>
         </div>
-        <div class="prop-preview"><h2>PREVIEW</h2><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Focus the preview and press Tab to toggle blocked cells. Shift+Tab moves focus away.</p><p>Scene position and ordering are set in the Scene editor.</p></div>
+        <div class="prop-preview"><h2>PREVIEW</h2><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Show blocked cells, then click or drag on the preview to block or unblock them. Focus the preview and press Tab to toggle the overlay. Shift+Tab moves focus away.</p><p>Scene position and ordering are set in the Scene editor.</p></div>
       </div>
     </section>
     <dialog id="prop-asset-dialog" class="prop-asset-dialog" aria-labelledby="prop-picker-title">
@@ -71,12 +85,6 @@ export function mountProps(root: HTMLElement): () => void {
       </div>
       <p id="prop-picker-status" class="prop-picker-status" role="status"></p>
       <div class="prop-picker-actions"><button id="prop-picker-ok" type="button" disabled>OK</button><button id="prop-picker-cancel" type="button">CANCEL</button></div>
-    </dialog>
-    <dialog id="prop-block-dialog" class="prop-block-dialog" aria-labelledby="prop-block-title">
-      <div class="dialog-heading"><span id="prop-block-title">BLOCKED CELLS</span><button id="prop-block-close" type="button" aria-label="Close">×</button></div>
-      <p class="prop-block-help">Click or drag cells to mark them blocked. The grid matches the prop footprint.</p>
-      <div class="prop-block-scroll"><canvas id="prop-block-canvas" tabindex="0" aria-label="Blocked cell editor"></canvas></div>
-      <div class="prop-block-actions"><span id="prop-block-status" role="status"></span><button id="prop-block-clear" type="button">CLEAR ALL</button><button id="prop-block-all" type="button">BLOCK ALL</button><button id="prop-block-apply" type="button">APPLY</button><button id="prop-block-cancel" type="button">CANCEL</button></div>
     </dialog>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
@@ -97,8 +105,6 @@ export function mountProps(root: HTMLElement): () => void {
   const pickerStatus = $<HTMLElement>('#prop-picker-status');
   const pickerOk = $<HTMLButtonElement>('#prop-picker-ok');
   const canvas = $<HTMLCanvasElement>('#prop-canvas');
-  const blockDialog = $<HTMLDialogElement>('#prop-block-dialog');
-  const blockCanvas = $<HTMLCanvasElement>('#prop-block-canvas');
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('Canvas is unavailable');
   const context: CanvasRenderingContext2D = drawing;
@@ -114,6 +120,10 @@ export function mountProps(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: PropDocument | null = null;
   let saved: PropDocument | null = null;
+  const storedTabs = readPropTabs(localStorage);
+  let openTabs = storedTabs.tabs;
+  const sessions = new Map<string, PropTabSession>(Object.entries(storedTabs.drafts));
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let previewToken = 0;
   let defaultSizeToken = 0;
   let pickerToken = 0;
@@ -122,20 +132,139 @@ export function mountProps(root: HTMLElement): () => void {
   let pickerChoice: PropVisual | null = null;
   let pickerClips: AnimationDocument[] = [];
   let showBlocked = false;
-  let blockDraft: Set<number> | null = null;
-  let blockProp: PropDocument | null = null;
-  let blockSprite: { sprite: SpriteDocument; index: number } | null = null;
-  let blockToken = 0;
-  let blockPainting: boolean | null = null;
-  let blockLast: { x: number; y: number } | null = null;
-  let blockCellPx = 40;
+  let previewGrid: BlockPreviewGrid | null = null;
+  let previewFrame: { key: string; pending: ReturnType<typeof loadVisualFrame> } | null = null;
+  let previewProp: PropDocument | null = null;
+  let blockStroke: {
+    pointerId: number;
+    prop: PropDocument;
+    blocked: boolean;
+    last: { x: number; y: number };
+  } | null = null;
   const sheetCache = new Map<string, Promise<SpriteDocument>>();
-  const BLOCK_CELL_PX = 40;
 
-  const dirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
-  setDirtyGuard(async () => !dirty() || confirmModal('Discard unsaved prop changes?', 'DISCARD'));
+  const tabDirty = (id: string) => {
+    const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
+    return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.saved);
+  };
+  setDirtyGuard(
+    async () =>
+      !openTabs.some(tabDirty) || confirmModal('Discard unsaved prop changes?', 'DISCARD'),
+  );
   const message = (error: unknown) =>
     error instanceof Error ? error.message : 'Prop request failed';
+
+  function toast(text: string, error = false): void {
+    const item = document.createElement('div');
+    item.className = error ? 'save-toast error' : 'save-toast';
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.textContent = error ? '!' : '✓';
+    const label = document.createElement('span');
+    label.className = 'toast-message';
+    label.textContent = text;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'close-toast';
+    close.textContent = '×';
+    close.addEventListener('click', () => item.remove());
+    item.append(icon, label, close);
+    $<HTMLElement>('#toast-stack').append(item);
+    setTimeout(() => item.remove(), 4000);
+  }
+
+  function persistTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = null;
+    const drafts: Record<string, PropTabSession> = {};
+    for (const id of openTabs) {
+      const session = id === current?.id && current ? { doc: current, saved } : sessions.get(id);
+      if (session && JSON.stringify(session.doc) !== JSON.stringify(session.saved))
+        drafts[id] = session;
+    }
+    try {
+      localStorage.setItem(
+        OPEN_PROPS_KEY,
+        JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
+      );
+    } catch {
+      toast('Could not store open prop drafts locally', true);
+    }
+  }
+  function scheduleTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistTabs, 400);
+  }
+  function renderTabs(): void {
+    const host = $<HTMLElement>('#prop-tabs');
+    host.replaceChildren();
+    if (!openTabs.length) {
+      const empty = document.createElement('span');
+      empty.className = 'prop-tabs-empty';
+      empty.textContent = 'NO PROP';
+      host.append(empty);
+    }
+    for (const id of openTabs) {
+      const tab = document.createElement('div');
+      tab.className = 'prop-tab';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(current?.id === id));
+      tab.classList.toggle('current', current?.id === id);
+      tab.classList.toggle('dirty', tabDirty(id));
+      const label = document.createElement('button');
+      label.type = 'button';
+      label.className = 'prop-tab-label';
+      label.textContent = id;
+      const mark = document.createElement('span');
+      mark.className = 'prop-dirty-mark';
+      mark.textContent = ' ●';
+      label.append(mark);
+      label.addEventListener('click', () => void open(id));
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'prop-tab-close';
+      close.setAttribute('aria-label', `Close ${id}`);
+      close.textContent = '×';
+      close.addEventListener('click', () => void closeTab(id));
+      tab.addEventListener('auxclick', (event) => {
+        if (event.button === 1) {
+          event.preventDefault();
+          void closeTab(id);
+        }
+      });
+      tab.append(label, close);
+      host.append(tab);
+    }
+  }
+  function activateProp(prop: PropDocument, baseline: PropDocument | null): void {
+    if (current) sessions.set(current.id, { doc: current, saved });
+    sessions.delete(prop.id);
+    current = prop;
+    saved = baseline;
+    if (!openTabs.includes(prop.id)) openTabs.push(prop.id);
+    setEditorAssetUrl(baseline ? prop.id : null);
+    render();
+    persistTabs();
+  }
+  async function closeTab(id: string): Promise<void> {
+    if (!openTabs.includes(id) || saving) return;
+    if (tabDirty(id) && !(await confirmModal('Discard unsaved prop changes?', 'DISCARD'))) return;
+    const next = neighborPropTab(openTabs, id);
+    openTabs = openTabs.filter((tab) => tab !== id);
+    sessions.delete(id);
+    if (current?.id === id) {
+      ++loading;
+      current = null;
+      saved = null;
+      setEditorAssetUrl(null);
+      if (next) await open(next);
+      else {
+        status.textContent = 'Open a prop from the list.';
+        render();
+      }
+    } else renderTabs();
+    persistTabs();
+  }
 
   function renderList(): void {
     list.replaceChildren();
@@ -198,17 +327,17 @@ export function mountProps(root: HTMLElement): () => void {
     ctx.fillStyle = paletteRgb(colors, 'black') ?? '#000';
     ctx.fillRect(0, 0, target.width, target.height);
     if (index >= sprite.sprites.length) return;
-    const width = Math.max(sprite.width, footprint?.width ?? 0);
-    const height = Math.max(sprite.height, footprint?.height ?? 0);
     const native = terminalCellAtZoom(ctx, 1, sprite.font);
-    const scale = Math.min(
-      4,
-      (target.width - 12) / (width * native.width),
-      (target.height - 12) / (height * native.height),
-    );
+    const grid = blockPreviewGrid(target, footprint ?? sprite, {
+      width: sprite.width,
+      height: sprite.height,
+      cellWidth: native.width,
+      cellHeight: native.height,
+    });
+    const scale = grid.cellWidth / native.width;
     const cell = terminalCellAtZoom(ctx, scale, sprite.font);
-    const x0 = Math.floor((target.width - width * cell.width) / 2);
-    const y0 = Math.floor((target.height - height * cell.height) / 2);
+    const x0 = grid.x;
+    const y0 = grid.y;
     flattenSprite(sprite, index).forEach((entry, at) => {
       const column = at % sprite.width;
       const row = Math.floor(at / sprite.width);
@@ -221,18 +350,25 @@ export function mountProps(root: HTMLElement): () => void {
         drawTerminalGlyph(ctx, cell, entry.ch, x, y);
       }
     });
-    if (footprint && showOverlay)
-      paintBlockedOverlay(ctx, footprint, x0, y0, cell.width, cell.height);
+    if (footprint && showOverlay) paintBlockedOverlay(ctx, footprint, grid);
   }
 
   function paintBlockedOverlay(
     ctx: CanvasRenderingContext2D,
     prop: PropDocument,
-    x0: number,
-    y0: number,
-    width: number,
-    height: number,
+    grid: BlockPreviewGrid,
   ): void {
+    const { x: x0, y: y0, cellWidth: width, cellHeight: height } = grid;
+    ctx.strokeStyle = 'rgba(255, 174, 149, 0.45)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < prop.height; y++)
+      for (let x = 0; x < prop.width; x++)
+        ctx.strokeRect(
+          x0 + x * width + 0.5,
+          y0 + y * height + 0.5,
+          Math.max(0, width - 1),
+          Math.max(0, height - 1),
+        );
     ctx.fillStyle = 'rgba(235, 88, 79, 0.55)';
     ctx.strokeStyle = '#ffae95';
     for (const index of prop.blockedCells) {
@@ -243,9 +379,7 @@ export function mountProps(root: HTMLElement): () => void {
     }
   }
 
-  async function loadVisualFrame(
-    visual: PropVisual,
-  ): Promise<{
+  async function loadVisualFrame(visual: PropVisual): Promise<{
     sprite: SpriteDocument;
     index: number;
     flips?: { flipH: boolean; flipV: boolean };
@@ -432,141 +566,37 @@ export function mountProps(root: HTMLElement): () => void {
 
   async function drawPreview(): Promise<void> {
     const token = ++previewToken;
-    context.fillStyle = '#000';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    if (!current || !palette) return;
+    if (!current || !palette) {
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
     try {
-      const frame = await loadVisualFrame(current.visual);
+      const key = `${current.id}:${JSON.stringify(current.visual)}`;
+      if (previewFrame?.key !== key)
+        previewFrame = { key, pending: loadVisualFrame(current.visual) };
+      const frame = await previewFrame.pending;
       if (!alive || token !== previewToken) return;
-      if (frame) paintSprite(canvas, frame.sprite, frame.index, current, showBlocked, frame.flips);
-      else if (showBlocked) {
-        const size = Math.min(
-          30,
-          (canvas.width - 12) / current.width,
-          (canvas.height - 12) / current.height,
-        );
-        paintBlockedOverlay(
-          context,
-          current,
-          Math.floor((canvas.width - current.width * size) / 2),
-          Math.floor((canvas.height - current.height * size) / 2),
-          size,
-          size,
-        );
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      if (frame) {
+        paintSprite(canvas, frame.sprite, frame.index, current, showBlocked, frame.flips);
+        if (showBlocked) {
+          const native = terminalCellAtZoom(context, 1, frame.sprite.font);
+          previewGrid = blockPreviewGrid(canvas, current, {
+            width: frame.sprite.width,
+            height: frame.sprite.height,
+            cellWidth: native.width,
+            cellHeight: native.height,
+          });
+        }
+      } else if (showBlocked) {
+        previewGrid = blockPreviewGrid(canvas, current, null);
+        paintBlockedOverlay(context, current, previewGrid);
       }
     } catch (error) {
+      previewFrame = null;
       if (alive && token === previewToken) status.textContent = message(error);
-    }
-  }
-
-  function renderBlockEditor(): void {
-    if (!blockProp || !blockDraft) return;
-    const ctx = blockCanvas.getContext('2d');
-    if (!ctx) return;
-    const { width, height } = blockProp;
-    const sprite = blockSprite?.sprite;
-    const cells = sprite && blockSprite ? flattenSprite(sprite, blockSprite.index) : null;
-    const native = terminalCellAtZoom(ctx, 1, sprite?.font);
-    const scale = Math.min((blockCellPx - 6) / native.width, (blockCellPx - 6) / native.height);
-    const grid = terminalCellAtZoom(ctx, scale, sprite?.font);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = y * width + x;
-        const cell =
-          sprite && cells && x < sprite.width && y < sprite.height
-            ? cells[y * sprite.width + x]
-            : null;
-        const px = x * blockCellPx;
-        const py = y * blockCellPx;
-        ctx.fillStyle = cell && palette ? (paletteRgb(palette, cell.bg) ?? '#102b2a') : '#102b2a';
-        ctx.fillRect(px, py, blockCellPx, blockCellPx);
-        if (cell && cell.ch !== ' ') {
-          ctx.fillStyle = palette ? (paletteRgb(palette, cell.fg) ?? '#e0e9db') : '#e0e9db';
-          drawTerminalGlyph(
-            ctx,
-            grid,
-            cell.ch,
-            px + (blockCellPx - grid.width) / 2,
-            py + (blockCellPx - grid.height) / 2,
-          );
-        }
-        if (blockDraft.has(index)) {
-          ctx.fillStyle = 'rgba(235, 88, 79, 0.55)';
-          ctx.fillRect(px, py, blockCellPx, blockCellPx);
-        }
-        ctx.strokeStyle = blockDraft.has(index) ? '#ffae95' : '#5b786c';
-        ctx.strokeRect(px + 0.5, py + 0.5, blockCellPx - 1, blockCellPx - 1);
-      }
-    }
-    $<HTMLElement>('#prop-block-status').textContent =
-      `${blockDraft.size} of ${width * height} cells blocked`;
-  }
-
-  function blockPoint(event: PointerEvent): { x: number; y: number } | null {
-    if (!blockProp) return null;
-    const rect = blockCanvas.getBoundingClientRect();
-    const x = Math.floor(((event.clientX - rect.left) / rect.width) * blockProp.width);
-    const y = Math.floor(((event.clientY - rect.top) / rect.height) * blockProp.height);
-    return x >= 0 && x < blockProp.width && y >= 0 && y < blockProp.height ? { x, y } : null;
-  }
-
-  function paintBlockLine(
-    from: { x: number; y: number },
-    to: { x: number; y: number },
-    blocked: boolean,
-  ): void {
-    if (!blockProp || !blockDraft) return;
-    let { x, y } = from;
-    const dx = Math.abs(to.x - x);
-    const dy = Math.abs(to.y - y);
-    const sx = x < to.x ? 1 : -1;
-    const sy = y < to.y ? 1 : -1;
-    let error = dx - dy;
-    while (true) {
-      const index = y * blockProp.width + x;
-      if (blocked) blockDraft.add(index);
-      else blockDraft.delete(index);
-      if (x === to.x && y === to.y) break;
-      const twice = 2 * error;
-      if (twice > -dy) {
-        error -= dy;
-        x += sx;
-      }
-      if (twice < dx) {
-        error += dx;
-        y += sy;
-      }
-    }
-    renderBlockEditor();
-  }
-
-  async function openBlockEditor(): Promise<void> {
-    if (!current || blockDialog.open) return;
-    blockProp = current;
-    blockDraft = new Set(current.blockedCells);
-    blockSprite = null;
-    // Keep the visible cells large without allocating an enormous backing canvas for big props.
-    blockCellPx = Math.min(
-      BLOCK_CELL_PX,
-      Math.floor(4096 / Math.max(current.width, current.height)),
-    );
-    blockCanvas.width = current.width * blockCellPx;
-    blockCanvas.height = current.height * blockCellPx;
-    blockCanvas.style.width = `${current.width * BLOCK_CELL_PX}px`;
-    blockCanvas.style.height = `${current.height * BLOCK_CELL_PX}px`;
-    blockCanvas.style.imageRendering = blockCellPx < BLOCK_CELL_PX ? 'pixelated' : '';
-    blockDialog.showModal();
-    renderBlockEditor();
-    const token = ++blockToken;
-    try {
-      const frame = await loadVisualFrame(current.visual);
-      if (!alive || !blockDialog.open || token !== blockToken) return;
-      blockSprite = frame;
-      renderBlockEditor();
-    } catch (error) {
-      if (alive && blockDialog.open && token === blockToken)
-        $<HTMLElement>('#prop-block-status').textContent =
-          `Could not load visual: ${message(error)}`;
     }
   }
 
@@ -592,7 +622,13 @@ export function mountProps(root: HTMLElement): () => void {
   }
 
   function render(): void {
+    blockStroke = null;
+    previewGrid = null;
+    if (previewProp !== current) previewFrame = null;
+    previewProp = current;
     renderList();
+    renderTabs();
+    scheduleTabs();
     fields.hidden = !current;
     $<HTMLButtonElement>('#save-prop').disabled = !current;
     $<HTMLButtonElement>('#delete-prop').disabled = !current;
@@ -632,6 +668,10 @@ export function mountProps(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = props.files;
+    openTabs = openTabs.filter(
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+    );
+    for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     sprites = sheets.files;
     spriteLabels = sheets.labels;
     animations = clips.files;
@@ -641,17 +681,19 @@ export function mountProps(root: HTMLElement): () => void {
   }
 
   async function open(id: string): Promise<void> {
-    if (current?.id === id) return;
-    if (dirty() && !(await confirmModal('Discard unsaved prop changes?', 'DISCARD'))) return;
+    if (current?.id === id || saving) return;
     const token = ++loading;
+    const cached = sessions.get(id);
+    if (cached) {
+      activateProp(cached.doc, cached.saved);
+      status.textContent = `Opened ${id}`;
+      return;
+    }
     try {
       const prop = await requestJson<PropDocument>(`/api/props/${encodeURIComponent(id)}`);
       if (!alive || token !== loading) return;
-      current = prop;
-      saved = structuredClone(prop);
+      activateProp(prop, structuredClone(prop));
       status.textContent = `Opened ${id}`;
-      setEditorAssetUrl(id);
-      render();
     } catch (error) {
       if (alive && token === loading) status.textContent = message(error);
     }
@@ -673,11 +715,15 @@ export function mountProps(root: HTMLElement): () => void {
           status.textContent = `Saved ${stored.id}`;
           render();
         } else status.textContent = `Saved ${stored.id}; newer edits need review`;
+        toast(status.textContent, !merged.ok);
+        renderTabs();
+        scheduleTabs();
       }
       if (alive) await refresh();
     } catch (error) {
       if (!alive) return;
       status.textContent = message(error);
+      toast(status.textContent, true);
       if (error instanceof ApiError && error.status === 409) {
         await alertModal(`${message(error)}. Your unsaved prop is still open.`);
       }
@@ -740,71 +786,106 @@ export function mountProps(root: HTMLElement): () => void {
   });
   function toggleBlockedPreview(): void {
     showBlocked = !showBlocked;
+    blockStroke = null;
+    previewGrid = null;
     const button = $<HTMLButtonElement>('#prop-show-blocks');
     button.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
     button.setAttribute('aria-pressed', String(showBlocked));
+    canvas.classList.toggle('editing-blocks', showBlocked);
+    canvas.setAttribute(
+      'aria-label',
+      showBlocked
+        ? 'Prop preview; click or drag cells to block or unblock them; press Tab to hide blocked cells'
+        : 'Prop visual preview; press Tab to show blocked cells',
+    );
     void drawPreview();
   }
   $<HTMLButtonElement>('#prop-show-blocks').addEventListener('click', toggleBlockedPreview);
-  canvas.addEventListener('pointerdown', () => canvas.focus());
+  function previewPoint(event: PointerEvent): { x: number; y: number } | null {
+    if (!current || !showBlocked || !previewGrid) return null;
+    const rect = canvas.getBoundingClientRect();
+    return blockPreviewPoint(
+      {
+        x: ((event.clientX - rect.left - canvas.clientLeft) * canvas.width) / canvas.clientWidth,
+        y: ((event.clientY - rect.top - canvas.clientTop) * canvas.height) / canvas.clientHeight,
+      },
+      previewGrid,
+      current,
+    );
+  }
+  canvas.addEventListener('pointerdown', (event) => {
+    canvas.focus();
+    if (event.button !== 0 || !current) return;
+    const point = previewPoint(event);
+    if (!point) return;
+    event.preventDefault();
+    blockStroke = {
+      pointerId: event.pointerId,
+      prop: current,
+      blocked: !current.blockedCells.includes(point.y * current.width + point.x),
+      last: point,
+    };
+    canvas.setPointerCapture(event.pointerId);
+    current.blockedCells = paintPropBlockedCells(
+      current.blockedCells,
+      current.width,
+      point,
+      point,
+      blockStroke.blocked,
+    );
+    $<HTMLElement>('#prop-block-count').textContent =
+      `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
+    renderTabs();
+    scheduleTabs();
+    void drawPreview();
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    const stroke = blockStroke;
+    if (!stroke || stroke.pointerId !== event.pointerId || current !== stroke.prop) return;
+    const point = previewPoint(event);
+    if (!point) return;
+    current.blockedCells = paintPropBlockedCells(
+      current.blockedCells,
+      current.width,
+      stroke.last,
+      point,
+      stroke.blocked,
+    );
+    stroke.last = point;
+    $<HTMLElement>('#prop-block-count').textContent =
+      `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
+    renderTabs();
+    scheduleTabs();
+    void drawPreview();
+  });
+  const finishBlockStroke = (event: PointerEvent) => {
+    if (blockStroke?.pointerId !== event.pointerId) return;
+    const point = previewPoint(event);
+    if (point && current === blockStroke.prop) {
+      current.blockedCells = paintPropBlockedCells(
+        current.blockedCells,
+        current.width,
+        blockStroke.last,
+        point,
+        blockStroke.blocked,
+      );
+      $<HTMLElement>('#prop-block-count').textContent =
+        `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
+      renderTabs();
+      scheduleTabs();
+      void drawPreview();
+    }
+    blockStroke = null;
+  };
+  canvas.addEventListener('pointerup', finishBlockStroke);
+  canvas.addEventListener('pointercancel', () => {
+    blockStroke = null;
+  });
   canvas.addEventListener('keydown', (event) => {
     if (event.key !== 'Tab' || event.shiftKey) return;
     event.preventDefault();
     toggleBlockedPreview();
   });
-  $<HTMLButtonElement>('#edit-prop-blocks').addEventListener('click', () => void openBlockEditor());
-  const closeBlockEditor = () => blockDialog.close();
-  $<HTMLButtonElement>('#prop-block-close').addEventListener('click', closeBlockEditor);
-  $<HTMLButtonElement>('#prop-block-cancel').addEventListener('click', closeBlockEditor);
-  blockDialog.addEventListener('close', () => {
-    ++blockToken;
-    blockDraft = null;
-    blockProp = null;
-    blockPainting = null;
-    blockLast = null;
-  });
-  $<HTMLButtonElement>('#prop-block-clear').addEventListener('click', () => {
-    if (!blockDraft) return;
-    blockDraft.clear();
-    renderBlockEditor();
-  });
-  $<HTMLButtonElement>('#prop-block-all').addEventListener('click', () => {
-    if (!blockDraft || !blockProp) return;
-    blockDraft = new Set(
-      Array.from({ length: blockProp.width * blockProp.height }, (_, index) => index),
-    );
-    renderBlockEditor();
-  });
-  $<HTMLButtonElement>('#prop-block-apply').addEventListener('click', () => {
-    if (!blockDraft || !blockProp || current !== blockProp) return;
-    current.blockedCells = [...blockDraft].sort((a, b) => a - b);
-    blockDialog.close();
-    render();
-  });
-  blockCanvas.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || !blockDraft || !blockProp) return;
-    const point = blockPoint(event);
-    if (!point) return;
-    event.preventDefault();
-    blockCanvas.focus();
-    blockCanvas.setPointerCapture(event.pointerId);
-    blockPainting = !blockDraft.has(point.y * blockProp.width + point.x);
-    blockLast = point;
-    paintBlockLine(point, point, blockPainting);
-  });
-  blockCanvas.addEventListener('pointermove', (event) => {
-    if (blockPainting === null || !blockLast) return;
-    const point = blockPoint(event);
-    if (!point) return;
-    paintBlockLine(blockLast, point, blockPainting);
-    blockLast = point;
-  });
-  const finishBlockStroke = () => {
-    blockPainting = null;
-    blockLast = null;
-  };
-  blockCanvas.addEventListener('pointerup', finishBlockStroke);
-  blockCanvas.addEventListener('pointercancel', finishBlockStroke);
   for (const [selector, field] of [
     ['#prop-width', 'width'],
     ['#prop-height', 'height'],
@@ -830,6 +911,10 @@ export function mountProps(root: HTMLElement): () => void {
       }
       current[field] = value;
       if (field === 'width' || field === 'height') render();
+      else {
+        renderTabs();
+        scheduleTabs();
+      }
     });
   }
   search.addEventListener('input', renderList);
@@ -839,8 +924,8 @@ export function mountProps(root: HTMLElement): () => void {
       const id = await askId('New prop id');
       if (!id) return;
       if (!isAssetId(id)) return void alertModal('Use a short lowercase id');
-      if (files.includes(id)) return void alertModal('An asset with that id already exists');
-      if (dirty() && !(await confirmModal('Discard unsaved prop changes?', 'DISCARD'))) return;
+      if (files.includes(id) || openTabs.includes(id))
+        return void alertModal('An asset with that id already exists');
       const visual: PropVisual | null = sprites[0]
         ? { type: 'sprite', id: sprites[0], index: 0 }
         : animations[0]
@@ -856,11 +941,8 @@ export function mountProps(root: HTMLElement): () => void {
         return;
       }
       if (!alive || token !== loading) return;
-      current = { ...createProp(id, visual), ...(size ?? {}) };
-      saved = null;
+      activateProp({ ...createProp(id, visual), ...(size ?? {}) }, null);
       status.textContent = `New prop ${id}`;
-      setEditorAssetUrl(null);
-      render();
     })();
   });
   $<HTMLButtonElement>('#delete-prop').addEventListener('click', () => {
@@ -874,11 +956,16 @@ export function mountProps(root: HTMLElement): () => void {
         if (!alive) return;
         if (current?.id !== id) return;
         ++loading;
+        openTabs = openTabs.filter((tab) => tab !== id);
+        sessions.delete(id);
         current = null;
         saved = null;
         status.textContent = 'Prop deleted';
         setEditorAssetUrl(null);
         await refresh();
+        const next = openTabs[openTabs.length - 1];
+        if (next) await open(next);
+        else persistTabs();
       } catch (error) {
         if (alive) status.textContent = message(error);
       }
@@ -888,7 +975,6 @@ export function mountProps(root: HTMLElement): () => void {
     if (
       !root.isConnected ||
       picker.open ||
-      blockDialog.open ||
       !(event.ctrlKey || event.metaKey) ||
       event.key.toLowerCase() !== 's'
     )
@@ -897,14 +983,22 @@ export function mountProps(root: HTMLElement): () => void {
     void save();
   };
   document.addEventListener('keydown', onKeyDown);
+  window.addEventListener('pagehide', persistTabs);
   void preloadSpriteFonts()
     .then(async () => {
       await refresh();
       if (!alive) return;
       const requested = new URLSearchParams(location.search).get('id');
       if (requested) {
-        if (isAssetId(requested) && files.includes(requested)) await open(requested);
+        if (isAssetId(requested) && (files.includes(requested) || sessions.has(requested)))
+          await open(requested);
         else status.textContent = `Prop ${requested} not found`;
+      } else {
+        const preferred =
+          storedTabs.active && openTabs.includes(storedTabs.active)
+            ? storedTabs.active
+            : openTabs[openTabs.length - 1];
+        if (preferred) await open(preferred);
       }
     })
     .catch((error: unknown) => {
@@ -912,14 +1006,14 @@ export function mountProps(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    persistTabs();
     ++loading;
     ++pickerToken;
     ++previewToken;
     ++defaultSizeToken;
-    ++blockToken;
     if (picker.open) picker.close();
-    if (blockDialog.open) blockDialog.close();
     document.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);
   };
 }

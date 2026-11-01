@@ -275,7 +275,10 @@ async function scenes(
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
-  if (parts.length === 0 && method === 'GET') return json(200, { files: await store.listScenes() });
+  if (parts.length === 0 && method === 'GET') {
+    const files = await store.listScenes();
+    return json(200, { files, labels: await store.sceneLabels(files) });
+  }
   if (parts.length === 1 && method === 'GET')
     return json(200, await store.readScene(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {

@@ -30,24 +30,23 @@ describe('test room', () => {
     const room = plainText(renderView(scene, scene.width, scene.height));
     expect(room).toBe(
       [
-        dots(),
-        dots(),
-        dots(),
-        dots(),
+        blank(),
+        blank(),
+        blank(),
+        blank(),
         band('+---+'),
         band('| # |'),
         band('+---+'),
-        dots(),
-        dots(),
-        dots(),
+        blank(),
+        blank(),
+        blank(),
       ].join('\n'),
     );
 
     const buffer = renderView(scene, scene.width, scene.height);
     expect(buffer.get(0, 0)).toMatchObject({
-      ch: '.',
-      fg: { r: 0x5c, g: 0x6b, b: 0x63 },
-      bg: { r: 0x14, g: 0x20, b: 0x1c },
+      ch: ' ',
+      bg: { r: 0, g: 0, b: 0 },
     });
     expect(buffer.get(16, 5)).toMatchObject({
       ch: '#',
@@ -58,18 +57,18 @@ describe('test room', () => {
 
     const centered = renderView(scene, 36, 12);
     expect(centered.get(0, 0).ch).toBe(' ');
-    expect(centered.get(2, 1).ch).toBe('.');
+    expect(centered.get(2, 1).ch).toBe(' ');
     expect(centered.get(18, 6).ch).toBe('#');
   });
 
   it('clips the room to a smaller terminal', async () => {
     const scene = await loadScene(defaultAssetsRoot(), TEST_SCENE_ID);
     expect(plainText(renderView(scene, 10, 5)).split('\n')).toEqual([
-      '..........',
-      '...+---+..',
-      '...| # |..',
-      '...+---+..',
-      '..........',
+      '          ',
+      '   +---+  ',
+      '   | # |  ',
+      '   +---+  ',
+      '          ',
     ]);
   });
 
@@ -98,6 +97,113 @@ describe('test room', () => {
 });
 
 describe('scene drawing', () => {
+  it('treats black spaces as holes but keeps colored spaces opaque', () => {
+    const black = { r: 0, g: 0, b: 0 };
+    const red = { r: 200, g: 20, b: 30 };
+    const blue = { r: 20, g: 30, b: 200 };
+    const back: Cell = { ch: 'A', fg: blue, bg: red };
+    const hole: Cell = { ch: ' ', fg: red, bg: black };
+    const coloredSpace: Cell = { ch: ' ', fg: red, bg: blue };
+    const nearBlackSpace: Cell = { ch: ' ', fg: red, bg: { r: 0, g: 0, b: 1 } };
+    const scene = new Scene('holes', 5, 1, 'regular-z', ink, [
+      new Prop('back', 0, 0, 0, 0, new Sprite('back', 4, 1, 0, 0, [back, back, back, back])),
+      new Prop('middle', 0, 0, 0, 1, new Sprite('middle', 5, 1, 0, 0, [
+        hole,
+        coloredSpace,
+        { ch: '@', fg: red, bg: black },
+        nearBlackSpace,
+        hole,
+      ])),
+      new Prop('front', 0, 0, 0, 2, new Sprite('front', 5, 1, 0, 0, Array(5).fill(hole))),
+    ]);
+    const buffer = renderView(scene, 5, 1);
+    expect(buffer.get(0, 0)).toEqual(back);
+    expect(buffer.get(1, 0)).toEqual(coloredSpace);
+    expect(buffer.get(2, 0)).toEqual({ ch: '@', fg: red, bg: red });
+    expect(buffer.get(3, 0)).toEqual(nearBlackSpace);
+    expect(buffer.get(4, 0)).toEqual({ ch: ' ', fg: black, bg: black });
+  });
+
+  it('uses the front glyph and the nearest non-black sprite background', () => {
+    const red = { r: 200, g: 20, b: 30 };
+    const blue = { r: 20, g: 30, b: 200 };
+    const black = { r: 0, g: 0, b: 0 };
+    const sprite = (id: string, ch: string, bg: Cell['bg']) =>
+      new Sprite(id, 1, 1, 0, 0, [{ ch, fg: red, bg }]);
+    const scene = new Scene('layers', 2, 1, 'regular-z', ink, [
+      new Prop('floor', 0, 0, 0, 0, sprite('floor', '.', blue)),
+      new Prop('middle', 0, 0, 0, 1, sprite('middle', 'M', black)),
+      new Prop('front', 0, 0, 0, 2, sprite('front', '@', black)),
+    ]);
+    const buffer = renderView(scene, 2, 1);
+    expect(buffer.get(0, 0)).toEqual({ ch: '@', fg: red, bg: blue });
+    expect(buffer.get(1, 0)).toEqual({ ch: ' ', fg: black, bg: black });
+  });
+
+  it('keeps black when all overlapping sprite backgrounds are black', () => {
+    const black = { r: 0, g: 0, b: 0 };
+    const scene = new Scene('black', 1, 1, 'regular-z', ink, [
+      new Prop(
+        'back',
+        0,
+        0,
+        0,
+        0,
+        new Sprite('back', 1, 1, 0, 0, [{ ch: 'A', fg: ink.fg, bg: black }]),
+      ),
+      new Prop(
+        'front',
+        0,
+        0,
+        0,
+        1,
+        new Sprite('front', 1, 1, 0, 0, [{ ch: 'B', fg: ink.fg, bg: black }]),
+      ),
+    ]);
+    expect(renderView(scene, 1, 1).get(0, 0)).toEqual({ ch: 'B', fg: ink.fg, bg: black });
+  });
+
+  it('shows Eva’s red shirt behind a desk without showing her E glyph', () => {
+    const black = { r: 0, g: 0, b: 0 };
+    const red = { r: 170, g: 0, b: 0 };
+    const scene = new Scene('desk', 1, 2, 'bottom-up', ink, [
+      new Prop(
+        'eva',
+        0,
+        0,
+        0,
+        0,
+        new Sprite('eva', 1, 1, 0, 0, [{ ch: 'E', fg: ink.fg, bg: red }]),
+      ),
+      new Prop(
+        'desk',
+        0,
+        1,
+        0,
+        0,
+        new Sprite('desk', 1, 2, 0, 1, [
+          { ch: '│', fg: ink.fg, bg: black },
+          { ch: ' ', fg: ink.fg, bg: black },
+        ]),
+      ),
+    ]);
+    expect(renderView(scene, 1, 2).get(0, 0)).toEqual({ ch: '│', fg: ink.fg, bg: red });
+  });
+
+  it('keeps sprite cells outside the scene from painting the view margin', () => {
+    const blue = { r: 10, g: 20, b: 30 };
+    const sprite = new Sprite('wide', 3, 1, 1, 0, [
+      { ch: 'L', fg: ink.fg, bg: blue },
+      { ch: 'C', fg: ink.fg, bg: blue },
+      { ch: 'R', fg: ink.fg, bg: blue },
+    ]);
+    const scene = new Scene('clip', 1, 1, 'regular-z', ink, [new Prop('wide', 0, 0, 0, 0, sprite)]);
+    const buffer = renderView(scene, 3, 1);
+    expect(buffer.get(0, 0).ch).toBe(' ');
+    expect(buffer.get(1, 0)).toEqual({ ch: 'C', fg: ink.fg, bg: blue });
+    expect(buffer.get(2, 0).ch).toBe(' ');
+  });
+
   it('paints the higher depth on top', () => {
     const scene = new Scene('overlap', 1, 1, 'bottom-up', ink, [
       new Prop('far', 0, 0, 0, 0, glyph('far', 'A')),
@@ -131,12 +237,12 @@ describe('scene drawing', () => {
   });
 });
 
-function dots(): string {
-  return '.'.repeat(32);
+function blank(): string {
+  return ' '.repeat(32);
 }
 
 function band(middle: string): string {
-  return `${'.'.repeat(14)}${middle}${'.'.repeat(13)}`;
+  return `${' '.repeat(14)}${middle}${' '.repeat(13)}`;
 }
 
 function glyph(id: string, ch: string): Sprite {

@@ -1,0 +1,17 @@
+{
+  "format": "incanterm-scene",
+  "version": 1,
+  "id": "de648161-33a7-4106-aae0-255636afab05",
+  "label": "hallway1",
+  "width": 120,
+  "height": 40,
+  "depthMode": "bottom-up",
+  "blockedCells": [],
+  "clear": {
+    "ch": " ",
+    "fg": "#e0e9db",
+    "bg": "#102b2a"
+  },
+  "entities": [],
+  "triggers": []
+}

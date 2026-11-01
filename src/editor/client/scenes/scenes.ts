@@ -3,24 +3,36 @@ import { terminalCellAtZoom } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { compareSceneDrawRank, sceneDepth } from '../../../game/scene-order.js';
 import {
+  renderStandardUiPreview,
+  STANDARD_UI_HEIGHT,
+  STANDARD_WIDTH,
+} from '../../../renderer/ui/standard-ui.js';
+import {
   animationFrameFlips,
   characterAnimation,
-  CHARACTER_DIRECTIONS,
   createScene,
   flattenSprite,
   isAssetId,
   isInvisibleFrame,
   type AnimationDocument,
   type CharacterDocument,
-  type CharacterDirection,
   type PropDocument,
   type SceneDocument,
   type SceneEntity,
   type SceneTrigger,
   type SpriteDocument,
+  spriteLabelError,
 } from '../../schema.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
+import { resizeBlockedCells } from '../../props/prop-blocking.js';
 import { setSceneBackground } from '../../scenes/scene-background.js';
+import {
+  neighborSceneTab,
+  OPEN_SCENES_KEY,
+  readSceneTabs,
+  type SceneTabSession,
+} from '../../scenes/scene-tabs.js';
+import { paintSceneBlockedCells, propBlockedSceneCells } from '../../scenes/scene-blocked-cells.js';
 import { removeSelectedSceneObjects } from '../../scenes/scene-delete.js';
 import {
   copySceneObjects,
@@ -56,7 +68,7 @@ import { ApiError, requestJson } from '../api.js';
 import { alertModal, confirmModal, isModalOpen } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
-import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 
 type ObjectRef = SceneObjectRef;
 
@@ -67,23 +79,39 @@ export function mountScenes(root: HTMLElement): () => void {
     <label for="scene-search">SCENES</label><input id="scene-search" class="text-input" type="search" placeholder="SEARCH">
     <div id="scene-list" class="asset-list"></div></aside>
     <section class="scene-app" aria-label="Scene editor">
-      <div class="toolbar-row"><button id="scene-new" type="button">NEW</button><button id="scene-save" type="button">SAVE</button><button id="scene-delete" type="button">DELETE</button><strong id="scene-title">NO SCENE</strong></div>
-      <p id="scene-status" role="status">Create a scene or open one from the list.</p>
+      <div class="toolbar-row"><strong id="scene-title">NO SCENE</strong></div>
       <div id="scene-workspace" class="scene-workspace" hidden>
-         <section class="scene-stage"><div class="scene-tools"><button type="button" id="scene-add-prop">+ PROP</button><button type="button" id="scene-add-character">+ CHARACTER</button><button type="button" id="scene-add-trigger">+ TRIGGER</button><span>Box select · Ctrl+click to add · Ctrl+A all · Ctrl+C, then hover scene &amp; Ctrl+V · Hold Tab for names · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
-          <div class="scene-scroll" id="scene-viewport"><canvas id="scene-canvas" aria-label="Scene placement canvas"></canvas><canvas id="scene-hover" aria-hidden="true"></canvas></div></section>
-        <aside class="scene-sidebar"><h2>SCENE</h2><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
+           <section class="scene-stage"><div class="scene-tools"><span>Box select · Ctrl+click to add · Ctrl+A all · Ctrl+C, then hover scene &amp; Ctrl+V · Hold Tab for names, triggers &amp; blocked cells · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
+           <div class="scene-scroll" id="scene-viewport"><canvas id="scene-canvas" tabindex="0" aria-label="Scene placement canvas"></canvas><canvas id="scene-hover" aria-hidden="true"></canvas></div></section>
+        <aside class="scene-sidebar"><h2>SCENE</h2><label class="scene-overlay-toggle"><input id="scene-show-triggers" type="checkbox" checked>SHOW TRIGGERS</label><label class="scene-overlay-toggle"><input id="scene-show-blocked" type="checkbox">SHOW BLOCKED CELLS</label><label class="scene-overlay-toggle"><input id="scene-show-ui" type="checkbox">SHOW UI</label><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
           <label>DEPTH MODE<select id="scene-depth"><option value="bottom-up">BOTTOM UP</option><option value="regular-z">REGULAR Z</option></select></label>
-          <div class="scene-background-controls"><h2>BACKGROUND</h2><button type="button" id="scene-add-background">ADD BACKGROUND SPRITE</button><button type="button" id="scene-background-mode" aria-pressed="false">EDIT BACKGROUND: OFF</button></div>
+          <div class="scene-background-controls"><h2>BACKGROUND</h2><div class="scene-background-actions-row">
+            <!-- Icons by Delapouite, CC BY 3.0: https://game-icons.net/1x1/delapouite/horizon-road.html and https://game-icons.net/1x1/delapouite/walk.html -->
+            <button type="button" id="scene-add-background" aria-label="Add background sprite" title="Add background sprite"><span class="scene-background-icon"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M129.8 19.64 64.66 113.4H32v18h272.8c12.3 23.5 21.4 40.3 28.1 68.3-118 19.8-137.8 26.8-247.03 65.1C126.4 344.9 167 425 232.8 492.4l246.2-.3c-87.1-63.9-203.5-127.6-260.1-201.3 64.2-33.7 98.8-49.9 155.5-74.6-11.5-28.8-30.3-59.7-53.9-84.8H480v-18H251.2l-54.5-67.85-35.6 23.16z"/></svg><span class="scene-background-plus" aria-hidden="true">+</span></span></button>
+            <button type="button" id="scene-background-mode" aria-label="Edit background" title="Edit background" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M129.8 19.64 64.66 113.4H32v18h272.8c12.3 23.5 21.4 40.3 28.1 68.3-118 19.8-137.8 26.8-247.03 65.1C126.4 344.9 167 425 232.8 492.4l246.2-.3c-87.1-63.9-203.5-127.6-260.1-201.3 64.2-33.7 98.8-49.9 155.5-74.6-11.5-28.8-30.3-59.7-53.9-84.8H480v-18H251.2l-54.5-67.85-35.6 23.16z"/></svg></button>
+            <button type="button" id="scene-blocked-mode" aria-label="Edit blocked cells" title="Edit blocked cells" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M271.9 25.85c-18.4 0-36 16.73-39.2 40.97-3.4 25.83 11.3 47.48 30.9 49.88 19.7 2.4 39.5-14.9 43-40.77 3.5-25.86-11.5-47.43-31-49.85-1.2-.15-2.5-.23-3.7-.23zm-38.2 95.75c-38 6.3-75.2 41.9-94 66-11.5 33.4-14.5 66.7-20.7 100l28.2-.8c6.6-25.2 8.2-51.9 21-75.4 14.8-8.2 26.9-20.6 38.4-33.8-6.4 32.9-14 72.3-13.2 101.8 29.8 70.9 95.7 140.4 133 206.4l29.9-24.3c-28.8-55.7-57.5-106.4-94.3-160.2 2.1-7.1 43.3-163.5 28-171.9-20.2 9-40.9 6-56.3-7.8zm71.9 58.6c-3.1 17.8-5.3 35.1-10 52.8 4.5 5.4 7.5 10.5 14.3 15.3 26 15.3 52 26.3 78 36.7l9.2-29.9-77.5-37.6c-4.3-12.5-7.9-25.2-14-37.3zM187.1 310.1c-5.1 25-9.8 50.2-11.6 76.5-15.9 31.7-35.7 51.6-60.5 76.4l30 23.2c23.1-25 49.9-47 66.7-73.8l14-42.6c-15.7-19-28.4-38.8-38.6-59.7z"/></svg></button>
+          </div><a id="scene-background-link" href="/art" target="_blank" rel="noopener noreferrer" hidden>EDIT BACKGROUND ↗</a></div>
           <div id="scene-inspector"></div></aside>
       </div></section>
+      <dialog id="scene-new-dialog" class="scene-new-dialog" aria-labelledby="scene-new-title">
+        <form id="scene-new-form">
+          <h2 id="scene-new-title">NEW SCENE</h2>
+          <label>LABEL<input id="scene-new-label" type="text" maxlength="80" required autocomplete="off"></label>
+          <div class="scene-pair"><label>WIDTH<input id="scene-new-width" type="number" min="1" max="256" step="1" value="120" required></label><label>HEIGHT<input id="scene-new-height" type="number" min="1" max="128" step="1" value="40" required></label></div>
+          <label>DEPTH MODE<select id="scene-new-depth"><option value="bottom-up">BOTTOM UP</option><option value="regular-z">REGULAR Z</option></select></label>
+          <p id="scene-new-error" role="alert" hidden></p>
+          <div class="scene-new-actions"><button type="submit">CREATE</button><button type="button" id="scene-new-cancel">CANCEL</button></div>
+        </form>
+      </dialog>
       <dialog id="scene-background-picker" class="scene-background-picker" aria-labelledby="scene-background-picker-title">
         <h2 id="scene-background-picker-title">ADD BACKGROUND SPRITE</h2>
         <p>Choose a sprite frame. It becomes a movable, non-blocking background prop in this scene.</p>
-        <label>SPRITE SHEET <select id="scene-background-sheet"></select></label>
+        <label for="scene-background-search">SEARCH SPRITE SHEETS</label>
+        <input id="scene-background-search" type="search" placeholder="Search by name or id…" autocomplete="off">
+        <div id="scene-background-results" class="scene-background-results" aria-label="Sprite sheets"></div>
         <div id="scene-background-frames" class="scene-background-frames"></div>
         <p id="scene-background-status" role="status"></p>
-        <div class="scene-background-actions"><button id="scene-background-cancel" type="button">CANCEL</button><button id="scene-background-add" type="button" disabled>ADD SPRITE</button></div>
+        <div class="scene-background-actions"><button id="scene-background-add" type="button" disabled>ADD SPRITE</button><button id="scene-background-cancel" type="button">CANCEL</button></div>
       </dialog>
       <dialog id="scene-prop-picker" class="scene-prop-picker" aria-labelledby="scene-prop-picker-title">
         <h2 id="scene-prop-picker-title">ADD EXISTING PROP</h2>
@@ -91,7 +119,7 @@ export function mountScenes(root: HTMLElement): () => void {
         <input id="scene-prop-search" type="search" placeholder="Search by name…" autocomplete="off">
         <div id="scene-prop-results" class="scene-prop-results"></div>
         <p id="scene-prop-status" role="status"></p>
-        <div class="scene-background-actions"><button id="scene-prop-cancel" type="button">CANCEL</button><button id="scene-prop-add" type="button" disabled>ADD TO SCENE</button></div>
+        <div class="scene-background-actions"><button id="scene-prop-add" type="button" disabled>ADD TO SCENE</button><button id="scene-prop-cancel" type="button">CANCEL</button></div>
       </dialog>
       <dialog id="scene-character-picker" class="scene-prop-picker" aria-labelledby="scene-character-picker-title">
         <h2 id="scene-character-picker-title">ADD EXISTING CHARACTER</h2>
@@ -99,11 +127,34 @@ export function mountScenes(root: HTMLElement): () => void {
         <input id="scene-character-search" type="search" placeholder="Search characters…" autocomplete="off">
         <div id="scene-character-results" class="scene-prop-results"></div>
         <p id="scene-character-status" role="status"></p>
-        <div class="scene-background-actions"><button id="scene-character-cancel" type="button">CANCEL</button><button id="scene-character-add" type="button" disabled>ADD TO SCENE</button></div>
+        <div class="scene-background-actions"><button id="scene-character-add" type="button" disabled>ADD TO SCENE</button><button id="scene-character-cancel" type="button">CANCEL</button></div>
       </dialog>
       <div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
   root.querySelector('.simple-main')?.classList.add('scene-main');
+  const menubar = document.createElement('nav');
+  menubar.className = 'scene-menubar';
+  menubar.setAttribute('aria-label', 'Scene editor');
+  menubar.innerHTML = `<details class="scene-menu"><summary>FILE</summary><div class="scene-menu-panel">
+    <button id="scene-new" type="button">New scene</button>
+    <button id="scene-save" type="button">Save</button>
+    <button id="scene-delete" type="button">Delete</button>
+  </div></details><details class="scene-menu"><summary>ENTITIES</summary><div class="scene-menu-panel">
+    <button id="scene-add-prop" type="button">Add Prop…</button>
+    <button id="scene-add-character" type="button">Add Character…</button>
+    <button id="scene-add-trigger" type="button">Add Trigger</button>
+  </div></details>`;
+  const tabs = document.createElement('div');
+  tabs.id = 'scene-tabs';
+  tabs.className = 'scene-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Open scenes');
+  menubar.append(tabs);
+  root.querySelector('.simple-main')?.before(menubar);
+  const statusbar = document.createElement('footer');
+  statusbar.className = 'scene-statusbar';
+  statusbar.innerHTML = `<div class="scene-status-row"><button id="scene-cancel-trigger" type="button" hidden>CANCEL</button><span id="scene-status" role="status">Create a scene or open one from the list.</span></div>`;
+  root.querySelector('.simple-main')?.after(statusbar);
   const $ = <T extends Element>(selector: string): T => {
     const node = root.querySelector<T>(selector);
     if (!node) throw new Error(`Missing ${selector}`);
@@ -112,11 +163,13 @@ export function mountScenes(root: HTMLElement): () => void {
   const list = $<HTMLElement>('#scene-list');
   const inspector = $<HTMLElement>('#scene-inspector');
   const status = $<HTMLElement>('#scene-status');
+  const newDialog = $<HTMLDialogElement>('#scene-new-dialog');
   const canvas = $<HTMLCanvasElement>('#scene-canvas');
   const hoverCanvas = $<HTMLCanvasElement>('#scene-hover');
   const viewport = $<HTMLElement>('#scene-viewport');
   const backgroundPicker = $<HTMLDialogElement>('#scene-background-picker');
-  const backgroundSheet = $<HTMLSelectElement>('#scene-background-sheet');
+  const backgroundSearch = $<HTMLInputElement>('#scene-background-search');
+  const backgroundResults = $<HTMLElement>('#scene-background-results');
   const backgroundFrames = $<HTMLElement>('#scene-background-frames');
   const backgroundStatus = $<HTMLElement>('#scene-background-status');
   const backgroundAdd = $<HTMLButtonElement>('#scene-background-add');
@@ -130,6 +183,9 @@ export function mountScenes(root: HTMLElement): () => void {
   const characterResults = $<HTMLElement>('#scene-character-results');
   const characterStatus = $<HTMLElement>('#scene-character-status');
   const characterAdd = $<HTMLButtonElement>('#scene-character-add');
+  const showTriggersInput = $<HTMLInputElement>('#scene-show-triggers');
+  const showBlockedInput = $<HTMLInputElement>('#scene-show-blocked');
+  const showUiInput = $<HTMLInputElement>('#scene-show-ui');
   const toastStack = $<HTMLElement>('#toast-stack');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Scene canvas unavailable');
@@ -142,6 +198,7 @@ export function mountScenes(root: HTMLElement): () => void {
   let token = 0;
   let saving = false;
   let files: string[] = [];
+  let sceneLabels: Record<string, string> = {};
   let props: string[] = [];
   let rpgTriggers: string[] = [];
   let sprites: string[] = [];
@@ -149,16 +206,30 @@ export function mountScenes(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: SceneDocument | null = null;
   let saved: SceneDocument | null = null;
+  const storedTabs = readSceneTabs(localStorage);
+  let openTabs = storedTabs.tabs;
+  const sessions = new Map<string, SceneTabSession>(Object.entries(storedTabs.drafts));
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let switchToken = 0;
   let selected: ObjectRef[] = [];
   let objectClipboard: SceneClipboard | null = null;
   let canvasMouse: { clientX: number; clientY: number } | null = null;
   let hovered: ObjectRef | null = null;
   let showPropNames = false;
+  let showTriggers = true;
+  let showBlockedCells = false;
+  let showUi = false;
+  const triggersVisible = () => showTriggers || showPropNames;
+  const blockedVisible = () => showBlockedCells || showPropNames;
   let propLabels: Array<{ id: string; name: string; x: number; y: number; width: number }> = [];
   let triggerLabels: Array<{ id: string; name: string; x: number; y: number; width: number }> = [];
   let backgroundEdit = false;
+  let blockedEdit = false;
+  let blockStroke: { pointerId: number; point: { x: number; y: number }; blocked: boolean } | null =
+    null;
   let hitBoxes: SceneHitBox[] = [];
   let backgroundChoice: { sprite: string; index: number } | null = null;
+  let backgroundSheetId: string | null = null;
   let pickerToken = 0;
   let propPickerToken = 0;
   let propLoadToken = 0;
@@ -203,9 +274,124 @@ export function mountScenes(root: HTMLElement): () => void {
   const animationCache = new Map<string, Promise<AnimationDocument | null>>();
   const characterCache = new Map<string, Promise<CharacterDocument | null>>();
   const dirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
+  const sceneName = (id: string) =>
+    id === current?.id
+      ? (current.label ?? id)
+      : (sessions.get(id)?.doc.label ?? sceneLabels[id] ?? id);
   const message = (error: unknown) =>
     error instanceof Error ? error.message : 'Scene request failed';
-  setDirtyGuard(async () => !dirty() || confirmModal('Discard unsaved scene changes?', 'DISCARD'));
+  const tabDirty = (id: string) =>
+    id === current?.id
+      ? dirty()
+      : !!sessions.get(id) &&
+        JSON.stringify(sessions.get(id)?.doc) !== JSON.stringify(sessions.get(id)?.saved);
+  setDirtyGuard(
+    async () =>
+      !openTabs.some(tabDirty) || confirmModal('Discard unsaved scene changes?', 'DISCARD'),
+  );
+
+  function persistTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = null;
+    const drafts: Record<string, SceneTabSession> = {};
+    for (const id of openTabs) {
+      const session = id === current?.id && current ? { doc: current, saved } : sessions.get(id);
+      if (session && JSON.stringify(session.doc) !== JSON.stringify(session.saved))
+        drafts[id] = session;
+    }
+    try {
+      localStorage.setItem(
+        OPEN_SCENES_KEY,
+        JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
+      );
+    } catch {
+      status.textContent = 'Could not store open scene drafts locally';
+    }
+  }
+  function scheduleTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistTabs, 400);
+  }
+  function stashCurrent(): void {
+    if (current) sessions.set(current.id, { doc: current, saved });
+  }
+  function renderTabs(): void {
+    const host = $<HTMLElement>('#scene-tabs');
+    host.replaceChildren();
+    if (!openTabs.length) {
+      const empty = document.createElement('span');
+      empty.className = 'scene-tabs-empty';
+      empty.textContent = 'NO SCENE';
+      host.append(empty);
+    }
+    for (const id of openTabs) {
+      const tab = document.createElement('div');
+      tab.className = 'scene-tab';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(current?.id === id));
+      tab.classList.toggle('current', current?.id === id);
+      tab.classList.toggle('dirty', tabDirty(id));
+      const label = document.createElement('button');
+      label.type = 'button';
+      label.className = 'scene-tab-label';
+      label.textContent = sceneName(id);
+      const mark = document.createElement('span');
+      mark.className = 'scene-dirty-mark';
+      mark.textContent = ' ●';
+      label.append(mark);
+      label.addEventListener('click', () => void open(id));
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'scene-tab-close';
+      close.setAttribute('aria-label', `Close ${sceneName(id)}`);
+      close.textContent = '×';
+      close.addEventListener('click', () => void closeTab(id));
+      tab.addEventListener('auxclick', (event) => {
+        if (event.button === 1) {
+          event.preventDefault();
+          void closeTab(id);
+        }
+      });
+      tab.append(label, close);
+      host.append(tab);
+    }
+  }
+  function activateScene(scene: SceneDocument, baseline: SceneDocument | null): void {
+    stashCurrent();
+    sessions.delete(scene.id);
+    current = scene;
+    saved = baseline;
+    if (!openTabs.includes(scene.id)) openTabs.push(scene.id);
+    backgroundEdit = false;
+    blockedEdit = false;
+    blockStroke = null;
+    placingTrigger = false;
+    selected = [];
+    hovered = null;
+    setEditorAssetUrl(baseline ? scene.id : null);
+    render();
+    fitView();
+    persistTabs();
+  }
+  async function closeTab(id: string): Promise<void> {
+    if (!openTabs.includes(id) || saving) return;
+    if (tabDirty(id) && !(await confirmModal('Discard unsaved scene changes?', 'DISCARD'))) return;
+    const next = neighborSceneTab(openTabs, id);
+    openTabs = openTabs.filter((tab) => tab !== id);
+    sessions.delete(id);
+    if (current?.id === id) {
+      ++switchToken;
+      current = null;
+      saved = null;
+      setEditorAssetUrl(null);
+      if (next) await open(next);
+      else {
+        status.textContent = 'Open a scene from the list.';
+        render();
+      }
+    } else renderTabs();
+    persistTabs();
+  }
 
   function toast(text: string, error = false): void {
     const item = document.createElement('div');
@@ -294,7 +480,7 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function handleAt(event: MouseEvent): ResizeHandle | null {
     const ref = onlySelected();
-    if (backgroundEdit || ref?.kind !== 'trigger') return null;
+    if (backgroundEdit || !triggersVisible() || ref?.kind !== 'trigger') return null;
     const trigger = positioned(ref);
     if (!trigger || !('event' in trigger) || trigger.event === 'load') return null;
     const pixel = viewportPixel(event);
@@ -312,14 +498,22 @@ export function mountScenes(root: HTMLElement): () => void {
     return nearest;
   }
 
-  function applyView(): void {
-    canvas.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`;
-    hoverCanvas.style.transform = canvas.style.transform;
-    $<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
-    paintHover();
+  let drawPending = false;
+  function redraw(): void {
+    if (drawPending || !alive) return;
+    drawPending = true;
+    requestAnimationFrame(() => {
+      drawPending = false;
+      if (alive) void draw();
+    });
   }
 
-  function fitView(): void {
+  function applyView(): void {
+    $<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    redraw();
+  }
+
+  function fitView(repaint = true): void {
     if (!current || !viewport.clientWidth || !viewport.clientHeight) return;
     autoFit = true;
     view = fitSceneView(
@@ -328,7 +522,7 @@ export function mountScenes(root: HTMLElement): () => void {
       current.width * cell.width,
       current.height * cell.height,
     );
-    applyView();
+    if (repaint) applyView();
   }
 
   function setZoom(
@@ -361,19 +555,73 @@ export function mountScenes(root: HTMLElement): () => void {
       ? 'grabbing'
       : spaceHeld
         ? 'grab'
-        : placingTrigger
+        : blockedEdit
           ? 'crosshair'
-          : handle
-            ? `${handle}-resize`
-            : point && hitAt(point.x, point.y)
-              ? 'move'
-              : 'default';
+          : placingTrigger
+            ? 'crosshair'
+            : handle
+              ? `${handle}-resize`
+              : point && hitAt(point.x, point.y)
+                ? 'move'
+                : 'default';
     viewport.style.cursor = cursor;
     canvas.style.cursor = cursor;
   }
 
+  /** Rasterize directly at viewport resolution; zoom belongs in the drawing transform. */
+  function prepareCanvas(target: HTMLCanvasElement, drawing: CanvasRenderingContext2D): void {
+    const ratio = window.devicePixelRatio || 1;
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+    const pixelWidth = Math.round(width * ratio);
+    const pixelHeight = Math.round(height * ratio);
+    if (target.width !== pixelWidth) target.width = pixelWidth;
+    if (target.height !== pixelHeight) target.height = pixelHeight;
+    target.style.width = `${width}px`;
+    target.style.height = `${height}px`;
+    drawing.resetTransform();
+    drawing.clearRect(0, 0, target.width, target.height);
+    drawing.setTransform(
+      ratio * view.zoom,
+      0,
+      0,
+      ratio * view.zoom,
+      ratio * view.x,
+      ratio * view.y,
+    );
+  }
+
+  function clipScene(drawing: CanvasRenderingContext2D): void {
+    drawing.beginPath();
+    drawing.rect(0, 0, (current?.width ?? 0) * cell.width, (current?.height ?? 0) * cell.height);
+    drawing.clip();
+  }
+
   function paintHover(): void {
-    hoverContext.clearRect(0, 0, hoverCanvas.width, hoverCanvas.height);
+    prepareCanvas(hoverCanvas, hoverContext);
+    hoverContext.save();
+    clipScene(hoverContext);
+    paintHoverContents();
+    hoverContext.restore();
+  }
+
+  function paintHoverContents(): void {
+    if (blockedEdit) {
+      const point = canvasMouse && !pan && !spaceHeld ? canvasPoint(canvasMouse) : null;
+      if (point) {
+        const inset = 1 / view.zoom;
+        hoverContext.strokeStyle = '#ffffff';
+        hoverContext.lineWidth = 2 / view.zoom;
+        hoverContext.strokeRect(
+          point.x * cell.width + inset,
+          point.y * cell.height + inset,
+          cell.width - inset * 2,
+          cell.height - inset * 2,
+        );
+      }
+      return;
+    }
+    const sceneWidth = (current?.width ?? 0) * cell.width;
     if (!backgroundEdit && (showPropNames || hovered)) {
       hoverContext.font = 'bold 12px sans-serif';
       hoverContext.textBaseline = 'top';
@@ -383,16 +631,16 @@ export function mountScenes(root: HTMLElement): () => void {
             (entry) => showPropNames || (hovered?.kind === 'entity' && hovered.id === entry.id),
           )
           .map((entry) => ({ ...entry, trigger: false })),
-        ...triggerLabels
+        ...(triggersVisible() ? triggerLabels : [])
           .filter(
             (entry) => showPropNames || (hovered?.kind === 'trigger' && hovered.id === entry.id),
           )
           .map((entry) => ({ ...entry, trigger: true })),
       ]) {
         const y = Math.max(0, (label.y - (label.trigger ? 0 : 1)) * cell.height);
-        const width = Math.min(hoverCanvas.width, hoverContext.measureText(label.name).width + 8);
+        const width = Math.min(sceneWidth, hoverContext.measureText(label.name).width + 8);
         const center = (label.x + label.width / 2) * cell.width;
-        const x = Math.max(0, Math.min(hoverCanvas.width - width, center - width / 2));
+        const x = Math.max(0, Math.min(sceneWidth - width, center - width / 2));
         hoverContext.fillStyle = 'rgba(12, 14, 13, 0.9)';
         hoverContext.fillRect(x, y, width, 17);
         const trigger = label.trigger
@@ -444,7 +692,12 @@ export function mountScenes(root: HTMLElement): () => void {
     }
     const active = onlySelected();
     const region = active?.kind === 'trigger' ? positioned(active) : null;
-    if (region && 'width' in region && (!('event' in region) || region.event !== 'load')) {
+    if (
+      region &&
+      triggersVisible() &&
+      'width' in region &&
+      (!('event' in region) || region.event !== 'load')
+    ) {
       hoverContext.fillStyle = 'event' in region ? sceneTriggerColors(region).selected : '#ffae95';
       hoverContext.strokeStyle = '#102b2a';
       for (const { x, y } of handlePositions(region)) {
@@ -482,16 +735,20 @@ export function mountScenes(root: HTMLElement): () => void {
 
   const resizeObserver = new ResizeObserver(() => {
     if (autoFit) fitView();
+    else redraw();
   });
   resizeObserver.observe(viewport);
 
   function renderList(): void {
     list.replaceChildren();
     const query = $<HTMLInputElement>('#scene-search').value.toLowerCase();
-    for (const id of files.filter((file) => file.includes(query))) {
+    for (const id of files.filter(
+      (file) => file.includes(query) || sceneName(file).toLowerCase().includes(query),
+    )) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = id;
+      button.textContent = sceneName(id);
+      button.title = id;
       button.classList.toggle('active', current?.id === id);
       button.addEventListener('click', () => void open(id));
       list.append(button);
@@ -514,6 +771,7 @@ export function mountScenes(root: HTMLElement): () => void {
     value: string | number,
     onChange: (value: string) => void,
     options: { min?: number; max?: number } = {},
+    container: HTMLElement = inspector,
   ): void {
     const wrapper = document.createElement('label');
     wrapper.textContent = label;
@@ -525,7 +783,7 @@ export function mountScenes(root: HTMLElement): () => void {
     if (options.max !== undefined) input.max = String(options.max);
     input.addEventListener('change', () => onChange(input.value));
     wrapper.append(input);
-    inspector.append(wrapper);
+    container.append(wrapper);
   }
   function numberField(
     label: string,
@@ -533,6 +791,7 @@ export function mountScenes(root: HTMLElement): () => void {
     min: number,
     max: number,
     set: (value: number) => void,
+    container: HTMLElement = inspector,
   ): void {
     field(
       label,
@@ -548,6 +807,7 @@ export function mountScenes(root: HTMLElement): () => void {
         render();
       },
       { min, max },
+      container,
     );
   }
   function selectField(
@@ -752,9 +1012,32 @@ export function mountScenes(root: HTMLElement): () => void {
         link.rel = 'noopener noreferrer';
         link.textContent = 'EDIT CHARACTER ↗';
         inspector.append(link);
-        selectField('FACING', item.facing, [...CHARACTER_DIRECTIONS], (v) => {
-          item.facing = v as CharacterDirection;
-        });
+        const facingLabel = document.createElement('div');
+        facingLabel.className = 'scene-facing-label';
+        facingLabel.textContent = 'FACING';
+        const facingButtons = document.createElement('div');
+        facingButtons.className = 'scene-facing-buttons';
+        facingButtons.setAttribute('role', 'group');
+        facingButtons.setAttribute('aria-label', 'Facing direction');
+        for (const [direction, arrow] of [
+          ['up', '↑'],
+          ['left', '←'],
+          ['right', '→'],
+          ['down', '↓'],
+        ] as const) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `scene-facing-${direction}`;
+          button.textContent = arrow;
+          button.setAttribute('aria-label', `Face ${direction}`);
+          button.setAttribute('aria-pressed', String(item.facing === direction));
+          button.addEventListener('click', () => {
+            item.facing = direction;
+            render();
+          });
+          facingButtons.append(button);
+        }
+        inspector.append(facingLabel, facingButtons);
         const itemId = item.id;
         const stateLabel = document.createElement('label');
         stateLabel.textContent = 'STARTING ANIMATION STATE';
@@ -805,16 +1088,45 @@ export function mountScenes(root: HTMLElement): () => void {
         note.textContent = `Legacy sprite: ${spriteLabels[item.sprite] ?? item.sprite}`;
         inspector.append(note);
       }
-      numberField('X', item.x, 0, current.width - 1, (v) => {
-        item.x = v;
-      });
-      numberField('Y', item.y, 0, current.height - 1, (v) => {
-        item.y = v;
-      });
-      if (item.type === 'Prop')
-        numberField('Z', item.z, -1000, 1000, (v) => {
-          item.z = v;
-        });
+      const positionRow =
+        item.type === 'Prop' || item.type === 'Character'
+          ? document.createElement('div')
+          : inspector;
+      if (positionRow !== inspector) {
+        positionRow.className = 'scene-position-row';
+        inspector.append(positionRow);
+      }
+      numberField(
+        'X',
+        item.x,
+        0,
+        current.width - 1,
+        (v) => {
+          item.x = v;
+        },
+        positionRow,
+      );
+      numberField(
+        'Y',
+        item.y,
+        0,
+        current.height - 1,
+        (v) => {
+          item.y = v;
+        },
+        positionRow,
+      );
+      if (item.type === 'Prop' || item.type === 'Character')
+        numberField(
+          'Z',
+          item.z,
+          -1000,
+          1000,
+          (v) => {
+            item.z = v;
+          },
+          positionRow,
+        );
     }
     const remove = document.createElement('button');
     remove.type = 'button';
@@ -837,27 +1149,15 @@ export function mountScenes(root: HTMLElement): () => void {
 
   async function draw(): Promise<void> {
     const scene = current;
-    const drawToken = token;
+    const drawToken = ++token;
     if (!scene) return;
-    const pixelWidth = scene.width * cell.width;
-    const pixelHeight = scene.height * cell.height;
-    canvas.width = Math.ceil(pixelWidth);
-    canvas.height = Math.ceil(pixelHeight);
-    canvas.style.width = `${pixelWidth}px`;
-    canvas.style.height = `${pixelHeight}px`;
-    hoverCanvas.width = canvas.width;
-    hoverCanvas.height = canvas.height;
-    hoverCanvas.style.width = canvas.style.width;
-    hoverCanvas.style.height = canvas.style.height;
-    if (autoFit) fitView();
-    context.fillStyle = scene.clear.bg;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    if (scene.clear.ch !== ' ') {
-      context.fillStyle = scene.clear.fg;
-      for (let y = 0; y < scene.height; y++)
-        for (let x = 0; x < scene.width; x++)
-          drawTerminalGlyph(context, cell, scene.clear.ch, x * cell.width, y * cell.height);
-    }
+    if (autoFit) fitView(false);
+    $<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    const composed = Array.from({ length: scene.width * scene.height }, () => ({
+      ch: ' ',
+      fg: '#000000',
+      bg: '#000000',
+    }));
     const visuals = await Promise.all(
       scene.entities.map(async (entry) => {
         if (entry.type === 'Background')
@@ -901,13 +1201,14 @@ export function mountScenes(root: HTMLElement): () => void {
           const clip = await animation(asset.visual.id);
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
-            return { entry, sprite: null, index: 0, depth: entry.y };
+            return { entry, sprite: null, index: 0, depth: entry.y, asset };
           spriteId = first.sprite;
           index = first.index;
           flips = animationFrameFlips(clip, first);
         }
         return {
           entry,
+          asset,
           sprite: await sheet(spriteId),
           index,
           flips,
@@ -922,10 +1223,14 @@ export function mountScenes(root: HTMLElement): () => void {
       }),
     );
     if (!alive || drawToken !== token || scene !== current) return;
+    prepareCanvas(canvas, context);
+    context.save();
+    clipScene(context);
     hitBoxes = [];
     propLabels = [];
     triggerLabels = [];
     const outlines: SceneHitBox[] = [];
+    const missing: { x: number; y: number }[] = [];
     const order = new Map(scene.entities.map((entry, index) => [entry.id, index]));
     visuals.sort((a, b) =>
       compareSceneDrawRank(
@@ -952,8 +1257,7 @@ export function mountScenes(root: HTMLElement): () => void {
           width: sprite?.width ?? 1,
         });
       if (!sprite || index >= sprite.sprites.length) {
-        context.fillStyle = '#dca665';
-        drawTerminalGlyph(context, cell, '?', entry.x * cell.width, entry.y * cell.height);
+        missing.push({ x: entry.x, y: entry.y });
         continue;
       }
       const left = entry.x - sprite.originX;
@@ -968,18 +1272,39 @@ export function mountScenes(root: HTMLElement): () => void {
       flattenSprite(sprite, index).forEach((glyph, at) => {
         const column = at % sprite.width;
         const row = Math.floor(at / sprite.width);
-        const x = (left + (flips?.flipH ? sprite.width - 1 - column : column)) * cell.width;
-        const y = (top + (flips?.flipV ? sprite.height - 1 - row : row)) * cell.height;
-        if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
-        context.fillStyle = palette ? (paletteRgb(palette, glyph.bg) ?? '#000') : '#000';
-        fillTerminalCell(context, cell, x, y);
-        if (glyph.ch !== ' ') {
-          context.fillStyle = palette ? (paletteRgb(palette, glyph.fg) ?? '#fff') : '#fff';
-          drawTerminalGlyph(context, cell, glyph.ch, x, y);
-        }
+        const x = left + (flips?.flipH ? sprite.width - 1 - column : column);
+        const y = top + (flips?.flipV ? sprite.height - 1 - row : row);
+        if (x < 0 || y < 0 || x >= scene.width || y >= scene.height) return;
+        const bg = palette ? (paletteRgb(palette, glyph.bg) ?? '#000') : '#000';
+        const transparent = bg.toLowerCase() === '#000000' || bg.toLowerCase() === '#000';
+        if (transparent && glyph.ch === ' ') return;
+        const target = composed[y * scene.width + x];
+        target.ch = glyph.ch;
+        target.fg = palette ? (paletteRgb(palette, glyph.fg) ?? '#fff') : '#fff';
+        if (!transparent) target.bg = bg;
       });
     }
-    for (const trigger of backgroundEdit ? [] : scene.triggers) {
+    const cw = cell.width * view.zoom;
+    const ch = cell.height * view.zoom;
+    const x0 = Math.max(0, Math.floor(-view.x / cw));
+    const y0 = Math.max(0, Math.floor(-view.y / ch));
+    const x1 = Math.min(scene.width, Math.ceil((viewport.clientWidth - view.x) / cw));
+    const y1 = Math.min(scene.height, Math.ceil((viewport.clientHeight - view.y) / ch));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const glyph = composed[y * scene.width + x];
+        context.fillStyle = glyph.bg;
+        fillTerminalCell(context, cell, x * cell.width, y * cell.height);
+        if (glyph.ch !== ' ') {
+          context.fillStyle = glyph.fg;
+          drawTerminalGlyph(context, cell, glyph.ch, x * cell.width, y * cell.height);
+        }
+      }
+    }
+    context.fillStyle = '#dca665';
+    for (const { x, y } of missing)
+      drawTerminalGlyph(context, cell, '?', x * cell.width, y * cell.height);
+    for (const trigger of backgroundEdit || !triggersVisible() ? [] : scene.triggers) {
       if (typeof trigger === 'string') continue;
       const width = trigger.event === 'action' ? trigger.width : 1;
       const height = trigger.event === 'action' ? trigger.height : 1;
@@ -1016,6 +1341,27 @@ export function mountScenes(root: HTMLElement): () => void {
         height * cell.height - 2,
       );
     }
+    if ((blockedVisible() || blockedEdit) && !backgroundEdit) {
+      const blocked = new Set<number>(scene.blockedCells);
+      for (const visual of blockedEdit ? [] : visuals) {
+        const { entry, sprite } = visual;
+        if (entry.type !== 'Prop' || !('prop' in entry) || !('asset' in visual) || !visual.asset)
+          continue;
+        for (const { x, y } of propBlockedSceneCells(
+          entry,
+          visual.asset,
+          sprite ?? { originX: 0, originY: 0 },
+          scene,
+        ))
+          blocked.add(y * scene.width + x);
+      }
+      context.fillStyle = blockedEdit ? 'rgba(235, 88, 79, 0.55)' : 'rgba(235, 88, 79, 0.28)';
+      for (const index of blocked) {
+        const x = (index % scene.width) * cell.width;
+        const y = Math.floor(index / scene.width) * cell.height;
+        context.fillRect(x, y, cell.width, cell.height);
+      }
+    }
     for (const outline of outlines) {
       context.strokeStyle = '#ffae95';
       context.lineWidth = 2;
@@ -1026,6 +1372,26 @@ export function mountScenes(root: HTMLElement): () => void {
         outline.height * cell.height - 2,
       );
     }
+    if (showUi) {
+      const uiWidth = Math.min(STANDARD_WIDTH, scene.width);
+      const left = Math.floor((scene.width - uiWidth) / 2);
+      const top = Math.max(0, scene.height - STANDARD_UI_HEIGHT);
+      const preview = renderStandardUiPreview(uiWidth);
+      for (let y = 0; y < Math.min(STANDARD_UI_HEIGHT, scene.height); y++) {
+        for (let x = 0; x < uiWidth; x++) {
+          const { ch, fg, bg } = preview.get(x, y);
+          const px = (left + x) * cell.width;
+          const py = (top + y) * cell.height;
+          context.fillStyle = `rgb(${bg.r}, ${bg.g}, ${bg.b})`;
+          fillTerminalCell(context, cell, px, py);
+          if (ch !== ' ') {
+            context.fillStyle = `rgb(${fg.r}, ${fg.g}, ${fg.b})`;
+            drawTerminalGlyph(context, cell, ch, px, py);
+          }
+        }
+      }
+    }
+    context.restore();
     paintHover();
   }
 
@@ -1033,12 +1399,22 @@ export function mountScenes(root: HTMLElement): () => void {
     ++token;
     if (hovered && !selectable(hovered)) setHover(null);
     renderList();
-    $<HTMLElement>('#scene-title').textContent = current?.id ?? 'NO SCENE';
+    renderTabs();
+    scheduleTabs();
+    $<HTMLElement>('#scene-title').textContent = current ? sceneName(current.id) : 'NO SCENE';
     $<HTMLElement>('#scene-workspace').hidden = !current;
+    $<HTMLButtonElement>('#scene-cancel-trigger').hidden = !placingTrigger;
     $<HTMLButtonElement>('#scene-save').disabled = !current || saving;
     $<HTMLButtonElement>('#scene-delete').disabled = !current;
+    $<HTMLButtonElement>('#scene-add-prop').disabled = !current || backgroundEdit || blockedEdit;
+    $<HTMLButtonElement>('#scene-add-character').disabled =
+      !current || backgroundEdit || blockedEdit;
+    $<HTMLButtonElement>('#scene-add-trigger').disabled = !current || backgroundEdit || blockedEdit;
     if (!current) return;
     const bg = background();
+    const backgroundLink = $<HTMLAnchorElement>('#scene-background-link');
+    backgroundLink.hidden = !bg;
+    if (bg) backgroundLink.href = `/art?id=${encodeURIComponent(bg.sprite)}`;
     if (backgroundEdit && !bg) {
       backgroundEdit = false;
       selected = [];
@@ -1046,26 +1422,27 @@ export function mountScenes(root: HTMLElement): () => void {
     const modeButton = $<HTMLButtonElement>('#scene-background-mode');
     modeButton.disabled = !bg;
     modeButton.setAttribute('aria-pressed', String(backgroundEdit));
-    modeButton.textContent = backgroundEdit ? 'EDIT BACKGROUND: ON' : 'EDIT BACKGROUND: OFF';
-    $<HTMLButtonElement>('#scene-add-background').textContent = bg
-      ? 'REPLACE BACKGROUND SPRITE'
-      : 'ADD BACKGROUND SPRITE';
-    $<HTMLButtonElement>('#scene-add-prop').disabled = backgroundEdit;
-    $<HTMLButtonElement>('#scene-add-character').disabled = backgroundEdit;
+    const blockedButton = $<HTMLButtonElement>('#scene-blocked-mode');
+    blockedButton.setAttribute('aria-pressed', String(blockedEdit));
+    const addBackgroundButton = $<HTMLButtonElement>('#scene-add-background');
+    addBackgroundButton.setAttribute(
+      'aria-label',
+      bg ? 'REPLACE BACKGROUND SPRITE' : 'ADD BACKGROUND SPRITE',
+    );
+    addBackgroundButton.title = bg ? 'Replace background sprite' : 'Add background sprite';
     const addTriggerButton = $<HTMLButtonElement>('#scene-add-trigger');
-    addTriggerButton.disabled = backgroundEdit;
     addTriggerButton.setAttribute('aria-pressed', String(placingTrigger));
-    addTriggerButton.textContent = placingTrigger ? 'CANCEL TRIGGER' : '+ TRIGGER';
+    addTriggerButton.textContent = placingTrigger ? 'Cancel Trigger' : 'Add Trigger';
     $<HTMLInputElement>('#scene-width').value = String(current.width);
     $<HTMLInputElement>('#scene-height').value = String(current.height);
     $<HTMLSelectElement>('#scene-depth').value = current.depthMode;
     renderInspector();
-    void draw();
+    redraw();
   }
 
   async function refresh(): Promise<void> {
     const [sceneList, propList, sheetList, colors, triggers] = await Promise.all([
-      requestJson<{ files: string[] }>('/api/scenes'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/scenes'),
       requestJson<{ files: string[] }>('/api/props'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
@@ -1073,6 +1450,11 @@ export function mountScenes(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = sceneList.files;
+    sceneLabels = sceneList.labels;
+    openTabs = openTabs.filter(
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+    );
+    for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     props = propList.files;
     sprites = sheetList.files;
     spriteLabels = sheetList.labels;
@@ -1081,23 +1463,21 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
   }
   async function open(id: string): Promise<void> {
-    if (current?.id === id) return;
-    if (dirty() && !(await confirmModal('Discard unsaved scene changes?', 'DISCARD'))) return;
-    const openToken = ++token;
+    if (current?.id === id || saving) return;
+    const openToken = ++switchToken;
+    const cached = sessions.get(id);
+    if (cached) {
+      activateScene(cached.doc, cached.saved);
+      status.textContent = `Opened ${id}`;
+      return;
+    }
     try {
       const scene = await requestJson<SceneDocument>(`/api/scenes/${encodeURIComponent(id)}`);
-      if (!alive || openToken !== token) return;
-      current = scene;
-      saved = structuredClone(scene);
-      backgroundEdit = false;
-      placingTrigger = false;
-      selected = [];
-      setEditorAssetUrl(id);
+      if (!alive || openToken !== switchToken) return;
+      activateScene(scene, structuredClone(scene));
       status.textContent = `Opened ${id}`;
-      render();
-      fitView();
     } catch (error) {
-      if (alive && openToken === token) status.textContent = message(error);
+      if (alive && openToken === switchToken) status.textContent = message(error);
     }
   }
   async function save(): Promise<void> {
@@ -1174,10 +1554,11 @@ export function mountScenes(root: HTMLElement): () => void {
 
   async function renderBackgroundFrames(): Promise<void> {
     const token = ++pickerToken;
-    const id = backgroundSheet.value;
+    const id = backgroundSheetId;
     backgroundChoice = null;
     backgroundAdd.disabled = true;
     backgroundFrames.replaceChildren();
+    if (!id) return;
     backgroundStatus.textContent = 'Loading sprite frames…';
     const sprite = await sheet(id);
     if (!alive || !backgroundPicker.open || token !== pickerToken) return;
@@ -1208,6 +1589,41 @@ export function mountScenes(root: HTMLElement): () => void {
     });
   }
 
+  function renderBackgroundResults(): void {
+    const query = backgroundSearch.value.trim().toLowerCase();
+    const matches = sprites.filter(
+      (id) =>
+        id.toLowerCase().includes(query) || (spriteLabels[id] ?? '').toLowerCase().includes(query),
+    );
+    if (!matches.includes(backgroundSheetId ?? '')) backgroundSheetId = matches[0] ?? null;
+    backgroundResults.replaceChildren();
+    for (const id of matches) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = spriteLabels[id] ?? id;
+      button.title = id;
+      button.classList.toggle('active', id === backgroundSheetId);
+      button.setAttribute('aria-pressed', String(id === backgroundSheetId));
+      button.addEventListener('click', () => {
+        backgroundSheetId = id;
+        backgroundResults.querySelectorAll('button').forEach((result) => {
+          result.classList.toggle('active', result === button);
+          result.setAttribute('aria-pressed', String(result === button));
+        });
+        void renderBackgroundFrames();
+      });
+      backgroundResults.append(button);
+    }
+    if (!matches.length) {
+      backgroundResults.textContent = 'No matching sprites.';
+      backgroundChoice = null;
+      backgroundAdd.disabled = true;
+      backgroundFrames.replaceChildren();
+      backgroundStatus.textContent = 'No matching sprites.';
+      ++pickerToken;
+    }
+  }
+
   function openBackgroundPicker(): void {
     if (!current) return;
     if (!sprites.length) {
@@ -1219,19 +1635,20 @@ export function mountScenes(root: HTMLElement): () => void {
       ? 'REPLACE BACKGROUND SPRITE'
       : 'ADD BACKGROUND SPRITE';
     backgroundAdd.textContent = replacing ? 'REPLACE SPRITE' : 'ADD SPRITE';
-    backgroundSheet.replaceChildren();
-    for (const id of sprites) {
-      const option = document.createElement('option');
-      option.value = id;
-      option.textContent = spriteLabels[id] ?? id;
-      backgroundSheet.append(option);
-    }
+    backgroundSearch.value = '';
+    backgroundSheetId = sprites[0] ?? null;
     backgroundChoice = null;
     backgroundPicker.showModal();
+    renderBackgroundResults();
     void renderBackgroundFrames();
+    backgroundSearch.focus();
   }
 
-  backgroundSheet.addEventListener('change', () => void renderBackgroundFrames());
+  backgroundSearch.addEventListener('input', () => {
+    const previous = backgroundSheetId;
+    renderBackgroundResults();
+    if (backgroundSheetId && backgroundSheetId !== previous) void renderBackgroundFrames();
+  });
   $<HTMLButtonElement>('#scene-background-cancel').addEventListener('click', () =>
     backgroundPicker.close(),
   );
@@ -1244,6 +1661,7 @@ export function mountScenes(root: HTMLElement): () => void {
     const existing = background();
     const entry = setSceneBackground(current, backgroundChoice.sprite, backgroundChoice.index);
     backgroundEdit = true;
+    blockedEdit = false;
     selected = [{ kind: 'entity', id: entry.id }];
     backgroundPicker.close();
     status.textContent = `${existing ? 'Replaced' : 'Added'} ${entry.id}. Drag it to position it in the scene.`;
@@ -1485,40 +1903,81 @@ export function mountScenes(root: HTMLElement): () => void {
     const bg = background();
     if (!bg) return;
     backgroundEdit = !backgroundEdit;
+    blockedEdit = false;
+    blockStroke = null;
     placingTrigger = false;
     selected = backgroundEdit ? [{ kind: 'entity', id: bg.id }] : [];
     drag = null;
     render();
   });
 
+  $<HTMLButtonElement>('#scene-blocked-mode').addEventListener('click', () => {
+    if (!current) return;
+    blockedEdit = !blockedEdit;
+    backgroundEdit = false;
+    placingTrigger = false;
+    blockStroke = null;
+    drag = null;
+    selected = [];
+    status.textContent = blockedEdit
+      ? 'Click or drag to block cells; click blocked cells to erase them. Save to keep changes.'
+      : 'Blocked-cell editing off';
+    render();
+    syncCursor();
+  });
+
   function addTrigger(): void {
-    if (!current || backgroundEdit) return;
-    placingTrigger = !placingTrigger;
+    if (!current || backgroundEdit || blockedEdit) return;
     if (placingTrigger) {
-      selected = [];
-      status.textContent = 'Drag on the scene to draw a trigger region. Esc cancels.';
-      void requestJson<{ names: string[] }>('/api/rpg-triggers').then(
-        (result) => {
-          if (alive) {
-            rpgTriggers = result.names;
-            renderInspector();
-          }
-        },
-        () => {
-          if (alive) status.textContent = 'Could not refresh RPGTrigger names.';
-        },
-      );
+      cancelTrigger();
+      return;
     }
+    placingTrigger = true;
+    selected = [];
+    status.textContent = 'Drag on the scene to draw a trigger region. Esc cancels.';
+    render();
+    syncCursor();
+    canvas.focus();
+    void requestJson<{ names: string[] }>('/api/rpg-triggers').then(
+      (result) => {
+        if (alive) {
+          rpgTriggers = result.names;
+          renderInspector();
+        }
+      },
+      () => {
+        if (alive && placingTrigger) status.textContent = 'Could not refresh RPGTrigger names.';
+      },
+    );
+  }
+  function cancelTrigger(): void {
+    placingTrigger = false;
+    drawingTrigger = null;
+    status.textContent = 'Trigger placement cancelled.';
     render();
     syncCursor();
   }
+  $<HTMLButtonElement>('#scene-cancel-trigger').addEventListener('click', cancelTrigger);
   function canvasPoint(
     event: Pick<MouseEvent, 'clientX' | 'clientY'>,
   ): { x: number; y: number } | null {
     if (!current) return null;
     const pixel = viewportPixel(event);
     const { x, y } = sceneCellAt(view, pixel.x, pixel.y, cell.width, cell.height);
-    return x >= 0 && y >= 0 && x < current.width && y < current.height ? { x, y } : null;
+    const uiWidth = Math.min(STANDARD_WIDTH, current.width);
+    const uiLeft = Math.floor((current.width - uiWidth) / 2);
+    return x >= 0 &&
+      y >= 0 &&
+      x < current.width &&
+      y < current.height &&
+      !(
+        showUi &&
+        y >= Math.max(0, current.height - STANDARD_UI_HEIGHT) &&
+        x >= uiLeft &&
+        x < uiLeft + uiWidth
+      )
+      ? { x, y }
+      : null;
   }
   function hitAt(x: number, y: number): ObjectRef | null {
     return (
@@ -1527,6 +1986,7 @@ export function mountScenes(root: HTMLElement): () => void {
         .find(
           (box) =>
             selectable(box.ref) &&
+            (box.ref.kind !== 'trigger' || triggersVisible()) &&
             x >= box.x &&
             y >= box.y &&
             x < box.x + box.width &&
@@ -1570,6 +2030,26 @@ export function mountScenes(root: HTMLElement): () => void {
     canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (event.button !== 0 || spaceHeld) return;
     const point = canvasPoint(event);
+    if (blockedEdit) {
+      if (!current || !point) return;
+      event.preventDefault();
+      const index = point.y * current.width + point.x;
+      blockStroke = {
+        pointerId: event.pointerId,
+        point,
+        blocked: !current.blockedCells.includes(index),
+      };
+      current.blockedCells = paintSceneBlockedCells(
+        current.blockedCells,
+        current.width,
+        point,
+        point,
+        blockStroke.blocked,
+      );
+      canvas.setPointerCapture(event.pointerId);
+      render();
+      return;
+    }
     if (placingTrigger) {
       if (!point) return;
       event.preventDefault();
@@ -1670,6 +2150,25 @@ export function mountScenes(root: HTMLElement): () => void {
   canvas.addEventListener('pointermove', (event) => {
     canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (pan) return;
+    if (blockStroke?.pointerId === event.pointerId && current) {
+      const point = canvasPoint(event);
+      if (point) {
+        current.blockedCells = paintSceneBlockedCells(
+          current.blockedCells,
+          current.width,
+          blockStroke.point,
+          point,
+          blockStroke.blocked,
+        );
+        blockStroke.point = point;
+        render();
+      }
+      return;
+    }
+    if (blockedEdit) {
+      paintHover();
+      return;
+    }
     if (drawingTrigger?.pointerId === event.pointerId && current) {
       const point = scenePixel(event);
       drawingTrigger.endX = point.x;
@@ -1696,6 +2195,20 @@ export function mountScenes(root: HTMLElement): () => void {
     updateDrag(event);
   });
   canvas.addEventListener('pointerup', (event) => {
+    if (blockStroke?.pointerId === event.pointerId) {
+      const point = canvasPoint(event);
+      if (point && current)
+        current.blockedCells = paintSceneBlockedCells(
+          current.blockedCells,
+          current.width,
+          blockStroke.point,
+          point,
+          blockStroke.blocked,
+        );
+      blockStroke = null;
+      render();
+      return;
+    }
     if (drawingTrigger?.pointerId === event.pointerId && current) {
       const drawing = drawingTrigger;
       drawingTrigger = null;
@@ -1740,6 +2253,7 @@ export function mountScenes(root: HTMLElement): () => void {
     paintHover();
   });
   canvas.addEventListener('pointercancel', () => {
+    blockStroke = null;
     drag = null;
     marquee = null;
     drawingTrigger = null;
@@ -1748,6 +2262,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   canvas.addEventListener('pointerleave', () => {
     canvasMouse = null;
+    if (blockedEdit) paintHover();
     if (!drag && !drawingTrigger && !resizing) {
       setHover(null);
       syncCursor();
@@ -1791,7 +2306,7 @@ export function mountScenes(root: HTMLElement): () => void {
   );
   $<HTMLButtonElement>('#scene-zoom-out').addEventListener('click', () => stepZoom(-1));
   $<HTMLButtonElement>('#scene-zoom-in').addEventListener('click', () => stepZoom(1));
-  $<HTMLButtonElement>('#scene-fit').addEventListener('click', fitView);
+  $<HTMLButtonElement>('#scene-fit').addEventListener('click', () => fitView());
   $<HTMLButtonElement>('#scene-add-background').addEventListener('click', openBackgroundPicker);
   $<HTMLButtonElement>('#scene-add-prop').addEventListener('click', () => void openPropPicker());
   $<HTMLButtonElement>('#scene-add-character').addEventListener(
@@ -1819,7 +2334,14 @@ export function mountScenes(root: HTMLElement): () => void {
         render();
         return;
       }
+      const oldWidth = current.width;
       current[dimension] = value;
+      current.blockedCells = resizeBlockedCells(
+        current.blockedCells,
+        oldWidth,
+        current.width,
+        current.height,
+      );
       render();
       if (autoFit) fitView();
     });
@@ -1829,30 +2351,78 @@ export function mountScenes(root: HTMLElement): () => void {
     current.depthMode = (event.target as HTMLSelectElement).value as SceneDocument['depthMode'];
     render();
   });
+  showTriggersInput.addEventListener('change', () => {
+    showTriggers = showTriggersInput.checked;
+    if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+    render();
+  });
+  showBlockedInput.addEventListener('change', () => {
+    showBlockedCells = showBlockedInput.checked;
+    render();
+  });
+  showUiInput.addEventListener('change', () => {
+    showUi = showUiInput.checked;
+    setHover(null);
+    render();
+  });
   $<HTMLInputElement>('#scene-search').addEventListener('input', renderList);
+  const menus = [...root.querySelectorAll<HTMLDetailsElement>('.scene-menu')];
+  for (const menu of menus) {
+    menu.querySelectorAll('button').forEach((button) => {
+      button.addEventListener('click', () => {
+        menu.open = false;
+      });
+    });
+    menu.addEventListener('toggle', () => {
+      if (menu.open) for (const other of menus) if (other !== menu) other.open = false;
+    });
+  }
+  const closeMenus = (event: PointerEvent) => {
+    const target = event.target;
+    if (target instanceof Node && menus.some((menu) => menu.contains(target))) return;
+    for (const menu of menus) menu.open = false;
+  };
+  document.addEventListener('pointerdown', closeMenus);
   $<HTMLButtonElement>('#scene-save').addEventListener('click', () => void save());
-  $<HTMLButtonElement>('#scene-new').addEventListener(
-    'click',
-    () =>
-      void (async () => {
-        const id = await askId('New scene id');
-        if (!id) return;
-        if (!isAssetId(id) || files.includes(id)) {
-          await alertModal('Use a unique short lowercase id');
-          return;
-        }
-        if (dirty() && !(await confirmModal('Discard unsaved scene changes?', 'DISCARD'))) return;
-        current = createScene(id);
-        saved = null;
-        backgroundEdit = false;
-        placingTrigger = false;
-        selected = [];
-        setEditorAssetUrl(null);
-        status.textContent = `New scene ${id}`;
-        render();
-        fitView();
-      })(),
-  );
+  $<HTMLButtonElement>('#scene-new').addEventListener('click', () => {
+    $<HTMLInputElement>('#scene-new-label').value = '';
+    $<HTMLInputElement>('#scene-new-width').value = '120';
+    $<HTMLInputElement>('#scene-new-height').value = '40';
+    $<HTMLSelectElement>('#scene-new-depth').value = 'bottom-up';
+    $<HTMLElement>('#scene-new-error').hidden = true;
+    newDialog.showModal();
+    $<HTMLInputElement>('#scene-new-label').focus();
+  });
+  $<HTMLButtonElement>('#scene-new-cancel').addEventListener('click', () => newDialog.close());
+  $<HTMLFormElement>('#scene-new-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const label = $<HTMLInputElement>('#scene-new-label').value.trim();
+    const width = Number($<HTMLInputElement>('#scene-new-width').value);
+    const height = Number($<HTMLInputElement>('#scene-new-height').value);
+    const depthMode = $<HTMLSelectElement>('#scene-new-depth').value;
+    const error = $<HTMLElement>('#scene-new-error');
+    const labelError = spriteLabelError(label);
+    if (
+      labelError ||
+      !Number.isInteger(width) ||
+      width < 1 ||
+      width > 256 ||
+      !Number.isInteger(height) ||
+      height < 1 ||
+      height > 128 ||
+      (depthMode !== 'bottom-up' && depthMode !== 'regular-z')
+    ) {
+      error.textContent =
+        labelError?.replace('Sprite', 'Scene') ?? 'Width must be 1–256 and height 1–128';
+      error.hidden = false;
+      return;
+    }
+    const id = crypto.randomUUID();
+    ++switchToken;
+    activateScene(createScene(id, label, width, height, depthMode), null);
+    status.textContent = `New scene ${label}`;
+    newDialog.close();
+  });
   $<HTMLButtonElement>('#scene-delete').addEventListener(
     'click',
     () =>
@@ -1863,21 +2433,30 @@ export function mountScenes(root: HTMLElement): () => void {
             await requestJson(`/api/scenes/${encodeURIComponent(current.id)}`, {
               method: 'DELETE',
             });
+          const deleted = current.id;
+          ++switchToken;
           current = null;
           saved = null;
+          sessions.delete(deleted);
+          openTabs = openTabs.filter((id) => id !== deleted);
           backgroundEdit = false;
+          blockedEdit = false;
+          blockStroke = null;
           placingTrigger = false;
           selected = [];
           setEditorAssetUrl(null);
           status.textContent = 'Scene deleted';
           await refresh();
+          const next = openTabs[openTabs.length - 1];
+          if (next) await open(next);
+          else persistTabs();
         } catch (error) {
           status.textContent = message(error);
         }
       })(),
   );
   const onKey = (event: KeyboardEvent) => {
-    if (!root.isConnected) return;
+    if (!root.isConnected || newDialog.open) return;
     if (
       event.key === 'Delete' &&
       !event.ctrlKey &&
@@ -1885,6 +2464,7 @@ export function mountScenes(root: HTMLElement): () => void {
       !event.altKey &&
       current &&
       !backgroundEdit &&
+      !blockedEdit &&
       !backgroundPicker.open &&
       !propPicker.open &&
       !characterPicker.open &&
@@ -1958,7 +2538,11 @@ export function mountScenes(root: HTMLElement): () => void {
       !propPicker.open &&
       !characterPicker.open &&
       !isModalOpen() &&
-      !(event.target instanceof HTMLInputElement) &&
+      !(
+        event.target instanceof HTMLInputElement &&
+        event.target !== showTriggersInput &&
+        event.target !== showBlockedInput
+      ) &&
       !(event.target instanceof HTMLTextAreaElement) &&
       !(event.target instanceof HTMLSelectElement) &&
       !(event.target instanceof HTMLElement && event.target.isContentEditable)
@@ -1966,7 +2550,7 @@ export function mountScenes(root: HTMLElement): () => void {
       event.preventDefault();
       if (!showPropNames) {
         showPropNames = true;
-        paintHover();
+        render();
       }
       return;
     }
@@ -1976,10 +2560,12 @@ export function mountScenes(root: HTMLElement): () => void {
       !propPicker.open &&
       !characterPicker.open &&
       !isModalOpen() &&
-      (placingTrigger || selected.length)
+      (placingTrigger || blockedEdit || selected.length)
     ) {
       event.preventDefault();
-      placingTrigger = false;
+      if (placingTrigger) cancelTrigger();
+      blockedEdit = false;
+      blockStroke = null;
       drawingTrigger = null;
       resizing = null;
       selected = [];
@@ -1994,6 +2580,7 @@ export function mountScenes(root: HTMLElement): () => void {
       event.key.toLowerCase() === 'a' &&
       !event.altKey &&
       current &&
+      !blockedEdit &&
       !backgroundPicker.open &&
       !propPicker.open &&
       !characterPicker.open &&
@@ -2004,7 +2591,9 @@ export function mountScenes(root: HTMLElement): () => void {
       !(event.target instanceof HTMLElement && event.target.isContentEditable)
     ) {
       event.preventDefault();
-      selected = selectableSceneObjects(current, backgroundEdit);
+      selected = selectableSceneObjects(current, backgroundEdit).filter(
+        (ref) => ref.kind !== 'trigger' || triggersVisible(),
+      );
       render();
       return;
     }
@@ -2036,7 +2625,8 @@ export function mountScenes(root: HTMLElement): () => void {
     if (event.key === 'Tab' && showPropNames) {
       event.preventDefault();
       showPropNames = false;
-      paintHover();
+      if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+      render();
     }
     if (event.key === ' ') {
       spaceHeld = false;
@@ -2044,15 +2634,20 @@ export function mountScenes(root: HTMLElement): () => void {
     }
   };
   const onBlur = () => {
+    const wasShowingNames = showPropNames;
     showPropNames = false;
-    paintHover();
+    if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+    if (wasShowingNames) render();
+    else paintHover();
     spaceHeld = false;
     pan = null;
+    blockStroke = null;
     syncCursor();
   };
-  document.addEventListener('keydown', onKey);
+  document.addEventListener('keydown', onKey, true);
   document.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
+  window.addEventListener('pagehide', persistTabs);
   void document.fonts.ready.then(() => {
     if (!alive) return;
     cell = terminalCellAtZoom(context, 1);
@@ -2062,8 +2657,14 @@ export function mountScenes(root: HTMLElement): () => void {
     .then(async () => {
       const id = new URLSearchParams(location.search).get('id');
       if (id && alive) {
-        if (isAssetId(id) && files.includes(id)) await open(id);
+        if (isAssetId(id) && (files.includes(id) || sessions.has(id))) await open(id);
         else status.textContent = `Scene ${id} not found`;
+      } else if (alive) {
+        const preferred =
+          storedTabs.active && openTabs.includes(storedTabs.active)
+            ? storedTabs.active
+            : openTabs[openTabs.length - 1];
+        if (preferred) await open(preferred);
       }
     })
     .catch((error: unknown) => {
@@ -2071,18 +2672,22 @@ export function mountScenes(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    persistTabs();
     ++token;
     ++pickerToken;
     ++propPickerToken;
     ++propLoadToken;
     ++characterPickerToken;
     if (backgroundPicker.open) backgroundPicker.close();
+    if (newDialog.open) newDialog.close();
     if (propPicker.open) propPicker.close();
     if (characterPicker.open) characterPicker.close();
     resizeObserver.disconnect();
-    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('keyup', onKeyUp);
+    document.removeEventListener('pointerdown', closeMenus);
     window.removeEventListener('blur', onBlur);
+    window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);
   };
 }

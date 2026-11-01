@@ -255,9 +255,11 @@ export type SceneDocument = {
   format: 'incanterm-scene';
   version: 1;
   id: string;
+  label?: string;
   width: number;
   height: number;
   depthMode: 'bottom-up' | 'regular-z';
+  blockedCells: number[];
   clear: { ch: string; fg: string; bg: string };
   entities: SceneEntity[];
   triggers: SceneTrigger[];
@@ -367,14 +369,22 @@ export function createProp(id: string, visual: PropVisual): PropDocument {
   };
 }
 
-export function createScene(id: string): SceneDocument {
+export function createScene(
+  id: string,
+  label?: string,
+  width = 120,
+  height = 40,
+  depthMode: SceneDocument['depthMode'] = 'bottom-up',
+): SceneDocument {
   return {
     format: 'incanterm-scene',
     version: 1,
     id,
-    width: 120,
-    height: 40,
-    depthMode: 'bottom-up',
+    ...(label !== undefined ? { label } : {}),
+    width,
+    height,
+    depthMode,
+    blockedCells: [],
     clear: { ch: ' ', fg: '#e0e9db', bg: '#102b2a' },
     entities: [],
     triggers: [],
@@ -388,12 +398,33 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   }
   const id = readId(scene.id, 'Scene id');
   if (!id.ok) return id;
+  if (
+    scene.label !== undefined &&
+    (typeof scene.label !== 'string' || spriteLabelError(scene.label))
+  )
+    return fail('Scene label must be 1 to 80 characters without control characters');
   const width = readInt(scene.width, 'Scene width', 1, MAX_SPRITE_WIDTH);
   if (!width.ok) return width;
   const height = readInt(scene.height, 'Scene height', 1, MAX_SPRITE_HEIGHT);
   if (!height.ok) return height;
   if (scene.depthMode !== 'bottom-up' && scene.depthMode !== 'regular-z')
     return fail('Scene depthMode must be bottom-up or regular-z');
+  const blockedCells: number[] = [];
+  if (scene.blockedCells !== undefined) {
+    if (!Array.isArray(scene.blockedCells)) return fail('Scene blockedCells must be a list');
+    const seen = new Set<number>();
+    for (const index of scene.blockedCells) {
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= width.value * height.value ||
+        seen.has(index)
+      )
+        return fail('Scene blockedCells must contain unique indexes inside the scene');
+      seen.add(index);
+    }
+    blockedCells.push(...[...seen].sort((a, b) => a - b));
+  }
   const clear = asObject(scene.clear);
   if (
     !clear ||
@@ -568,9 +599,11 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       format: 'incanterm-scene',
       version: 1,
       id: id.value,
+      ...(typeof scene.label === 'string' ? { label: scene.label.trim() } : {}),
       width: width.value,
       height: height.value,
       depthMode: scene.depthMode,
+      blockedCells,
       clear: { ch: clear.ch, fg: clear.fg.toLowerCase(), bg: clear.bg.toLowerCase() },
       entities,
       triggers,

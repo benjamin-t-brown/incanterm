@@ -19,11 +19,12 @@ export function mergeSprite(
   }
 
   const result: SpriteDocument = structuredClone(theirs);
-  for (const field of ['originX', 'originY', 'font'] as const) {
+  for (const field of ['label', 'originX', 'originY', 'font'] as const) {
     const value = choose(base[field], ours[field], theirs[field]);
     if (!value.ok) return { ok: false, reason: `Both editors changed ${field}` };
     // The field types differ, so assign through the specific field.
     if (field === 'font') result.font = value.value as SpriteDocument['font'];
+    else if (field === 'label') result.label = value.value as string;
     else result[field] = value.value as number;
   }
 
@@ -56,6 +57,18 @@ export function mergeSprite(
     }
   }
   return { ok: true, value: result };
+}
+
+export function rebaseSpriteSaveAs(
+  sent: SpriteDocument,
+  current: SpriteDocument,
+  saved: SpriteDocument,
+): SpriteDocument {
+  // The copy has a new identity; adapt the still-open source draft before
+  // merging edits made during the request into the saved copy.
+  const draft = { ...current, id: saved.id, label: saved.label };
+  const merged = mergeSprite(sent, draft, saved);
+  return { ...(merged.ok ? merged.value : draft), id: saved.id, label: saved.label };
 }
 
 function shape(doc: SpriteDocument): unknown {

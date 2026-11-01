@@ -40,7 +40,23 @@ export class Sprite {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const cell = this.cells[y * this.width + x];
-        if (cell) buffer.set(left + x, top + y, cell);
+        const targetX = left + x;
+        const targetY = top + y;
+        if (
+          !cell ||
+          targetX < 0 ||
+          targetY < 0 ||
+          targetX >= buffer.width ||
+          targetY >= buffer.height
+        )
+          continue;
+        const transparent = cell.bg.r === 0 && cell.bg.g === 0 && cell.bg.b === 0;
+        if (transparent && cell.ch === ' ') continue;
+        buffer.set(targetX, targetY, {
+          ch: cell.ch,
+          fg: cell.fg,
+          bg: transparent ? buffer.get(targetX, targetY).bg : cell.bg,
+        });
       }
     }
   }

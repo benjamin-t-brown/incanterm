@@ -6,6 +6,12 @@ import {
 } from '../../characters/auto-assign.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
 import {
+  neighborCharacterTab,
+  OPEN_CHARACTERS_KEY,
+  readCharacterTabs,
+  type CharacterTabSession,
+} from '../../characters/character-tabs.js';
+import {
   CHARACTER_STATES,
   characterLabelError,
   createCharacter,
@@ -33,6 +39,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     <input id="character-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search characters">
     <div id="character-list" class="asset-list anim-library-list"></div>
   </aside><section class="character-app" aria-label="Character editor">
+    <div id="character-tabs" class="prop-tabs" role="tablist" aria-label="Open characters"></div>
     <div class="toolbar-row"><button id="new-character" type="button">NEW</button>
       <button id="new-character-from-folder" type="button">NEW FROM ANIMATION FOLDER</button>
       <button id="rename-character" type="button" disabled>RENAME</button>
@@ -41,7 +48,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       <strong id="character-id">NO CHARACTER</strong><small id="character-stable-id"></small></div>
     <p id="character-status" class="page-copy" role="status">Create a character or select one from the list.</p>
     <div id="character-fields" class="character-fields" hidden>
-      <div><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
+      <div class="character-settings"><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
         <option value="up">UP</option><option value="down">DOWN</option>
         <option value="left">LEFT</option><option value="right">RIGHT</option></select></label>
         <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
@@ -99,12 +106,117 @@ export function mountCharacters(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: CharacterDocument | null = null;
   let saved: CharacterDocument | null = null;
-  const dirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
+  const storedTabs = readCharacterTabs(localStorage);
+  let openTabs = storedTabs.tabs;
+  const sessions = new Map<string, CharacterTabSession>(Object.entries(storedTabs.drafts));
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  const tabDirty = (id: string) => {
+    const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
+    return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.saved);
+  };
   const message = (error: unknown) =>
     error instanceof Error ? error.message : 'Character request failed';
   setDirtyGuard(
-    async () => !dirty() || confirmModal('Discard unsaved character changes?', 'DISCARD'),
+    async () =>
+      !openTabs.some(tabDirty) || confirmModal('Discard unsaved character changes?', 'DISCARD'),
   );
+
+  function persistTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = null;
+    const drafts: Record<string, CharacterTabSession> = {};
+    for (const id of openTabs) {
+      const session = id === current?.id && current ? { doc: current, saved } : sessions.get(id);
+      if (session && JSON.stringify(session.doc) !== JSON.stringify(session.saved))
+        drafts[id] = session;
+    }
+    try {
+      localStorage.setItem(
+        OPEN_CHARACTERS_KEY,
+        JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
+      );
+    } catch {
+      status.textContent = 'Could not store open character drafts locally';
+    }
+  }
+  function scheduleTabs(): void {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistTabs, 400);
+  }
+  function renderTabs(): void {
+    const host = $<HTMLElement>('#character-tabs');
+    host.replaceChildren();
+    if (!openTabs.length) {
+      const empty = document.createElement('span');
+      empty.className = 'prop-tabs-empty';
+      empty.textContent = 'NO CHARACTER';
+      host.append(empty);
+    }
+    for (const id of openTabs) {
+      const tab = document.createElement('div');
+      tab.className = 'prop-tab';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(current?.id === id));
+      tab.classList.toggle('current', current?.id === id);
+      tab.classList.toggle('dirty', tabDirty(id));
+      const label = document.createElement('button');
+      label.type = 'button';
+      label.className = 'prop-tab-label';
+      label.textContent =
+        id === current?.id
+          ? current.label
+          : (sessions.get(id)?.doc.label ?? characterLabels[id] ?? id);
+      const mark = document.createElement('span');
+      mark.className = 'prop-dirty-mark';
+      mark.textContent = ' ●';
+      label.append(mark);
+      label.addEventListener('click', () => void open(id));
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'prop-tab-close';
+      close.setAttribute('aria-label', `Close ${label.textContent}`);
+      close.textContent = '×';
+      close.addEventListener('click', () => void closeTab(id));
+      tab.addEventListener('auxclick', (event) => {
+        if (event.button === 1) {
+          event.preventDefault();
+          void closeTab(id);
+        }
+      });
+      tab.append(label, close);
+      host.append(tab);
+    }
+  }
+  function activateCharacter(doc: CharacterDocument, baseline: CharacterDocument | null): void {
+    if (current) sessions.set(current.id, { doc: current, saved });
+    sessions.delete(doc.id);
+    current = doc;
+    saved = baseline;
+    if (!openTabs.includes(doc.id)) openTabs.push(doc.id);
+    setEditorAssetUrl(baseline ? doc.id : null);
+    render();
+    persistTabs();
+  }
+  async function closeTab(id: string): Promise<void> {
+    if (!openTabs.includes(id) || saving) return;
+    if (tabDirty(id) && !(await confirmModal('Discard unsaved character changes?', 'DISCARD')))
+      return;
+    const next = neighborCharacterTab(openTabs, id);
+    openTabs = openTabs.filter((tab) => tab !== id);
+    sessions.delete(id);
+    if (current?.id === id) {
+      ++loading;
+      current = null;
+      saved = null;
+      setEditorAssetUrl(null);
+      if (next) await open(next);
+      else {
+        status.textContent = 'Open a character from the list.';
+        render();
+      }
+    } else renderTabs();
+    persistTabs();
+  }
 
   function renderList(): void {
     list.replaceChildren();
@@ -150,6 +262,8 @@ export function mountCharacters(root: HTMLElement): () => void {
         }
         if (extra) current.customAnimations[name] = id;
         else current.animations[name as (typeof CHARACTER_STATES)[number]] = id;
+        renderTabs();
+        scheduleTabs();
         restartPreview();
       },
     });
@@ -172,6 +286,8 @@ export function mountCharacters(root: HTMLElement): () => void {
 
   function render(): void {
     renderList();
+    renderTabs();
+    scheduleTabs();
     $<HTMLElement>('#character-fields').hidden = !current;
     $<HTMLButtonElement>('#save-character').disabled = !current;
     $<HTMLButtonElement>('#rename-character').disabled = !current;
@@ -187,8 +303,21 @@ export function mountCharacters(root: HTMLElement): () => void {
       return;
     }
     $<HTMLSelectElement>('#character-facing').value = current.defaultFacing;
-    for (const state of CHARACTER_STATES)
-      states.append(stateRow(state, current.animations[state], false));
+    const movement = document.createElement('div');
+    movement.className = 'character-state-column';
+    const talking = document.createElement('div');
+    talking.className = 'character-state-column';
+    for (const [group, names, column] of [
+      ['IDLE', CHARACTER_STATES.slice(0, 4), movement],
+      ['WALK', CHARACTER_STATES.slice(4, 8), movement],
+      ['TALKING', CHARACTER_STATES.slice(8), talking],
+    ] as const) {
+      const heading = document.createElement('h3');
+      heading.textContent = group;
+      column.append(heading);
+      for (const state of names) column.append(stateRow(state, current.animations[state], false));
+    }
+    states.append(movement, talking);
     const invisible = document.createElement('div');
     invisible.className = 'character-state-row';
     invisible.textContent = 'INVISIBLE · no animation';
@@ -316,6 +445,10 @@ export function mountCharacters(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = characters.files;
+    openTabs = openTabs.filter(
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+    );
+    for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     characterLabels = characters.labels;
     clips = animations.files;
     clipLabels = animations.labels;
@@ -326,17 +459,19 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
 
   async function open(id: string): Promise<void> {
-    if (current?.id === id) return;
-    if (dirty() && !(await confirmModal('Discard unsaved character changes?', 'DISCARD'))) return;
+    if (current?.id === id || saving) return;
     const token = ++loading;
+    const cached = sessions.get(id);
+    if (cached) {
+      activateCharacter(cached.doc, cached.saved);
+      status.textContent = `Opened ${id}`;
+      return;
+    }
     try {
       const doc = await requestJson<CharacterDocument>(`/api/characters/${encodeURIComponent(id)}`);
       if (!alive || token !== loading) return;
-      current = doc;
-      saved = structuredClone(doc);
-      setEditorAssetUrl(id);
+      activateCharacter(doc, structuredClone(doc));
       status.textContent = `Opened ${id}`;
-      render();
     } catch (error) {
       if (alive && token === loading) status.textContent = message(error);
     }
@@ -357,6 +492,8 @@ export function mountCharacters(root: HTMLElement): () => void {
           ? `Saved ${sent.id}`
           : `Saved ${sent.id}; newer edits need review`;
         setEditorAssetUrl(sent.id);
+        renderTabs();
+        scheduleTabs();
         await refresh();
       }
     } catch (error) {
@@ -445,16 +582,12 @@ export function mountCharacters(root: HTMLElement): () => void {
             .filter(Boolean)
             .join(' '),
         );
-      if (dirty() && !(await confirmModal('Discard unsaved character changes?', 'DISCARD'))) return;
       if (!alive) return;
       ++loading;
-      current = result.character;
-      current.label = label;
-      saved = null;
-      setEditorAssetUrl(null);
+      result.character.label = label;
+      activateCharacter(result.character, null);
       fromFolderDialog.close();
       status.textContent = `New character ${label} from ${folder} · save to keep it`;
-      render();
     })();
   });
   $<HTMLButtonElement>('#character-fill-folder').addEventListener('click', () => {
@@ -474,6 +607,8 @@ export function mountCharacters(root: HTMLElement): () => void {
     if (!current) return;
     current.defaultFacing = (event.target as HTMLSelectElement)
       .value as CharacterDocument['defaultFacing'];
+    renderTabs();
+    scheduleTabs();
   });
   $<HTMLButtonElement>('#add-character-state').addEventListener('click', () => {
     void (async () => {
@@ -500,15 +635,11 @@ export function mountCharacters(root: HTMLElement): () => void {
       const labelError = characterLabelError(entered);
       if (labelError) return void alertModal(labelError);
       if (!clips.length) return void alertModal('Create an animation before creating a character');
-      if (dirty() && !(await confirmModal('Discard unsaved character changes?', 'DISCARD'))) return;
       if (!alive) return;
       const id = crypto.randomUUID();
       ++loading;
-      current = createCharacter(id, clips[0], entered);
-      saved = null;
-      setEditorAssetUrl(null);
+      activateCharacter(createCharacter(id, clips[0], entered), null);
       status.textContent = `New character ${entered}`;
-      render();
     })();
   });
   $<HTMLButtonElement>('#rename-character').addEventListener('click', () => {
@@ -533,11 +664,16 @@ export function mountCharacters(root: HTMLElement): () => void {
           await requestJson(`/api/characters/${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!alive || current?.id !== id) return;
         ++loading;
+        openTabs = openTabs.filter((tab) => tab !== id);
+        sessions.delete(id);
         current = null;
         saved = null;
         setEditorAssetUrl(null);
         status.textContent = 'Character deleted';
         await refresh();
+        const next = openTabs[openTabs.length - 1];
+        if (next) await open(next);
+        else persistTabs();
       } catch (error) {
         if (alive) status.textContent = message(error);
       }
@@ -550,14 +686,21 @@ export function mountCharacters(root: HTMLElement): () => void {
     void save();
   };
   document.addEventListener('keydown', onKeyDown);
+  window.addEventListener('pagehide', persistTabs);
   void preloadSpriteFonts()
     .then(async () => {
       await refresh();
       if (!alive) return;
       const id = new URLSearchParams(location.search).get('id');
       if (id) {
-        if (isAssetId(id) && files.includes(id)) await open(id);
+        if (isAssetId(id) && (files.includes(id) || sessions.has(id))) await open(id);
         else status.textContent = `Character ${id} not found`;
+      } else {
+        const preferred =
+          storedTabs.active && openTabs.includes(storedTabs.active)
+            ? storedTabs.active
+            : openTabs[openTabs.length - 1];
+        if (preferred) await open(preferred);
       }
     })
     .catch((error: unknown) => {
@@ -565,10 +708,12 @@ export function mountCharacters(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    persistTabs();
     ++loading;
     ++previewToken;
     clearTimeout(timer);
     document.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);
   };
 }

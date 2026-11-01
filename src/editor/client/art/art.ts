@@ -81,7 +81,8 @@ import {
   getBytesWithRevision,
   ApiError,
 } from '../api.js';
-import { mergeSprite } from '../../art/sprite-merge.js';
+import { mergeSprite, rebaseSpriteSaveAs } from '../../art/sprite-merge.js';
+import { filterSprites } from '../../art/sprite-search.js';
 import { mergeJson } from '../../safe-save.js';
 import { saveDraft } from '../save.js';
 import { artCursorCss } from './cursors.js';
@@ -325,6 +326,7 @@ export function mountArt(root: HTMLElement): () => void {
   let alive = true;
   let openTabs: string[] = [];
   const spriteLabels = new Map<string, string>();
+  let spriteFiles: string[] = [];
   const sessions = new Map<string, TabSession>();
   const displayName = (id: string) =>
     (id === spriteId ? doc?.label : sessions.get(id)?.doc.label ?? spriteLabels.get(id)) ?? id;
@@ -1631,6 +1633,7 @@ export function mountArt(root: HTMLElement): () => void {
     pressing = false;
   }
   function renderTabs(): void {
+    renderFileList();
     const host = $<HTMLElement>('#document-tabs');
     host.replaceChildren();
     if (openTabs.length === 0) {
@@ -1755,33 +1758,34 @@ export function mountArt(root: HTMLElement): () => void {
     flushPersist();
     renderTabs();
   }
-  async function refreshFiles(): Promise<void> {
+  function renderFileList(): void {
     const list = $<HTMLElement>('#file-list');
+    const matches = filterSprites(spriteFiles, spriteLabels, $<HTMLInputElement>('#file-search').value);
+    list.replaceChildren();
+    if (!matches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'anim-picker-empty';
+      empty.textContent = spriteFiles.length ? 'No matches.' : 'No sprites.';
+      list.append(empty);
+    }
+    for (const id of matches) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = displayName(id);
+      button.title = id;
+      button.classList.toggle('active', id === spriteId);
+      button.addEventListener('click', () => void openSprite(id));
+      list.append(button);
+    }
+  }
+  async function refreshFiles(): Promise<void> {
     try {
       const { files, labels } = await requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites');
       for (const [id, label] of Object.entries(labels)) spriteLabels.set(id, label);
+      spriteFiles = files;
       await syncOpenTabs(files);
-      list.replaceChildren();
-      if (files.length === 0) {
-        list.innerHTML = '<div class="empty-files">NO SAVED SPRITES YET</div>';
-        return;
-      }
-      for (const file of files) {
-        const row = document.createElement('div');
-        row.className = 'file-item';
-        row.classList.toggle('current', file === spriteId);
-        const open = document.createElement('button');
-        open.type = 'button';
-        open.textContent = `▤  ${displayName(file)}`;
-        open.addEventListener('click', () => void openSprite(file));
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'remove-file';
-        remove.textContent = '×';
-        remove.addEventListener('click', () => void deleteSprite(file));
-        row.append(open, remove);
-        list.append(row);
-      }
+      // Labels can change without the set of open tabs changing.
+      renderTabs();
     } catch (error) {
       announce(error instanceof Error ? error.message : 'Could not list sprites');
     }
@@ -1942,14 +1946,15 @@ export function mountArt(root: HTMLElement): () => void {
         null,
       );
       if (spriteId !== from || !doc) return;
-      const current = mergeSprite(next, doc, saved);
-      doc = { ...(current.ok ? current.value : doc), id: saved.id };
+      doc = rebaseSpriteSaveAs(next, doc, saved);
       spriteLabels.set(saved.id, saved.label);
       spriteId = saved.id;
       setEditorAssetUrl(saved.id);
       savedState = JSON.stringify(saved);
-      for (const entry of undoStack) entry.doc.id = saved.id;
-      for (const entry of redoStack) entry.doc.id = saved.id;
+      for (const entry of [...undoStack, ...redoStack]) {
+        entry.doc.id = saved.id;
+        entry.doc.label = saved.label;
+      }
       openTabs = renameOpenTab(openTabs, from, saved.id);
       dropSession(from);
       localStorage.setItem(LAST_SPRITE_KEY, saved.id);
@@ -2896,7 +2901,11 @@ export function mountArt(root: HTMLElement): () => void {
     new: () => void newSprite(),
     browse: () => {
       void refreshFiles();
+      setGlyphCapture(false);
       $<HTMLDialogElement>('#file-dialog').showModal();
+      const search = $<HTMLInputElement>('#file-search');
+      search.focus();
+      search.select();
     },
     save: () => void save(),
     'save-as': () => void saveAs(),
@@ -3117,6 +3126,7 @@ export function mountArt(root: HTMLElement): () => void {
     remember(before);
     refreshControls();
   });
+  $<HTMLInputElement>('#file-search').addEventListener('input', renderFileList);
   $<HTMLButtonElement>('#close-files').addEventListener('click', () =>
     $<HTMLDialogElement>('#file-dialog').close(),
   );
@@ -3585,11 +3595,11 @@ export function mountArt(root: HTMLElement): () => void {
         ? $<HTMLDialogElement>('#generate-character-dialog')
         : $<HTMLDialogElement>('#size-dialog').open
           ? $<HTMLDialogElement>('#size-dialog')
-        : $<HTMLDialogElement>('#font-dialog').open
-          ? $<HTMLDialogElement>('#font-dialog')
-          : $<HTMLDialogElement>('#file-dialog').open
-            ? $<HTMLDialogElement>('#file-dialog')
-            : null;
+          : $<HTMLDialogElement>('#font-dialog').open
+            ? $<HTMLDialogElement>('#font-dialog')
+            : $<HTMLDialogElement>('#file-dialog').open
+              ? $<HTMLDialogElement>('#file-dialog')
+              : null;
       if (modal) {
         if (keyEvent.key === 'Escape') {
           keyEvent.preventDefault();
@@ -3602,7 +3612,7 @@ export function mountArt(root: HTMLElement): () => void {
         setGlyphCapture(true);
         return;
       }
-      if (keyMode) {
+      if (keyMode && !typing) {
         keyEvent.preventDefault();
         if (keyEvent.key === 'Escape') {
           setGlyphCapture(false);
@@ -3771,9 +3781,12 @@ export function mountArt(root: HTMLElement): () => void {
     for (const [id, session] of Object.entries(stored.sessions)) {
       sessions.set(id, sessionFromPersisted(session));
     }
-    refreshControls();
     const requestedFromUrl = new URLSearchParams(location.search).get('id');
     const requested = requestedFromUrl ?? stored.active ?? localStorage.getItem(LAST_SPRITE_KEY);
+    // Reconcile persisted ids with disk and load labels before showing tabs.
+    await refreshFiles();
+    if (!alive) return;
+    refreshControls();
     if (requested && isAssetId(requested)) {
       openTabs = addOpenTab(openTabs, requested);
       try {
@@ -3797,7 +3810,6 @@ export function mountArt(root: HTMLElement): () => void {
       }
     }
     if (requestedFromUrl && !isAssetId(requestedFromUrl)) setEditorAssetUrl(null);
-    await refreshFiles();
     announce('Open or create a sprite');
     resizeView();
   })();
@@ -3967,8 +3979,15 @@ function artMarkup(): string {
     </main>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
     <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    <dialog id="file-dialog" aria-labelledby="file-dialog-title">
+      <div class="dialog-heading"><span id="file-dialog-title">BROWSE SPRITES</span><button id="close-files" type="button" aria-label="Close sprite browser">×</button></div>
+      <section class="art-library" aria-label="Sprites">
+        <label for="file-search">SPRITES</label>
+        <input id="file-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search sprites" autocomplete="off" spellcheck="false">
+        <div id="file-list" class="asset-list"></div>
+      </section>
+    </dialog>
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
-    <dialog id="file-dialog"><div class="dialog-heading"><span>SPRITES</span><button id="close-files" type="button">×</button></div><section class="panel files-panel"><div id="file-list" class="file-list"></div></section></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
     <dialog id="generate-character-dialog">
       <div class="dialog-heading"><span>GENERATE · 3×3 CHARACTER</span><button id="close-generate-character" type="button">×</button></div>

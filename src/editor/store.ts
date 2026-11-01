@@ -685,6 +685,12 @@ export class AssetStore {
     return this.listValid('scenes', '.json', (text) => parseScene(JSON.parse(text)).ok);
   }
 
+  async sceneLabels(files: readonly string[]): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of files) labels[id] = (await this.readScene(id)).label ?? id;
+    return labels;
+  }
+
   async readScene(id: string): Promise<SceneDocument> {
     const parsed = parseScene(await this.readJson(this.file('scenes', id, '.json')));
     if (!parsed.ok) throw new AssetError(parsed.error, 422);

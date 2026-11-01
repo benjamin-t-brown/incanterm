@@ -4,12 +4,18 @@ import { UIElement, type DrawContext } from './element.js';
 import { ParagraphWrapped } from './paragraph-wrapped.js';
 import { TabbedView } from './tabbed-view.js';
 import { DialoguePanel } from './dialogue-panel.js';
+import {
+  MIN_STANDARD_WIDTH,
+  STANDARD_TABS,
+  STANDARD_UI_HEIGHT,
+  STANDARD_WIDTH,
+  StandardSceneUi,
+  UI_INK,
+} from './standard-ui.js';
 
-export const STANDARD_WIDTH = 120;
+export { MIN_STANDARD_WIDTH, STANDARD_UI_HEIGHT, STANDARD_WIDTH } from './standard-ui.js';
 export const STANDARD_HEIGHT = 40;
-export const STANDARD_UI_HEIGHT = 16;
 export const STANDARD_WORLD_HEIGHT = STANDARD_HEIGHT - STANDARD_UI_HEIGHT;
-export const MIN_STANDARD_WIDTH = 40;
 export const MIN_STANDARD_HEIGHT = 16;
 
 export const STANDARD_BACKGROUND: Cell = {
@@ -17,21 +23,6 @@ export const STANDARD_BACKGROUND: Cell = {
   fg: { r: 92, g: 107, b: 99 },
   bg: { r: 12, g: 14, b: 13 },
 };
-const UI_INK: Cell = {
-  ch: ' ',
-  fg: { r: 205, g: 211, b: 209 },
-  bg: { r: 16, g: 20, b: 25 },
-};
-
-class StandardSceneUi extends UIElement {
-  protected paint(ctx: DrawContext): void {
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) {
-        ctx.set(x, y, { ...UI_INK, ch: y === 0 ? '=' : ' ' });
-      }
-    }
-  }
-}
 
 export class LayoutStandardScene extends UIElement {
   readonly ui: UIElement;
@@ -57,11 +48,7 @@ export class LayoutStandardScene extends UIElement {
       1,
       STANDARD_WIDTH,
       STANDARD_UI_HEIGHT - 1,
-      [
-        { id: 'log', label: 'Log' },
-        { id: 'inventory', label: 'Inventory' },
-        { id: 'menu', label: 'Menu' },
-      ],
+      STANDARD_TABS,
       { fg: UI_INK.fg, bg: UI_INK.bg },
     );
     this.dialoguePanel = new DialoguePanel(

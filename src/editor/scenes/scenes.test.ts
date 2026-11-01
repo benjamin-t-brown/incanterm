@@ -331,7 +331,7 @@ describe('scene authoring', () => {
 
   it('saves, lists, merges, and loads backgrounds, reusable props and load triggers', async () => {
     const { root, store } = await fixture();
-    const scene = createScene('room');
+    const scene = createScene('room', 'Room');
     scene.width = 4;
     scene.height = 2;
     scene.entities = [
@@ -346,7 +346,7 @@ describe('scene authoring', () => {
     expect((await put(scene, null)).status).toBe(200);
     expect(
       JSON.parse(String((await dispatchAssetRequest(store, 'GET', '/api/scenes', '')).body)),
-    ).toEqual({ files: ['room'] });
+    ).toEqual({ files: ['room'], labels: { room: 'Room' } });
     const changed = structuredClone(scene);
     changed.width = 5;
     expect((await put(changed, scene)).status).toBe(200);
@@ -392,6 +392,16 @@ describe('scene authoring', () => {
     expect(await store.listProps()).toEqual(['box']);
     expect((await dispatchAssetRequest(store, 'DELETE', '/api/scenes/room', '')).status).toBe(200);
     expect(await store.listScenes()).toEqual([]);
+  });
+
+  it('persists blocked scene cells for background walking masks', async () => {
+    const { store } = await fixture();
+    const scene = createScene('walking');
+    scene.width = 4;
+    scene.height = 3;
+    scene.blockedCells = [0, 6, 11];
+    await store.saveSceneDraft(scene.id, scene, null);
+    expect((await store.readScene(scene.id)).blockedCells).toEqual([0, 6, 11]);
   });
 
   it('draws backgrounds behind props regardless of world depth and skips action triggers on load', async () => {

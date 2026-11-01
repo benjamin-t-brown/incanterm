@@ -176,6 +176,38 @@
   grid-template-columns: 308px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
 }
+.art-library {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  background: var(--surface);
+}
+.art-library label {
+  font-size: 13px;
+  font-weight: bold;
+}
+.art-library .text-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+}
+.art-library .asset-list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.art-library .asset-list button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sidebar {
   grid-column: 1;
   grid-row: 1 / -1;
@@ -586,13 +618,18 @@ input[type='range'] {
   letter-spacing: 0.7px;
 }
 #file-dialog {
-  width: min(520px, calc(100vw - 32px));
-  max-height: min(650px, calc(100vh - 48px));
+  width: min(480px, calc(100vw - 32px));
+  height: min(600px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
   padding: 0;
   border: 2px solid var(--mint);
   background: var(--surface);
   color: var(--text);
   box-shadow: 8px 8px 0 #071d1c;
+}
+#file-dialog .art-library {
+  height: calc(100% - 42px);
+  padding: 16px;
 }
 #reference-dialog,
 #size-dialog,
@@ -619,14 +656,6 @@ input[type='range'] {
 #generate-character-dialog::backdrop,
 #font-dialog::backdrop {
   background: #071d1cd9;
-}
-#file-dialog .files-panel {
-  padding: 20px;
-  border: 0;
-}
-#file-dialog .file-list {
-  min-height: 200px;
-  max-height: min(420px, 45vh);
 }
 #size-form,
 #generate-character-form,
@@ -741,52 +770,6 @@ input[type='range'] {
 }
 .file-actions button:hover {
   background: var(--red);
-}
-.file-list {
-  border: 1px solid var(--line);
-  background: var(--inset);
-  min-height: 84px;
-  max-height: 210px;
-  overflow-y: auto;
-  padding: 3px;
-}
-.empty-files {
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  padding: 29px 0;
-}
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.file-item > button:first-child {
-  flex: 1;
-  min-width: 0;
-  padding: 6px;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.file-item.current > button:first-child,
-.file-item > button:first-child:hover {
-  background: var(--surface-2);
-  color: var(--highlight);
-}
-.file-item .remove-file {
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 20px;
-  padding: 3px 7px;
-}
-.file-item .remove-file:hover {
-  color: #e8a197;
 }
 .file-hint {
   color: var(--muted);
