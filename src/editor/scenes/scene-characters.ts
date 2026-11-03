@@ -33,3 +33,32 @@ export function addSceneCharacter(
   scene.entities.push(entry);
   return entry;
 }
+
+export async function getMissingSceneCharacters(
+  scenes: readonly (SceneDocument | null)[],
+  hasCharacter: (id: string) => Promise<boolean>,
+): Promise<Set<string>> {
+  const ids = new Set(
+    scenes.flatMap(
+      (scene) =>
+        scene?.entities.flatMap((entity) =>
+          entity.type === 'Character' ? [entity.character] : [],
+        ) ?? [],
+    ),
+  );
+  const missing = new Set<string>();
+  for (const id of ids) if (!(await hasCharacter(id))) missing.add(id);
+  return missing;
+}
+
+export function removeMissingSceneCharacters(
+  scene: SceneDocument,
+  missing: ReadonlySet<string>,
+): SceneDocument {
+  return {
+    ...scene,
+    entities: scene.entities.filter(
+      (entity) => entity.type !== 'Character' || !missing.has(entity.character),
+    ),
+  };
+}

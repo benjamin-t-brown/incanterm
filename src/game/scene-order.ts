@@ -1,6 +1,6 @@
 export type DepthMode = 'bottom-up' | 'regular-z';
 
-export function sceneDepth(
+export function getSceneDepth(
   mode: DepthMode,
   y: number,
   z: number,

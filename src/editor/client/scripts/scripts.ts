@@ -4,12 +4,12 @@ import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { mergeText } from '../../safe-save.js';
 import { saveDraft } from '../save.js';
 import { alertModal, confirmModal } from '../modal.js';
-import { askId, pageShell, setDirtyGuard } from '../shell.js';
+import { askId, createPageShell, setDirtyGuard } from '../shell.js';
 
 type ScriptFile = { id: string; source: string };
 
 export function mountScripts(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Script writer',
     `<h1 class="page-title">Script writer</h1>
     <p class="page-copy">Edit RPGScript. Parse errors and missing callScript targets are errors. Unknown commands are warnings.</p>
@@ -47,8 +47,8 @@ export function mountScripts(root: HTMLElement): () => void {
   let saving = false;
   let diagnoseTimer = 0;
 
-  const dirty = () => currentId !== null && source.value !== saved;
-  setDirtyGuard(async () => !dirty() || confirmModal('Discard unsaved script changes?', 'DISCARD'));
+  const isDirty = () => currentId !== null && source.value !== saved;
+  setDirtyGuard(async () => !isDirty() || confirmModal('Discard unsaved script changes?', 'DISCARD'));
 
   async function reload(): Promise<void> {
     files = (await requestJson<{ files: string[] }>('/api/scripts')).files;
@@ -64,7 +64,7 @@ export function mountScripts(root: HTMLElement): () => void {
   }
 
   async function openScript(id: string): Promise<void> {
-    if (dirty() && !(await confirmModal('Discard unsaved script changes?', 'DISCARD'))) return;
+    if (isDirty() && !(await confirmModal('Discard unsaved script changes?', 'DISCARD'))) return;
     const file = await requestJson<ScriptFile>(`/api/scripts/${encodeURIComponent(id)}`);
     currentId = file.id;
     source.value = file.source;
@@ -146,7 +146,7 @@ export function mountScripts(root: HTMLElement): () => void {
         await alertModal('An asset with that id already exists');
         return;
       }
-      if (dirty() && !(await confirmModal('Discard unsaved script changes?', 'DISCARD'))) return;
+      if (isDirty() && !(await confirmModal('Discard unsaved script changes?', 'DISCARD'))) return;
       try {
         await saveDraft(`/api/scripts/${encodeURIComponent(id)}`, { id, source: `@${id}\n` }, null);
         await openScript(id);

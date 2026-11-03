@@ -27,7 +27,7 @@ The language extension includes `.rpgscript` registration, TextMate highlighting
 Follow [Install RPGScript support in Cursor](../../docs/rpgscript-cursor-setup.md)
 to build and install the adapted extension from a fresh checkout. Configure
 `rpgscript.scriptsRoot` as `assets/scripts` and `rpgscript.sceneCommandsPath` as
-`src/game/rpgscript/scene-commands.ts`, relative to the workspace folder. Command
+`src/game/scene-commands.ts`, relative to the workspace folder. Command
 discovery inspects the `commands` object and matching declarations; an arbitrary
 new registry format will require updating this discovery logic.
 

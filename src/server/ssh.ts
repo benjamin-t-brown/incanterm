@@ -18,6 +18,7 @@ export async function startSshServer(options: {
   scene: Scene;
   scripts: ScriptLibrary;
   portraits?: PortraitAssets;
+  reloadPortraits?: () => Promise<PortraitAssets>;
 }): Promise<SshListener> {
   const clients = new Set<Connection>();
   const server = new Server({ hostKeys: [options.hostKey] }, (client) => {
@@ -31,7 +32,7 @@ export async function startSshServer(options: {
     });
     client.on('ready', () => {
       client.on('session', (acceptSession) => {
-        attachSession(acceptSession(), options.scene, options.scripts, options.portraits);
+        attachSession(acceptSession(), options.scene, options.scripts, options.portraits, options.reloadPortraits);
       });
     });
   });
@@ -55,6 +56,7 @@ function attachSession(
   scene: Scene,
   scripts: ScriptLibrary,
   portraits?: PortraitAssets,
+  reloadPortraits?: () => Promise<PortraitAssets>,
 ): void {
   let game: GameSession | undefined;
   let cols = 80;
@@ -73,7 +75,7 @@ function attachSession(
   });
   session.on('shell', (accept) => {
     const stream = accept();
-    game = bindSession(stream, scene, scripts, cols, rows, portraits);
+    game = bindSession(stream, scene, scripts, cols, rows, portraits, reloadPortraits);
   });
 }
 
@@ -84,16 +86,25 @@ function bindSession(
   cols: number,
   rows: number,
   portraits?: PortraitAssets,
+  reloadPortraits?: () => Promise<PortraitAssets>,
 ): GameSession {
+  let writable = true;
+  stream.on('drain', () => {
+    writable = true;
+  });
   const game = createGameSession(
     scene,
     (text) => {
-      stream.write(text);
+      // A false return still accepts this frame; wait for drain before sending another.
+      writable = stream.write(text);
     },
     scripts,
     portraits,
+    () => writable && !stream.destroyed && stream.writable,
+    reloadPortraits,
   );
   game.resize(cols, rows);
+  stream.write('\x1b[?1000h\x1b[?1006h');
   game.open();
   stream.on('data', (chunk: Buffer | string) => {
     game.input(typeof chunk === 'string' ? chunk : chunk.toString('utf8'));

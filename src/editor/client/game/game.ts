@@ -1,10 +1,10 @@
-import { assetEditorTopbar } from '../shell.js';
+import { createAssetEditorTopbar } from '../shell.js';
 
 const GAME_CLIENT = 'http://127.0.0.1:7103/';
 
 export function mountGame(root: HTMLElement): () => void {
   root.innerHTML = `<div class="simple-layout">
-    ${assetEditorTopbar()}
+    ${createAssetEditorTopbar()}
     <div id="game-host" class="simple-main" style="padding:0; display:flex; flex-direction:column;"></div>
   </div>`;
   const host = root.querySelector<HTMLElement>('#game-host');

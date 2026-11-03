@@ -1,8 +1,8 @@
 import {
   CURSOR_HOT,
   CURSOR_UNIT,
-  cursorIcon,
-  cursorLayout,
+  getCursorIcon,
+  getCursorLayout,
   type ArtCursorKind,
 } from '../../art/art-cursor.js';
 
@@ -10,7 +10,7 @@ const cache = new Map<string, string>();
 const HALO = '#0c1f1e';
 const INK = '#f7fff9';
 
-function cursorScale(): number {
+function getCursorScale(): number {
   const dpr = window.devicePixelRatio || 1;
   return Math.min(2, Math.max(1, dpr));
 }
@@ -20,8 +20,8 @@ function paintCursor(
   kind: ArtCursorKind,
   pressed: boolean,
 ): void {
-  const layout = cursorLayout(pressed);
-  const { d, struck } = cursorIcon(kind);
+  const layout = getCursorLayout(pressed);
+  const { d, struck } = getCursorIcon(kind);
   const arms: Array<[number, number, number, number]> = [
     [CURSOR_HOT.x - layout.reach, CURSOR_HOT.y, CURSOR_HOT.x - layout.gap, CURSOR_HOT.y],
     [CURSOR_HOT.x + layout.gap, CURSOR_HOT.y, CURSOR_HOT.x + layout.reach, CURSOR_HOT.y],
@@ -70,7 +70,7 @@ function paintCursor(
   context.restore();
 }
 
-function cursorUrl(kind: ArtCursorKind, pressed: boolean, scale: number): string {
+function getCursorUrl(kind: ArtCursorKind, pressed: boolean, scale: number): string {
   const key = `${kind}:${pressed ? 'down' : 'up'}:${scale.toFixed(2)}`;
   const cached = cache.get(key);
   if (cached) return cached;
@@ -87,10 +87,10 @@ function cursorUrl(kind: ArtCursorKind, pressed: boolean, scale: number): string
   return url;
 }
 
-export function artCursorCss(kind: ArtCursorKind | 'blocked', pressed: boolean): string {
+export function getArtCursorCss(kind: ArtCursorKind | 'blocked', pressed: boolean): string {
   if (kind === 'blocked') return 'not-allowed';
-  const scale = cursorScale();
-  const url = cursorUrl(kind, pressed, scale);
+  const scale = getCursorScale();
+  const url = getCursorUrl(kind, pressed, scale);
   if (url.length === 0) return 'crosshair';
   const x = Math.round(CURSOR_HOT.x * scale);
   const y = Math.round(CURSOR_HOT.y * scale);

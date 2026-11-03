@@ -49,7 +49,7 @@ export class TabbedView extends UIElement {
     return this.tabs[this.activeIndex].id;
   }
 
-  content(id: string): BorderBox {
+  getContent(id: string): BorderBox {
     const tab = this.tabs.find((entry) => entry.id === id);
     if (!tab) throw new Error(`Unknown tab ${id}`);
     return tab.content;

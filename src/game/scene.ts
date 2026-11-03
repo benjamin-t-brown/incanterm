@@ -1,6 +1,6 @@
 import { CellBuffer, type Cell } from './cell-buffer.js';
 import type { Sprite } from './sprite.js';
-import { compareSceneDrawRank, sceneDepth, type DepthMode } from './scene-order.js';
+import { compareSceneDrawRank, getSceneDepth, type DepthMode } from './scene-order.js';
 
 export type { DepthMode } from './scene-order.js';
 
@@ -19,16 +19,18 @@ const EMPTY: Cell = {
 export abstract class Entity {
   constructor(
     readonly id: string,
-    readonly x: number,
-    readonly y: number,
+    public x: number,
+    public y: number,
     readonly depthOffset: number,
     readonly z: number,
   ) {}
 
   abstract draw(buffer: CellBuffer, originX: number, originY: number): void;
 
-  depth(mode: DepthMode): number {
-    return sceneDepth(mode, this.y, this.z, this.depthOffset);
+  update(_deltaMs: number, _scene: Scene): void {}
+
+  getDepth(mode: DepthMode): number {
+    return getSceneDepth(mode, this.y, this.z, this.depthOffset);
   }
 }
 
@@ -51,6 +53,16 @@ export class Prop extends Entity {
 
 export class Background extends Prop {}
 
+export type ActionTrigger = {
+  id: string;
+  trigger: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+export type StepTrigger = ActionTrigger;
+
 export class Scene {
   constructor(
     readonly id: string,
@@ -60,7 +72,14 @@ export class Scene {
     readonly clear: Cell,
     readonly entities: readonly Entity[],
     readonly triggers: readonly string[] = [],
+    readonly blockedCells: ReadonlySet<number> = new Set(),
+    readonly actionTriggers: readonly ActionTrigger[] = [],
+    readonly stepTriggers: readonly StepTrigger[] = [],
   ) {}
+
+  update(deltaMs: number): void {
+    for (const entity of this.entities) entity.update(deltaMs, this);
+  }
 
   draw(buffer: CellBuffer, originX: number, originY: number): void {
     const sceneBuffer = new CellBuffer(this.width, this.height, EMPTY);
@@ -69,12 +88,12 @@ export class Scene {
       compareSceneDrawRank(
         {
           background: a.entity instanceof Background,
-          depth: a.entity.depth(this.depthMode),
+          depth: a.entity.getDepth(this.depthMode),
           order: a.index,
         },
         {
           background: b.entity instanceof Background,
-          depth: b.entity.depth(this.depthMode),
+          depth: b.entity.getDepth(this.depthMode),
           order: b.index,
         },
       ),

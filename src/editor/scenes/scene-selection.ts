@@ -10,11 +10,11 @@ export type SceneHitBox = {
   height: number;
 };
 
-export function sameSceneObject(a: SceneObjectRef, b: SceneObjectRef): boolean {
+export function isSameSceneObject(a: SceneObjectRef, b: SceneObjectRef): boolean {
   return a.kind === b.kind && a.id === b.id;
 }
 
-export function selectableSceneObjects(
+export function getSelectableSceneObjects(
   scene: SceneDocument,
   backgroundEdit: boolean,
 ): SceneObjectRef[] {
@@ -29,7 +29,7 @@ export function selectableSceneObjects(
   ].filter((ref) => canSelectSceneObject(scene, ref, backgroundEdit));
 }
 
-export function boxesInSceneRect(
+export function getBoxesInSceneRect(
   boxes: SceneHitBox[],
   x1: number,
   y1: number,

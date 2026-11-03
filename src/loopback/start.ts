@@ -1,5 +1,5 @@
 import { connectGameClient, type GameClient } from '../client/connection.js';
-import { defaultAssetsRoot, TEST_SCENE_ID } from '../game/load-scene.js';
+import { getDefaultAssetsRoot, TEST_SCENE_ID } from '../game/load-scene.js';
 import { generateHostKey } from '../server/host-key.js';
 import { startServer } from '../server/start.js';
 import type { ServerMessage } from '../protocol/messages.js';
@@ -26,7 +26,7 @@ export async function startLoopback(options: {
     httpPort: 0,
     sshPort: 0,
     hostKey: generateHostKey(),
-    assetsRoot: options.assetsRoot ?? defaultAssetsRoot(),
+    assetsRoot: options.assetsRoot ?? getDefaultAssetsRoot(),
     sceneId,
   });
 

@@ -136,7 +136,7 @@ export class BorderBox extends UIElement {
     this.clampScroll();
   }
 
-  contentHeight(): number {
+  getContentHeight(): number {
     let bottom = 0;
     for (const child of this.children) {
       if (!child.visible) continue;
@@ -146,7 +146,7 @@ export class BorderBox extends UIElement {
   }
 
   maxScrollY(): number {
-    return Math.max(0, this.contentHeight() - this.innerHeight);
+    return Math.max(0, this.getContentHeight() - this.innerHeight);
   }
 
   scrollToEnd(): void {
@@ -165,13 +165,13 @@ export class BorderBox extends UIElement {
   }
 
   protected paint(ctx: DrawContext): void {
-    paintBox(ctx, this.width, this.height, this.border, (ch) => this.ink(ch));
+    paintBox(ctx, this.width, this.height, this.border, (ch) => this.getInk(ch));
   }
 
   protected drawChildren(ctx: DrawContext): void {
     this.clampScroll();
     if (this.innerWidth < 1 || this.innerHeight < 1) return;
-    const content = ctx.nested(ctx.originX + 1, ctx.originY + 1 - this._scrollY, {
+    const content = ctx.createNested(ctx.originX + 1, ctx.originY + 1 - this._scrollY, {
       x: ctx.originX + 1,
       y: ctx.originY + 1,
       width: this.innerWidth,
@@ -184,7 +184,7 @@ export class BorderBox extends UIElement {
     this._scrollY = Math.max(0, Math.min(this._scrollY, this.maxScrollY()));
   }
 
-  private ink(ch: string): Cell {
+  private getInk(ch: string): Cell {
     return { ch, fg: this.fg, bg: this.bg };
   }
 }

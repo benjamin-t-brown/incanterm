@@ -1,9 +1,9 @@
 import { isSingleWidthGlyph } from './glyph.js';
 import {
   PALETTE_IDS,
-  defaultPalette,
+  getDefaultPalette,
   isSpriteColor,
-  paletteRgb,
+  getPaletteRgb,
   type PaletteColor,
   type PaletteDocument,
 } from './palette.js';
@@ -116,12 +116,15 @@ export type CharacterDocument = {
   version: 1;
   id: string;
   label: string;
+  scriptName?: string;
+  portraits?: { facing: 'left' | 'right'; emotion: string; portrait: string }[];
   defaultFacing: CharacterDirection;
+  speed?: number;
   animations: Record<CharacterState, string>;
   customAnimations: Record<string, string>;
 };
 
-export function characterAnimation(
+export function getCharacterAnimation(
   character: CharacterDocument,
   state: string,
   facing: CharacterDirection,
@@ -131,8 +134,8 @@ export function characterAnimation(
   return character.customAnimations[state];
 }
 
-export function characterLabelError(label: string): string | null {
-  return spriteLabelError(label)?.replace('Sprite', 'Character') ?? null;
+export function getCharacterLabelError(label: string): string | null {
+  return getSpriteLabelError(label)?.replace('Sprite', 'Character') ?? null;
 }
 
 export function createCharacter(id: string, animation: string, label = id): CharacterDocument {
@@ -151,17 +154,45 @@ export function createCharacter(id: string, animation: string, label = id): Char
 }
 
 export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (record?.format !== 'incanterm-character' || record.version !== 1)
     return fail('Character must be incanterm-character version 1');
   const id = readId(record.id, 'Character id');
   if (!id.ok) return id;
   const label = record.label === undefined ? id.value : record.label;
-  if (typeof label !== 'string' || characterLabelError(label))
+  if (typeof label !== 'string' || getCharacterLabelError(label))
     return fail('Character label must be 1 to 80 characters without control characters');
+  if (record.scriptName !== undefined &&
+    (typeof record.scriptName !== 'string' || !/^[A-Za-z_][\w-]*$/.test(record.scriptName)))
+    return fail('Character scriptName must be an RPGScript actor name');
+  if (record.portraits !== undefined && (!Array.isArray(record.portraits) || record.portraits.length > 128))
+    return fail('Character portraits must contain at most 128 entries');
+  const portraits: NonNullable<CharacterDocument['portraits']> = [];
+  const portraitKeys = new Set<string>();
+  for (const [index, raw] of ((record.portraits ?? []) as unknown[]).entries()) {
+    const entry = getObject(raw);
+    if (!entry || (entry.facing !== 'left' && entry.facing !== 'right') ||
+      typeof entry.emotion !== 'string' || !/^[\w-]*$/.test(entry.emotion) ||
+      typeof entry.portrait !== 'string' || !/^[\w-]+$/.test(entry.portrait))
+      return fail(`Character portrait ${index} needs a facing, emotion, and portrait asset`);
+    const key = `${entry.facing}:${entry.emotion}`;
+    if (portraitKeys.has(key)) return fail(`Character repeats portrait ${key}`);
+    portraitKeys.add(key);
+    portraits.push({ facing: entry.facing, emotion: entry.emotion, portrait: entry.portrait });
+  }
+  if (portraits.length > 0 && !record.scriptName)
+    return fail('Character scriptName is required when portraits are assigned');
   if (!CHARACTER_DIRECTIONS.includes(record.defaultFacing as CharacterDirection))
     return fail('Character defaultFacing must be up, down, left, or right');
-  const source = asObject(record.animations);
+  const source = getObject(record.animations);
+  if (
+    record.speed !== undefined &&
+    (typeof record.speed !== 'number' ||
+      !Number.isInteger(record.speed) ||
+      record.speed < 1 ||
+      record.speed > 60000)
+  )
+    return fail('Character speed must be milliseconds per cell from 1 to 60000');
   if (!source) return fail('Character animations must be an object');
   const legacyStates = CHARACTER_STATES.slice(0, 8);
   const keys = Object.keys(source);
@@ -174,7 +205,7 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
     return fail(
       'Character animations must define all idle/walk directions and all four talking directions',
     );
-  const extras = asObject(record.customAnimations);
+  const extras = getObject(record.customAnimations);
   if (!extras || Object.keys(extras).length > 64)
     return fail('Character customAnimations must contain at most 64 states');
   const animations = {} as Record<CharacterState, string>;
@@ -202,8 +233,11 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
       format: 'incanterm-character',
       version: 1,
       id: id.value,
-      label: label.trim(),
+       label: label.trim(),
+       ...(typeof record.scriptName === 'string' ? { scriptName: record.scriptName } : {}),
+       ...(record.portraits !== undefined ? { portraits } : {}),
       defaultFacing: record.defaultFacing as CharacterDirection,
+      ...(typeof record.speed === 'number' ? { speed: record.speed } : {}),
       animations,
       customAnimations,
     },
@@ -217,7 +251,9 @@ export type SceneEntity =
       id: string;
       type: 'Character';
       name?: string;
-      character: string;
+       character: string;
+       talkScript?: string;
+      speed?: number;
       facing: CharacterDirection;
       state: string;
       x: number;
@@ -279,11 +315,11 @@ export function isAssetId(value: string): boolean {
   return value.length >= 1 && value.length <= MAX_ID_LENGTH && ASSET_ID.test(value);
 }
 
-export function blankCell(): SpriteCell {
+export function createBlankCell(): SpriteCell {
   return { ch: ' ', fg: 'white', bg: 'black' };
 }
 
-export function layerNameError(name: string): string | null {
+export function getLayerNameError(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length < 1 || trimmed.length > MAX_LAYER_NAME_LENGTH) {
     return `Layer name must be 1 to ${MAX_LAYER_NAME_LENGTH} characters`;
@@ -295,11 +331,11 @@ export function layerNameError(name: string): string | null {
   return null;
 }
 
-export function emptySpriteFrame(width: number, height: number): SpriteFrame {
-  return { layers: [emptyLayer('layer-1', 'Layer 1', width * height)] };
+export function createEmptySpriteFrame(width: number, height: number): SpriteFrame {
+  return { layers: [createEmptyLayer('layer-1', 'Layer 1', width * height)] };
 }
 
-export function spriteLabelError(label: string): string | null {
+export function getSpriteLabelError(label: string): string | null {
   if (
     !label.trim() ||
     label.trim().length > 80 ||
@@ -309,8 +345,8 @@ export function spriteLabelError(label: string): string | null {
   return null;
 }
 
-export function animationLabelError(label: string): string | null {
-  return spriteLabelError(label)?.replace('Sprite', 'Animation') ?? null;
+export function getAnimationLabelError(label: string): string | null {
+  return getSpriteLabelError(label)?.replace('Sprite', 'Animation') ?? null;
 }
 
 export function createSprite(
@@ -329,7 +365,7 @@ export function createSprite(
     originX: 0,
     originY: 0,
     font: DEFAULT_SPRITE_FONT,
-    sprites: [emptySpriteFrame(width, height)],
+    sprites: [createEmptySpriteFrame(width, height)],
   };
 }
 
@@ -345,7 +381,7 @@ export function createAnimation(id: string, label = id): AnimationDocument {
   };
 }
 
-export function animationFrameFlips(
+export function getAnimationFrameFlips(
   animation: AnimationDocument,
   frame: { flipH?: boolean; flipV?: boolean },
 ): { flipH: boolean; flipV: boolean } {
@@ -392,7 +428,7 @@ export function createScene(
 }
 
 export function parseScene(value: unknown): SchemaResult<SceneDocument> {
-  const scene = asObject(value);
+  const scene = getObject(value);
   if (scene?.format !== 'incanterm-scene' || scene.version !== 1) {
     return fail('Scene must be incanterm-scene version 1');
   }
@@ -400,7 +436,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   if (!id.ok) return id;
   if (
     scene.label !== undefined &&
-    (typeof scene.label !== 'string' || spriteLabelError(scene.label))
+    (typeof scene.label !== 'string' || getSpriteLabelError(scene.label))
   )
     return fail('Scene label must be 1 to 80 characters without control characters');
   const width = readInt(scene.width, 'Scene width', 1, MAX_SPRITE_WIDTH);
@@ -425,7 +461,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
     }
     blockedCells.push(...[...seen].sort((a, b) => a - b));
   }
-  const clear = asObject(scene.clear);
+  const clear = getObject(scene.clear);
   if (
     !clear ||
     typeof clear.ch !== 'string' ||
@@ -448,7 +484,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   const ids = new Set<string>();
   let hasBackground = false;
   for (const [index, raw] of scene.entities.entries()) {
-    const entry = asObject(raw);
+    const entry = getObject(raw);
     if (!entry) return fail(`Scene entity ${index} must be an object`);
     const entityId = readId(entry.id, `Scene entity ${index} id`);
     if (!entityId.ok) return entityId;
@@ -474,12 +510,23 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         y: y.value,
       });
     } else if (entry.type === 'Character') {
+      if (entry.talkScript !== undefined &&
+        (typeof entry.talkScript !== 'string' || !/^[A-Za-z_][\w-]*$/.test(entry.talkScript)))
+        return fail(`Scene character ${index} talkScript must be an RPGScript name`);
       if (
         entry.name !== undefined &&
         (typeof entry.name !== 'string' || !entry.name.trim() || entry.name.length > 80)
       )
         return fail(`Scene character ${index} name must be 1 to 80 characters`);
       const character = readId(entry.character, `Scene character ${index} asset`);
+      if (
+        entry.speed !== undefined &&
+        (typeof entry.speed !== 'number' ||
+          !Number.isInteger(entry.speed) ||
+          entry.speed < 1 ||
+          entry.speed > 60000)
+      )
+        return fail(`Scene character ${index} speed must be milliseconds per cell from 1 to 60000`);
       if (!character.ok) return character;
       if (!CHARACTER_DIRECTIONS.includes(entry.facing as CharacterDirection))
         return fail(`Scene character ${index} facing must be up, down, left, or right`);
@@ -492,6 +539,8 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         type: 'Character',
         ...(typeof entry.name === 'string' ? { name: entry.name.trim() } : {}),
         character: character.value,
+        ...(typeof entry.talkScript === 'string' ? { talkScript: entry.talkScript } : {}),
+        ...(typeof entry.speed === 'number' ? { speed: entry.speed } : {}),
         facing: entry.facing as CharacterDirection,
         state: state.value,
         x: x.value,
@@ -550,7 +599,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       triggers.push(raw);
       continue;
     }
-    const entry = asObject(raw);
+    const entry = getObject(raw);
     const triggerId = readId(entry?.id, `Scene trigger ${index} id`);
     if (!triggerId.ok) return triggerId;
     if (ids.has(triggerId.value)) return fail(`Scene repeats trigger id ${triggerId.value}`);
@@ -616,7 +665,7 @@ export function isInvisibleFrame(frame: AnimationFrame): frame is InvisibleAnima
 }
 
 export function flattenSprite(sprite: SpriteDocument, frameIndex = 0): SpriteCell[] {
-  const cells = Array.from({ length: sprite.width * sprite.height }, blankCell);
+  const cells = Array.from({ length: sprite.width * sprite.height }, createBlankCell);
   const frame = sprite.sprites[frameIndex];
   if (!frame) return cells;
   for (const layer of frame.layers) {
@@ -630,7 +679,7 @@ export function flattenSprite(sprite: SpriteDocument, frameIndex = 0): SpriteCel
 }
 
 export function parsePalette(value: unknown): SchemaResult<PaletteDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record) return fail('Palette must be an object');
   if (record.format !== 'incanterm-palette' || record.version !== 1) {
     return fail('Palette must be incanterm-palette version 1');
@@ -641,7 +690,7 @@ export function parsePalette(value: unknown): SchemaResult<PaletteDocument> {
   const colors: PaletteColor[] = [];
   for (let index = 0; index < PALETTE_IDS.length; index++) {
     const expected = PALETTE_IDS[index];
-    const color = asObject(record.colors[index]);
+    const color = getObject(record.colors[index]);
     if (!color || color.id !== expected) {
       return fail(`Palette color ${index + 1} must keep id ${expected}`);
     }
@@ -654,7 +703,7 @@ export function parsePalette(value: unknown): SchemaResult<PaletteDocument> {
 }
 
 export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record) return fail('Sprite must be an object');
   if (
     record.format !== 'incanterm-sprite' ||
@@ -666,7 +715,7 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
   if (!id.ok) return id;
   // Existing sprites predate labels. Their stable id remains valid for all references.
   const label = record.label === undefined ? id.value : record.label;
-  if (typeof label !== 'string' || spriteLabelError(label))
+  if (typeof label !== 'string' || getSpriteLabelError(label))
     return fail('Sprite label must be 1 to 80 characters without control characters');
   const width = readInt(record.width, 'Sprite width', 1, MAX_SPRITE_WIDTH);
   if (!width.ok) return width;
@@ -700,7 +749,7 @@ export function parseSprite(value: unknown): SchemaResult<SpriteDocument> {
 }
 
 export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record) return fail('Animation must be an object');
   if (record.format !== 'incanterm-animation' || record.version !== 1) {
     return fail('Animation must be incanterm-animation version 1');
@@ -709,7 +758,7 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
   if (!id.ok) return id;
   // Pre-label clips keep their original id and remain valid references.
   const label = record.label === undefined ? id.value : record.label;
-  if (typeof label !== 'string' || animationLabelError(label))
+  if (typeof label !== 'string' || getAnimationLabelError(label))
     return fail('Animation label must be 1 to 80 characters without control characters');
   if (typeof record.loop !== 'boolean') return fail('Animation loop must be true or false');
   if (record.flipH !== undefined && typeof record.flipH !== 'boolean')
@@ -726,7 +775,7 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
   }
   const frames: AnimationFrame[] = [];
   for (let index = 0; index < record.frames.length; index++) {
-    const frame = asObject(record.frames[index]);
+    const frame = getObject(record.frames[index]);
     if (!frame) return fail(`Animation frame ${index} must be an object`);
     const durationMs = readInt(
       frame.durationMs,
@@ -772,13 +821,13 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
 }
 
 export function parseProp(value: unknown): SchemaResult<PropDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (record?.format !== 'incanterm-prop' || record.version !== 1) {
     return fail('Prop must be incanterm-prop version 1');
   }
   const id = readId(record.id, 'Prop id');
   if (!id.ok) return id;
-  const source = asObject(record.visual);
+  const source = getObject(record.visual);
   if (!source) return fail('Prop visual must be a sprite or animation');
   const visualId = readId(source.id, 'Prop visual id');
   if (!visualId.ok) return visualId;
@@ -838,7 +887,7 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
 
 export function importEdAscii(id: string, value: unknown): SchemaResult<SpriteDocument> {
   if (!isAssetId(id)) return fail('Import id must be a short lowercase id');
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record) return fail('ed-ascii document must be an object');
   if (record.format !== 'ed-ascii' || record.version !== 1) {
     return fail('Document must be ed-ascii version 1');
@@ -852,7 +901,7 @@ export function importEdAscii(id: string, value: unknown): SchemaResult<SpriteDo
   }
   const cells: SpriteCell[] = [];
   for (let index = 0; index < record.cells.length; index++) {
-    const cell = asObject(record.cells[index]);
+    const cell = getObject(record.cells[index]);
     if (!cell) return fail(`ed-ascii cell ${index} must be an object`);
     if (typeof cell.ch !== 'string' || !isSingleWidthGlyph(cell.ch)) {
       return fail(`ed-ascii cell ${index} character must be one single-width glyph`);
@@ -875,7 +924,7 @@ export function importEdAscii(id: string, value: unknown): SchemaResult<SpriteDo
       originX: 0,
       originY: 0,
       font: DEFAULT_SPRITE_FONT,
-      sprites: [{ layers: [emptyLayer('layer-1', 'Layer 1', cells.length, cells)] }],
+      sprites: [{ layers: [createEmptyLayer('layer-1', 'Layer 1', cells.length, cells)] }],
     },
   };
 }
@@ -919,11 +968,11 @@ export function exportTruecolor(
   return { ok: true, value: output };
 }
 
-export function canonicalPalette(): PaletteDocument {
-  return defaultPalette();
+export function getCanonicalPalette(): PaletteDocument {
+  return getDefaultPalette();
 }
 
-function emptyLayer(
+function createEmptyLayer(
   id: string,
   name: string,
   count: number,
@@ -956,7 +1005,7 @@ function readSprites(value: unknown, count: number): SchemaResult<SpriteFrame[]>
   }
   const sprites: SpriteFrame[] = [];
   for (let index = 0; index < value.length; index++) {
-    const frame = asObject(value[index]);
+    const frame = getObject(value[index]);
     if (!frame) return fail(`Sprite frame ${index + 1} must be an object`);
     const layers = readLayers(frame.layers, count);
     if (!layers.ok) return fail(`Sprite frame ${index + 1}: ${layers.error}`);
@@ -975,7 +1024,7 @@ function readVersion1Layer(value: unknown, count: number): SchemaResult<SpriteLa
     if (!cell.ok) return cell;
     cells.push(cell.value);
   }
-  return { ok: true, value: [emptyLayer('layer-1', 'Layer 1', count, cells)] };
+  return { ok: true, value: [createEmptyLayer('layer-1', 'Layer 1', count, cells)] };
 }
 
 function readLayers(value: unknown, count: number): SchemaResult<SpriteLayer[]> {
@@ -985,14 +1034,14 @@ function readLayers(value: unknown, count: number): SchemaResult<SpriteLayer[]> 
   const layers: SpriteLayer[] = [];
   const ids = new Set<string>();
   for (let index = 0; index < value.length; index++) {
-    const layer = asObject(value[index]);
+    const layer = getObject(value[index]);
     if (!layer) return fail(`Sprite layer ${index + 1} must be an object`);
     const id = readId(layer.id, `Sprite layer ${index + 1} id`);
     if (!id.ok) return id;
     if (ids.has(id.value)) return fail(`Sprite layer id ${id.value} is repeated`);
     ids.add(id.value);
     if (typeof layer.name !== 'string') return fail(`Sprite layer ${index + 1} name must be text`);
-    const nameError = layerNameError(layer.name);
+    const nameError = getLayerNameError(layer.name);
     if (nameError) return fail(`Sprite layer ${index + 1}: ${nameError}`);
     if (typeof layer.visible !== 'boolean') {
       return fail(`Sprite layer ${index + 1} visible must be true or false`);
@@ -1027,7 +1076,7 @@ function readLayers(value: unknown, count: number): SchemaResult<SpriteLayer[]> 
 }
 
 function readCell(value: unknown, label: string): SchemaResult<SpriteCell> {
-  const cell = asObject(value);
+  const cell = getObject(value);
   if (!cell) return fail(`${label} must be an object`);
   if (typeof cell.ch !== 'string' || !isSingleWidthGlyph(cell.ch)) {
     return fail(`${label} character must be one single-width glyph`);
@@ -1049,7 +1098,7 @@ function readCell(value: unknown, label: string): SchemaResult<SpriteCell> {
 }
 
 function readRgb(palette: PaletteDocument, id: string, label: string): SchemaResult<string> {
-  const hex = paletteRgb(palette, id);
+  const hex = getPaletteRgb(palette, id);
   if (!hex) return fail(`Missing palette color for ${label}`);
   const channels = [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map((part) =>
     Number.parseInt(part, 16),
@@ -1086,7 +1135,7 @@ function readFont(value: unknown): SchemaResult<SpriteFontId> {
   return { ok: true, value };
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
+function getObject(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
 }

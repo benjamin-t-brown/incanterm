@@ -46,7 +46,7 @@ const app: HTMLElement = appNode;
 
 let cleanup: (() => void) | undefined;
 
-function currentPath(): string {
+function getCurrentPath(): string {
   const path = location.pathname.replace(/\/$/, '');
   return path.length === 0 ? '/' : path;
 }
@@ -55,10 +55,10 @@ function render(): void {
   cleanup?.();
   cleanup = undefined;
   app.replaceChildren();
-  const mount = routes[currentPath()] ?? mountIndex;
+  const mount = routes[getCurrentPath()] ?? mountIndex;
   const result = mount(app);
   if (typeof result === 'function') cleanup = result;
-  const active = currentPath();
+  const active = getCurrentPath();
   // Art binds its own toggle so it can redraw the canvas when the theme changes.
   if (active !== '/art') setupThemeToggle(app);
   document.title = titles[active] ?? 'Incanterm Editor';
@@ -68,7 +68,7 @@ function render(): void {
 }
 
 async function navigate(url: URL): Promise<void> {
-  if (url.pathname === currentPath() && url.search === location.search) return;
+  if (url.pathname === getCurrentPath() && url.search === location.search) return;
   if (!(await allowLeave())) return;
   history.pushState(null, '', `${url.pathname}${url.search}`);
   render();

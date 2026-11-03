@@ -3,7 +3,8 @@ import path from 'node:path';
 import { parseHexColor, type Rgb } from './color.js';
 import {
   flattenSprite,
-  characterAnimation,
+  getCharacterAnimation,
+  getAnimationFrameFlips,
   isInvisibleFrame,
   parseCharacter,
   parseAnimation,
@@ -12,19 +13,27 @@ import {
   type PropDocument,
 } from '../editor/schema.js';
 import { parseStoredSprite } from '../editor/art/sprite-storage.js';
-import { paletteRgb, defaultPalette, type PaletteDocument } from '../editor/palette.js';
+import { getPaletteRgb, getDefaultPalette, type PaletteDocument } from '../editor/palette.js';
 import type { Cell } from './cell-buffer.js';
-import { Background, Prop, Scene, type DepthMode } from './scene.js';
+import {
+  Background,
+  Prop,
+  Scene,
+  type DepthMode,
+  type ActionTrigger,
+  type StepTrigger,
+} from './scene.js';
+import { Character, type CharacterClip } from './character.js';
 import { Sprite } from './sprite.js';
 
 export const TEST_SCENE_ID = 'test-room';
 
-export function defaultAssetsRoot(): string {
+export function getDefaultAssetsRoot(): string {
   return path.join(process.cwd(), 'assets');
 }
 
 export async function loadScene(assetsRoot: string, sceneId: string): Promise<Scene> {
-  const scenePath = assetPath(assetsRoot, 'scenes', sceneId);
+  const scenePath = getAssetPath(assetsRoot, 'scenes', sceneId);
   const record = readObject(await readJson(scenePath), scenePath);
   expectFormat(record, scenePath, 'incanterm-scene');
   const id = readId(record.id, `${scenePath} id`);
@@ -35,6 +44,34 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
   const clear = readCell(record.clear, `${scenePath} clear`);
   if (!Array.isArray(record.entities)) throw new Error(`${scenePath} entities must be an array`);
   const triggers = readTriggers(record.triggers, scenePath);
+  const blockedCells = new Set<number>();
+  if (record.blockedCells !== undefined && !Array.isArray(record.blockedCells))
+    throw new Error(`${scenePath} blockedCells must be an array`);
+  for (const cell of (record.blockedCells ?? []) as unknown[])
+    blockedCells.add(readInt(cell, `${scenePath} blocked cell`, 0, width * height - 1));
+  const actionTriggers: ActionTrigger[] = [];
+  const stepTriggers: StepTrigger[] = [];
+  for (const value of (record.triggers ?? []) as unknown[]) {
+    if (typeof value === 'string') continue;
+    const trigger = readObject(value, `${scenePath} trigger`);
+    const action =
+      trigger.actionEnabled === true ||
+      (trigger.actionEnabled !== false && trigger.event === 'action');
+    const step = trigger.stepEnabled === true;
+    if (!action && !step) continue;
+    const x = readInt(trigger.x, 'trigger x', 0, width - 1);
+    const y = readInt(trigger.y, 'trigger y', 0, height - 1);
+    const region = {
+      id: readId(trigger.id, 'trigger id'),
+      trigger: String(trigger.trigger ?? trigger.id),
+      x,
+      y,
+      width: readInt(trigger.width, 'trigger width', 1, width - x),
+      height: readInt(trigger.height, 'trigger height', 1, height - y),
+    };
+    if (action) actionTriggers.push(region);
+    if (step) stepTriggers.push(region);
+  }
 
   const sprites = new Map<string, Sprite>();
   const seen = new Set<string>();
@@ -57,10 +94,22 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
         depthMode,
         sprites,
         seen,
+        blockedCells,
       ),
     );
   }
-  return new Scene(id, width, height, depthMode, clear, entities, triggers);
+  return new Scene(
+    id,
+    width,
+    height,
+    depthMode,
+    clear,
+    entities,
+    triggers,
+    blockedCells,
+    actionTriggers,
+    stepTriggers,
+  );
 }
 
 function readTriggers(value: unknown, scenePath: string): readonly string[] {
@@ -81,14 +130,16 @@ function readTriggers(value: unknown, scenePath: string): readonly string[] {
     ) {
       throw new Error(`${scenePath} trigger names must be nonempty identifiers`);
     }
-    if (seen.has(name)) throw new Error(`${scenePath} duplicates trigger ${name}`);
-    seen.add(name);
+    const instanceId =
+      typeof trigger === 'string' ? name : String((trigger as { id?: unknown }).id ?? name);
+    if (seen.has(instanceId)) throw new Error(`${scenePath} duplicates trigger ${instanceId}`);
+    seen.add(instanceId);
     if (event === 'load') names.add(name);
   }
   return [...names];
 }
 
-function assetPath(root: string, folder: 'scenes' | 'sprites', id: string): string {
+function getAssetPath(root: string, folder: 'scenes' | 'sprites', id: string): string {
   if (!/^[a-z0-9_-]+$/.test(id)) {
     throw new Error(`Asset id ${id} must use lowercase letters, numbers, hyphens, and underscores`);
   }
@@ -105,6 +156,7 @@ async function readProp(
   depthMode: DepthMode,
   sprites: Map<string, Sprite>,
   seen: Set<string>,
+  blockedCells: Set<number>,
 ): Promise<Prop> {
   const label = `${scenePath} entity ${index}`;
   const record = readObject(value, label);
@@ -135,7 +187,7 @@ async function readProp(
     if (facing !== 'up' && facing !== 'down' && facing !== 'left' && facing !== 'right')
       throw new Error(`${label} facing must be up, down, left, or right`);
     const state = readId(record.state, `${label} state`);
-    const animationId = characterAnimation(parsed.value, state, facing);
+    const animationId = getCharacterAnimation(parsed.value, state, facing);
     if (!animationId) throw new Error(`${label} has no animation state ${state}`);
     const clipFile = path.join(assetsRoot, 'animations', `${animationId}.json`);
     const clip = parseAnimation(await readJson(clipFile));
@@ -143,13 +195,41 @@ async function readProp(
     const first = clip.value.frames.find((frame) => !isInvisibleFrame(frame));
     if (!first || isInvisibleFrame(first)) throw new Error(`${clipFile} has no visible frame`);
     const sprite = await loadSprite(assetsRoot, first.sprite, sprites, first.index);
-    return new Prop(
+    const clips = new Map<string, CharacterClip>();
+    for (const [key, clipId] of Object.entries({
+      ...parsed.value.animations,
+      ...parsed.value.customAnimations,
+    })) {
+      const file = path.join(assetsRoot, 'animations', `${clipId}.json`);
+      const animation = parseAnimation(await readJson(file));
+      if (!animation.ok) throw new Error(`${file}: ${animation.error}`);
+      const frames: CharacterClip['frames'] = [];
+      for (const frame of animation.value.frames) {
+        if (isInvisibleFrame(frame)) frames.push({ durationMs: frame.durationMs });
+        else {
+          const source = await loadSprite(assetsRoot, frame.sprite, sprites, frame.index);
+          const flips = getAnimationFrameFlips(animation.value, frame);
+          frames.push({
+            sprite: source.getFlipped(flips.flipH, flips.flipV),
+            durationMs: frame.durationMs,
+          });
+        }
+      }
+      clips.set(key, { frames, loop: animation.value.loop });
+    }
+    return new Character(
       id,
       readInt(record.x, `${label} x`, 0, width - 1),
       readInt(record.y, `${label} y`, 0, height - 1),
-      0,
       readInt(record.z ?? 0, `${label} z`, -1000, 1000),
       sprite,
+      characterId,
+      typeof record.name === 'string' ? record.name.trim() : undefined,
+      state,
+      facing,
+      readInt(record.speed ?? parsed.value.speed ?? 150, `${label} speed`, 1, 60000),
+      clips,
+      typeof record.talkScript === 'string' ? record.talkScript : undefined,
     );
   }
   if (record.type !== 'Prop')
@@ -178,6 +258,11 @@ async function readProp(
       frameIndex = first.index;
     }
     sprite = await loadSprite(assetsRoot, spriteId, sprites, frameIndex);
+    for (const cell of asset.blockedCells) {
+      const x = Number(record.x) - sprite.originX + (cell % asset.width);
+      const y = Number(record.y) - sprite.originY + Math.floor(cell / asset.width);
+      if (x >= 0 && y >= 0 && x < width && y < height) blockedCells.add(y * width + x);
+    }
     depthOffset = asset.depthOffset + (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
   } else sprite = await loadSprite(assetsRoot, readId(record.sprite, `${label} sprite`), sprites);
   return new Prop(
@@ -199,14 +284,14 @@ async function loadSprite(
   const key = `${spriteId}:${frameIndex}`;
   const cached = cache.get(key);
   if (cached) return cached;
-  const file = assetPath(assetsRoot, 'sprites', spriteId);
+  const file = getAssetPath(assetsRoot, 'sprites', spriteId);
   const record = readObject(await readJson(file), file);
   if (record.version === 3) {
     const parsed = parseStoredSprite(record);
     if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
     if (parsed.value.id !== spriteId || !parsed.value.sprites[frameIndex])
       throw new Error(`${file} has no sprite ${spriteId} frame ${frameIndex}`);
-    let palette: PaletteDocument = defaultPalette();
+    let palette: PaletteDocument = getDefaultPalette();
     try {
       const source = parsePalette(
         JSON.parse(await fs.readFile(path.join(assetsRoot, 'palette.json'), 'utf8')) as unknown,
@@ -218,8 +303,8 @@ async function loadSprite(
     }
     const cells = flattenSprite(parsed.value, frameIndex).map((cell) => ({
       ch: cell.ch,
-      fg: parseHexColor(paletteRgb(palette, cell.fg) ?? '#ffffff'),
-      bg: parseHexColor(paletteRgb(palette, cell.bg) ?? '#000000'),
+      fg: parseHexColor(getPaletteRgb(palette, cell.fg) ?? '#ffffff'),
+      bg: parseHexColor(getPaletteRgb(palette, cell.bg) ?? '#000000'),
     }));
     const sprite = new Sprite(
       spriteId,

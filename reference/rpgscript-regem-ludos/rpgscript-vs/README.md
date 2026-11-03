@@ -75,7 +75,7 @@ You must have a project with rpgscript inside of it. This means you need to prov
 
 The language server reads the `commands` object and matching command declarations
 in `sceneCommandsPath` to discover available commands. In Incanterm this is
-`src/game/rpgscript/scene-commands.ts`.
+`src/game/scene-commands.ts`.
 
 ## Extension Settings
 

@@ -1,0 +1,23 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "941ea7b9-25b6-47c7-9b56-da06332b4abd",
+  "label": "test3x3",
+  "portraits": [],
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "22875908-b66e-427b-84a9-31918b59779c",
+    "idle-down": "0a6035e6-d808-4c4f-8f59-ba7d7ae3c702",
+    "idle-left": "34ab84f5-d358-46a6-a7d2-d80664bc4450",
+    "idle-right": "9a7707ca-7f22-458e-b1e7-0aeb36175842",
+    "walk-up": "5f12f9cb-6a53-4bb1-8db8-965d795e4947",
+    "walk-down": "a4039378-8c43-4114-a88e-89860dda8ce9",
+    "walk-left": "338a7b6f-fa34-4e10-ba55-a71930771b8e",
+    "walk-right": "34a1cd79-185a-4b52-8ebc-da39c5220a59",
+    "talking-up": "e6565251-78b9-4bdf-a825-07cfd7e47f60",
+    "talking-down": "eefb2b66-6216-4184-bca1-007eec01211d",
+    "talking-left": "b6c37cdd-c06d-4e26-8b95-b8251bac34a0",
+    "talking-right": "dd6850b3-4ac5-45fb-86fb-85ff83a15db6"
+  },
+  "customAnimations": {}
+}

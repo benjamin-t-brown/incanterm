@@ -2,7 +2,7 @@ import type { SceneTrigger } from '../schema.js';
 
 type RegionTrigger = Exclude<SceneTrigger, string>;
 
-export function sceneTriggerColors(trigger: RegionTrigger): {
+export function getSceneTriggerColors(trigger: RegionTrigger): {
   fill: string;
   stroke: string;
   selected: string;

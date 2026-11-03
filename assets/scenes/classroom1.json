@@ -199,7 +199,7 @@
       "id": "desk1-1",
       "type": "Prop",
       "prop": "desk1",
-      "x": 87,
+      "x": 84,
       "y": 18,
       "z": 0
     },
@@ -209,17 +209,6 @@
       "prop": "clock_static",
       "x": 80,
       "y": 5,
-      "z": 0
-    },
-    {
-      "id": "johnathan-1",
-      "type": "Character",
-      "name": "johnathan-1",
-      "character": "johnathan",
-      "facing": "down",
-      "state": "sit-left",
-      "x": 91,
-      "y": 18,
       "z": 0
     },
     {
@@ -290,10 +279,33 @@
       "type": "Character",
       "name": "eva",
       "character": "be64804a-0f95-4067-9151-76ec698c58cf",
-      "facing": "up",
+      "talkScript": "classroom1_EvaTalk",
+      "facing": "left",
       "state": "idle",
-      "x": 37,
-      "y": 14,
+      "x": 64,
+      "y": 12,
+      "z": 0
+    },
+    {
+      "id": "d56fe31d-25db-43ab-99f8-4a8e463d06d6-1",
+      "type": "Character",
+      "name": "johnathan-1",
+      "character": "d56fe31d-25db-43ab-99f8-4a8e463d06d6",
+      "facing": "down",
+      "state": "sit_left",
+      "x": 88,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "941ea7b9-25b6-47c7-9b56-da06332b4abd-1",
+      "type": "Character",
+      "name": "test3x3",
+      "character": "941ea7b9-25b6-47c7-9b56-da06332b4abd",
+      "facing": "down",
+      "state": "idle",
+      "x": 76,
+      "y": 11,
       "z": 0
     }
   ],
@@ -305,6 +317,29 @@
       "x": 37,
       "y": 8,
       "width": 17,
+      "height": 2,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "8d9f9238-325b-4afe-8af8-3781f9932dbd",
+      "trigger": "classroom1Load",
+      "event": "load",
+      "x": 16,
+      "y": 15,
+      "width": 5,
+      "height": 3,
+      "actionEnabled": false,
+      "stepEnabled": false
+    },
+    {
+      "id": "6719cbf5-1db0-4fe0-b80d-f5bcbdccfbf1",
+      "trigger": "trigger7",
+      "event": "action",
+      "x": 27,
+      "y": 12,
+      "width": 5,
       "height": 2,
       "actionEnabled": false,
       "stepEnabled": true,

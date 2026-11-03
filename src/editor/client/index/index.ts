@@ -1,7 +1,7 @@
-import { pageShell } from '../shell.js';
+import { createPageShell } from '../shell.js';
 
 export function mountIndex(root: HTMLElement): void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Index',
     `<h1 class="page-title">Incanterm Editor</h1>
     <p class="page-copy">Author sprites, animations, props, scenes, sounds, and scripts. Run the game from the Game zone.</p>

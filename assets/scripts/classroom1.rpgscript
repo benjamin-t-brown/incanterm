@@ -1,0 +1,36 @@
+#classroom1Load
+  load,classroom1Load
+@classroom1Load
+  +log("Scene setup!")
+  +setPlayerWalkCh(test3x3)
+
+  //noop for now
+
+@classroom1_firstCutscene
+  Bell: "Ring! Ring!"
+  +setConv()
+  Ralgo: "And that'll wrap up class for today."
+  Ralgo: "Hand in your worksheets before you head to next period."
+  +endConv()
+
+
+@classroom1_EvaTalk
+  +?isnot(vars.a):{
+    +setConv()
+    Johnathan: "Hey Eva! Where you headed?"
+    Eva: "Oh hey...  I'm just headed to my locker, you know.  Like I always do."
+    Johnathan: "Great!  You do that!"
+    Eva: "Ugh."
+    +vars.a=1
+  }
+  +?else:{
+    +setConv2(Eva, Johnathan)
+    Johnathan: "Do you think you could take my books to my locker for me?"
+    Eva: "Um no?  I don't have your locker code."
+    Johnathan: "I could give it to you..."
+    Eva: "No way.  I don't want to get in trouble for something like that."
+    +endConv()
+    +vars.a=0
+  }
+  +endConv()
+

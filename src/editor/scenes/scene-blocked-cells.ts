@@ -33,7 +33,7 @@ export function paintSceneBlockedCells(
   return [...next].sort((a, b) => a - b);
 }
 
-export function propBlockedSceneCells(
+export function getPropBlockedSceneCells(
   entry: Extract<SceneEntity, { type: 'Prop' }>,
   prop: PropDocument,
   origin: { originX: number; originY: number },

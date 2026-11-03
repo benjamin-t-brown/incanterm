@@ -9,6 +9,23 @@ export function fillTerminalCell(
   context.fillRect(x, y, cell.width, cell.height);
 }
 
+/** Cover fractional cell edges at device-pixel boundaries so adjacent fills have no seams. */
+export function fillTerminalCellWithoutSeams(
+  context: CanvasRenderingContext2D,
+  cell: TerminalCell,
+  x: number,
+  y: number,
+): void {
+  const transform = context.getTransform();
+  const scaleX = transform.a;
+  const scaleY = transform.d;
+  const left = Math.floor(x * scaleX) / scaleX;
+  const top = Math.floor(y * scaleY) / scaleY;
+  const right = Math.ceil((x + cell.width) * scaleX) / scaleX;
+  const bottom = Math.ceil((y + cell.height) * scaleY) / scaleY;
+  context.fillRect(left, top, right - left, bottom - top);
+}
+
 /** Render smooth glyphs at the exact cell scale, preserving pan, DPR, and preview opacity. */
 export function drawTerminalGlyph(
   context: CanvasRenderingContext2D,

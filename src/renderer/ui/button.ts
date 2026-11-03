@@ -49,15 +49,15 @@ export class Button extends UIElement {
   }
 
   protected paint(ctx: DrawContext): void {
-    paintBox(ctx, this.width, this.height, this.border, (ch) => this.ink(ch));
+    paintBox(ctx, this.width, this.height, this.border, (ch) => this.getInk(ch));
     if (this.height < 3 || this.innerWidth < 1) return;
     const label = centerText(this._text, this.innerWidth);
     for (let x = 0; x < this.innerWidth; x++) {
-      ctx.set(x + 1, 1, this.ink(label[x] ?? ' '));
+      ctx.set(x + 1, 1, this.getInk(label[x] ?? ' '));
     }
   }
 
-  private ink(ch: string): Cell {
+  private getInk(ch: string): Cell {
     return { ch, fg: this.fg, bg: this.bg };
   }
 }

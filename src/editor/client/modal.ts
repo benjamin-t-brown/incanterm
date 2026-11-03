@@ -3,7 +3,7 @@ import {
   MAX_FRAME_DURATION_MS,
   MAX_SPRITE_HEIGHT,
   MAX_SPRITE_WIDTH,
-  spriteLabelError,
+  getSpriteLabelError,
 } from '../schema.js';
 
 type SpriteDraft = { label: string; width: number; height: number };
@@ -236,7 +236,7 @@ function readSpriteDraft(): SpriteDraft | string {
   const label = (input?.value ?? '').trim();
   const width = Number(widthInput?.value);
   const height = Number(heightInput?.value);
-  const labelError = spriteLabelError(label);
+  const labelError = getSpriteLabelError(label);
   if (labelError) return labelError;
   if (
     !Number.isInteger(width) ||

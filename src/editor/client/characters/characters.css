@@ -110,14 +110,97 @@
   background: var(--inset);
 }
 .character-state-row button,
-#add-character-state {
+#add-character-state,
+#add-character-portrait {
   padding: 7px 10px;
   border: 1px solid var(--line);
   color: var(--text);
   background: var(--inset);
 }
-#add-character-state {
+#add-character-state,
+#add-character-portrait {
   margin-top: 10px;
+}
+.portrait-entry-description {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#character-portrait-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 0;
+  border: 2px solid var(--mint);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 8px 8px 0 #071d1c;
+}
+#character-portrait-dialog::backdrop {
+  background: #071d1cd9;
+}
+#character-portrait-form {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+#character-portrait-form h2,
+#character-portrait-form p {
+  margin: 0;
+}
+#character-portrait-form > label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.portrait-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  max-height: 210px;
+  overflow: auto;
+}
+.portrait-asset-card {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--text);
+  cursor: pointer;
+}
+.portrait-asset-card.active {
+  border-color: var(--mint);
+  outline: 1px solid var(--mint);
+}
+.portrait-asset-card canvas,
+#portrait-preview {
+  display: block;
+  max-width: 100%;
+  background: #000;
+}
+.portrait-asset-card span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+#portrait-preview {
+  width: min(100%, 320px);
+  height: auto;
+  border: 1px solid var(--line);
+  justify-self: center;
+}
+.portrait-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.portrait-actions button {
+  min-width: 100px;
+  padding: 8px 12px;
 }
 .character-preview canvas {
   display: block;

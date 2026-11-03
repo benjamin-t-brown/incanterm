@@ -9,12 +9,12 @@ export function mergeSprite(
   ours: SpriteDocument,
   theirs: SpriteDocument,
 ): SpriteMergeResult {
-  if (same(ours, base)) return { ok: true, value: theirs };
-  if (same(theirs, base) || same(ours, theirs)) return { ok: true, value: ours };
+  if (isSame(ours, base)) return { ok: true, value: theirs };
+  if (isSame(theirs, base) || isSame(ours, theirs)) return { ok: true, value: ours };
 
   // Resizes, added/removed/reordered frames or layers change the meaning of
   // cell indexes. If both sides edited, a positional merge would lose work.
-  if (!same(shape(base), shape(ours)) || !same(shape(base), shape(theirs))) {
+  if (!isSame(shape(base), shape(ours)) || !isSame(shape(base), shape(theirs))) {
     return { ok: false, reason: 'Sprite structure changed in another editor' };
   }
 
@@ -81,8 +81,8 @@ function shape(doc: SpriteDocument): unknown {
 }
 
 function choose<T>(base: T, ours: T, theirs: T): { ok: true; value: T } | { ok: false } {
-  if (same(ours, base)) return { ok: true, value: theirs };
-  if (same(theirs, base) || same(ours, theirs)) return { ok: true, value: ours };
+  if (isSame(ours, base)) return { ok: true, value: theirs };
+  if (isSame(theirs, base) || isSame(ours, theirs)) return { ok: true, value: ours };
   return { ok: false };
 }
 
@@ -100,6 +100,6 @@ function mergeCell(
   return { ok: true, value: { ch: ch.value, fg: fg.value, bg: bg.value } };
 }
 
-function same(a: unknown, b: unknown): boolean {
+function isSame(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }

@@ -1,5 +1,5 @@
 import { emitKeypressEvents } from 'node:readline';
-import { encodeTerminal, plainText } from '../../game/terminal.js';
+import { encodeTerminal, getPlainText } from '../../game/terminal.js';
 import { renderVisualTest, visualTests } from './visual-tests.js';
 
 const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ if (args.includes('--list')) {
     );
     process.exitCode = 1;
   } else if (args.includes('--plain') || !process.stdin.isTTY || !process.stdout.isTTY) {
-    process.stdout.write(`${plainText(renderVisualTest(test, 80, 24))}\n`);
+    process.stdout.write(`${getPlainText(renderVisualTest(test, 80, 24))}\n`);
   } else {
     const selected = test;
     const stdin = process.stdin;

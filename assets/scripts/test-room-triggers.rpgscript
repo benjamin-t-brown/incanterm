@@ -3,6 +3,7 @@
 @testRoomEntry
   Guide: "Welcome to Incanterm."
   Guide: "The crate is waiting for you."
+  +endConv()
 
 @testRoomEntry2
   Guide: "See you soon."
@@ -65,7 +66,7 @@
   }
 
 @testPort
-  +setConv("johnathan1_0")
+  +setConv()
   Guide: "Welcome to Incanterm."
   Guide: "The crate is waiting for you."
 
@@ -80,6 +81,11 @@
   +log("Clicked trigger5")
 
 #trigger6
-  action,trigger6
+  action,?is(vars.a):trigger6
 @trigger6
+  +log("Clicked trigger6")
+
+#trigger7
+  step,trigger7
+@trigger7
   +log("Clicked trigger6")

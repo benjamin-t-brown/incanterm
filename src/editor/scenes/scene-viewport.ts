@@ -37,7 +37,7 @@ export function zoomSceneView(
   };
 }
 
-export function sceneCellAt(
+export function getSceneCellAt(
   view: SceneView,
   px: number,
   py: number,

@@ -55,7 +55,7 @@ export type ArtTabStore = {
 
 export type ArtTabWriteResult = { ok: true } | { ok: false; quota: boolean };
 
-export function defaultArtTabChrome(): ArtTabChrome {
+export function getDefaultArtTabChrome(): ArtTabChrome {
   return {
     selectedFrame: 0,
     playFrom: 0,
@@ -74,7 +74,7 @@ export function defaultArtTabChrome(): ArtTabChrome {
   };
 }
 
-export function emptyArtTabStore(): ArtTabStore {
+export function createEmptyArtTabStore(): ArtTabStore {
   return { version: ART_TAB_STORE_VERSION, tabs: [], active: null, sessions: {} };
 }
 
@@ -97,7 +97,7 @@ export function renameOpenTab(tabs: readonly string[], from: string, to: string)
   return next;
 }
 
-export function neighborTab(tabs: readonly string[], id: string): string | null {
+export function getNeighborTab(tabs: readonly string[], id: string): string | null {
   const index = tabs.indexOf(id);
   if (index < 0) return tabs[tabs.length - 1] ?? null;
   return tabs[index + 1] ?? tabs[index - 1] ?? null;
@@ -112,7 +112,7 @@ export function pruneMissingTabs(
   return tabs.filter((id) => known.has(id) || dirtyIds.has(id));
 }
 
-export function sessionDirty(doc: SpriteDocument, savedState: string): boolean {
+export function isSessionDirty(doc: SpriteDocument, savedState: string): boolean {
   return JSON.stringify(doc) !== savedState;
 }
 
@@ -121,11 +121,11 @@ export function buildArtTabStore(
   active: string | null,
   sessions: Iterable<readonly [string, ArtTabDirtySession]>,
 ): ArtTabStore {
-  const open = uniqueAssetIds(tabs);
+  const open = getUniqueAssetIds(tabs);
   const openSet = new Set(open);
   const stored: Record<string, ArtTabDirtySession> = {};
   for (const [id, session] of sessions) {
-    if (!openSet.has(id) || !sessionDirty(session.doc, session.savedState)) continue;
+    if (!openSet.has(id) || !isSessionDirty(session.doc, session.savedState)) continue;
     stored[id] = session;
   }
   return {
@@ -137,8 +137,8 @@ export function buildArtTabStore(
 }
 
 export function parseArtTabStore(value: unknown): ArtTabStore {
-  if (!isRecord(value) || value.version !== ART_TAB_STORE_VERSION) return emptyArtTabStore();
-  const tabs = uniqueAssetIds(Array.isArray(value.tabs) ? value.tabs.filter(isString) : []);
+  if (!isRecord(value) || value.version !== ART_TAB_STORE_VERSION) return createEmptyArtTabStore();
+  const tabs = getUniqueAssetIds(Array.isArray(value.tabs) ? value.tabs.filter(isString) : []);
   const active =
     typeof value.active === 'string' && tabs.includes(value.active) ? value.active : null;
   const sessions: Record<string, ArtTabDirtySession> = {};
@@ -155,10 +155,10 @@ export function parseArtTabStore(value: unknown): ArtTabStore {
 export function readArtTabStore(storage: ArtTabStorage): ArtTabStore {
   try {
     const raw = storage.getItem(OPEN_SPRITES_KEY);
-    if (!raw) return emptyArtTabStore();
+    if (!raw) return createEmptyArtTabStore();
     return parseArtTabStore(JSON.parse(raw) as unknown);
   } catch {
-    return emptyArtTabStore();
+    return createEmptyArtTabStore();
   }
 }
 
@@ -185,7 +185,7 @@ function parseArtTabDirtySession(id: string, value: unknown): ArtTabDirtySession
 }
 
 function parseArtTabChrome(value: Record<string, unknown>): ArtTabChrome {
-  const fallback = defaultArtTabChrome();
+  const fallback = getDefaultArtTabChrome();
   return {
     selectedFrame: readInt(value.selectedFrame, fallback.selectedFrame),
     playFrom: readInt(value.playFrom, fallback.playFrom),
@@ -244,7 +244,7 @@ function parseStamp(value: unknown): ArtTabStamp | null {
   return { width, height, cells };
 }
 
-function uniqueAssetIds(ids: readonly string[]): string[] {
+function getUniqueAssetIds(ids: readonly string[]): string[] {
   const next: string[] = [];
   for (const id of ids) {
     if (isAssetId(id) && !next.includes(id)) next.push(id);

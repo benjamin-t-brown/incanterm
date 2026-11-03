@@ -42,7 +42,7 @@ export function readCharacterTabs(storage: Pick<Storage, 'getItem'>): CharacterT
   }
 }
 
-export function neighborCharacterTab(tabs: readonly string[], id: string): string | null {
+export function getNeighborCharacterTab(tabs: readonly string[], id: string): string | null {
   const index = tabs.indexOf(id);
   return tabs[index + 1] ?? tabs[index - 1] ?? null;
 }

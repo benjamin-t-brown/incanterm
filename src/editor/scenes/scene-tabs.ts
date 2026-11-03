@@ -43,7 +43,7 @@ export function readSceneTabs(storage: Pick<Storage, 'getItem'>): SceneTabStore 
   }
 }
 
-export function neighborSceneTab(tabs: readonly string[], id: string): string | null {
+export function getNeighborSceneTab(tabs: readonly string[], id: string): string | null {
   const index = tabs.indexOf(id);
   return tabs[index + 1] ?? tabs[index - 1] ?? null;
 }

@@ -36,6 +36,7 @@ export async function startHttpServer(options: {
   scene: Scene;
   scripts: ScriptLibrary;
   portraits?: PortraitAssets;
+  reloadPortraits?: () => Promise<PortraitAssets>;
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -51,7 +52,7 @@ export async function startHttpServer(options: {
   });
 
   webSocketServer.on('connection', (socket) => {
-    attachSocket(socket, options.scene, options.scripts, options.portraits);
+    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -77,14 +78,22 @@ function attachSocket(
   scene: Scene,
   scripts: ScriptLibrary,
   portraits?: PortraitAssets,
+  reloadPortraits?: () => Promise<PortraitAssets>,
 ): void {
+  let sendingFrame = false;
   const session = createGameSession(
     scene,
     (text, cols, rows) => {
-      send(socket, { type: 'terminal-data', data: text, cols, rows });
+      sendingFrame = true;
+      socket.send(encodeMessage({ type: 'terminal-data', data: text, cols, rows }), (error) => {
+        sendingFrame = false;
+        if (error) socket.terminate();
+      });
     },
     scripts,
     portraits,
+    () => socket.readyState === WebSocket.OPEN && !sendingFrame && socket.bufferedAmount === 0,
+    reloadPortraits,
   );
   socket.on('close', () => session.close());
   send(socket, { type: 'session-status', status: 'connected', sessionId: session.id });
@@ -138,7 +147,7 @@ async function tryStatic(
   const filePath =
     pathname === '/' || pathname === '/play' || pathname === '/play/'
       ? path.join(root, 'index.html')
-      : safePath(root, pathname);
+      : getSafePath(root, pathname);
   if (!filePath) {
     sendText(res, 400, 'Bad request\n');
     return true;
@@ -158,7 +167,7 @@ async function tryStatic(
   return true;
 }
 
-function safePath(root: string, pathname: string): string | null {
+function getSafePath(root: string, pathname: string): string | null {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);

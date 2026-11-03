@@ -3,7 +3,7 @@ import type { SceneDocument, SceneTrigger } from '../schema.js';
 export type Region = { x: number; y: number; width: number; height: number };
 export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
-export function triggerRegion(
+export function getTriggerRegion(
   startX: number,
   startY: number,
   endX: number,
@@ -42,7 +42,7 @@ export function resizeTrigger(
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
-export function newSceneTrigger(
+export function createNewSceneTrigger(
   scene: SceneDocument,
   region: Region,
 ): Exclude<SceneTrigger, string> {

@@ -1,9 +1,9 @@
-import { brushValue } from './art-brush.js';
+import { getBrushValue } from './art-brush.js';
 import type { SpriteCell } from '../schema.js';
 
 export type FillTool = 'fill' | 'fg-fill' | 'bg-fill';
 
-function sameCell(left: SpriteCell | null, right: SpriteCell | null): boolean {
+function isSameCell(left: SpriteCell | null, right: SpriteCell | null): boolean {
   if (left === null || right === null) return left === right;
   return left.ch === right.ch && left.fg === right.fg && left.bg === right.bg;
 }
@@ -22,7 +22,7 @@ export function fillCells(
   if (tool === 'fg-fill' && (!original || original.ch === ' ')) return false;
 
   const paintTool = tool === 'fg-fill' ? 'fg-brush' : tool === 'bg-fill' ? 'bg-brush' : 'brush';
-  if (sameCell(brushValue(paintTool, source, original), original)) return false;
+  if (isSameCell(getBrushValue(paintTool, source, original), original)) return false;
 
   const visited = new Uint8Array(width * height);
   const stack = [y * width + x];
@@ -31,8 +31,8 @@ export function fillCells(
     if (index === undefined || visited[index]) continue;
     visited[index] = 1;
     const entry = cells[index] ?? null;
-    if (!sameCell(entry, original)) continue;
-    cells[index] = brushValue(paintTool, source, entry);
+    if (!isSameCell(entry, original)) continue;
+    cells[index] = getBrushValue(paintTool, source, entry);
     const col = index % width;
     const row = Math.floor(index / width);
     if (col > 0) stack.push(index - 1);

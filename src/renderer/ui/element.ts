@@ -15,7 +15,7 @@ export class DrawContext {
     readonly clip: Readonly<Rect>,
   ) {}
 
-  static fromBuffer(buffer: CellBuffer): DrawContext {
+  static createFromBuffer(buffer: CellBuffer): DrawContext {
     return new DrawContext(buffer, 0, 0, {
       x: 0,
       y: 0,
@@ -24,7 +24,7 @@ export class DrawContext {
     });
   }
 
-  nested(originX: number, originY: number, clip: Rect): DrawContext {
+  createNested(originX: number, originY: number, clip: Rect): DrawContext {
     return new DrawContext(this.buffer, originX, originY, intersectRects(this.clip, clip));
   }
 
@@ -111,14 +111,14 @@ export class UIElement {
   }
 
   render(buffer: CellBuffer): void {
-    this.draw(DrawContext.fromBuffer(buffer));
+    this.draw(DrawContext.createFromBuffer(buffer));
   }
 
   draw(ctx: DrawContext): void {
     if (!this.visible) return;
     const originX = ctx.originX + this.x;
     const originY = ctx.originY + this.y;
-    const local = ctx.nested(originX, originY, {
+    const local = ctx.createNested(originX, originY, {
       x: originX,
       y: originY,
       width: this.width,

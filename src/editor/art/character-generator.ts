@@ -1,50 +1,49 @@
 import { isSingleWidthGlyph } from '../glyph.js';
 import { isSpriteColor } from '../palette.js';
-import { createSprite, spriteLabelError, type SpriteCell, type SpriteDocument } from '../schema.js';
+import { createSprite, getSpriteLabelError, type SpriteCell, type SpriteDocument } from '../schema.js';
 
-// Frame order and glyphs from the 22-frame ada3x3 spritesheet.
+// Frame order and glyphs from the 22-frame test3x3 spritesheet.
 const CELLS: [string, string, string][] = [
-  ['O', 'bright-white', 'black'],
-  ['/', 'bright-white', 'black'],
-  ['A', 'bright-black', 'bright-yellow'],
-  ['\\', 'bright-white', 'black'],
   ['o', 'bright-white', 'black'],
-  [';', 'bright-white', 'black'],
-  ['@', 'bright-white', 'black'],
+  ['/', 'bright-white', 'black'],
+  ['J', 'bright-white', 'yellow'],
+  ['\\', 'bright-white', 'black'],
+  ['O', 'bright-white', 'black'],
   ['.', 'bright-white', 'black'],
-  [' ', 'white', 'bright-yellow'],
+  ['@', 'bright-white', 'black'],
+  [' ', 'white', 'yellow'],
   ['0', 'bright-white', 'black'],
-  [',', 'bright-white', 'black'],
   ['|', 'bright-white', 'black'],
   ['│', 'bright-white', 'black'],
-  ['`', 'bright-white', 'black'],
+  [' ', 'white', 'black'],
   ['-', 'bright-white', 'black'],
+  [',', 'bright-white', 'black'],
   ['┘', 'bright-white', 'black'],
 ];
 
 const FRAMES = [
   [0, 1, 0, 2, 3, 4, 2, 0, 4],
   [0, 5, 0, 2, 3, 4, 2, 0, 4],
-  [0, 1, 6, 2, 3, 4, 2, 0, 4],
-  [0, 5, 6, 2, 3, 4, 2, 0, 4],
-  [6, 1, 0, 2, 3, 4, 2, 0, 4],
-  [6, 5, 0, 2, 3, 4, 2, 0, 4],
-  [0, 7, 0, 8, 9, 8, 2, 0, 4],
-  [0, 10, 0, 8, 9, 8, 2, 0, 4],
-  [0, 5, 0, 11, 3, 8, 0, 12, 0],
-  [0, 5, 0, 8, 3, 11, 0, 12, 0],
-  [0, 5, 8, 8, 3, 11, 0, 13, 14],
-  [0, 5, 8, 11, 3, 8, 0, 13, 14],
-  [8, 5, 0, 11, 3, 8, 14, 13, 0],
-  [8, 5, 0, 8, 3, 11, 14, 13, 0],
-  [0, 5, 0, 0, 9, 11, 0, 12, 0],
-  [0, 5, 0, 11, 9, 0, 0, 12, 0],
-  [0, 1, 6, 15, 3, 4, 2, 0, 4],
-  [6, 1, 0, 2, 3, 15, 2, 0, 4],
-  [6, 1, 2, 2, 3, 0, 2, 0, 4],
-  [4, 1, 6, 0, 3, 4, 2, 0, 4],
+  [0, 1, 0, 6, 3, 4, 2, 0, 4],
+  [0, 5, 0, 6, 3, 4, 2, 0, 4],
+  [0, 1, 0, 2, 3, 6, 2, 0, 4],
+  [0, 5, 0, 2, 3, 6, 2, 0, 4],
+  [0, 7, 0, 6, 8, 6, 2, 0, 4],
+  [0, 9, 0, 6, 8, 6, 2, 0, 4],
+  [0, 1, 0, 2, 8, 4, 2, 0, 4],
+  [0, 1, 0, 2, 8, 4, 0, 10, 0],
+  [0, 1, 0, 6, 8, 4, 2, 0, 4],
+  [0, 1, 0, 6, 8, 4, 0, 11, 12],
+  [0, 1, 0, 2, 8, 6, 2, 0, 4],
+  [0, 1, 0, 2, 8, 6, 0, 11, 0],
+  [0, 1, 0, 6, 8, 6, 2, 0, 4],
+  [0, 1, 0, 6, 8, 6, 0, 11, 0],
+  [0, 1, 0, 13, 3, 4, 2, 0, 4],
+  [0, 1, 0, 2, 3, 13, 2, 0, 4],
+  [0, 1, 2, 2, 3, 0, 2, 0, 4],
+  [4, 1, 0, 0, 3, 4, 2, 0, 4],
   [4, 1, 2, 0, 3, 0, 2, 0, 4],
-  [0, 1, 6, 11, 3, 0, 16, 12, 0],
+  [0, 1, 0, 14, 3, 0, 15, 10, 0],
 ] as const;
 
 export function generateCharacter3x3(
@@ -53,9 +52,9 @@ export function generateCharacter3x3(
   shirtColor: string,
   shirtLetter: string,
   hair: boolean,
-  letterColor = 'bright-black',
+  letterColor = 'bright-white',
 ): SpriteDocument {
-  const error = spriteLabelError(label);
+  const error = getSpriteLabelError(label);
   if (error) throw new Error(error);
   if (!isSpriteColor(shirtColor))
     throw new Error('Choose a palette color or enter #rrggbb for the shirt');
@@ -75,14 +74,16 @@ export function generateCharacter3x3(
         visible: true,
         locked: false,
         cells: indices.map((value, position): SpriteCell | null => {
-          if (value === 0) return null;
+          if (value === 0) {
+            return hair && (position === 0 || position === 2)
+              ? { ch: '.', fg: 'bright-white', bg: 'black' }
+              : null;
+          }
           const [ch, fg, bg] = CELLS[value - 1];
-          if (!hair && (position === 0 || position === 2) && (ch === '.' || ch === ';'))
-            return null;
           return {
             ch: value === 3 ? shirtLetter : ch,
             fg: value === 3 ? letter : fg,
-            bg: value === 3 || value === 9 ? shirt : bg,
+            bg: value === 3 || value === 8 ? shirt : bg,
           };
         }),
       },

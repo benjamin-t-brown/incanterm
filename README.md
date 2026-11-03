@@ -45,13 +45,13 @@ npm run editor        asset editor on port 7104
 Run `npm run dev` and connect using `npm run client`, the browser, or SSH. The test room
 plays [`assets/scripts/test-dialogue.rpgscript`](assets/scripts/test-dialogue.rpgscript) on
 entry. Press Space or Enter to advance each line. Restart the server after editing scripts.
-Run `npm run test:run -- src/game/rpgscript/index.test.ts src/server/server.test.ts` to test
+Run `npm run test:run -- src/game/rpgscript/__tests__/index.test.ts src/server/__tests__/server.test.ts` to test
 parsing, independent player state, and game connections.
 
 For a fresh checkout, follow [Install RPGScript support in Cursor](docs/rpgscript-cursor-setup.md)
 to build and install the bundled language extension. The guide includes workspace settings,
 verification, and updates. Configure it to use `assets/scripts` and the command catalog in
-`src/game/rpgscript/scene-commands.ts`. Reload the Cursor window after changing the settings
+`src/game/scene-commands.ts`. Reload the Cursor window after changing the settings
 or the catalog so the language server refreshes its command cache.
 The server parses scripts with an adaptation of the original RPGScript parser. Its **runner**
 executes dialogue, script calls, state flags, supported conditions, and choices per session.

@@ -61,7 +61,7 @@ export function encodeStoredSprite(sprite: SpriteDocument): string {
 }
 
 export function parseStoredSprite(value: unknown): SchemaResult<SpriteDocument> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record || !('cellPalette' in record)) return parseSprite(value);
   const count = readCellCount(record);
   if (count === null) return fail('Stored sprite dimensions are invalid');
@@ -81,7 +81,7 @@ export function parseStoredSprite(value: unknown): SchemaResult<SpriteDocument> 
   }
   const sprites = [];
   for (const frameValue of record.sprites) {
-    const frame = asObject(frameValue);
+    const frame = getObject(frameValue);
     if (
       !frame ||
       !Array.isArray(frame.layers) ||
@@ -92,7 +92,7 @@ export function parseStoredSprite(value: unknown): SchemaResult<SpriteDocument> 
     }
     const layers = [];
     for (const layerValue of frame.layers) {
-      const layer = asObject(layerValue);
+      const layer = getObject(layerValue);
       if (!layer) return fail('Stored sprite layer is invalid');
       const decoded = decodeCells(layer.cells, cellPalette, count);
       if (!decoded.ok) return decoded;
@@ -108,7 +108,7 @@ function decodeCells(
   palette: unknown[],
   count: number,
 ): SchemaResult<(SpriteCell | null)[]> {
-  const encoded = asObject(value);
+  const encoded = getObject(value);
   if (!encoded) return fail('Stored sprite cells are invalid');
   const indices: number[] = [];
   if ('indices' in encoded) {
@@ -166,7 +166,7 @@ function readCellCount(record: Record<string, unknown>): number | null {
   return (record.width as number) * (record.height as number);
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
+function getObject(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;

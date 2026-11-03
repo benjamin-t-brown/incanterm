@@ -28,13 +28,13 @@ export class Quad extends UIElement {
   }
 
   protected paint(ctx: DrawContext): void {
-    const fill = this.ink(' ');
+    const fill = this.getInk(' ');
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) ctx.set(x, y, fill);
     }
   }
 
-  private ink(ch: string): Cell {
+  private getInk(ch: string): Cell {
     return { ch, fg: this.fg, bg: this.bg };
   }
 }

@@ -71,7 +71,7 @@ Merge these settings into the workspace's `.vscode/settings.json`:
 ```json
 {
   "rpgscript.scriptsRoot": "${workspaceFolder}/assets/scripts",
-  "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/rpgscript/scene-commands.ts",
+  "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/scene-commands.ts",
   "rpgscript.debug": false
 }
 ```

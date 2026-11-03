@@ -34,7 +34,7 @@ export function isSpriteColor(value: string): boolean {
   return PALETTE_IDS.includes(value) || /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
-export function defaultPalette(): PaletteDocument {
+export function getDefaultPalette(): PaletteDocument {
   return {
     format: 'incanterm-palette',
     version: 1,
@@ -42,7 +42,7 @@ export function defaultPalette(): PaletteDocument {
   };
 }
 
-export function paletteRgb(palette: PaletteDocument, id: string): string | undefined {
+export function getPaletteRgb(palette: PaletteDocument, id: string): string | undefined {
   if (/^#[0-9a-fA-F]{6}$/.test(id)) return id.toLowerCase();
   return palette.colors.find((color) => color.id === id)?.rgb;
 }

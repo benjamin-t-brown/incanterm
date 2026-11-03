@@ -1,6 +1,7 @@
 import { exportTruecolor } from './schema.js';
-import { AssetError, AssetStore, imageRevision } from './store.js';
+import { AssetError, AssetStore, getImageRevision } from './store.js';
 import { SaveConflict } from './safe-save.js';
+import { openScriptWithDefaultApp } from './open-script.js';
 
 export type AssetResponse = {
   status: number;
@@ -24,21 +25,29 @@ export async function dispatchAssetRequest(
   const request = new URL(url, 'http://editor.local');
   const parts = request.pathname.split('/').filter(Boolean);
   try {
-    if (parts[0] !== 'api') return json(404, { error: 'Not found' });
-    if (parts[1] === 'palette') return await palette(store, method, rawBody);
-    if (parts[1] === 'sprites') return await sprites(store, method, parts.slice(2), rawBody);
+    if (parts[0] !== 'api') return getJson(404, { error: 'Not found' });
+    if (parts[1] === 'palette') return await handlePaletteRequest(store, method, rawBody);
+    if (parts[1] === 'sprites')
+      return await handleSpritesRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'animation-folders' && parts.length === 2)
-      return await animationFolders(store, method, rawBody);
-    if (parts[1] === 'animations') return await animations(store, method, parts.slice(2), rawBody);
-    if (parts[1] === 'props') return await props(store, method, parts.slice(2), rawBody);
-    if (parts[1] === 'characters') return await characters(store, method, parts.slice(2), rawBody);
-    if (parts[1] === 'scenes') return await scenes(store, method, parts.slice(2), rawBody);
-    if (parts[1] === 'rpg-triggers' && parts.length === 2 && method === 'GET')
-      return json(200, { names: await store.listRpgTriggers() });
-    if (parts[1] === 'scripts') return await scripts(store, method, parts.slice(2), rawBody);
-    if (parts[1] === 'audio') return await audio(store, method, parts.slice(2));
+      return await handleAnimationFoldersRequest(store, method, rawBody);
+    if (parts[1] === 'animations')
+      return await handleAnimationsRequest(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'props')
+      return await handlePropsRequest(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'characters')
+      return await handleCharactersRequest(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'scenes')
+      return await handleScenesRequest(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'rpg-triggers' && parts.length === 2 && method === 'GET') {
+      const sources = await store.getRpgTriggerSources();
+      return getJson(200, { names: Object.keys(sources).sort(), sources });
+    }
+    if (parts[1] === 'scripts')
+      return await handleScriptsRequest(store, method, parts.slice(2), rawBody);
+    if (parts[1] === 'audio') return await handleAudioRequest(store, method, parts.slice(2));
     if (parts[1] === 'references') {
-      return await references(
+      return await handleReferencesRequest(
         store,
         method,
         parts.slice(2),
@@ -51,114 +60,117 @@ export async function dispatchAssetRequest(
     if (parts[1] === 'import' && parts[2] === 'ed-ascii' && method === 'POST') {
       return await importAscii(store, rawBody);
     }
-    return json(404, { error: 'Not found' });
+    return getJson(404, { error: 'Not found' });
   } catch (error) {
     if (error instanceof AssetError || error instanceof SaveConflict) {
-      return json(error.status, { error: error.message });
+      return getJson(error.status, { error: error.message });
     }
-    if (error instanceof SyntaxError) return json(400, { error: 'Invalid JSON' });
+    if (error instanceof SyntaxError) return getJson(400, { error: 'Invalid JSON' });
     console.error(error);
-    return json(500, { error: 'Asset request failed' });
+    return getJson(500, { error: 'Asset request failed' });
   }
 }
 
-async function palette(
+async function handlePaletteRequest(
   store: AssetStore,
   method: string,
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
-  if (method === 'GET') return json(200, await store.palette());
+  if (method === 'GET') return getJson(200, await store.getPalette());
   if (method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.savePaletteDraft(doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.savePaletteDraft(doc, base));
   }
-  return json(405, { error: 'Method not allowed' });
+  return getJson(405, { error: 'Method not allowed' });
 }
 
-async function sprites(
+async function handleSpritesRequest(
   store: AssetStore,
   method: string,
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET') {
-    const labels = await store.spriteLabels();
-    return json(200, { files: Object.keys(labels), labels });
+    const labels = await store.getSpriteLabels();
+    return getJson(200, { files: Object.keys(labels), labels });
   }
   if (parts.length === 1 && method === 'GET')
-    return json(200, await store.readSprite(decode(parts[0])));
+    return getJson(200, await store.readSprite(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const body = draftBody(rawBody);
-    return json(200, await store.saveSpriteDraft(decode(parts[0]), body.doc, body.base));
+    const body = getDraftBody(rawBody);
+    return getJson(200, await store.saveSpriteDraft(decode(parts[0]), body.doc, body.base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteSprite(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
   if (parts.length === 2 && parts[1] === 'export' && method === 'GET') {
     const sprite = await store.readSprite(decode(parts[0]));
-    const exported = exportTruecolor(sprite, await store.palette());
-    if (!exported.ok) return json(422, { error: exported.error });
+    const exported = exportTruecolor(sprite, await store.getPalette());
+    if (!exported.ok) return getJson(422, { error: exported.error });
     return {
       status: 200,
       headers: { 'content-type': 'text/plain; charset=utf-8' },
       body: exported.value,
     };
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function animations(
+async function handleAnimationsRequest(
   store: AssetStore,
   method: string,
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET') {
-    const labels = await store.animationLabels();
-    return json(200, { files: Object.keys(labels), labels });
+    const labels = await store.getAnimationLabels();
+    return getJson(200, { files: Object.keys(labels), labels });
   }
   if (parts.length === 1 && method === 'GET') {
-    return json(200, await store.readAnimation(decode(parts[0])));
+    return getJson(200, await store.readAnimation(decode(parts[0])));
   }
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.saveAnimationDraft(decode(parts[0]), doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveAnimationDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteAnimation(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
   if (parts.length === 2 && parts[1] === 'copy' && method === 'POST') {
-    const body = asRecord(parseJson(rawBody));
-    if (typeof body.id !== 'string') return json(400, { error: 'Copy needs an id' });
-    return json(200, await store.copyAnimation(decode(parts[0]), body.id, body.doc));
+    const body = getRecord(parseJson(rawBody));
+    if (typeof body.id !== 'string') return getJson(400, { error: 'Copy needs an id' });
+    return getJson(200, await store.copyAnimation(decode(parts[0]), body.id, body.doc));
   }
   if (parts.length === 2 && parts[1] === 'rename' && method === 'POST') {
-    const body = asRecord(parseJson(rawBody));
-    if (typeof body.id !== 'string') return json(400, { error: 'Rename needs an id' });
-    return json(200, await store.renameAnimation(decode(parts[0]), body.id, body.base));
+    const body = getRecord(parseJson(rawBody));
+    if (typeof body.id !== 'string') return getJson(400, { error: 'Rename needs an id' });
+    return getJson(200, await store.renameAnimation(decode(parts[0]), body.id, body.base));
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function animationFolders(
+async function handleAnimationFoldersRequest(
   store: AssetStore,
   method: string,
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
-  if (method === 'GET') return json(200, await store.animationFolders());
+  if (method === 'GET') return getJson(200, await store.getAnimationFolders());
   if (method === 'POST') {
-    const body = asRecord(parseJson(rawBody));
+    const body = getRecord(parseJson(rawBody));
     if (
       body.action === 'create-character-animations' &&
       typeof body.folder === 'string' &&
       typeof body.name === 'string' &&
       typeof body.sprite === 'string'
     )
-      return json(200, await store.createCharacterAnimations(body.folder, body.name, body.sprite));
+      return getJson(
+        200,
+        await store.createCharacterAnimations(body.folder, body.name, body.sprite),
+      );
     if (body.action === 'move' && typeof body.id === 'string' && typeof body.folder === 'string')
-      return json(
+      return getJson(
         200,
         await store.changeAnimationFolders({ action: 'move', id: body.id, folder: body.folder }),
       );
@@ -167,7 +179,7 @@ async function animationFolders(
       typeof body.folder === 'string' &&
       typeof body.name === 'string'
     )
-      return json(
+      return getJson(
         200,
         await store.changeAnimationFolders({
           action: body.action,
@@ -183,7 +195,7 @@ async function animationFolders(
       Array.isArray(body.expectedFolders) &&
       body.expectedFolders.every((folder) => typeof folder === 'string')
     )
-      return json(
+      return getJson(
         200,
         await store.changeAnimationFolders({
           action: 'delete',
@@ -192,84 +204,91 @@ async function animationFolders(
           expectedFolders: body.expectedFolders,
         }),
       );
-    return json(400, { error: 'Invalid folder operation' });
+    return getJson(400, { error: 'Invalid folder operation' });
   }
-  return json(405, { error: 'Method not allowed' });
+  return getJson(405, { error: 'Method not allowed' });
 }
 
-async function scripts(
+async function handleScriptsRequest(
   store: AssetStore,
   method: string,
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 1 && parts[0] === 'diagnose' && method === 'POST') {
-    const body = asRecord(parseJson(rawBody));
+    const body = getRecord(parseJson(rawBody));
     if (typeof body.id !== 'string' || typeof body.source !== 'string') {
-      return json(400, { error: 'Diagnose needs an id and source' });
+      return getJson(400, { error: 'Diagnose needs an id and source' });
     }
-    return json(200, { diagnostics: await store.diagnose(body.id, body.source) });
+    return getJson(200, { diagnostics: await store.diagnose(body.id, body.source) });
   }
   if (parts.length === 0 && method === 'GET')
-    return json(200, { files: await store.listScripts() });
+    return getJson(200, { files: await store.listScripts() });
+  if (parts.length === 1 && parts[0] === 'names' && method === 'GET')
+    return getJson(200, { sources: await store.getRpgScriptSources() });
+  if (parts.length === 2 && parts[1] === 'open' && method === 'POST') {
+    await openScriptWithDefaultApp(store, decode(parts[0]));
+    return getJson(200, { ok: true });
+  }
   if (parts.length === 1 && method === 'GET')
-    return json(200, await store.readScript(decode(parts[0])));
+    return getJson(200, await store.readScript(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.saveScriptDraft(decode(parts[0]), doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveScriptDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteScript(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function props(
-  store: AssetStore,
-  method: string,
-  parts: string[],
-  rawBody: string | Buffer,
-): Promise<AssetResponse> {
-  if (parts.length === 0 && method === 'GET') return json(200, { files: await store.listProps() });
-  if (parts.length === 1 && method === 'GET')
-    return json(200, await store.readProp(decode(parts[0])));
-  if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.savePropDraft(decode(parts[0]), doc, base));
-  }
-  if (parts.length === 1 && method === 'DELETE') {
-    await store.deleteProp(decode(parts[0]));
-    return json(200, { ok: true });
-  }
-  return json(404, { error: 'Not found' });
-}
-
-async function characters(
+async function handlePropsRequest(
   store: AssetStore,
   method: string,
   parts: string[],
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET')
-    return json(200, {
+    return getJson(200, { files: await store.listProps() });
+  if (parts.length === 1 && method === 'GET')
+    return getJson(200, await store.readProp(decode(parts[0])));
+  if (parts.length === 1 && method === 'PUT') {
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.savePropDraft(decode(parts[0]), doc, base));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteProp(decode(parts[0]));
+    return getJson(200, { ok: true });
+  }
+  return getJson(404, { error: 'Not found' });
+}
+
+async function handleCharactersRequest(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+  rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (parts.length === 0 && method === 'GET')
+    return getJson(200, {
       files: await store.listCharacters(),
-      labels: await store.characterLabels(),
+      labels: await store.getCharacterLabels(),
     });
   if (parts.length === 1 && method === 'GET')
-    return json(200, await store.readCharacter(decode(parts[0])));
+    return getJson(200, await store.readCharacter(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.saveCharacterDraft(decode(parts[0]), doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveCharacterDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteCharacter(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function scenes(
+async function handleScenesRequest(
   store: AssetStore,
   method: string,
   parts: string[],
@@ -277,24 +296,28 @@ async function scenes(
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET') {
     const files = await store.listScenes();
-    return json(200, { files, labels: await store.sceneLabels(files) });
+    return getJson(200, { files, labels: await store.getSceneLabels(files) });
   }
   if (parts.length === 1 && method === 'GET')
-    return json(200, await store.readScene(decode(parts[0])));
+    return getJson(200, await store.readScene(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.saveSceneDraft(decode(parts[0]), doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveSceneDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteScene(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function audio(store: AssetStore, method: string, parts: string[]): Promise<AssetResponse> {
-  if (method !== 'GET') return json(405, { error: 'Method not allowed' });
-  if (parts.length === 0) return json(200, { files: await store.listAudio() });
+async function handleAudioRequest(
+  store: AssetStore,
+  method: string,
+  parts: string[],
+): Promise<AssetResponse> {
+  if (method !== 'GET') return getJson(405, { error: 'Method not allowed' });
+  if (parts.length === 0) return getJson(200, { files: await store.listAudio() });
   if (parts.length === 1) {
     const audioFile = await store.readAudio(decode(parts[0]));
     return {
@@ -303,10 +326,10 @@ async function audio(store: AssetStore, method: string, parts: string[]): Promis
       body: audioFile.bytes,
     };
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
-async function references(
+async function handleReferencesRequest(
   store: AssetStore,
   method: string,
   parts: string[],
@@ -315,15 +338,15 @@ async function references(
   expectedRevision?: string | null,
 ): Promise<AssetResponse> {
   if (parts.length === 1 && method === 'GET') {
-    return json(200, await store.readReference(decode(parts[0])));
+    return getJson(200, await store.readReference(decode(parts[0])));
   }
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = draftBody(rawBody);
-    return json(200, await store.saveReferenceDraft(decode(parts[0]), doc, base));
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveReferenceDraft(decode(parts[0]), doc, base));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteReference(decode(parts[0]));
-    return json(200, { ok: true });
+    return getJson(200, { ok: true });
   }
   if (parts.length === 2 && parts[1] === 'image' && method === 'GET') {
     const image = await store.readReferenceImage(decode(parts[0]));
@@ -332,40 +355,40 @@ async function references(
       headers: {
         'content-type': image.type,
         'cache-control': 'no-store',
-        'x-asset-revision': imageRevision(image.bytes),
+        'x-asset-revision': getImageRevision(image.bytes),
       },
       body: image.bytes,
     };
   }
   if (parts.length === 2 && parts[1] === 'image' && method === 'PUT') {
     const bytes = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
-    return json(
+    return getJson(
       200,
       await store.saveReferenceImage(decode(parts[0]), bytes, contentType, expectedRevision),
     );
   }
-  return json(404, { error: 'Not found' });
+  return getJson(404, { error: 'Not found' });
 }
 
 async function duplicate(store: AssetStore, rawBody: string | Buffer): Promise<AssetResponse> {
-  const body = asRecord(parseJson(rawBody));
+  const body = getRecord(parseJson(rawBody));
   if (body.kind !== 'sprite' && body.kind !== 'animation' && body.kind !== 'script') {
-    return json(400, { error: 'Unknown asset kind' });
+    return getJson(400, { error: 'Unknown asset kind' });
   }
   if (typeof body.from !== 'string' || typeof body.id !== 'string') {
-    return json(400, { error: 'Duplicate needs from and id' });
+    return getJson(400, { error: 'Duplicate needs from and id' });
   }
   if (body.label !== undefined && typeof body.label !== 'string')
-    return json(400, { error: 'Label must be text' });
-  return json(200, await store.duplicate(body.kind, body.from, body.id, body.label));
+    return getJson(400, { error: 'Label must be text' });
+  return getJson(200, await store.duplicate(body.kind, body.from, body.id, body.label));
 }
 
 async function importAscii(store: AssetStore, rawBody: string | Buffer): Promise<AssetResponse> {
-  const body = asRecord(parseJson(rawBody));
-  if (typeof body.id !== 'string') return json(400, { error: 'Import needs an id' });
+  const body = getRecord(parseJson(rawBody));
+  if (typeof body.id !== 'string') return getJson(400, { error: 'Import needs an id' });
   if (body.label !== undefined && typeof body.label !== 'string')
-    return json(400, { error: 'Label must be text' });
-  return json(200, await store.importEdAscii(body.id, body.document, body.label));
+    return getJson(400, { error: 'Label must be text' });
+  return getJson(200, await store.importEdAscii(body.id, body.document, body.label));
 }
 
 function parseJson(rawBody: string | Buffer): unknown {
@@ -374,15 +397,15 @@ function parseJson(rawBody: string | Buffer): unknown {
   return JSON.parse(text) as unknown;
 }
 
-function draftBody(rawBody: string | Buffer): { base: unknown; doc: unknown } {
-  const body = asRecord(parseJson(rawBody));
+function getDraftBody(rawBody: string | Buffer): { base: unknown; doc: unknown } {
+  const body = getRecord(parseJson(rawBody));
   if (!('base' in body) || !('doc' in body)) {
     throw new AssetError('Save needs a base snapshot and doc', 400);
   }
   return { base: body.base, doc: body.doc };
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
+function getRecord(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new AssetError('Expected a JSON object', 400);
   }
@@ -397,6 +420,6 @@ function decode(value: string): string {
   }
 }
 
-function json(status: number, value: unknown): AssetResponse {
+function getJson(status: number, value: unknown): AssetResponse {
   return { status, headers: JSON_HEADERS, body: JSON.stringify(value) };
 }

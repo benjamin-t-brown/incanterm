@@ -25,7 +25,7 @@ export function assignCharacterAnimations(
   return { animations, matched, ambiguous };
 }
 
-export function characterFromAnimationFolder(
+export function getCharacterFromAnimationFolder(
   id: string,
   folder: string,
   folders: AssetFolders,

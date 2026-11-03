@@ -5,7 +5,7 @@ export function wrappedFrameIndex(index: number, direction: -1 | 1, count: numbe
   return (index + direction + count) % count;
 }
 
-export function firstAnimationSheet(
+export function getFirstAnimationSheet(
   animation: AnimationDocument,
   available: readonly string[],
 ): string | null {

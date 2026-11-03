@@ -9,25 +9,14 @@ import {
   type LocalReference,
   type ScriptValue,
 } from './parser.js';
-import { commands } from './scene-commands.js';
-import { sceneCommandsShim } from './scene-commands-shim.js';
-
-export type ScriptStep = Readonly<
-  | { type: 'dialogue'; actor: string; text: string; line: number }
-  | { type: 'call'; target: string; args: readonly ScriptValue[]; line: number }
-  | {
-      type: 'setStorage';
-      key: string | StorageReference | LocalReference;
-      value: ScriptValue;
-      line: number;
-    }
-  | { type: 'log'; text: string; line: number }
-  | { type: 'setConv'; portName: ScriptValue; line: number }
-  | { type: 'setLocal'; name: string; value: ScriptValue; line: number }
-  | { type: 'choices'; options: readonly Choice[]; line: number }
-  | { type: 'awaitChoice'; options: readonly string[]; line: number }
->;
-export type Choice = Readonly<{ text: string; target: string }>;
+import type {
+  CommandContext,
+  RuntimeValue,
+  CompiledCommand,
+  CommandRegistry,
+  CommandCatalog,
+} from './command.js';
+export type ScriptStep = CompiledCommand;
 export type Condition =
   | boolean
   | Readonly<{ type: string; args: readonly (Condition | ScriptValue)[] }>;
@@ -66,14 +55,15 @@ function libraryWithTriggers(
   });
 }
 
-export type ScriptOptions = { shim?: boolean };
+export type ScriptOptions = { commands: CommandCatalog };
 
 export function parseRpgScript(
   source: string,
   file: string,
-  options: ScriptOptions = {},
+  options: ScriptOptions,
 ): ScriptLibrary {
   const parsed = new ScriptParser(file).parse(source);
+  const catalog = options.commands;
   const scripts = new Map<string, ScriptDefinition>();
   const triggers = new Map<string, TriggerDefinition>();
   for (const script of Object.values(parsed.scripts)) {
@@ -83,15 +73,12 @@ export function parseRpgScript(
       validateLocals(block.conditional, script.parameters, file, line);
       for (const command of block.commands) {
         validateLocals(command.args, script.parameters, file, command.i);
-        if (command.type === 'setLocal') {
-          requireLocal(String(command.args[0]), script.parameters, file, command.i);
-        }
       }
       return Object.freeze({
-        condition: toCondition(block.conditional, file, line),
+        condition: convertToCondition(block.conditional, file, line),
         steps: Object.freeze(
           block.commands.map((command) =>
-            Object.freeze(toStep(command, file, options.shim ? sceneCommandsShim : commands)),
+            Object.freeze(toStep(command, file, catalog, script.parameters)),
           ),
         ),
       });
@@ -121,7 +108,7 @@ export function parseRpgScript(
       }
       return Object.freeze({
         type: call.type as TriggerType,
-        condition: toCondition(call.condition, file, call.line),
+        condition: convertToCondition(call.condition, file, call.line),
         target: call.scriptName,
         line: call.line,
       });
@@ -152,13 +139,13 @@ const conditionTypes = new Set([
   'once',
   'oncePerInstance',
 ]);
-function toCondition(value: Conditional | boolean, file: string, line: number): Condition {
+function convertToCondition(value: Conditional | boolean, file: string, line: number): Condition {
   if (typeof value === 'boolean') return value;
   if (!conditionTypes.has(value.type))
     throw new Error(`${file}:${line}: Condition ${value.type} is not supported yet`);
   const args = value.args.map((arg) => {
     if (typeof arg === 'object' && arg !== null && 'type' in arg)
-      return toCondition(arg as Conditional, file, line);
+      return convertToCondition(arg as Conditional, file, line);
     if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg))
       return Object.freeze({ ...(arg as StorageReference | LocalReference) });
     if (typeof arg === 'string') {
@@ -202,127 +189,13 @@ function toCondition(value: Conditional | boolean, file: string, line: number): 
 function toStep(
   command: Command,
   file: string,
-  catalog: typeof commands | typeof sceneCommandsShim,
+  catalog: CommandCatalog,
+  parameters: readonly string[],
 ): ScriptStep {
   if (!Object.hasOwn(catalog, command.type)) {
     throw new Error(`${file}:${command.i}: Unknown command ${command.type}`);
   }
-  if (command.type === 'playDialogue') {
-    const dialogue = command.args[0];
-    if (
-      command.args.length === 2 &&
-      typeof dialogue === 'string' &&
-      typeof command.args[1] === 'string'
-    ) {
-      return {
-        ...catalog.playDialogue(dialogue, command.args[1]),
-        line: command.i,
-      };
-    }
-    if (
-      typeof dialogue === 'object' &&
-      dialogue &&
-      'actorName' in dialogue &&
-      'text' in dialogue &&
-      !('portraitEmotion' in dialogue && dialogue.portraitEmotion)
-    ) {
-      return {
-        ...catalog.playDialogue(dialogue.actorName, dialogue.text),
-        line: command.i,
-      };
-    }
-  }
-  if (
-    command.type === 'callScript' &&
-    command.args.length >= 1 &&
-    typeof command.args[0] === 'string' &&
-    command.args[0]
-  ) {
-    const args = command.args.slice(1).map((arg) => toScriptValue(arg, file, command.i));
-    return {
-      ...catalog.callScript(command.args[0], ...args),
-      args: Object.freeze(args),
-      line: command.i,
-    };
-  }
-  if (command.type === 'setStorage' && command.args.length === 2) {
-    let key = command.args[0];
-    if (typeof key === 'object' && ('storageKey' in key || 'localName' in key)) {
-      key = Object.freeze({ ...key });
-    } else if (typeof key !== 'string' || !key) {
-      throw new Error(`${file}:${command.i}: setStorage requires a non-empty string key`);
-    }
-    const value = toScriptValue(command.args[1], file, command.i);
-    return {
-      ...catalog.setStorage(key, value === 'true' ? true : value === 'false' ? false : value),
-      line: command.i,
-    };
-  }
-  if (
-    command.type === 'setLocal' &&
-    command.args.length === 2 &&
-    typeof command.args[0] === 'string'
-  ) {
-    return {
-      ...catalog.setLocal(command.args[0], toScriptValue(command.args[1], file, command.i)),
-      line: command.i,
-    };
-  }
-  if (command.type === 'log' && command.args.length === 1 && typeof command.args[0] === 'string') {
-    return { ...catalog.log(command.args[0]), line: command.i };
-  }
-  if (command.type === 'setConv' && command.args.length === 1) {
-    return { ...catalog.setConv(toScriptValue(command.args[0], file, command.i)), line: command.i };
-  }
-  if (
-    command.type === 'showChoices' &&
-    command.args.length > 0 &&
-    command.args.every(
-      (arg) =>
-        typeof arg === 'object' &&
-        arg &&
-        'target' in arg &&
-        'text' in arg &&
-        arg.text &&
-        arg.target,
-    )
-  ) {
-    if (command.args.length > 9)
-      throw new Error(`${file}:${command.i}: At most 9 choices can be displayed`);
-    const options = Object.freeze(
-      command.args.map((arg) => {
-        if (typeof arg !== 'object' || !('target' in arg) || !('text' in arg))
-          throw new Error('Invalid choice');
-        return Object.freeze({ text: arg.text, target: arg.target });
-      }),
-    );
-    return {
-      ...catalog.showChoices(options),
-      line: command.i,
-    };
-  }
-  if (
-    command.type === 'awaitChoice' &&
-    command.args.length > 0 &&
-    command.args.every((arg) => typeof arg === 'string')
-  ) {
-    if (command.args.length > 9)
-      throw new Error(`${file}:${command.i}: At most 9 choices can be displayed`);
-    const choice = catalog.awaitChoice(...(command.args as string[]));
-    return {
-      ...choice,
-      line: command.i,
-      options: Object.freeze(choice.options),
-    };
-  }
-  throw new Error(`${file}:${command.i}: Command ${command.type} is not supported yet`);
-}
-
-function toScriptValue(value: Command['args'][number], file: string, line: number): ScriptValue {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
-    return value;
-  if ('storageKey' in value || 'localName' in value) return Object.freeze({ ...value });
-  throw new Error(`${file}:${line}: Expected a scalar script argument`);
+  return catalog[command.type](command, `${file}:${command.i}`, parameters);
 }
 
 function requireLocal(
@@ -357,10 +230,7 @@ function checkArgumentCount(script: ScriptDefinition, count: number, location: s
   }
 }
 
-export async function loadRpgScripts(
-  root: string,
-  options: ScriptOptions = {},
-): Promise<ScriptLibrary> {
+export async function loadRpgScripts(root: string, options: ScriptOptions): Promise<ScriptLibrary> {
   const directory = path.join(root, 'scripts');
   const scripts = new Map<string, ScriptDefinition>();
   const triggers = new Map<string, TriggerDefinition>();
@@ -393,20 +263,11 @@ export async function loadRpgScripts(
   for (const script of scripts.values())
     for (const block of script.blocks)
       for (const step of block.steps) {
-        const targets =
-          step.type === 'call'
-            ? [step.target]
-            : step.type === 'choices'
-              ? step.options.map((choice) => choice.target)
-              : [];
-        for (const target of targets) {
-          const definition = scripts.get(target);
-          if (!definition) throw new Error(`${script.file}:${step.line}: Unknown script ${target}`);
-          checkArgumentCount(
-            definition,
-            step.type === 'call' ? step.args.length : 0,
-            `${script.file}:${step.line}`,
-          );
+        for (const target of step.targets ?? []) {
+          const definition = scripts.get(target.name);
+          if (!definition)
+            throw new Error(`${script.file}:${step.line}: Unknown script ${target.name}`);
+          checkArgumentCount(definition, target.argumentCount, `${script.file}:${step.line}`);
         }
       }
   for (const trigger of triggers.values())
@@ -423,9 +284,8 @@ function isMissingDirectory(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }
 
-export type Dialogue = Readonly<{ actor: string; text: string }>;
+export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string }>;
 export type ChoicePrompt = Readonly<{ options: readonly string[] }>;
-type RuntimeValue = string | number | boolean | undefined;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
 type Frame = {
   script: ScriptDefinition;
@@ -437,17 +297,23 @@ type Frame = {
   results?: Map<number, boolean>;
 };
 
-export class ScriptRunner {
+export type RunnerOptions<Host> = {
+  commands: CommandRegistry<Host>;
+  context: Host;
+  writeLog?: (message: string) => void;
+};
+
+export class ScriptRunner<Host> {
   private stack: Frame[] = [];
   private readonly storage = new Map<string, string | number | boolean | undefined>();
   private readonly usedOnce = new Set<string>();
   dialogue: Dialogue | undefined;
   choice: ChoicePrompt | undefined;
+  private onChoose: ((index: number) => void) | undefined;
 
   constructor(
     private readonly library: ScriptLibrary,
-    private readonly writeLog: (message: string) => void = console.log,
-    private readonly onSetConv?: (portName: string | undefined) => void,
+    private readonly options: RunnerOptions<Host>,
   ) {}
 
   getStorage(key: string): string | number | boolean | undefined {
@@ -464,6 +330,7 @@ export class ScriptRunner {
   start(name: string, args: readonly RuntimeValue[] = []): void {
     this.stack = [this.createFrame(name, args)];
     this.dialogue = this.choice = undefined;
+    this.onChoose = undefined;
     this.run();
   }
 
@@ -502,20 +369,11 @@ export class ScriptRunner {
     ) {
       throw new Error('No such RPGScript choice');
     }
-    const frame = this.stack[this.stack.length - 1];
-    const step = frame.script.blocks[frame.block].steps[frame.next - 1];
     this.storage.set('lastChoiceIndex', index);
     this.choice = undefined;
-    if (step.type === 'choices') {
-      this.stack.push(
-        this.createFrame(
-          step.options[index].target,
-          [],
-          frame.instanceId,
-          `${frame.script.file}:${step.line}`,
-        ),
-      );
-    }
+    const onChoose = this.onChoose;
+    this.onChoose = undefined;
+    onChoose?.(index);
     this.run();
   }
 
@@ -542,17 +400,17 @@ export class ScriptRunner {
     };
   }
 
-  private localValue(name: string): RuntimeValue {
+  private getLocalValue(name: string): RuntimeValue {
     const frame = this.stack[this.stack.length - 1];
     if (!frame?.locals.has(name)) throw new Error(`Unknown local [${name}]`);
     return frame.locals.get(name);
   }
 
-  private scriptValue(value: ScriptValue): RuntimeValue {
+  private getScriptValue(value: ScriptValue): RuntimeValue {
     if (typeof value === 'object') {
       return 'storageKey' in value
         ? this.storage.get(value.storageKey)
-        : this.localValue(value.localName);
+        : this.getLocalValue(value.localName);
     }
     return typeof value === 'string' ? this.interpolate(value) : value;
   }
@@ -561,7 +419,7 @@ export class ScriptRunner {
     return text.replace(
       valuePlaceholder,
       (_, key: string | undefined, local: string | undefined) => {
-        const value = local === undefined ? this.storage.get(key ?? '') : this.localValue(local);
+        const value = local === undefined ? this.storage.get(key ?? '') : this.getLocalValue(local);
         return value === undefined ? '' : String(value);
       },
     );
@@ -580,7 +438,7 @@ export class ScriptRunner {
     }
     if (typeof value === 'object') {
       if ('storageKey' in value) return this.storage.get(value.storageKey);
-      if ('localName' in value) return this.localValue(value.localName);
+      if ('localName' in value) return this.getLocalValue(value.localName);
       throw new Error('Nested condition is not a value');
     }
     return value;
@@ -635,7 +493,7 @@ export class ScriptRunner {
           ? 'storageKey' in first
             ? Boolean(this.storage.get(first.storageKey))
             : 'localName' in first
-              ? Boolean(this.localValue(first.localName))
+              ? Boolean(this.getLocalValue(first.localName))
               : this.evaluate(first as Condition, scope, pending, instanceId, results)
           : first === 'true'
             ? true
@@ -688,60 +546,39 @@ export class ScriptRunner {
         frame.passed = undefined;
         continue;
       }
-      if (step.type === 'dialogue') {
-        this.dialogue = { actor: this.interpolate(step.actor), text: this.interpolate(step.text) };
-        return;
-      }
-      if (step.type === 'call') {
-        const args = step.args.map((arg) => this.scriptValue(arg));
-        this.stack.push(
-          this.createFrame(
-            step.target,
-            args,
-            frame.instanceId,
-            `${frame.script.file}:${step.line}`,
-          ),
-        );
-        continue;
-      }
-      if (step.type === 'setLocal') {
-        requireLocal(step.name, frame.script.parameters, frame.script.file, step.line);
-        frame.locals.set(step.name, this.scriptValue(step.value));
-        continue;
-      }
-      if (step.type === 'setStorage') {
-        const key = typeof step.key === 'object' ? this.scriptValue(step.key) : step.key;
-        if (typeof key !== 'string' || !key) {
-          throw new Error(
-            `${frame.script.file}:${step.line}: setStorage requires a non-empty string key`,
-          );
-        }
-        const value = this.scriptValue(step.value);
-        this.storage.set(key, value);
-        continue;
-      }
-      if (step.type === 'log') {
-        this.writeLog(
-          `[RPGSCRIPT] ${this.interpolate(step.text)} (${frame.script.file}:${step.line})`,
-        );
-        continue;
-      }
-      if (step.type === 'setConv') {
-        const portName = this.scriptValue(step.portName);
-        if (portName !== undefined && typeof portName !== 'string') {
-          throw new Error(`${frame.script.file}:${step.line}: setConv requires a portrait name`);
-        }
-        this.storage.set('dialogue.portraitLeft', portName);
-        this.onSetConv?.(portName);
-        continue;
-      }
-      this.choice = {
-        options:
-          step.type === 'choices'
-            ? step.options.map((choice) => this.interpolate(choice.text))
-            : step.options.map((option) => this.interpolate(option)),
-      };
-      return;
+      if (!Object.hasOwn(this.options.commands, step.command))
+        throw new Error(`${frame.script.file}:${step.line}: Unknown command ${step.command}`);
+      this.options.commands[step.command].run(
+        step,
+        this.getCommandContext(frame, step.line),
+        this.options.context,
+      );
+      if (this.dialogue || this.choice) return;
     }
+  }
+
+  private getCommandContext(frame: Frame, line: number): CommandContext {
+    const location = `${frame.script.file}:${line}`;
+    return {
+      location,
+      value: (value) => this.getScriptValue(value),
+      interpolate: (text) => this.interpolate(text),
+      setStorage: (key, value) => this.storage.set(key, value),
+      setLocal: (name, value) => {
+        requireLocal(name, frame.script.parameters, frame.script.file, line);
+        frame.locals.set(name, value);
+      },
+      call: (target, args) => {
+        this.stack.push(this.createFrame(target, args, frame.instanceId, location));
+      },
+      showDialogue: (actor, text, emotion) => {
+        this.dialogue = emotion ? { actor, text, emotion } : { actor, text };
+      },
+      showChoices: (options, onChoose) => {
+        this.choice = { options };
+        this.onChoose = onChoose;
+      },
+      writeLog: (message) => (this.options.writeLog ?? console.log)(message),
+    };
   }
 }

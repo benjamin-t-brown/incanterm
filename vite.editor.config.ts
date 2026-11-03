@@ -25,7 +25,7 @@ function readBody(request: IncomingMessage): Promise<Buffer> {
   });
 }
 
-function assetApi(): Plugin {
+function createAssetApi(): Plugin {
   const store = new AssetStore(path.join(rootDir, 'assets'));
   const handle: Connect.NextHandleFunction = (request, response, next) => {
     const url = request.url ?? '';
@@ -34,7 +34,7 @@ function assetApi(): Plugin {
       next();
       return;
     }
-    void respond(store, request, response);
+    void respondToAssetRequest(store, request, response);
   };
   return {
     name: 'incanterm-asset-api',
@@ -44,13 +44,29 @@ function assetApi(): Plugin {
   };
 }
 
-async function respond(
+async function respondToAssetRequest(
   store: AssetStore,
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
   try {
     const method = request.method ?? 'GET';
+    if (method === 'POST' && /^\/api\/scripts\/[^/]+\/open(?:\?|$)/.test(request.url ?? '')) {
+      const origin = request.headers.origin;
+      const host = request.headers.host;
+      let originHost: string | undefined;
+      try {
+        if (origin) originHost = new URL(origin).host;
+      } catch {
+        // A malformed Origin is not an editor request.
+      }
+      if (!host || originHost !== host) {
+        response.statusCode = 403;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        response.end(JSON.stringify({ error: 'Open script requires a same-origin request' }));
+        return;
+      }
+    }
     const body =
       method === 'GET' || method === 'HEAD' || method === 'DELETE'
         ? Buffer.alloc(0)
@@ -83,7 +99,7 @@ async function respond(
 export default defineConfig({
   root: path.join(rootDir, 'src/editor/client'),
   appType: 'spa',
-  plugins: [assetApi()],
+  plugins: [createAssetApi()],
   server: {
     host: '127.0.0.1',
     port: 7104,

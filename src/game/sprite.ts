@@ -1,4 +1,4 @@
-import { CellBuffer, type Cell } from './cell-buffer.js';
+import type { CellBuffer, Cell } from './cell-buffer.js';
 
 export class Sprite {
   private readonly cells: Cell[];
@@ -32,6 +32,18 @@ export class Sprite {
       fg: { r: cell.fg.r, g: cell.fg.g, b: cell.fg.b },
       bg: { r: cell.bg.r, g: cell.bg.g, b: cell.bg.b },
     }));
+  }
+
+  getFlipped(horizontal: boolean, vertical: boolean): Sprite {
+    if (!horizontal && !vertical) return this;
+    const cells = this.cells.map((_, index) => {
+      const x = index % this.width,
+        y = Math.floor(index / this.width);
+      return this.cells[
+        (vertical ? this.height - 1 - y : y) * this.width + (horizontal ? this.width - 1 - x : x)
+      ];
+    });
+    return new Sprite(this.id, this.width, this.height, this.originX, this.originY, cells);
   }
 
   draw(buffer: CellBuffer, anchorX: number, anchorY: number): void {

@@ -1,7 +1,8 @@
 import path from 'node:path';
-import { TEST_SCENE_ID, defaultAssetsRoot, loadScene } from '../game/load-scene.js';
+import { TEST_SCENE_ID, getDefaultAssetsRoot, loadScene } from '../game/load-scene.js';
 import { loadOrCreateHostKey } from './host-key.js';
 import { loadRpgScripts } from '../game/rpgscript/index.js';
+import { commands } from '../game/scene-commands.js';
 import { loadPortraitAssets } from '../game/portrait-assets.js';
 import { startHttpServer } from './http.js';
 import { startSshServer } from './ssh.js';
@@ -27,11 +28,11 @@ const DEFAULT_HOST_KEY = path.join(process.cwd(), '.data', 'ssh_host_key');
 export async function startServer(options: StartOptions = {}): Promise<StartedServer> {
   const host = options.host ?? '127.0.0.1';
   const hostKey = options.hostKey ?? loadOrCreateHostKey(DEFAULT_HOST_KEY);
-  const assetsRoot = options.assetsRoot ?? defaultAssetsRoot();
+  const assetsRoot = options.assetsRoot ?? getDefaultAssetsRoot();
   const scene = await loadScene(assetsRoot, options.sceneId ?? TEST_SCENE_ID);
-  const scripts = await loadRpgScripts(assetsRoot);
+  const scripts = await loadRpgScripts(assetsRoot, { commands });
   const portraits = await loadPortraitAssets(assetsRoot);
-  for (const trigger of scene.triggers)
+  for (const trigger of [...scene.triggers, ...scene.actionTriggers.map((entry) => entry.trigger)])
     if (!scripts.triggers.has(trigger))
       throw new Error(`Scene ${scene.id} references unknown RPGScript trigger ${trigger}`);
   const http = await startHttpServer({
@@ -41,6 +42,7 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
     scene,
     scripts,
     portraits,
+    reloadPortraits: () => loadPortraitAssets(assetsRoot),
   });
   try {
     const ssh = await startSshServer({
@@ -50,6 +52,7 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
       scene,
       scripts,
       portraits,
+      reloadPortraits: () => loadPortraitAssets(assetsRoot),
     });
     return {
       httpPort: http.port,

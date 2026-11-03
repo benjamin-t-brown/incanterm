@@ -3,8 +3,10 @@ import { matchesViewport, type TerminalViewport } from '../client/viewport.js';
 import type { ServerMessage } from '../protocol/messages.js';
 import { routeLoopbackInput } from './input.js';
 import { startLoopback, type Loopback } from './start.js';
+import { TerminalScreen } from '../client/terminal-screen.js';
+import { encodeTerminal } from '../game/terminal.js';
 
-function optionsFromArgs(args: string[]): {
+function parseOptionsFromArgs(args: string[]): {
   sceneId?: string;
   assetsRoot?: string;
 } {
@@ -25,6 +27,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
 } else {
   let loopback: Loopback | undefined;
   let latestFrame = '';
+  const terminal = new TerminalScreen();
   let screen: 'client' | 'server' = 'client';
   let sessionId = 'connecting';
   let frames = 0;
@@ -63,9 +66,10 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   function onMessage(message: ServerMessage): void {
     if (message.type === 'terminal-data') {
       if (!matchesViewport(message, viewport)) return;
-      latestFrame = message.data;
+      terminal.apply(message.data, message.cols ?? 80, message.rows ?? 24);
+      latestFrame = encodeTerminal(terminal.buffer);
       frames++;
-      if (screen === 'client' && started) process.stdout.write(latestFrame);
+      if (screen === 'client' && started) process.stdout.write(message.data);
       else showServer();
     } else if (message.type === 'session-status') {
       sessionId = message.sessionId;
@@ -112,7 +116,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
     process.off('SIGTERM', onSignal);
     process.stdin.setRawMode(false);
     process.stdin.pause();
-    process.stdout.write('\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l');
+    process.stdout.write('\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l');
     try {
       await loopback?.close();
     } finally {
@@ -125,7 +129,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   }
 
   try {
-    const options = optionsFromArgs(process.argv.slice(2));
+    const options = parseOptionsFromArgs(process.argv.slice(2));
     loopback = await startLoopback({
       ...options,
       onMessage,
@@ -137,7 +141,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
         void stop(1);
       },
     });
-    process.stdout.write('\x1b[?1049h\x1b[?25l');
+    process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
     started = true;
     process.stdin.setRawMode(true);
     process.stdin.on('data', onInput);

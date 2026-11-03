@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { defaultPalette, paletteRgb, type PaletteDocument } from '../editor/palette.js';
-import { animationFrameFlips, flattenSprite, parseAnimation, parsePalette } from '../editor/schema.js';
+import { getDefaultPalette, getPaletteRgb, type PaletteDocument } from '../editor/palette.js';
+import { getAnimationFrameFlips, flattenSprite, parseAnimation, parsePalette, parseCharacter, type CharacterDocument } from '../editor/schema.js';
 import { parseStoredSprite } from '../editor/art/sprite-storage.js';
 import type { Cell } from './cell-buffer.js';
 import { parseHexColor } from './color.js';
@@ -20,9 +20,26 @@ export type PortraitAsset = Readonly<{
   loop: boolean;
 }>;
 
-export type PortraitAssets = ReadonlyMap<string, PortraitAsset>;
+export type PortraitAssets = ReadonlyMap<string, PortraitAsset> & {
+  readonly characters?: ReadonlyMap<string, Pick<CharacterDocument, 'id' | 'scriptName' | 'portraits'>>;
+};
 
-async function assetFiles(root: string, directory: string): Promise<string[]> {
+export function getDialoguePortrait(
+  assets: PortraitAssets | undefined,
+  actor: string,
+  emotion = '',
+  facing: 'left' | 'right' = 'right',
+): { asset: PortraitAsset; facing: 'left' | 'right' } | undefined {
+  const character = assets?.characters?.get(actor);
+  for (const selectedEmotion of [emotion, '']) {
+    const selected = character?.portraits?.find((entry) => entry.facing === facing && entry.emotion === selectedEmotion);
+    const asset = selected && assets?.get(selected.portrait);
+    if (asset) return { asset, facing };
+  }
+  return undefined;
+}
+
+async function getAssetFiles(root: string, directory: string): Promise<string[]> {
   try {
     return (await fs.readdir(path.join(root, directory))).filter((file) => file.endsWith('.json'));
   } catch (error) {
@@ -43,7 +60,7 @@ async function readAsset(file: string): Promise<unknown> {
 }
 
 export async function loadPortraitAssets(root: string): Promise<PortraitAssets> {
-  let palette: PaletteDocument = defaultPalette();
+  let palette: PaletteDocument = getDefaultPalette();
   try {
     const parsed = parsePalette(await readAsset(path.join(root, 'palette.json')));
     if (parsed.ok) palette = parsed.value;
@@ -56,7 +73,7 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
 
   const assets = new Map<string, PortraitAsset>();
   const sprites = new Map<string, PortraitFrame>();
-  for (const file of await assetFiles(root, 'sprites')) {
+  for (const file of await getAssetFiles(root, 'sprites')) {
     const parsed = parseStoredSprite(await readAsset(path.join(root, 'sprites', file)));
     if (!parsed.ok) continue;
     const sprite = parsed.value;
@@ -64,8 +81,8 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
     for (let index = 0; index < sprite.sprites.length; index++) {
       const cells = flattenSprite(sprite, index).map((cell) => ({
         ch: cell.ch,
-        fg: parseHexColor(paletteRgb(palette, cell.fg) ?? '#aaaaaa'),
-        bg: parseHexColor(paletteRgb(palette, cell.bg) ?? '#000000'),
+        fg: parseHexColor(getPaletteRgb(palette, cell.fg) ?? '#aaaaaa'),
+        bg: parseHexColor(getPaletteRgb(palette, cell.bg) ?? '#000000'),
       }));
       const frame = { width: sprite.width, height: sprite.height, cells, durationMs: 0 };
       sprites.set(`${sprite.id}_${index}`, frame);
@@ -78,7 +95,7 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
     }
   }
 
-  for (const file of await assetFiles(root, 'animations')) {
+  for (const file of await getAssetFiles(root, 'animations')) {
     const parsed = parseAnimation(await readAsset(path.join(root, 'animations', file)));
     if (!parsed.ok) continue;
     const animation = parsed.value;
@@ -87,7 +104,7 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
       if ('invisible' in entry)
         return { width: 0, height: 0, cells: null, durationMs: entry.durationMs };
       const sprite = sprites.get(`${entry.sprite}_${entry.index}`);
-      const flips = animationFrameFlips(animation, entry);
+      const flips = getAnimationFrameFlips(animation, entry);
       const cells = sprite?.cells;
       return {
         width: sprite?.width ?? 0,
@@ -111,10 +128,18 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
       loop: animation.loop,
     });
   }
-  return assets;
+  const characters = new Map<string, Pick<CharacterDocument, 'id' | 'scriptName' | 'portraits'>>();
+  for (const file of await getAssetFiles(root, 'characters')) {
+    const parsed = parseCharacter(await readAsset(path.join(root, 'characters', file)));
+    if (!parsed.ok || file !== `${parsed.value.id}.json` || !parsed.value.scriptName) continue;
+    if (characters.has(parsed.value.scriptName))
+      throw new Error(`Duplicate character scriptName ${parsed.value.scriptName}`);
+    characters.set(parsed.value.scriptName, parsed.value);
+  }
+  return Object.assign(assets, { characters });
 }
 
-export function portraitFrameAt(asset: PortraitAsset, elapsedMs: number): PortraitFrame {
+export function getPortraitFrameAt(asset: PortraitAsset, elapsedMs: number): PortraitFrame {
   const total = asset.frames.reduce((duration, frame) => duration + frame.durationMs, 0);
   let offset = asset.loop && total > 0 ? elapsedMs % total : elapsedMs;
   for (const frame of asset.frames) {

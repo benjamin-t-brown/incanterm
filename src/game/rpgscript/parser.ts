@@ -240,24 +240,23 @@ export class ScriptParser {
         else if (arg === 'true' || arg === 'false') formattedArgs[index] = arg === 'true';
       }
     }
-    if (['setStorage', 'setLocal', 'callScript', 'is', 'isnot', 'eq', 'gt', 'lt'].includes(type)) {
-      const indices = args
-        .map((_, index) => index)
-        .filter((index) => index > 0 || (type !== 'callScript' && type !== 'setLocal'));
-      for (const index of indices) {
-        if (args[index]?.startsWith('[')) {
-          const local = /^\[([A-Za-z_][\w-]*)\]$/.exec(args[index]);
-          if (!local) this.throwParsingError('Invalid local reference', lineNum, commandSrc);
-          else formattedArgs[index] = { localName: local[1] };
-          continue;
-        }
-        if (!args[index]?.startsWith('{')) continue;
-        const reference = /^\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}$/.exec(args[index]);
-        if (!reference) {
-          this.throwParsingError('Invalid storage reference', lineNum, commandSrc);
-        } else {
-          formattedArgs[index] = { storageKey: reference[1] };
-        }
+    // References are language syntax for every command, including game-supplied commands.
+    const indices = args
+      .map((_, index) => index)
+      .filter((index) => index > 0 || (type !== 'callScript' && type !== 'setLocal'));
+    for (const index of indices) {
+      if (args[index]?.startsWith('[')) {
+        const local = /^\[([A-Za-z_][\w-]*)\]$/.exec(args[index]);
+        if (!local) this.throwParsingError('Invalid local reference', lineNum, commandSrc);
+        else formattedArgs[index] = { localName: local[1] };
+        continue;
+      }
+      if (!args[index]?.startsWith('{')) continue;
+      const reference = /^\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}$/.exec(args[index]);
+      if (!reference) {
+        this.throwParsingError('Invalid storage reference', lineNum, commandSrc);
+      } else {
+        formattedArgs[index] = { storageKey: reference[1] };
       }
     }
 

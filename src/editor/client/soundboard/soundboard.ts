@@ -1,10 +1,10 @@
 import { requestJson } from '../api.js';
-import { pageShell } from '../shell.js';
+import { createPageShell } from '../shell.js';
 
 type AudioEntry = { id: string; name: string };
 
 export function mountSoundboard(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Soundboard',
     `<h1 class="page-title">Soundboard</h1>
     <p class="page-copy">Every sound already in assets/audio. Add or remove files on disk, then refresh.</p>

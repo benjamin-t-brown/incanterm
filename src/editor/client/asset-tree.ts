@@ -1,4 +1,4 @@
-import { folderAncestors, parentFolder, type AssetFolders } from '../asset-folders.js';
+import { getFolderAncestors, getParentFolder, type AssetFolders } from '../asset-folders.js';
 
 export type TreeChange =
   | { action: 'create' | 'rename'; folder: string; name: string }
@@ -47,7 +47,7 @@ export function createAssetTree(options: TreeOptions) {
 
   function reveal(id: string): void {
     const folder = tree.placements[id];
-    if (folder) for (const path of folderAncestors(folder)) expanded.add(path);
+    if (folder) for (const path of getFolderAncestors(folder)) expanded.add(path);
     persist();
   }
 
@@ -61,7 +61,7 @@ export function createAssetTree(options: TreeOptions) {
         if (operation.folder) expanded.add(operation.folder);
       }
       if (operation.action === 'rename') {
-        const replacement = parentFolder(operation.folder);
+        const replacement = getParentFolder(operation.folder);
         const to = replacement ? `${replacement}/${operation.name}` : operation.name;
         expanded = new Set(
           [...expanded].map((path) =>
@@ -135,17 +135,17 @@ export function createAssetTree(options: TreeOptions) {
     const visibleFolders = new Set<string>();
     for (const folder of tree.folders) {
       if (!query || folder.toLowerCase().includes(query))
-        for (const ancestor of folderAncestors(folder)) visibleFolders.add(ancestor);
+        for (const ancestor of getFolderAncestors(folder)) visibleFolders.add(ancestor);
     }
     if (query) {
       for (const id of matching) {
         const folder = tree.placements[id];
-        if (folder) for (const ancestor of folderAncestors(folder)) visibleFolders.add(ancestor);
+        if (folder) for (const ancestor of getFolderAncestors(folder)) visibleFolders.add(ancestor);
       }
     }
     const folders = tree.folders.filter((folder) => visibleFolders.has(folder));
     const addLevel = (parent: string, depth: number, container: HTMLElement) => {
-      for (const folder of folders.filter((path) => parentFolder(path) === parent).sort()) {
+      for (const folder of folders.filter((path) => getParentFolder(path) === parent).sort()) {
         const row = document.createElement('div');
         row.className = 'asset-tree-folder-row';
         row.dataset.folder = folder;
@@ -183,7 +183,7 @@ export function createAssetTree(options: TreeOptions) {
         });
         const actions = document.createElement('span');
         actions.className = 'asset-tree-actions';
-        const actionButton = (symbol: string, title: string, callback: () => void) => {
+        const createActionButton = (symbol: string, title: string, callback: () => void) => {
           const button = document.createElement('button');
           button.type = 'button';
           button.textContent = symbol;
@@ -192,11 +192,11 @@ export function createAssetTree(options: TreeOptions) {
           button.addEventListener('click', callback);
           actions.append(button);
         };
-        actionButton('+', `New folder in ${folder}`, () => void createFolder(folder));
+        createActionButton('+', `New folder in ${folder}`, () => void createFolder(folder));
         const createAsset = options.onCreateAsset;
         if (createAsset)
-          actionButton('A', `New animation in ${folder}`, () => createAsset(folder));
-        actionButton('×', `Delete ${folder}`, () => void deleteFolder(folder));
+          createActionButton('A', `New animation in ${folder}`, () => createAsset(folder));
+        createActionButton('×', `Delete ${folder}`, () => void deleteFolder(folder));
         row.append(toggle, actions);
         dropZone(row, folder);
         container.append(row);
@@ -278,7 +278,7 @@ export function createAssetTree(options: TreeOptions) {
       finished = true;
       void change({ action: 'rename', folder, name }).then(() => {
         if (!restoreFocus) return;
-        const parent = parentFolder(folder);
+        const parent = getParentFolder(folder);
         const renamed = parent ? `${parent}/${name}` : name;
         const next = [...list.querySelectorAll<HTMLElement>('.asset-tree-folder-row')].find(
           (item) => item.dataset.folder === renamed,
@@ -310,7 +310,7 @@ export function createAssetTree(options: TreeOptions) {
   }
   search.addEventListener('input', render);
   function expand(folder: string): void {
-    for (const path of folderAncestors(folder)) expanded.add(path);
+    for (const path of getFolderAncestors(folder)) expanded.add(path);
     persist();
     render();
   }

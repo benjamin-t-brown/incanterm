@@ -1,24 +1,24 @@
-import { paletteRgb, type PaletteDocument } from '../../palette.js';
+import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import {
   assignCharacterAnimations,
-  characterFromAnimationFolder,
+  getCharacterFromAnimationFolder,
 } from '../../characters/auto-assign.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
 import {
-  neighborCharacterTab,
+  getNeighborCharacterTab,
   OPEN_CHARACTERS_KEY,
   readCharacterTabs,
   type CharacterTabSession,
 } from '../../characters/character-tabs.js';
 import {
   CHARACTER_STATES,
-  characterLabelError,
+  getCharacterLabelError,
   createCharacter,
   flattenSprite,
   isAssetId,
   isInvisibleFrame,
-  animationFrameFlips,
+  getAnimationFrameFlips,
   type AnimationDocument,
   type CharacterDocument,
   type SpriteDocument,
@@ -29,11 +29,12 @@ import { ApiError, requestJson } from '../api.js';
 import { alertModal, askAssetMeta, confirmModal } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
-import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { characterListEntries } from './character-list.js';
+import { getPortraitAssetLabel } from '../../characters/portrait-label.js';
 
 export function mountCharacters(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Characters',
     `<aside class="anim-library character-library" aria-label="Characters">
     <input id="character-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search characters">
@@ -51,7 +52,11 @@ export function mountCharacters(root: HTMLElement): () => void {
       <div class="character-settings"><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
         <option value="up">UP</option><option value="down">DOWN</option>
         <option value="left">LEFT</option><option value="right">RIGHT</option></select></label>
-        <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
+         <label class="character-label">SCRIPT NAME <input id="character-script-name" class="text-input" placeholder="e.g. Eva" spellcheck="false"></label>
+         <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default.</p>
+         <div id="character-portraits" class="character-state-list"></div>
+         <button id="add-character-portrait" type="button">+ PORTRAIT</button>
+         <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
         <div class="character-folder-fill"><label class="character-label">ANIMATION FOLDER
           <span id="character-folder-picker"></span></label>
           <button id="character-fill-folder" type="button">FILL FROM FOLDER</button></div>
@@ -65,7 +70,21 @@ export function mountCharacters(root: HTMLElement): () => void {
         <p class="page-copy">Animation clips and sprites can be edited in their own tools.</p>
         <a id="character-edit-animation" href="/animation" target="_blank" rel="noopener noreferrer">EDIT ANIMATION ↗</a>
        </div></div>
-    <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
+     <dialog id="character-portrait-dialog" aria-labelledby="character-portrait-title">
+       <form id="character-portrait-form">
+         <h2 id="character-portrait-title">ADD PORTRAIT</h2>
+         <label>EMOTION <input id="portrait-emotion" class="text-input" placeholder="Default (blank)" spellcheck="false"></label>
+         <label>DIRECTION <select id="portrait-direction" class="text-input"><option value="right">RIGHT</option><option value="left">LEFT</option></select></label>
+         <label>SPRITE / ANIMATION <select id="portrait-kind" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
+         <input id="portrait-search" class="text-input" type="search" placeholder="Search sprites…" aria-label="Search portrait assets">
+         <div id="portrait-results" class="portrait-results" aria-label="Portrait assets"></div>
+         <label id="portrait-frame-label" hidden>SPRITE FRAME <select id="portrait-frame" class="text-input"></select></label>
+         <canvas id="portrait-preview" width="320" height="180" aria-label="Selected portrait preview"></canvas>
+         <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
+         <div class="portrait-actions"><button id="portrait-okay" type="submit" disabled>OK</button><button id="portrait-cancel" type="button">CANCEL</button></div>
+       </form>
+     </dialog>
+     <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
       <form id="character-from-folder-form">
         <h2 id="character-from-folder-title">NEW FROM ANIMATION FOLDER</h2>
         <p class="page-copy">Choose a folder with all 12 idle, walk, and talking animations.</p>
@@ -78,18 +97,30 @@ export function mountCharacters(root: HTMLElement): () => void {
   </section>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
-  const $ = <T extends Element>(selector: string): T => {
+  const get$ = <T extends Element>(selector: string): T => {
     const node = root.querySelector<T>(selector);
     if (!node) throw new Error(`Missing ${selector}`);
     return node;
   };
-  const list = $<HTMLElement>('#character-list');
-  const search = $<HTMLInputElement>('#character-search');
-  const status = $<HTMLElement>('#character-status');
-  const states = $<HTMLElement>('#character-states');
-  const custom = $<HTMLElement>('#character-custom');
-  const previewState = $<HTMLSelectElement>('#character-preview-state');
-  const canvas = $<HTMLCanvasElement>('#character-canvas');
+  const list = get$<HTMLElement>('#character-list');
+  const search = get$<HTMLInputElement>('#character-search');
+  const status = get$<HTMLElement>('#character-status');
+  const states = get$<HTMLElement>('#character-states');
+  const custom = get$<HTMLElement>('#character-custom');
+  const previewState = get$<HTMLSelectElement>('#character-preview-state');
+  const canvas = get$<HTMLCanvasElement>('#character-canvas');
+  const portraitDialog = get$<HTMLDialogElement>('#character-portrait-dialog');
+  const portraitForm = get$<HTMLFormElement>('#character-portrait-form');
+  const portraitEmotion = get$<HTMLInputElement>('#portrait-emotion');
+  const portraitDirection = get$<HTMLSelectElement>('#portrait-direction');
+  const portraitKind = get$<HTMLSelectElement>('#portrait-kind');
+  const portraitSearch = get$<HTMLInputElement>('#portrait-search');
+  const portraitResults = get$<HTMLElement>('#portrait-results');
+  const portraitFrame = get$<HTMLSelectElement>('#portrait-frame');
+  const portraitFrameLabel = get$<HTMLElement>('#portrait-frame-label');
+  const portraitCanvas = get$<HTMLCanvasElement>('#portrait-preview');
+  const portraitStatus = get$<HTMLElement>('#portrait-picker-status');
+  const portraitOkay = get$<HTMLButtonElement>('#portrait-okay');
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('Canvas unavailable');
   const ctx: CanvasRenderingContext2D = drawing;
@@ -98,27 +129,36 @@ export function mountCharacters(root: HTMLElement): () => void {
   let saving = false;
   let previewToken = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let portraitTimer: ReturnType<typeof setTimeout> | undefined;
+  let portraitToken = 0;
+  let portraitEditIndex: number | undefined;
+  let portraitCharacterId: string | undefined;
+  let portraitChoice: { kind: 'sprite' | 'animation'; id: string; index: number } | undefined;
   let files: string[] = [];
   let characterLabels: Record<string, string> = {};
   let clips: string[] = [];
+  let spriteFiles: string[] = [];
+  let spriteLabels: Record<string, string> = {};
   let clipLabels: Record<string, string> = {};
   let animationFolders: AssetFolders = { folders: [], placements: {} };
   let palette: PaletteDocument | null = null;
+  const portraitSprites = new Map<string, Promise<SpriteDocument>>();
+  const portraitAnimations = new Map<string, Promise<AnimationDocument>>();
   let current: CharacterDocument | null = null;
   let saved: CharacterDocument | null = null;
   const storedTabs = readCharacterTabs(localStorage);
   let openTabs = storedTabs.tabs;
   const sessions = new Map<string, CharacterTabSession>(Object.entries(storedTabs.drafts));
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
-  const tabDirty = (id: string) => {
+  const isTabDirty = (id: string) => {
     const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
     return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.saved);
   };
-  const message = (error: unknown) =>
+  const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Character request failed';
   setDirtyGuard(
     async () =>
-      !openTabs.some(tabDirty) || confirmModal('Discard unsaved character changes?', 'DISCARD'),
+      !openTabs.some(isTabDirty) || confirmModal('Discard unsaved character changes?', 'DISCARD'),
   );
 
   function persistTabs(): void {
@@ -144,7 +184,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     persistTimer = setTimeout(persistTabs, 400);
   }
   function renderTabs(): void {
-    const host = $<HTMLElement>('#character-tabs');
+    const host = get$<HTMLElement>('#character-tabs');
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -158,7 +198,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
-      tab.classList.toggle('dirty', tabDirty(id));
+      tab.classList.toggle('dirty', isTabDirty(id));
       const label = document.createElement('button');
       label.type = 'button';
       label.className = 'prop-tab-label';
@@ -188,6 +228,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
   }
   function activateCharacter(doc: CharacterDocument, baseline: CharacterDocument | null): void {
+    if (portraitDialog.open) portraitDialog.close();
     if (current) sessions.set(current.id, { doc: current, saved });
     sessions.delete(doc.id);
     current = doc;
@@ -199,9 +240,9 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
   async function closeTab(id: string): Promise<void> {
     if (!openTabs.includes(id) || saving) return;
-    if (tabDirty(id) && !(await confirmModal('Discard unsaved character changes?', 'DISCARD')))
+    if (isTabDirty(id) && !(await confirmModal('Discard unsaved character changes?', 'DISCARD')))
       return;
-    const next = neighborCharacterTab(openTabs, id);
+    const next = getNeighborCharacterTab(openTabs, id);
     openTabs = openTabs.filter((tab) => tab !== id);
     sessions.delete(id);
     if (current?.id === id) {
@@ -233,7 +274,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
   }
 
-  function stateRow(name: string, animation: string, extra: boolean): HTMLElement {
+  function getStateRow(name: string, animation: string, extra: boolean): HTMLElement {
     const row = document.createElement('div');
     row.className = 'character-state-row';
     const label = document.createElement('label');
@@ -288,12 +329,12 @@ export function mountCharacters(root: HTMLElement): () => void {
     renderList();
     renderTabs();
     scheduleTabs();
-    $<HTMLElement>('#character-fields').hidden = !current;
-    $<HTMLButtonElement>('#save-character').disabled = !current;
-    $<HTMLButtonElement>('#rename-character').disabled = !current;
-    $<HTMLButtonElement>('#delete-character').disabled = !current;
-    $<HTMLElement>('#character-id').textContent = current?.label ?? 'NO CHARACTER';
-    $<HTMLElement>('#character-stable-id').textContent = current ? `ID ${current.id}` : '';
+    get$<HTMLElement>('#character-fields').hidden = !current;
+    get$<HTMLButtonElement>('#save-character').disabled = !current;
+    get$<HTMLButtonElement>('#rename-character').disabled = !current;
+    get$<HTMLButtonElement>('#delete-character').disabled = !current;
+    get$<HTMLElement>('#character-id').textContent = current?.label ?? 'NO CHARACTER';
+    get$<HTMLElement>('#character-stable-id').textContent = current ? `ID ${current.id}` : '';
     states.replaceChildren();
     custom.replaceChildren();
     const selected = previewState.value;
@@ -302,7 +343,31 @@ export function mountCharacters(root: HTMLElement): () => void {
       restartPreview();
       return;
     }
-    $<HTMLSelectElement>('#character-facing').value = current.defaultFacing;
+    get$<HTMLSelectElement>('#character-facing').value = current.defaultFacing;
+    get$<HTMLInputElement>('#character-script-name').value = current.scriptName ?? '';
+    const portraitHost = get$<HTMLElement>('#character-portraits');
+    portraitHost.replaceChildren();
+    for (const [index, entry] of (current.portraits ?? []).entries()) {
+      const row = document.createElement('div');
+      row.className = 'character-state-row';
+      const description = document.createElement('span');
+      description.className = 'portrait-entry-description';
+      description.textContent = `${entry.emotion || 'Default'} · ${entry.facing.toUpperCase()} · ${getPortraitAssetLabel(entry.portrait, spriteLabels, clipLabels)}`;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'EDIT';
+      edit.addEventListener('click', () => void openPortraitPicker(index));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'REMOVE';
+      remove.addEventListener('click', () => {
+        if (!current) return;
+        current.portraits = current.portraits?.filter((portrait) => portrait !== entry);
+        render();
+      });
+      row.append(description, edit, remove);
+      portraitHost.append(row);
+    }
     const movement = document.createElement('div');
     movement.className = 'character-state-column';
     const talking = document.createElement('div');
@@ -315,7 +380,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       const heading = document.createElement('h3');
       heading.textContent = group;
       column.append(heading);
-      for (const state of names) column.append(stateRow(state, current.animations[state], false));
+      for (const state of names) column.append(getStateRow(state, current.animations[state], false));
     }
     states.append(movement, talking);
     const invisible = document.createElement('div');
@@ -323,7 +388,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     invisible.textContent = 'INVISIBLE · no animation';
     custom.append(invisible);
     for (const [name, id] of Object.entries(current.customAnimations)) {
-      const row = stateRow(name, id, true);
+      const row = getStateRow(name, id, true);
       if (name === 'invisible')
         row.querySelector('label')?.prepend('LEGACY INVISIBLE ANIMATION (NOT USED) · ');
       custom.append(row);
@@ -354,8 +419,8 @@ export function mountCharacters(root: HTMLElement): () => void {
     const character = current;
     if (!character) return;
     const state = previewState.value;
-    const info = $<HTMLElement>('#character-preview-info');
-    const editLink = $<HTMLAnchorElement>('#character-edit-animation');
+    const info = get$<HTMLElement>('#character-preview-info');
+    const editLink = get$<HTMLAnchorElement>('#character-edit-animation');
     editLink.hidden = state === 'invisible';
     if (state === 'invisible') {
       info.textContent = 'Invisible · no animation';
@@ -405,16 +470,16 @@ export function mountCharacters(root: HTMLElement): () => void {
             );
             const x0 = Math.floor((canvas.width - sprite.width * cell.width) / 2);
             const y0 = Math.floor((canvas.height - sprite.height * cell.height) / 2);
-            const flips = animationFrameFlips(clip, frame);
+            const flips = getAnimationFrameFlips(clip, frame);
             flattenSprite(sprite, frame.index).forEach((entry, at) => {
               const column = at % sprite.width;
               const row = Math.floor(at / sprite.width);
               const x = x0 + (flips.flipH ? sprite.width - 1 - column : column) * cell.width;
               const y = y0 + (flips.flipV ? sprite.height - 1 - row : row) * cell.height;
-              ctx.fillStyle = palette ? (paletteRgb(palette, entry.bg) ?? '#000') : '#000';
+              ctx.fillStyle = palette ? (getPaletteRgb(palette, entry.bg) ?? '#000') : '#000';
               fillTerminalCell(ctx, cell, x, y);
               if (entry.ch !== ' ') {
-                ctx.fillStyle = palette ? (paletteRgb(palette, entry.fg) ?? '#fff') : '#fff';
+                ctx.fillStyle = palette ? (getPaletteRgb(palette, entry.fg) ?? '#fff') : '#fff';
                 drawTerminalGlyph(ctx, cell, entry.ch, x, y);
               }
             });
@@ -424,34 +489,224 @@ export function mountCharacters(root: HTMLElement): () => void {
             index = (index + 1) % clip.frames.length;
             timer = setTimeout(() => {
               void draw().catch((error: unknown) => {
-                if (alive && token === previewToken) info.textContent = message(error);
+                if (alive && token === previewToken) info.textContent = showMessage(error);
               });
             }, frame.durationMs);
           }
         };
         await draw();
       } catch (error) {
-        if (alive && token === previewToken) info.textContent = message(error);
+        if (alive && token === previewToken) info.textContent = showMessage(error);
       }
     })();
   }
 
+  function getPortraitSprite(id: string): Promise<SpriteDocument> {
+    let pending = portraitSprites.get(id);
+    if (!pending) {
+      pending = requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`);
+      portraitSprites.set(id, pending);
+    }
+    return pending;
+  }
+
+  function getPortraitAnimation(id: string): Promise<AnimationDocument> {
+    let pending = portraitAnimations.get(id);
+    if (!pending) {
+      pending = requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`);
+      portraitAnimations.set(id, pending);
+    }
+    return pending;
+  }
+
+  async function drawPortraitSprite(
+    target: HTMLCanvasElement,
+    sprite: SpriteDocument,
+    index: number,
+    flips: { flipH: boolean; flipV: boolean } = { flipH: false, flipV: false },
+  ): Promise<void> {
+    const drawing = target.getContext('2d');
+    if (!drawing) return;
+    await document.fonts.ready;
+    if (!alive || !target.isConnected || !portraitDialog.open) return;
+    drawing.fillStyle = '#000';
+    drawing.fillRect(0, 0, target.width, target.height);
+    const native = terminalCellAtZoom(drawing, 1, sprite.font);
+    const scale = Math.max(0.1, Math.min(4, (target.width - 12) / (sprite.width * native.width),
+      (target.height - 12) / (sprite.height * native.height)));
+    const cell = terminalCellAtZoom(drawing, scale, sprite.font);
+    const x0 = (target.width - sprite.width * cell.width) / 2;
+    const y0 = (target.height - sprite.height * cell.height) / 2;
+    flattenSprite(sprite, index).forEach((entry, at) => {
+      const column = at % sprite.width;
+      const row = Math.floor(at / sprite.width);
+      const x = x0 + (flips.flipH ? sprite.width - 1 - column : column) * cell.width;
+      const y = y0 + (flips.flipV ? sprite.height - 1 - row : row) * cell.height;
+      drawing.fillStyle = palette ? (getPaletteRgb(palette, entry.bg) ?? '#000') : '#000';
+      fillTerminalCell(drawing, cell, x, y);
+      if (entry.ch !== ' ') {
+        drawing.fillStyle = palette ? (getPaletteRgb(palette, entry.fg) ?? '#fff') : '#fff';
+        drawTerminalGlyph(drawing, cell, entry.ch, x, y);
+      }
+    });
+  }
+
+  async function drawPortraitAssetThumbnail(
+    canvas: HTMLCanvasElement,
+    kind: 'sprite' | 'animation',
+    id: string,
+  ): Promise<void> {
+    if (kind === 'sprite') return drawPortraitSprite(canvas, await getPortraitSprite(id), 0);
+    const animation = await getPortraitAnimation(id);
+    const frame = animation.frames.find((entry) => !isInvisibleFrame(entry));
+    if (!frame || isInvisibleFrame(frame)) return;
+    await drawPortraitSprite(canvas, await getPortraitSprite(frame.sprite), frame.index,
+      getAnimationFrameFlips(animation, frame));
+  }
+
+  function renderPortraitResults(): void {
+    portraitResults.replaceChildren();
+    if (!portraitDialog.open) return;
+    const kind = portraitKind.value as 'sprite' | 'animation';
+    const query = portraitSearch.value.trim().toLowerCase();
+    const ids = kind === 'sprite' ? spriteFiles : clips;
+    const labels = kind === 'sprite' ? spriteLabels : clipLabels;
+    const matches = ids.filter((id) =>
+      id.toLowerCase().includes(query) || (labels[id] ?? '').toLowerCase().includes(query));
+    for (const id of matches.slice(0, 36)) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'portrait-asset-card';
+      button.classList.toggle('active', portraitChoice?.kind === kind && portraitChoice.id === id);
+      button.setAttribute('aria-label', `${labels[id] ?? id} (${kind})`);
+      const thumbnail = document.createElement('canvas');
+      thumbnail.width = 96;
+      thumbnail.height = 60;
+      const title = document.createElement('span');
+      title.textContent = labels[id] ?? 'Unnamed asset';
+      button.append(thumbnail, title);
+      button.addEventListener('click', () => {
+        portraitResults.querySelectorAll('.portrait-asset-card').forEach((card) => {
+          card.classList.toggle('active', card === button);
+        });
+        void showPortraitChoice({ kind, id, index: 0 });
+      });
+      portraitResults.append(button);
+      void drawPortraitAssetThumbnail(thumbnail, kind, id).catch(() => {
+        title.textContent = `${labels[id] ?? id} (unavailable)`;
+      });
+    }
+    if (!matches.length) portraitResults.textContent = 'No matching assets.';
+  }
+
+  async function showPortraitChoice(choice: { kind: 'sprite' | 'animation'; id: string; index: number }): Promise<void> {
+    portraitChoice = choice;
+    const token = ++portraitToken;
+    clearTimeout(portraitTimer);
+    portraitOkay.disabled = true;
+    portraitFrameLabel.hidden = true;
+    const drawing = portraitCanvas.getContext('2d');
+    if (drawing) {
+      drawing.fillStyle = '#000';
+      drawing.fillRect(0, 0, portraitCanvas.width, portraitCanvas.height);
+    }
+    portraitStatus.textContent = `Loading ${(choice.kind === 'sprite' ? spriteLabels : clipLabels)[choice.id] ?? 'asset'}…`;
+    try {
+      if (choice.kind === 'sprite') {
+        const sprite = await getPortraitSprite(choice.id);
+        if (!alive || !portraitDialog.open || token !== portraitToken) return;
+        portraitFrame.replaceChildren();
+        for (let index = 0; index < sprite.sprites.length; index++)
+          portraitFrame.append(new Option(`FRAME ${index + 1}`, String(index)));
+        if (!sprite.sprites[choice.index]) choice.index = 0;
+        portraitFrame.value = String(choice.index);
+        portraitFrameLabel.hidden = sprite.sprites.length <= 1;
+        portraitOkay.disabled = sprite.sprites.length === 0;
+        portraitStatus.textContent = `${sprite.label} · frame ${choice.index + 1} / ${sprite.sprites.length}`;
+        await drawPortraitSprite(portraitCanvas, sprite, choice.index);
+      } else {
+        const animation = await getPortraitAnimation(choice.id);
+        if (!alive || !portraitDialog.open || token !== portraitToken) return;
+        portraitOkay.disabled = !animation.frames.some((frame) => !isInvisibleFrame(frame));
+        let index = 0;
+        const drawFrame = async (): Promise<void> => {
+          if (!alive || !portraitDialog.open || token !== portraitToken) return;
+          const frame = animation.frames[index];
+          if (!frame) return;
+          if (!isInvisibleFrame(frame))
+            await drawPortraitSprite(portraitCanvas, await getPortraitSprite(frame.sprite), frame.index,
+              getAnimationFrameFlips(animation, frame));
+          else {
+            const preview = portraitCanvas.getContext('2d');
+            preview?.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
+          }
+          if (!alive || !portraitDialog.open || token !== portraitToken) return;
+          portraitStatus.textContent = `${animation.label} · frame ${index + 1} / ${animation.frames.length}`;
+          if (index < animation.frames.length - 1 || animation.loop) {
+            index = (index + 1) % animation.frames.length;
+            portraitTimer = setTimeout(() => void drawFrame().catch((error: unknown) => {
+              portraitStatus.textContent = showMessage(error);
+              portraitOkay.disabled = true;
+            }), frame.durationMs);
+          }
+        };
+        await drawFrame();
+      }
+    } catch (error) {
+      if (alive && portraitDialog.open && token === portraitToken) {
+        portraitStatus.textContent = showMessage(error);
+        portraitOkay.disabled = true;
+      }
+    }
+  }
+
+  function openPortraitPicker(index?: number): void {
+    if (!current || portraitDialog.open || (index === undefined && (current.portraits?.length ?? 0) >= 128)) return;
+    portraitEditIndex = index;
+    portraitCharacterId = current.id;
+    const entry = index === undefined ? undefined : current.portraits?.[index];
+    get$<HTMLElement>('#character-portrait-title').textContent = entry ? 'EDIT PORTRAIT' : 'ADD PORTRAIT';
+    portraitEmotion.value = entry?.emotion ?? '';
+    portraitDirection.value = entry?.facing ?? 'right';
+    const spriteMatch = entry && /^(.+)_(\d+)$/.exec(entry.portrait);
+    const isSprite = !!spriteMatch && spriteFiles.includes(spriteMatch[1]) && !clips.includes(entry.portrait);
+    portraitKind.value = entry && !isSprite ? 'animation' : 'sprite';
+    portraitSearch.value = '';
+    portraitChoice = undefined;
+    portraitOkay.disabled = true;
+    portraitFrameLabel.hidden = true;
+    portraitStatus.textContent = 'Select a sprite or animation.';
+    portraitDialog.showModal();
+    renderPortraitResults();
+    if (entry) {
+      const choice = isSprite && spriteMatch
+        ? { kind: 'sprite' as const, id: spriteMatch[1], index: Number(spriteMatch[2]) }
+        : { kind: 'animation' as const, id: entry.portrait, index: 0 };
+      void showPortraitChoice(choice);
+      renderPortraitResults();
+    }
+    portraitEmotion.focus();
+  }
+
   async function refresh(): Promise<void> {
-    const [characters, animations, colors, folders] = await Promise.all([
+    const [characters, animations, sprites, colors, folders] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/characters'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
       requestJson<AssetFolders>('/api/animation-folders'),
     ]);
     if (!alive) return;
     files = characters.files;
     openTabs = openTabs.filter(
-      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
     for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     characterLabels = characters.labels;
     clips = animations.files;
     clipLabels = animations.labels;
+    spriteFiles = sprites.files;
+    spriteLabels = sprites.labels;
     animationFolders = folders;
     palette = colors;
     renderFolderPicker();
@@ -473,7 +728,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       activateCharacter(doc, structuredClone(doc));
       status.textContent = `Opened ${id}`;
     } catch (error) {
-      if (alive && token === loading) status.textContent = message(error);
+      if (alive && token === loading) status.textContent = showMessage(error);
     }
   }
 
@@ -498,9 +753,9 @@ export function mountCharacters(root: HTMLElement): () => void {
       }
     } catch (error) {
       if (alive) {
-        status.textContent = message(error);
+        status.textContent = showMessage(error);
         if (error instanceof ApiError && error.status === 409)
-          await alertModal(`${message(error)}. Your unsaved character is still open.`);
+          await alertModal(`${showMessage(error)}. Your unsaved character is still open.`);
       }
     } finally {
       saving = false;
@@ -508,7 +763,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
 
   search.addEventListener('input', renderList);
-  const folderPicker = $<HTMLElement>('#character-folder-picker');
+  const folderPicker = get$<HTMLElement>('#character-folder-picker');
   function renderFolderPicker(): void {
     const previous = folderPicker.querySelector<HTMLInputElement>('input')?.value ?? '';
     folderPicker.replaceChildren(
@@ -522,15 +777,15 @@ export function mountCharacters(root: HTMLElement): () => void {
     );
   }
   renderFolderPicker();
-  const fromFolderDialog = $<HTMLDialogElement>('#character-from-folder-dialog');
-  const fromFolderPicker = $<HTMLElement>('#new-character-folder-picker');
-  const newCharacterLabel = $<HTMLInputElement>('#new-character-label');
-  const fromFolderError = $<HTMLElement>('#character-from-folder-error');
+  const fromFolderDialog = get$<HTMLDialogElement>('#character-from-folder-dialog');
+  const fromFolderPicker = get$<HTMLElement>('#new-character-folder-picker');
+  const newCharacterLabel = get$<HTMLInputElement>('#new-character-label');
+  const fromFolderError = get$<HTMLElement>('#character-from-folder-error');
   function showFolderError(text: string): void {
     fromFolderError.textContent = text;
     fromFolderError.hidden = false;
   }
-  $<HTMLButtonElement>('#new-character-from-folder').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#new-character-from-folder').addEventListener('click', () => {
     void (async () => {
       try {
         await refresh();
@@ -555,24 +810,24 @@ export function mountCharacters(root: HTMLElement): () => void {
         fromFolderDialog.showModal();
         fromFolderPicker.querySelector('input')?.focus();
       } catch (error) {
-        status.textContent = message(error);
+        status.textContent = showMessage(error);
       }
     })();
   });
-  $<HTMLButtonElement>('#cancel-character-from-folder').addEventListener('click', () =>
+  get$<HTMLButtonElement>('#cancel-character-from-folder').addEventListener('click', () =>
     fromFolderDialog.close(),
   );
-  $<HTMLFormElement>('#character-from-folder-form').addEventListener('submit', (event) => {
+  get$<HTMLFormElement>('#character-from-folder-form').addEventListener('submit', (event) => {
     event.preventDefault();
     void (async () => {
       const folder = fromFolderPicker.querySelector<HTMLInputElement>('input')?.value.trim() ?? '';
       const label = newCharacterLabel.value.trim();
       if (!animationFolders.folders.includes(folder))
         return showFolderError('Select an existing animation folder.');
-      const labelError = characterLabelError(label);
+      const labelError = getCharacterLabelError(label);
       if (labelError) return showFolderError(labelError);
       const id = crypto.randomUUID();
-      const result = characterFromAnimationFolder(id, folder, animationFolders, clipLabels);
+      const result = getCharacterFromAnimationFolder(id, folder, animationFolders, clipLabels);
       if (!result.character)
         return showFolderError(
           [
@@ -590,7 +845,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       status.textContent = `New character ${label} from ${folder} · save to keep it`;
     })();
   });
-  $<HTMLButtonElement>('#character-fill-folder').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#character-fill-folder').addEventListener('click', () => {
     if (!current) return;
     const folder = folderPicker.querySelector<HTMLInputElement>('input')?.value.trim() ?? '';
     if (!animationFolders.folders.includes(folder)) {
@@ -603,14 +858,69 @@ export function mountCharacters(root: HTMLElement): () => void {
     status.textContent = `Assigned ${result.matched} of ${CHARACTER_STATES.length} animations from ${folder}.${result.ambiguous.length ? ` Ambiguous: ${result.ambiguous.join(', ')}.` : ''}`;
   });
   previewState.addEventListener('change', restartPreview);
-  $<HTMLSelectElement>('#character-facing').addEventListener('change', (event) => {
+  get$<HTMLSelectElement>('#character-facing').addEventListener('change', (event) => {
     if (!current) return;
     current.defaultFacing = (event.target as HTMLSelectElement)
       .value as CharacterDocument['defaultFacing'];
     renderTabs();
     scheduleTabs();
   });
-  $<HTMLButtonElement>('#add-character-state').addEventListener('click', () => {
+  get$<HTMLInputElement>('#character-script-name').addEventListener('input', (event) => {
+    if (!current) return;
+    current.scriptName = (event.target as HTMLInputElement).value.trim() || undefined;
+    scheduleTabs();
+  });
+  get$<HTMLButtonElement>('#add-character-portrait').addEventListener('click', () => {
+    openPortraitPicker();
+  });
+  portraitKind.addEventListener('change', () => {
+    portraitChoice = undefined;
+    ++portraitToken;
+    clearTimeout(portraitTimer);
+    portraitOkay.disabled = true;
+    portraitFrameLabel.hidden = true;
+    portraitSearch.value = '';
+    portraitSearch.placeholder = portraitKind.value === 'sprite' ? 'Search sprites…' : 'Search animations…';
+    portraitStatus.textContent = 'Select a sprite or animation.';
+    portraitCanvas.getContext('2d')?.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
+    renderPortraitResults();
+  });
+  portraitSearch.addEventListener('input', renderPortraitResults);
+  portraitFrame.addEventListener('change', () => {
+    if (portraitChoice?.kind === 'sprite')
+      void showPortraitChoice({ ...portraitChoice, index: Number(portraitFrame.value) });
+  });
+  portraitForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!current || current.id !== portraitCharacterId || !portraitChoice || portraitOkay.disabled) return;
+    const emotion = portraitEmotion.value.trim();
+    const facing = portraitDirection.value as 'left' | 'right';
+    if (!/^[\w-]*$/.test(emotion)) {
+      portraitStatus.textContent = 'Emotion must use letters, numbers, hyphens or underscores.';
+      return;
+    }
+    if (current.portraits?.some((entry, index) =>
+      index !== portraitEditIndex && entry.facing === facing && entry.emotion === emotion)) {
+      portraitStatus.textContent = `A ${facing} portrait for ${emotion || 'the default emotion'} already exists.`;
+      return;
+    }
+    const portrait = portraitChoice.kind === 'sprite'
+      ? `${portraitChoice.id}_${portraitChoice.index}` : portraitChoice.id;
+    const assignment = { emotion, facing, portrait };
+    if (!current.portraits) current.portraits = [];
+    if (portraitEditIndex === undefined) current.portraits.push(assignment);
+    else current.portraits[portraitEditIndex] = assignment;
+    portraitDialog.close();
+    render();
+  });
+  get$<HTMLButtonElement>('#portrait-cancel').addEventListener('click', () => portraitDialog.close());
+  portraitDialog.addEventListener('close', () => {
+    ++portraitToken;
+    clearTimeout(portraitTimer);
+    portraitChoice = undefined;
+    portraitCharacterId = undefined;
+  });
+  get$<HTMLButtonElement>('#add-character-state').addEventListener('click', () => {
     void (async () => {
       if (!current) return;
       const id = await askId('Custom state name');
@@ -628,11 +938,11 @@ export function mountCharacters(root: HTMLElement): () => void {
       render();
     })();
   });
-  $<HTMLButtonElement>('#new-character').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#new-character').addEventListener('click', () => {
     void (async () => {
       const entered = await askId('New character label');
       if (entered === null) return;
-      const labelError = characterLabelError(entered);
+      const labelError = getCharacterLabelError(entered);
       if (labelError) return void alertModal(labelError);
       if (!clips.length) return void alertModal('Create an animation before creating a character');
       if (!alive) return;
@@ -642,20 +952,20 @@ export function mountCharacters(root: HTMLElement): () => void {
       status.textContent = `New character ${entered}`;
     })();
   });
-  $<HTMLButtonElement>('#rename-character').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#rename-character').addEventListener('click', () => {
     void (async () => {
       const character = current;
       if (!character) return;
       const entered = await askAssetMeta('CHARACTER', character.label, character.id);
       if (entered === null || !alive || current !== character) return;
-      const error = characterLabelError(entered);
+      const error = getCharacterLabelError(entered);
       if (error) return void alertModal(error);
       character.label = entered.trim();
       render();
     })();
   });
-  $<HTMLButtonElement>('#save-character').addEventListener('click', () => void save());
-  $<HTMLButtonElement>('#delete-character').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#save-character').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#delete-character').addEventListener('click', () => {
     void (async () => {
       if (!current || !(await confirmModal(`Delete ${current.id}?`, 'DELETE'))) return;
       const id = current.id;
@@ -675,7 +985,7 @@ export function mountCharacters(root: HTMLElement): () => void {
         if (next) await open(next);
         else persistTabs();
       } catch (error) {
-        if (alive) status.textContent = message(error);
+        if (alive) status.textContent = showMessage(error);
       }
     })();
   });
@@ -704,14 +1014,17 @@ export function mountCharacters(root: HTMLElement): () => void {
       }
     })
     .catch((error: unknown) => {
-      if (alive) status.textContent = message(error);
+      if (alive) status.textContent = showMessage(error);
     });
   return () => {
     alive = false;
     persistTabs();
     ++loading;
     ++previewToken;
+    ++portraitToken;
     clearTimeout(timer);
+    clearTimeout(portraitTimer);
+    if (portraitDialog.open) portraitDialog.close();
     document.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);

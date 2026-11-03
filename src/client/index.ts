@@ -22,7 +22,7 @@ const client = connectGameClient(url, {
   onOpen() {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
     if (process.stdout.isTTY) {
-      process.stdout.write('\x1b[?1049h\x1b[?25l');
+      process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
       alternateScreen = true;
     }
     process.stderr.write('Incanterm client. Ctrl-C exits.\n');
@@ -63,7 +63,8 @@ function sendResize(): void {
 function stop(code: number): void {
   if (stopped) return;
   stopped = true;
-  if (alternateScreen) process.stdout.write('\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l');
+  if (alternateScreen)
+    process.stdout.write('\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l');
   if (process.stdin.isTTY) process.stdin.setRawMode(false);
   process.stdin.pause();
   client.close();

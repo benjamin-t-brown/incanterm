@@ -1,10 +1,10 @@
-import { paletteRgb, type PaletteDocument } from '../../palette.js';
+import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import {
   createProp,
   flattenSprite,
   isAssetId,
   isInvisibleFrame,
-  animationFrameFlips,
+  getAnimationFrameFlips,
   type AnimationDocument,
   type PropDocument,
   type PropVisual,
@@ -13,15 +13,15 @@ import {
 } from '../../schema.js';
 import {
   preloadSpriteFonts,
-  spriteFontFamily,
-  spriteFontNativePx,
+  getSpriteFontFamily,
+  getSpriteFontNativePx,
   terminalCellAtZoom,
-  terminalFont,
+  getTerminalFont,
 } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
 import {
-  neighborPropTab,
+  getNeighborPropTab,
   OPEN_PROPS_KEY,
   readPropTabs,
   type PropTabSession,
@@ -34,17 +34,17 @@ import {
   type BlockPreviewGrid,
 } from '../../props/prop-blocking.js';
 import {
-  animationsUsingSheet,
+  getAnimationsUsingSheet,
   propVisualEditHref,
-  propVisualSize,
+  getPropVisualSize,
 } from '../../props/prop-picker.js';
 import { ApiError, requestJson } from '../api.js';
 import { alertModal, confirmModal } from '../modal.js';
 import { saveDraft } from '../save.js';
-import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 
 export function mountProps(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Props',
     `<aside class="anim-library prop-library" aria-label="Props">
       <input id="prop-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search props" autocomplete="off" spellcheck="false">
@@ -88,23 +88,23 @@ export function mountProps(root: HTMLElement): () => void {
     </dialog>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
-  const $ = <T extends Element>(selector: string): T => {
+  const get$ = <T extends Element>(selector: string): T => {
     const element = root.querySelector<T>(selector);
     if (!element) throw new Error(`Missing ${selector}`);
     return element;
   };
-  const search = $<HTMLInputElement>('#prop-search');
-  const list = $<HTMLElement>('#prop-list');
-  const status = $<HTMLElement>('#prop-status');
-  const fields = $<HTMLElement>('#prop-fields');
-  const visualType = $<HTMLSelectElement>('#prop-visual-type');
-  const picker = $<HTMLDialogElement>('#prop-asset-dialog');
-  const pickerSearch = $<HTMLInputElement>('#prop-picker-search');
-  const pickerSheets = $<HTMLElement>('#prop-picker-sheets');
-  const pickerResults = $<HTMLElement>('#prop-picker-results');
-  const pickerStatus = $<HTMLElement>('#prop-picker-status');
-  const pickerOk = $<HTMLButtonElement>('#prop-picker-ok');
-  const canvas = $<HTMLCanvasElement>('#prop-canvas');
+  const search = get$<HTMLInputElement>('#prop-search');
+  const list = get$<HTMLElement>('#prop-list');
+  const status = get$<HTMLElement>('#prop-status');
+  const fields = get$<HTMLElement>('#prop-fields');
+  const visualType = get$<HTMLSelectElement>('#prop-visual-type');
+  const picker = get$<HTMLDialogElement>('#prop-asset-dialog');
+  const pickerSearch = get$<HTMLInputElement>('#prop-picker-search');
+  const pickerSheets = get$<HTMLElement>('#prop-picker-sheets');
+  const pickerResults = get$<HTMLElement>('#prop-picker-results');
+  const pickerStatus = get$<HTMLElement>('#prop-picker-status');
+  const pickerOk = get$<HTMLButtonElement>('#prop-picker-ok');
+  const canvas = get$<HTMLCanvasElement>('#prop-canvas');
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('Canvas is unavailable');
   const context: CanvasRenderingContext2D = drawing;
@@ -143,15 +143,15 @@ export function mountProps(root: HTMLElement): () => void {
   } | null = null;
   const sheetCache = new Map<string, Promise<SpriteDocument>>();
 
-  const tabDirty = (id: string) => {
+  const isTabDirty = (id: string) => {
     const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
     return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.saved);
   };
   setDirtyGuard(
     async () =>
-      !openTabs.some(tabDirty) || confirmModal('Discard unsaved prop changes?', 'DISCARD'),
+      !openTabs.some(isTabDirty) || confirmModal('Discard unsaved prop changes?', 'DISCARD'),
   );
-  const message = (error: unknown) =>
+  const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Prop request failed';
 
   function toast(text: string, error = false): void {
@@ -169,7 +169,7 @@ export function mountProps(root: HTMLElement): () => void {
     close.textContent = '×';
     close.addEventListener('click', () => item.remove());
     item.append(icon, label, close);
-    $<HTMLElement>('#toast-stack').append(item);
+    get$<HTMLElement>('#toast-stack').append(item);
     setTimeout(() => item.remove(), 4000);
   }
 
@@ -196,7 +196,7 @@ export function mountProps(root: HTMLElement): () => void {
     persistTimer = setTimeout(persistTabs, 400);
   }
   function renderTabs(): void {
-    const host = $<HTMLElement>('#prop-tabs');
+    const host = get$<HTMLElement>('#prop-tabs');
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -210,7 +210,7 @@ export function mountProps(root: HTMLElement): () => void {
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
-      tab.classList.toggle('dirty', tabDirty(id));
+      tab.classList.toggle('dirty', isTabDirty(id));
       const label = document.createElement('button');
       label.type = 'button';
       label.className = 'prop-tab-label';
@@ -248,8 +248,8 @@ export function mountProps(root: HTMLElement): () => void {
   }
   async function closeTab(id: string): Promise<void> {
     if (!openTabs.includes(id) || saving) return;
-    if (tabDirty(id) && !(await confirmModal('Discard unsaved prop changes?', 'DISCARD'))) return;
-    const next = neighborPropTab(openTabs, id);
+    if (isTabDirty(id) && !(await confirmModal('Discard unsaved prop changes?', 'DISCARD'))) return;
+    const next = getNeighborPropTab(openTabs, id);
     openTabs = openTabs.filter((tab) => tab !== id);
     sessions.delete(id);
     if (current?.id === id) {
@@ -292,7 +292,7 @@ export function mountProps(root: HTMLElement): () => void {
     const pending = requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`)
       .then(async (sprite) => {
         await document.fonts
-          .load(terminalFont(spriteFontNativePx(sprite.font), spriteFontFamily(sprite.font)))
+          .load(getTerminalFont(getSpriteFontNativePx(sprite.font), getSpriteFontFamily(sprite.font)))
           .catch(() => undefined);
         return sprite;
       })
@@ -304,8 +304,8 @@ export function mountProps(root: HTMLElement): () => void {
     return pending;
   }
 
-  function visualSize(visual: PropVisual): Promise<{ width: number; height: number } | null> {
-    return propVisualSize(visual, loadSheet, (id) => {
+  function getVisualSize(visual: PropVisual): Promise<{ width: number; height: number } | null> {
+    return getPropVisualSize(visual, loadSheet, (id) => {
       const clip = pickerClips.find((animation) => animation.id === id);
       return clip
         ? Promise.resolve(clip)
@@ -324,7 +324,7 @@ export function mountProps(root: HTMLElement): () => void {
     const ctx = target.getContext('2d');
     if (!ctx || !palette) return;
     const colors = palette;
-    ctx.fillStyle = paletteRgb(colors, 'black') ?? '#000';
+    ctx.fillStyle = getPaletteRgb(colors, 'black') ?? '#000';
     ctx.fillRect(0, 0, target.width, target.height);
     if (index >= sprite.sprites.length) return;
     const native = terminalCellAtZoom(ctx, 1, sprite.font);
@@ -343,10 +343,10 @@ export function mountProps(root: HTMLElement): () => void {
       const row = Math.floor(at / sprite.width);
       const x = x0 + (flips?.flipH ? sprite.width - 1 - column : column) * cell.width;
       const y = y0 + (flips?.flipV ? sprite.height - 1 - row : row) * cell.height;
-      ctx.fillStyle = paletteRgb(colors, entry.bg) ?? '#000';
+      ctx.fillStyle = getPaletteRgb(colors, entry.bg) ?? '#000';
       fillTerminalCell(ctx, cell, x, y);
       if (entry.ch !== ' ') {
-        ctx.fillStyle = paletteRgb(colors, entry.fg) ?? '#fff';
+        ctx.fillStyle = getPaletteRgb(colors, entry.fg) ?? '#fff';
         drawTerminalGlyph(ctx, cell, entry.ch, x, y);
       }
     });
@@ -394,7 +394,7 @@ export function mountProps(root: HTMLElement): () => void {
     return {
       sprite: await loadSheet(first.sprite),
       index: first.index,
-      flips: animationFrameFlips(animation, first),
+      flips: getAnimationFrameFlips(animation, first),
     };
   }
 
@@ -430,7 +430,7 @@ export function mountProps(root: HTMLElement): () => void {
     if (!pickerSheet) return;
     const sheetId = pickerSheet;
     pickerStatus.textContent = 'Loading previews…';
-    const entries = pickerType === 'animation' ? animationsUsingSheet(pickerClips, sheetId) : [];
+    const entries = pickerType === 'animation' ? getAnimationsUsingSheet(pickerClips, sheetId) : [];
     if (pickerType === 'animation' && entries.length === 0) {
       pickerStatus.textContent = 'No animations use this sprite sheet.';
       return;
@@ -454,7 +454,7 @@ export function mountProps(root: HTMLElement): () => void {
           : entries.map(({ animation, frame }) => ({
               visual: { type: 'animation', id: animation.id },
               frame: frame.index,
-              flips: animationFrameFlips(animation, frame),
+              flips: getAnimationFrameFlips(animation, frame),
               title: animation.label,
             }));
       for (const item of items) {
@@ -487,7 +487,7 @@ export function mountProps(root: HTMLElement): () => void {
         !items.some((item) => JSON.stringify(item.visual) === JSON.stringify(pickerChoice));
       if (items.length === 0) pickerStatus.textContent = 'No sprites in this sheet.';
     } catch (error) {
-      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = message(error);
+      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = showMessage(error);
     }
   }
 
@@ -498,9 +498,9 @@ export function mountProps(root: HTMLElement): () => void {
     pickerSheet = null;
     pickerClips = [];
     pickerSearch.value = '';
-    $<HTMLElement>('#prop-picker-title').textContent =
+    get$<HTMLElement>('#prop-picker-title').textContent =
       type === 'sprite' ? 'CHOOSE SPRITE' : 'CHOOSE ANIMATION';
-    $<HTMLElement>('#prop-picker-results-title').textContent =
+    get$<HTMLElement>('#prop-picker-results-title').textContent =
       type === 'sprite' ? 'SPRITES' : 'ANIMATIONS';
     pickerStatus.textContent = 'Loading assets…';
     pickerResults.replaceChildren();
@@ -552,7 +552,7 @@ export function mountProps(root: HTMLElement): () => void {
           : pickerClips.some(
               (clip) =>
                 clip.id === existing.id &&
-                animationsUsingSheet([clip], pickerSheet ?? '').length > 0,
+                getAnimationsUsingSheet([clip], pickerSheet ?? '').length > 0,
             ))
       )
         pickerChoice = { ...existing };
@@ -560,7 +560,7 @@ export function mountProps(root: HTMLElement): () => void {
       if (!pickerSheet) pickerStatus.textContent = 'Create a sprite sheet first.';
       else void renderPickerResults();
     } catch (error) {
-      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = message(error);
+      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = showMessage(error);
     }
   }
 
@@ -596,12 +596,12 @@ export function mountProps(root: HTMLElement): () => void {
       }
     } catch (error) {
       previewFrame = null;
-      if (alive && token === previewToken) status.textContent = message(error);
+      if (alive && token === previewToken) status.textContent = showMessage(error);
     }
   }
 
   async function renderDefaultSize(): Promise<void> {
-    const hint = $<HTMLElement>('#prop-default-size');
+    const hint = get$<HTMLElement>('#prop-default-size');
     const visual = current?.visual;
     const token = ++defaultSizeToken;
     if (!visual) {
@@ -610,14 +610,14 @@ export function mountProps(root: HTMLElement): () => void {
     }
     hint.textContent = 'Default size: loading…';
     try {
-      const size = await visualSize(visual);
+      const size = await getVisualSize(visual);
       if (!alive || token !== defaultSizeToken) return;
       hint.textContent = size
         ? `Default size: ${size.width} × ${size.height} cells${visual.type === 'animation' ? ' (first visible frame)' : ''}`
         : 'Default size unavailable: animation has no visible frame.';
     } catch (error) {
       if (alive && token === defaultSizeToken)
-        hint.textContent = `Default size unavailable: ${message(error)}`;
+        hint.textContent = `Default size unavailable: ${showMessage(error)}`;
     }
   }
 
@@ -630,31 +630,31 @@ export function mountProps(root: HTMLElement): () => void {
     renderTabs();
     scheduleTabs();
     fields.hidden = !current;
-    $<HTMLButtonElement>('#save-prop').disabled = !current;
-    $<HTMLButtonElement>('#delete-prop').disabled = !current;
-    $<HTMLElement>('#prop-id').textContent = current?.id ?? 'NO PROP';
+    get$<HTMLButtonElement>('#save-prop').disabled = !current;
+    get$<HTMLButtonElement>('#delete-prop').disabled = !current;
+    get$<HTMLElement>('#prop-id').textContent = current?.id ?? 'NO PROP';
     if (!current) {
       ++defaultSizeToken;
       return;
     }
     visualType.value = current.visual.type;
-    $<HTMLElement>('#prop-visual-label').textContent =
+    get$<HTMLElement>('#prop-visual-label').textContent =
       current.visual.type === 'sprite'
         ? `${spriteLabels[current.visual.id] ?? current.visual.id} · frame ${current.visual.index + 1}`
         : (animationLabels[current.visual.id] ?? current.visual.id);
-    const editLink = $<HTMLAnchorElement>('#edit-prop-visual');
+    const editLink = get$<HTMLAnchorElement>('#edit-prop-visual');
     editLink.href = propVisualEditHref(current.visual);
     editLink.textContent =
       current.visual.type === 'sprite' ? 'EDIT SPRITESHEET ↗' : 'EDIT ANIMATION ↗';
-    $<HTMLInputElement>('#prop-width').value = String(current.width);
-    $<HTMLInputElement>('#prop-height').value = String(current.height);
-    $<HTMLElement>('#prop-block-count').textContent =
+    get$<HTMLInputElement>('#prop-width').value = String(current.width);
+    get$<HTMLInputElement>('#prop-height').value = String(current.height);
+    get$<HTMLElement>('#prop-block-count').textContent =
       `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
-    const showBlocksButton = $<HTMLButtonElement>('#prop-show-blocks');
+    const showBlocksButton = get$<HTMLButtonElement>('#prop-show-blocks');
     showBlocksButton.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
     showBlocksButton.setAttribute('aria-pressed', String(showBlocked));
-    $<HTMLInputElement>('#prop-ground').value = String(current.groundOffsetY);
-    $<HTMLInputElement>('#prop-depth').value = String(current.depthOffset);
+    get$<HTMLInputElement>('#prop-ground').value = String(current.groundOffsetY);
+    get$<HTMLInputElement>('#prop-depth').value = String(current.depthOffset);
     void renderDefaultSize();
     void drawPreview();
   }
@@ -669,7 +669,7 @@ export function mountProps(root: HTMLElement): () => void {
     if (!alive) return;
     files = props.files;
     openTabs = openTabs.filter(
-      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
     for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     sprites = sheets.files;
@@ -695,7 +695,7 @@ export function mountProps(root: HTMLElement): () => void {
       activateProp(prop, structuredClone(prop));
       status.textContent = `Opened ${id}`;
     } catch (error) {
-      if (alive && token === loading) status.textContent = message(error);
+      if (alive && token === loading) status.textContent = showMessage(error);
     }
   }
 
@@ -722,10 +722,10 @@ export function mountProps(root: HTMLElement): () => void {
       if (alive) await refresh();
     } catch (error) {
       if (!alive) return;
-      status.textContent = message(error);
+      status.textContent = showMessage(error);
       toast(status.textContent, true);
       if (error instanceof ApiError && error.status === 409) {
-        await alertModal(`${message(error)}. Your unsaved prop is still open.`);
+        await alertModal(`${showMessage(error)}. Your unsaved prop is still open.`);
       }
     } finally {
       saving = false;
@@ -738,13 +738,13 @@ export function mountProps(root: HTMLElement): () => void {
     visualType.value = current.visual.type;
     void openPicker(type);
   });
-  $<HTMLButtonElement>('#choose-prop-visual').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#choose-prop-visual').addEventListener('click', () => {
     if (current) void openPicker(current.visual.type);
   });
   pickerSearch.addEventListener('input', renderPickerSheets);
   const closePicker = () => picker.close();
-  $<HTMLButtonElement>('#prop-picker-close').addEventListener('click', closePicker);
-  $<HTMLButtonElement>('#prop-picker-cancel').addEventListener('click', closePicker);
+  get$<HTMLButtonElement>('#prop-picker-close').addEventListener('click', closePicker);
+  get$<HTMLButtonElement>('#prop-picker-cancel').addEventListener('click', closePicker);
   picker.addEventListener('close', () => {
     ++pickerToken;
     pickerChoice = null;
@@ -759,7 +759,7 @@ export function mountProps(root: HTMLElement): () => void {
     pickerOk.disabled = true;
     void (async () => {
       try {
-        const size = changed ? await visualSize(selected) : null;
+        const size = changed ? await getVisualSize(selected) : null;
         if (!alive || !picker.open || token !== pickerToken || current !== prop) return;
         prop.visual = selected;
         if (size) {
@@ -778,7 +778,7 @@ export function mountProps(root: HTMLElement): () => void {
         render();
       } catch (error) {
         if (alive && picker.open && token === pickerToken) {
-          pickerStatus.textContent = message(error);
+          pickerStatus.textContent = showMessage(error);
           pickerOk.disabled = false;
         }
       }
@@ -788,7 +788,7 @@ export function mountProps(root: HTMLElement): () => void {
     showBlocked = !showBlocked;
     blockStroke = null;
     previewGrid = null;
-    const button = $<HTMLButtonElement>('#prop-show-blocks');
+    const button = get$<HTMLButtonElement>('#prop-show-blocks');
     button.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
     button.setAttribute('aria-pressed', String(showBlocked));
     canvas.classList.toggle('editing-blocks', showBlocked);
@@ -800,7 +800,7 @@ export function mountProps(root: HTMLElement): () => void {
     );
     void drawPreview();
   }
-  $<HTMLButtonElement>('#prop-show-blocks').addEventListener('click', toggleBlockedPreview);
+  get$<HTMLButtonElement>('#prop-show-blocks').addEventListener('click', toggleBlockedPreview);
   function previewPoint(event: PointerEvent): { x: number; y: number } | null {
     if (!current || !showBlocked || !previewGrid) return null;
     const rect = canvas.getBoundingClientRect();
@@ -833,7 +833,7 @@ export function mountProps(root: HTMLElement): () => void {
       point,
       blockStroke.blocked,
     );
-    $<HTMLElement>('#prop-block-count').textContent =
+    get$<HTMLElement>('#prop-block-count').textContent =
       `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
     renderTabs();
     scheduleTabs();
@@ -852,7 +852,7 @@ export function mountProps(root: HTMLElement): () => void {
       stroke.blocked,
     );
     stroke.last = point;
-    $<HTMLElement>('#prop-block-count').textContent =
+    get$<HTMLElement>('#prop-block-count').textContent =
       `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
     renderTabs();
     scheduleTabs();
@@ -869,7 +869,7 @@ export function mountProps(root: HTMLElement): () => void {
         point,
         blockStroke.blocked,
       );
-      $<HTMLElement>('#prop-block-count').textContent =
+      get$<HTMLElement>('#prop-block-count').textContent =
         `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
       renderTabs();
       scheduleTabs();
@@ -892,7 +892,7 @@ export function mountProps(root: HTMLElement): () => void {
     ['#prop-ground', 'groundOffsetY'],
     ['#prop-depth', 'depthOffset'],
   ] as const) {
-    const input = $<HTMLInputElement>(selector);
+    const input = get$<HTMLInputElement>(selector);
     input.addEventListener('change', () => {
       if (!current) return;
       const value = Number(input.value);
@@ -918,8 +918,8 @@ export function mountProps(root: HTMLElement): () => void {
     });
   }
   search.addEventListener('input', renderList);
-  $<HTMLButtonElement>('#save-prop').addEventListener('click', () => void save());
-  $<HTMLButtonElement>('#new-prop').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#save-prop').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#new-prop').addEventListener('click', () => {
     void (async () => {
       const id = await askId('New prop id');
       if (!id) return;
@@ -935,9 +935,9 @@ export function mountProps(root: HTMLElement): () => void {
       const token = ++loading;
       let size: { width: number; height: number } | null;
       try {
-        size = await visualSize(visual);
+        size = await getVisualSize(visual);
       } catch (error) {
-        if (alive && token === loading) status.textContent = message(error);
+        if (alive && token === loading) status.textContent = showMessage(error);
         return;
       }
       if (!alive || token !== loading) return;
@@ -945,7 +945,7 @@ export function mountProps(root: HTMLElement): () => void {
       status.textContent = `New prop ${id}`;
     })();
   });
-  $<HTMLButtonElement>('#delete-prop').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#delete-prop').addEventListener('click', () => {
     void (async () => {
       if (!current || !(await confirmModal(`Delete ${current.id}?`, 'DELETE'))) return;
       const id = current.id;
@@ -967,7 +967,7 @@ export function mountProps(root: HTMLElement): () => void {
         if (next) await open(next);
         else persistTabs();
       } catch (error) {
-        if (alive) status.textContent = message(error);
+        if (alive) status.textContent = showMessage(error);
       }
     })();
   });
@@ -1002,7 +1002,7 @@ export function mountProps(root: HTMLElement): () => void {
       }
     })
     .catch((error: unknown) => {
-      if (alive) status.textContent = message(error);
+      if (alive) status.textContent = showMessage(error);
     });
   return () => {
     alive = false;

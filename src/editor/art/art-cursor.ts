@@ -86,7 +86,7 @@ const KIND_ICON = {
 export const CURSOR_UNIT = 64;
 export const CURSOR_HOT = { x: 24, y: 40 };
 
-export function cursorLayout(pressed: boolean): {
+export function getCursorLayout(pressed: boolean): {
   reach: number;
   gap: number;
   icon: number;
@@ -102,11 +102,11 @@ export function cursorLayout(pressed: boolean): {
   };
 }
 
-export function cursorIcon(kind: ArtCursorKind): { d: string; struck: boolean } {
+export function getCursorIcon(kind: ArtCursorKind): { d: string; struck: boolean } {
   return { d: ICONS[KIND_ICON[kind]], struck: kind.endsWith('erase') };
 }
 
-export function artCursorKind(state: {
+export function getArtCursorKind(state: {
   tool: ArtTool;
   pasteMode: boolean;
   spaceHeld: boolean;

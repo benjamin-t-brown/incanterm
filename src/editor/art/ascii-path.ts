@@ -48,7 +48,7 @@ export function isPathStyle(value: string): value is PathStyle {
   return (PATH_STYLES as readonly string[]).includes(value);
 }
 
-export function glyphFor(style: PathStyle, mask: number): string {
+export function getGlyphFor(style: PathStyle, mask: number): string {
   return STYLE_GLYPHS[style][mask & 15];
 }
 
@@ -61,7 +61,7 @@ export function styleHasGlyph(style: PathStyle, ch: string): boolean {
   return STYLES_BY_GLYPH.get(ch)?.has(style) === true;
 }
 
-export function orthogonalLine(x0: number, y0: number, x1: number, y1: number): GridPoint[] {
+export function createOrthogonalLine(x0: number, y0: number, x1: number, y1: number): GridPoint[] {
   const points: GridPoint[] = [{ x: x0, y: y0 }];
   let x = x0;
   let y = y0;
@@ -92,7 +92,7 @@ export function extendDrawPath(path: GridPoint[], next: GridPoint): GridPoint[] 
   if (path.length === 0) return [{ x: next.x, y: next.y }];
   const last = path[path.length - 1];
   if (last.x === next.x && last.y === next.y) return path;
-  return path.concat(orthogonalLine(last.x, last.y, next.x, next.y).slice(1));
+  return path.concat(createOrthogonalLine(last.x, last.y, next.x, next.y).slice(1));
 }
 
 export function constrainLineEnd(start: GridPoint, end: GridPoint): GridPoint {
@@ -120,14 +120,14 @@ export function constrainSquareEnd(start: GridPoint, end: GridPoint): GridPoint 
   };
 }
 
-export function boxOutline(start: GridPoint, end: GridPoint): GridPoint[] {
+export function createBoxOutline(start: GridPoint, end: GridPoint): GridPoint[] {
   const left = Math.min(start.x, end.x);
   const right = Math.max(start.x, end.x);
   const top = Math.min(start.y, end.y);
   const bottom = Math.max(start.y, end.y);
   const cells: GridPoint[] = [];
   const add = (x: number, y: number) => {
-    cells.push({ x, y, links: boxLinks(x, y, left, right, top, bottom) });
+    cells.push({ x, y, links: getBoxLinks(x, y, left, right, top, bottom) });
   };
   if (top === bottom) {
     for (let x = left; x <= right; x++) add(x, top);
@@ -148,7 +148,7 @@ export function boxOutline(start: GridPoint, end: GridPoint): GridPoint[] {
   return cells;
 }
 
-export function dialogOutline(start: GridPoint, end: GridPoint): GridPoint[] {
+export function createDialogOutline(start: GridPoint, end: GridPoint): GridPoint[] {
   const left = Math.min(start.x, end.x);
   const right = Math.max(start.x, end.x);
   const top = Math.min(start.y, end.y);
@@ -159,27 +159,27 @@ export function dialogOutline(start: GridPoint, end: GridPoint): GridPoint[] {
   const inx = start.x === end.x ? 1 : Math.sign(end.x - start.x);
   const iny = start.y === end.y ? 1 : Math.sign(end.y - start.y);
   const depth = Math.min(2, Math.max(0, Math.floor(Math.min(width, height) / 4)));
-  if (depth < 1 || width < 4 || height < 4) return boxOutline(start, end);
+  if (depth < 1 || width < 4 || height < 4) return createBoxOutline(start, end);
 
   const remove = new Set<string>();
   for (let index = 0; index < depth; index++) {
     remove.add(`${origin.x + index * inx},${origin.y}`);
     remove.add(`${origin.x},${origin.y + index * iny}`);
   }
-  const cells = boxOutline(start, end).filter((cell) => !remove.has(`${cell.x},${cell.y}`));
-  return uniquePoints(
-    cells.concat(chamferCells(origin, inx, iny, depth)).map(({ x, y }) => ({ x, y })),
+  const cells = createBoxOutline(start, end).filter((cell) => !remove.has(`${cell.x},${cell.y}`));
+  return getUniquePoints(
+    cells.concat(createChamferCells(origin, inx, iny, depth)).map(({ x, y }) => ({ x, y })),
   );
 }
 
-export function ellipseOutline(start: GridPoint, end: GridPoint): GridPoint[] {
+export function createEllipseOutline(start: GridPoint, end: GridPoint): GridPoint[] {
   const x0 = Math.min(start.x, end.x);
   const x1 = Math.max(start.x, end.x);
   const y0 = Math.min(start.y, end.y);
   const y1 = Math.max(start.y, end.y);
   const width = x1 - x0 + 1;
   const height = y1 - y0 + 1;
-  if (width <= 2 || height <= 2) return boxOutline(start, end);
+  if (width <= 2 || height <= 2) return createBoxOutline(start, end);
 
   const cx = (x0 + x1) / 2;
   const cy = (y0 + y1) / 2;
@@ -203,7 +203,7 @@ export function ellipseOutline(start: GridPoint, end: GridPoint): GridPoint[] {
     add(right, y);
     rows.push({ y, left, right });
   }
-  if (rows.length === 0) return boxOutline(start, end);
+  if (rows.length === 0) return createBoxOutline(start, end);
 
   const yMid = Math.floor((y0 + y1) / 2);
   const first = rows[0];
@@ -212,8 +212,8 @@ export function ellipseOutline(start: GridPoint, end: GridPoint): GridPoint[] {
     const prev = rows[index - 1];
     const row = rows[index];
     if (row.y > yMid) break;
-    for (const point of orthogonalLine(prev.left, prev.y, row.left, row.y)) add(point.x, point.y);
-    for (const point of orthogonalLine(prev.right, prev.y, row.right, row.y)) add(point.x, point.y);
+    for (const point of createOrthogonalLine(prev.left, prev.y, row.left, row.y)) add(point.x, point.y);
+    for (const point of createOrthogonalLine(prev.right, prev.y, row.right, row.y)) add(point.x, point.y);
   }
   for (const { x, y } of [...cells.values()]) {
     add(x, y0 + y1 - y);
@@ -233,23 +233,23 @@ export function strokeCells(input: {
 }): GridPoint[] {
   const shift = input.shift === true;
   if (input.mode === 'draw') {
-    if (input.path && input.path.length > 0) return uniquePoints(input.path);
-    return uniquePoints(extendDrawPath([{ x: input.start.x, y: input.start.y }], input.end));
+    if (input.path && input.path.length > 0) return getUniquePoints(input.path);
+    return getUniquePoints(extendDrawPath([{ x: input.start.x, y: input.start.y }], input.end));
   }
   if (input.mode === 'line') {
     const end = shift ? constrainLineEnd(input.start, input.end) : input.end;
-    return uniquePoints(orthogonalLine(input.start.x, input.start.y, end.x, end.y));
+    return getUniquePoints(createOrthogonalLine(input.start.x, input.start.y, end.x, end.y));
   }
   if (input.mode === 'box') {
     const end = shift ? constrainSquareEnd(input.start, input.end) : input.end;
-    return uniquePoints(boxOutline(input.start, end));
+    return getUniquePoints(createBoxOutline(input.start, end));
   }
   if (input.mode === 'dialog') {
     const end = shift ? constrainSquareEnd(input.start, input.end) : input.end;
-    return uniquePoints(dialogOutline(input.start, end));
+    return getUniquePoints(createDialogOutline(input.start, end));
   }
   const end = shift ? constrainSquareEnd(input.start, input.end) : input.end;
-  return uniquePoints(ellipseOutline(input.start, end));
+  return getUniquePoints(createEllipseOutline(input.start, end));
 }
 
 export function applyPath(
@@ -264,7 +264,7 @@ export function applyPath(
     writes.set(`${cell.x},${cell.y}`, {
       x: cell.x,
       y: cell.y,
-      ch: glyphFor(style, maskAt(cell.x, cell.y, style, stroke, readCell)),
+      ch: getGlyphFor(style, maskAt(cell.x, cell.y, style, stroke, readCell)),
       stroke: true,
     });
   }
@@ -277,7 +277,7 @@ export function applyPath(
       const existing = readCell(nx, ny);
       if (!existing || !styleHasGlyph(style, existing)) continue;
       const mask = (maskFor(existing) ?? 0) | step.toward;
-      writes.set(id, { x: nx, y: ny, ch: glyphFor(style, mask), stroke: false });
+      writes.set(id, { x: nx, y: ny, ch: getGlyphFor(style, mask), stroke: false });
     }
   }
   return [...writes.values()];
@@ -306,7 +306,7 @@ function maskAt(
   return mask;
 }
 
-function boxLinks(
+function getBoxLinks(
   x: number,
   y: number,
   left: number,
@@ -326,7 +326,7 @@ function boxLinks(
   return mask;
 }
 
-function chamferCells(origin: GridPoint, inx: number, iny: number, depth: number): GridPoint[] {
+function createChamferCells(origin: GridPoint, inx: number, iny: number, depth: number): GridPoint[] {
   const diagonal: GridPoint[] = [];
   for (let index = 0; index <= depth; index++) {
     diagonal.push({
@@ -356,7 +356,7 @@ function chamferCells(origin: GridPoint, inx: number, iny: number, depth: number
   return cells;
 }
 
-function uniquePoints(points: GridPoint[]): GridPoint[] {
+function getUniquePoints(points: GridPoint[]): GridPoint[] {
   const seen = new Set<string>();
   const unique: GridPoint[] = [];
   for (const point of points) {

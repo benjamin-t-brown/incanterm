@@ -92,15 +92,15 @@ export function isSpriteFontId(value: string): value is SpriteFontId {
   return SPRITE_FONTS.some((font) => font.id === value);
 }
 
-export function spriteFontFamily(id: SpriteFontId = DEFAULT_SPRITE_FONT): string {
+export function getSpriteFontFamily(id: SpriteFontId = DEFAULT_SPRITE_FONT): string {
   return SPRITE_FONTS.find((font) => font.id === id)?.family ?? SPRITE_FONTS[0].family;
 }
 
-export function spriteFontNativePx(id: SpriteFontId = DEFAULT_SPRITE_FONT): number {
+export function getSpriteFontNativePx(id: SpriteFontId = DEFAULT_SPRITE_FONT): number {
   return SPRITE_FONTS.find((font) => font.id === id)?.nativePx ?? TERMINAL_FONT_PX;
 }
 
-export function terminalFont(fontPx: number, family = TERMINAL_FONT_STACK): string {
+export function getTerminalFont(fontPx: number, family = TERMINAL_FONT_STACK): string {
   return `${fontPx}px ${family}`;
 }
 
@@ -109,7 +109,7 @@ export function measureTerminalCell(
   fontPx: number,
   family = TERMINAL_FONT_STACK,
 ): TerminalCell {
-  const font = terminalFont(fontPx, family);
+  const font = getTerminalFont(fontPx, family);
   measurer.font = font;
   const metrics = measurer.measureText('M');
   const width = metrics.width;
@@ -138,8 +138,8 @@ export function terminalCellAtZoom(
   zoom: number,
   fontId: SpriteFontId = DEFAULT_SPRITE_FONT,
 ): TerminalCell {
-  const family = spriteFontFamily(fontId);
-  const nativePx = spriteFontNativePx(fontId);
+  const family = getSpriteFontFamily(fontId);
+  const nativePx = getSpriteFontNativePx(fontId);
   const base = measureTerminalCell(measurer, nativePx, family);
   return {
     width: base.width * zoom,

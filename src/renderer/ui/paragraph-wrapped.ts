@@ -31,7 +31,6 @@ function wrapSoftLine(text: string, width: number): string[] {
     }
     if (current.length > 0) {
       lines.push(current);
-      current = '';
     }
     if (word.length <= width) {
       current = word;
@@ -115,7 +114,7 @@ export class ParagraphWrapped extends UIElement {
     for (let y = 0; y < this.height; y++) {
       const line = this._lines[y] ?? '';
       for (let x = 0; x < this.width; x++) {
-        ctx.set(x, y, this.ink(line[x] ?? ' '));
+        ctx.set(x, y, this.getInk(line[x] ?? ' '));
       }
     }
   }
@@ -128,7 +127,7 @@ export class ParagraphWrapped extends UIElement {
     this.height = Math.max(1, this._lines.length);
   }
 
-  private ink(ch: string): Cell {
+  private getInk(ch: string): Cell {
     return { ch, fg: this.fg, bg: this.bg };
   }
 }

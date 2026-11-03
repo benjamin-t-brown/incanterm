@@ -11,7 +11,7 @@ export function propVisualEditHref(visual: PropVisual): string {
   return `${page}?id=${encodeURIComponent(visual.id)}`;
 }
 
-export async function propVisualSize(
+export async function getPropVisualSize(
   visual: PropVisual,
   loadSprite: (id: string) => Promise<SpriteDocument>,
   loadAnimation: (id: string) => Promise<AnimationDocument>,
@@ -29,7 +29,7 @@ export async function propVisualSize(
   return { width: sprite.width, height: sprite.height };
 }
 
-export function animationsUsingSheet(
+export function getAnimationsUsingSheet(
   clips: AnimationDocument[],
   sheet: string,
 ): { animation: AnimationDocument; frame: VisibleAnimationFrame }[] {

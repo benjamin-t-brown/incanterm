@@ -42,7 +42,7 @@ export function readPropTabs(storage: Pick<Storage, 'getItem'>): PropTabStore {
   }
 }
 
-export function neighborPropTab(tabs: readonly string[], id: string): string | null {
+export function getNeighborPropTab(tabs: readonly string[], id: string): string | null {
   const index = tabs.indexOf(id);
   return tabs[index + 1] ?? tabs[index - 1] ?? null;
 }

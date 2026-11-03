@@ -51,7 +51,7 @@ export function pasteSceneObjects(
     ...scene.entities.map((entry) => entry.id),
     ...scene.triggers.map((entry) => (typeof entry === 'string' ? entry : entry.id)),
   ]);
-  const newId = () => {
+  const createNewId = () => {
     let id: string;
     do {
       id = uuid();
@@ -63,7 +63,7 @@ export function pasteSceneObjects(
   for (const source of clipboard.entities) {
     const entry = {
       ...structuredClone(source),
-      id: newId(),
+      id: createNewId(),
       x: source.x + offset.x,
       y: source.y + offset.y,
     };
@@ -73,7 +73,7 @@ export function pasteSceneObjects(
   for (const source of clipboard.triggers) {
     const entry = {
       ...structuredClone(source),
-      id: newId(),
+      id: createNewId(),
       x: source.x + offset.x,
       y: source.y + offset.y,
     };

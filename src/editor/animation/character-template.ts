@@ -19,7 +19,7 @@ const FRAMES: Record<CharacterState, readonly number[]> = {
 
 export const CHARACTER_TEMPLATE_FRAMES = 16;
 
-export function characterTemplateAnimation(
+export function getCharacterTemplateAnimation(
   id: string,
   label: string,
   spriteId: string,

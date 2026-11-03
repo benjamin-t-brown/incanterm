@@ -84,9 +84,11 @@ Use compatible debug concepts in [ed-ascii's scene editor](assets-and-scene-edit
 
 ## Screen size and animation proposals
 
-The target canvas is 120 columns by 40 rows. Half-block characters can represent a 120 by 80 color sample grid. Split gameplay into a top world area and bottom UI area. Larger terminals center the layout; smaller terminals keep UI accessible while the world camera/viewport scrolls. Exact UI height, minimum size, and camera rules remain open. Full-screen cutscenes can use the whole canvas. See [Interaction and navigation](interaction-and-navigation.md).
+The target scene viewport is 120 columns by 40 rows. Half-block characters can represent a 120 by 80 color sample grid. Render the scene across the full canvas, then overlay the bottom 16 rows with UI. Larger terminals center the layout; smaller terminals keep UI accessible while cropping the canvas. Hiding the UI reveals the scene underneath without shifting scene coordinates. See [Interaction and navigation](interaction-and-navigation.md).
 
 Start by benchmarking cutscenes at 30 FPS. This is a target, not guaranteed SSH performance. Actual results depend on changed cells, color sequences, terminal performance, connection throughput, and latency. Test both sparse animation and full-screen changes.
+
+Game sessions advance simulation on an elapsed-time tick targeting 30 FPS, independently of input-triggered painting. Terminal output uses cursor-addressed changed-cell runs against the last frame accepted by the transport; opening and resizing send a full screen. Unchanged frames send no data. WebSocket output allows one frame write in flight and SSH output waits for `drain` after backpressure. While blocked, simulation continues without queuing rendered frames; the next update catches up from the accepted baseline. Browser and loopback clients maintain a cell buffer so partial updates preserve unchanged cells, and loopback can restore a complete screen after switching views.
 
 Use the same character/foreground/background cell representation for gameplay and animation. Proposed asset approaches:
 

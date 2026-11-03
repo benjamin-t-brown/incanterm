@@ -3,6 +3,19 @@
   "version": 1,
   "id": "be64804a-0f95-4067-9151-76ec698c58cf",
   "label": "eva3x3_ch",
+  "scriptName": "Eva",
+  "portraits": [
+    {
+      "facing": "right",
+      "emotion": "",
+      "portrait": "edfc4869-e750-4c9a-96c1-c33380aac47a_1"
+    },
+    {
+      "facing": "left",
+      "emotion": "",
+      "portrait": "edfc4869-e750-4c9a-96c1-c33380aac47a_0"
+    }
+  ],
   "defaultFacing": "down",
   "animations": {
     "idle-up": "1c702888-59c9-4810-bed9-564e561bbf0e",

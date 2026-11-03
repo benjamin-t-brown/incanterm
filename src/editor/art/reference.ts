@@ -55,7 +55,7 @@ export function createReference(
 }
 
 export function parseReference(value: unknown): SchemaResult<SpriteReference> {
-  const record = asObject(value);
+  const record = getObject(value);
   if (!record) return fail('Reference must be an object');
   if (record.format !== 'incanterm-sprite-reference' || record.version !== 1) {
     return fail('Reference must be incanterm-sprite-reference version 1');
@@ -113,24 +113,24 @@ export function detectReferenceImage(bytes: Uint8Array, mime = ''): ReferenceExt
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return 'jpg';
   }
-  if (bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 12) === 'WEBP') {
+  if (bytes.length >= 12 && getAscii(bytes, 0, 4) === 'RIFF' && getAscii(bytes, 8, 12) === 'WEBP') {
     return 'webp';
   }
   if (bytes.length >= 6) {
-    const header = ascii(bytes, 0, 6);
+    const header = getAscii(bytes, 0, 6);
     if (header === 'GIF87a' || header === 'GIF89a') return 'gif';
   }
-  return mimeToExt(mime);
+  return getExtensionForMime(mime);
 }
 
-export function referenceMime(ext: ReferenceExt): string {
+export function getReferenceMime(ext: ReferenceExt): string {
   if (ext === 'png') return 'image/png';
   if (ext === 'jpg') return 'image/jpeg';
   if (ext === 'webp') return 'image/webp';
   return 'image/gif';
 }
 
-export function mimeToExt(mime: string): ReferenceExt | null {
+export function getExtensionForMime(mime: string): ReferenceExt | null {
   const type = mime.split(';')[0]?.trim().toLowerCase() ?? '';
   if (type === 'image/png') return 'png';
   if (type === 'image/jpeg') return 'jpg';
@@ -230,7 +230,7 @@ function readNumber(value: unknown, label: string, min: number, max: number): Sc
   return { ok: true, value };
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
+function getObject(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
 }
@@ -239,6 +239,6 @@ function fail(error: string): SchemaResult<never> {
   return { ok: false, error };
 }
 
-function ascii(bytes: Uint8Array, start: number, end: number): string {
+function getAscii(bytes: Uint8Array, start: number, end: number): string {
   return String.fromCharCode(...bytes.subarray(start, end));
 }

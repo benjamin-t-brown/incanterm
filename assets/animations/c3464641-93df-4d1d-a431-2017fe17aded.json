@@ -1,0 +1,30 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "c3464641-93df-4d1d-a431-2017fe17aded",
+  "label": "johnathan3x3 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "a22cf3b0-cc82-423c-b397-6fc7b3528817",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "a22cf3b0-cc82-423c-b397-6fc7b3528817",
+      "index": 11,
+      "durationMs": 135
+    },
+    {
+      "sprite": "a22cf3b0-cc82-423c-b397-6fc7b3528817",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "a22cf3b0-cc82-423c-b397-6fc7b3528817",
+      "index": 9,
+      "durationMs": 135
+    }
+  ]
+}

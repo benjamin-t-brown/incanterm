@@ -1,15 +1,15 @@
-import { paletteRgb, type PaletteDocument } from '../../palette.js';
+import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import { terminalCellAtZoom } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
-import { compareSceneDrawRank, sceneDepth } from '../../../game/scene-order.js';
+import { compareSceneDrawRank, getSceneDepth } from '../../../game/scene-order.js';
 import {
   renderStandardUiPreview,
   STANDARD_UI_HEIGHT,
   STANDARD_WIDTH,
 } from '../../../renderer/ui/standard-ui.js';
 import {
-  animationFrameFlips,
-  characterAnimation,
+  getAnimationFrameFlips,
+  getCharacterAnimation,
   createScene,
   flattenSprite,
   isAssetId,
@@ -21,18 +21,22 @@ import {
   type SceneEntity,
   type SceneTrigger,
   type SpriteDocument,
-  spriteLabelError,
+  getSpriteLabelError,
 } from '../../schema.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
 import { resizeBlockedCells } from '../../props/prop-blocking.js';
 import { setSceneBackground } from '../../scenes/scene-background.js';
 import {
-  neighborSceneTab,
+  getNeighborSceneTab,
   OPEN_SCENES_KEY,
   readSceneTabs,
   type SceneTabSession,
 } from '../../scenes/scene-tabs.js';
-import { paintSceneBlockedCells, propBlockedSceneCells } from '../../scenes/scene-blocked-cells.js';
+import {
+  paintSceneBlockedCells,
+  getPropBlockedSceneCells,
+} from '../../scenes/scene-blocked-cells.js';
+import { getSceneScriptReferences } from '../../scenes/scene-scripts.js';
 import { removeSelectedSceneObjects } from '../../scenes/scene-delete.js';
 import {
   copySceneObjects,
@@ -40,26 +44,30 @@ import {
   type SceneClipboard,
 } from '../../scenes/scene-clipboard.js';
 import { addSceneProp } from '../../scenes/scene-props.js';
-import { addSceneCharacter } from '../../scenes/scene-characters.js';
-import { sceneTriggerColors } from '../../scenes/scene-trigger-colors.js';
 import {
-  newSceneTrigger,
+  addSceneCharacter,
+  getMissingSceneCharacters,
+  removeMissingSceneCharacters,
+} from '../../scenes/scene-characters.js';
+import { getSceneTriggerColors } from '../../scenes/scene-trigger-colors.js';
+import {
+  createNewSceneTrigger,
   resizeTrigger,
-  triggerRegion,
+  getTriggerRegion,
   type ResizeHandle,
 } from '../../scenes/scene-triggers.js';
 import {
-  boxesInSceneRect,
+  getBoxesInSceneRect,
   canSelectSceneObject,
   moveSceneGroup,
-  sameSceneObject,
-  selectableSceneObjects,
+  isSameSceneObject,
+  getSelectableSceneObjects,
   type SceneHitBox,
   type SceneObjectRef,
 } from '../../scenes/scene-selection.js';
 import {
   fitSceneView,
-  sceneCellAt,
+  getSceneCellAt,
   SCENE_ZOOM_STEPS,
   zoomSceneView,
   type SceneView,
@@ -68,12 +76,12 @@ import { ApiError, requestJson } from '../api.js';
 import { alertModal, confirmModal, isModalOpen } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
-import { pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 
 type ObjectRef = SceneObjectRef;
 
 export function mountScenes(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Scene',
     `<aside class="scene-library" aria-label="Scenes">
     <label for="scene-search">SCENES</label><input id="scene-search" class="text-input" type="search" placeholder="SEARCH">
@@ -83,7 +91,7 @@ export function mountScenes(root: HTMLElement): () => void {
       <div id="scene-workspace" class="scene-workspace" hidden>
            <section class="scene-stage"><div class="scene-tools"><span>Box select · Ctrl+click to add · Ctrl+A all · Ctrl+C, then hover scene &amp; Ctrl+V · Hold Tab for names, triggers &amp; blocked cells · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
            <div class="scene-scroll" id="scene-viewport"><canvas id="scene-canvas" tabindex="0" aria-label="Scene placement canvas"></canvas><canvas id="scene-hover" aria-hidden="true"></canvas></div></section>
-        <aside class="scene-sidebar"><h2>SCENE</h2><label class="scene-overlay-toggle"><input id="scene-show-triggers" type="checkbox" checked>SHOW TRIGGERS</label><label class="scene-overlay-toggle"><input id="scene-show-blocked" type="checkbox">SHOW BLOCKED CELLS</label><label class="scene-overlay-toggle"><input id="scene-show-ui" type="checkbox">SHOW UI</label><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
+        <aside class="scene-sidebar"><div class="scene-sidebar-tabs" role="tablist" aria-label="Scene controls"><button type="button" id="scene-tab-controls" role="tab" aria-controls="scene-panel-controls" aria-selected="true">SCENE</button><button type="button" id="scene-tab-scripts" role="tab" aria-controls="scene-panel-scripts" aria-selected="false">SCRIPTS</button></div><section id="scene-panel-controls" role="tabpanel" aria-labelledby="scene-tab-controls"><label class="scene-overlay-toggle"><input id="scene-show-triggers" type="checkbox" checked>SHOW TRIGGERS</label><label class="scene-overlay-toggle"><input id="scene-show-blocked" type="checkbox">SHOW BLOCKED CELLS</label><label class="scene-overlay-toggle"><input id="scene-show-ui" type="checkbox">SHOW UI</label><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
           <label>DEPTH MODE<select id="scene-depth"><option value="bottom-up">BOTTOM UP</option><option value="regular-z">REGULAR Z</option></select></label>
           <div class="scene-background-controls"><h2>BACKGROUND</h2><div class="scene-background-actions-row">
             <!-- Icons by Delapouite, CC BY 3.0: https://game-icons.net/1x1/delapouite/horizon-road.html and https://game-icons.net/1x1/delapouite/walk.html -->
@@ -91,7 +99,7 @@ export function mountScenes(root: HTMLElement): () => void {
             <button type="button" id="scene-background-mode" aria-label="Edit background" title="Edit background" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M129.8 19.64 64.66 113.4H32v18h272.8c12.3 23.5 21.4 40.3 28.1 68.3-118 19.8-137.8 26.8-247.03 65.1C126.4 344.9 167 425 232.8 492.4l246.2-.3c-87.1-63.9-203.5-127.6-260.1-201.3 64.2-33.7 98.8-49.9 155.5-74.6-11.5-28.8-30.3-59.7-53.9-84.8H480v-18H251.2l-54.5-67.85-35.6 23.16z"/></svg></button>
             <button type="button" id="scene-blocked-mode" aria-label="Edit blocked cells" title="Edit blocked cells" aria-pressed="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M271.9 25.85c-18.4 0-36 16.73-39.2 40.97-3.4 25.83 11.3 47.48 30.9 49.88 19.7 2.4 39.5-14.9 43-40.77 3.5-25.86-11.5-47.43-31-49.85-1.2-.15-2.5-.23-3.7-.23zm-38.2 95.75c-38 6.3-75.2 41.9-94 66-11.5 33.4-14.5 66.7-20.7 100l28.2-.8c6.6-25.2 8.2-51.9 21-75.4 14.8-8.2 26.9-20.6 38.4-33.8-6.4 32.9-14 72.3-13.2 101.8 29.8 70.9 95.7 140.4 133 206.4l29.9-24.3c-28.8-55.7-57.5-106.4-94.3-160.2 2.1-7.1 43.3-163.5 28-171.9-20.2 9-40.9 6-56.3-7.8zm71.9 58.6c-3.1 17.8-5.3 35.1-10 52.8 4.5 5.4 7.5 10.5 14.3 15.3 26 15.3 52 26.3 78 36.7l9.2-29.9-77.5-37.6c-4.3-12.5-7.9-25.2-14-37.3zM187.1 310.1c-5.1 25-9.8 50.2-11.6 76.5-15.9 31.7-35.7 51.6-60.5 76.4l30 23.2c23.1-25 49.9-47 66.7-73.8l14-42.6c-15.7-19-28.4-38.8-38.6-59.7z"/></svg></button>
           </div><a id="scene-background-link" href="/art" target="_blank" rel="noopener noreferrer" hidden>EDIT BACKGROUND ↗</a></div>
-          <div id="scene-inspector"></div></aside>
+          <div id="scene-inspector"></div></section><section id="scene-panel-scripts" role="tabpanel" aria-labelledby="scene-tab-scripts" hidden><div id="scene-script-list"></div></section></aside>
       </div></section>
       <dialog id="scene-new-dialog" class="scene-new-dialog" aria-labelledby="scene-new-title">
         <form id="scene-new-form">
@@ -155,38 +163,38 @@ export function mountScenes(root: HTMLElement): () => void {
   statusbar.className = 'scene-statusbar';
   statusbar.innerHTML = `<div class="scene-status-row"><button id="scene-cancel-trigger" type="button" hidden>CANCEL</button><span id="scene-status" role="status">Create a scene or open one from the list.</span></div>`;
   root.querySelector('.simple-main')?.after(statusbar);
-  const $ = <T extends Element>(selector: string): T => {
+  const get$ = <T extends Element>(selector: string): T => {
     const node = root.querySelector<T>(selector);
     if (!node) throw new Error(`Missing ${selector}`);
     return node;
   };
-  const list = $<HTMLElement>('#scene-list');
-  const inspector = $<HTMLElement>('#scene-inspector');
-  const status = $<HTMLElement>('#scene-status');
-  const newDialog = $<HTMLDialogElement>('#scene-new-dialog');
-  const canvas = $<HTMLCanvasElement>('#scene-canvas');
-  const hoverCanvas = $<HTMLCanvasElement>('#scene-hover');
-  const viewport = $<HTMLElement>('#scene-viewport');
-  const backgroundPicker = $<HTMLDialogElement>('#scene-background-picker');
-  const backgroundSearch = $<HTMLInputElement>('#scene-background-search');
-  const backgroundResults = $<HTMLElement>('#scene-background-results');
-  const backgroundFrames = $<HTMLElement>('#scene-background-frames');
-  const backgroundStatus = $<HTMLElement>('#scene-background-status');
-  const backgroundAdd = $<HTMLButtonElement>('#scene-background-add');
-  const propPicker = $<HTMLDialogElement>('#scene-prop-picker');
-  const propSearch = $<HTMLInputElement>('#scene-prop-search');
-  const propResults = $<HTMLElement>('#scene-prop-results');
-  const propStatus = $<HTMLElement>('#scene-prop-status');
-  const propAdd = $<HTMLButtonElement>('#scene-prop-add');
-  const characterPicker = $<HTMLDialogElement>('#scene-character-picker');
-  const characterSearch = $<HTMLInputElement>('#scene-character-search');
-  const characterResults = $<HTMLElement>('#scene-character-results');
-  const characterStatus = $<HTMLElement>('#scene-character-status');
-  const characterAdd = $<HTMLButtonElement>('#scene-character-add');
-  const showTriggersInput = $<HTMLInputElement>('#scene-show-triggers');
-  const showBlockedInput = $<HTMLInputElement>('#scene-show-blocked');
-  const showUiInput = $<HTMLInputElement>('#scene-show-ui');
-  const toastStack = $<HTMLElement>('#toast-stack');
+  const list = get$<HTMLElement>('#scene-list');
+  const inspector = get$<HTMLElement>('#scene-inspector');
+  const status = get$<HTMLElement>('#scene-status');
+  const newDialog = get$<HTMLDialogElement>('#scene-new-dialog');
+  const canvas = get$<HTMLCanvasElement>('#scene-canvas');
+  const hoverCanvas = get$<HTMLCanvasElement>('#scene-hover');
+  const viewport = get$<HTMLElement>('#scene-viewport');
+  const backgroundPicker = get$<HTMLDialogElement>('#scene-background-picker');
+  const backgroundSearch = get$<HTMLInputElement>('#scene-background-search');
+  const backgroundResults = get$<HTMLElement>('#scene-background-results');
+  const backgroundFrames = get$<HTMLElement>('#scene-background-frames');
+  const backgroundStatus = get$<HTMLElement>('#scene-background-status');
+  const backgroundAdd = get$<HTMLButtonElement>('#scene-background-add');
+  const propPicker = get$<HTMLDialogElement>('#scene-prop-picker');
+  const propSearch = get$<HTMLInputElement>('#scene-prop-search');
+  const propResults = get$<HTMLElement>('#scene-prop-results');
+  const propStatus = get$<HTMLElement>('#scene-prop-status');
+  const propAdd = get$<HTMLButtonElement>('#scene-prop-add');
+  const characterPicker = get$<HTMLDialogElement>('#scene-character-picker');
+  const characterSearch = get$<HTMLInputElement>('#scene-character-search');
+  const characterResults = get$<HTMLElement>('#scene-character-results');
+  const characterStatus = get$<HTMLElement>('#scene-character-status');
+  const characterAdd = get$<HTMLButtonElement>('#scene-character-add');
+  const showTriggersInput = get$<HTMLInputElement>('#scene-show-triggers');
+  const showBlockedInput = get$<HTMLInputElement>('#scene-show-blocked');
+  const showUiInput = get$<HTMLInputElement>('#scene-show-ui');
+  const toastStack = get$<HTMLElement>('#toast-stack');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Scene canvas unavailable');
   const context: CanvasRenderingContext2D = ctx;
@@ -201,6 +209,9 @@ export function mountScenes(root: HTMLElement): () => void {
   let sceneLabels: Record<string, string> = {};
   let props: string[] = [];
   let rpgTriggers: string[] = [];
+  let triggerSources: Record<string, string[]> = {};
+  let scriptSources: Record<string, string[]> = {};
+  let sidebarTab: 'scene' | 'scripts' = 'scene';
   let sprites: string[] = [];
   let spriteLabels: Record<string, string> = {};
   let palette: PaletteDocument | null = null;
@@ -219,8 +230,8 @@ export function mountScenes(root: HTMLElement): () => void {
   let showTriggers = true;
   let showBlockedCells = false;
   let showUi = false;
-  const triggersVisible = () => showTriggers || showPropNames;
-  const blockedVisible = () => showBlockedCells || showPropNames;
+  const areTriggersVisible = () => showTriggers || showPropNames;
+  const areBlockedCellsVisible = () => showBlockedCells || showPropNames;
   let propLabels: Array<{ id: string; name: string; x: number; y: number; width: number }> = [];
   let triggerLabels: Array<{ id: string; name: string; x: number; y: number; width: number }> = [];
   let backgroundEdit = false;
@@ -273,21 +284,21 @@ export function mountScenes(root: HTMLElement): () => void {
   const propCache = new Map<string, Promise<PropDocument | null>>();
   const animationCache = new Map<string, Promise<AnimationDocument | null>>();
   const characterCache = new Map<string, Promise<CharacterDocument | null>>();
-  const dirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
-  const sceneName = (id: string) =>
+  const isDirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
+  const getSceneName = (id: string) =>
     id === current?.id
       ? (current.label ?? id)
       : (sessions.get(id)?.doc.label ?? sceneLabels[id] ?? id);
-  const message = (error: unknown) =>
+  const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Scene request failed';
-  const tabDirty = (id: string) =>
+  const isTabDirty = (id: string) =>
     id === current?.id
-      ? dirty()
+      ? isDirty()
       : !!sessions.get(id) &&
         JSON.stringify(sessions.get(id)?.doc) !== JSON.stringify(sessions.get(id)?.saved);
   setDirtyGuard(
     async () =>
-      !openTabs.some(tabDirty) || confirmModal('Discard unsaved scene changes?', 'DISCARD'),
+      !openTabs.some(isTabDirty) || confirmModal('Discard unsaved scene changes?', 'DISCARD'),
   );
 
   function persistTabs(): void {
@@ -316,7 +327,7 @@ export function mountScenes(root: HTMLElement): () => void {
     if (current) sessions.set(current.id, { doc: current, saved });
   }
   function renderTabs(): void {
-    const host = $<HTMLElement>('#scene-tabs');
+    const host = get$<HTMLElement>('#scene-tabs');
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -330,11 +341,11 @@ export function mountScenes(root: HTMLElement): () => void {
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
-      tab.classList.toggle('dirty', tabDirty(id));
+      tab.classList.toggle('dirty', isTabDirty(id));
       const label = document.createElement('button');
       label.type = 'button';
       label.className = 'scene-tab-label';
-      label.textContent = sceneName(id);
+      label.textContent = getSceneName(id);
       const mark = document.createElement('span');
       mark.className = 'scene-dirty-mark';
       mark.textContent = ' ●';
@@ -343,7 +354,7 @@ export function mountScenes(root: HTMLElement): () => void {
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'scene-tab-close';
-      close.setAttribute('aria-label', `Close ${sceneName(id)}`);
+      close.setAttribute('aria-label', `Close ${getSceneName(id)}`);
       close.textContent = '×';
       close.addEventListener('click', () => void closeTab(id));
       tab.addEventListener('auxclick', (event) => {
@@ -375,8 +386,9 @@ export function mountScenes(root: HTMLElement): () => void {
   }
   async function closeTab(id: string): Promise<void> {
     if (!openTabs.includes(id) || saving) return;
-    if (tabDirty(id) && !(await confirmModal('Discard unsaved scene changes?', 'DISCARD'))) return;
-    const next = neighborSceneTab(openTabs, id);
+    if (isTabDirty(id) && !(await confirmModal('Discard unsaved scene changes?', 'DISCARD')))
+      return;
+    const next = getNeighborSceneTab(openTabs, id);
     openTabs = openTabs.filter((tab) => tab !== id);
     sessions.delete(id);
     if (current?.id === id) {
@@ -424,27 +436,27 @@ export function mountScenes(root: HTMLElement): () => void {
     }
     return pending;
   }
-  const sheet = (id: string) => cache(sheetCache, id, `/api/sprites/${encodeURIComponent(id)}`);
-  const prop = (id: string) => cache(propCache, id, `/api/props/${encodeURIComponent(id)}`);
-  const animation = (id: string) =>
+  const getSheet = (id: string) => cache(sheetCache, id, `/api/sprites/${encodeURIComponent(id)}`);
+  const getProp = (id: string) => cache(propCache, id, `/api/props/${encodeURIComponent(id)}`);
+  const getAnimation = (id: string) =>
     cache(animationCache, id, `/api/animations/${encodeURIComponent(id)}`);
-  const character = (id: string) =>
+  const getCharacter = (id: string) =>
     cache(characterCache, id, `/api/characters/${encodeURIComponent(id)}`);
 
-  function background(): Extract<SceneEntity, { type: 'Background' }> | undefined {
+  function getBackground(): Extract<SceneEntity, { type: 'Background' }> | undefined {
     return current?.entities.find((entity) => entity.type === 'Background') as
       | Extract<SceneEntity, { type: 'Background' }>
       | undefined;
   }
 
-  function selectable(ref: ObjectRef): boolean {
+  function isSelectable(ref: ObjectRef): boolean {
     return current !== null && canSelectSceneObject(current, ref, backgroundEdit);
   }
 
-  const isSelected = (ref: ObjectRef) => selected.some((entry) => sameSceneObject(entry, ref));
-  const onlySelected = () => (selected.length === 1 ? selected[0] : null);
+  const isSelected = (ref: ObjectRef) => selected.some((entry) => isSameSceneObject(entry, ref));
+  const isOnlySelected = () => (selected.length === 1 ? selected[0] : null);
 
-  function positioned(ref: ObjectRef): (SceneEntity | Exclude<SceneTrigger, string>) | null {
+  function isPositioned(ref: ObjectRef): (SceneEntity | Exclude<SceneTrigger, string>) | null {
     if (!current) return null;
     return ref.kind === 'entity'
       ? (current.entities.find((entry) => entry.id === ref.id) ?? null)
@@ -479,11 +491,11 @@ export function mountScenes(root: HTMLElement): () => void {
   }
 
   function handleAt(event: MouseEvent): ResizeHandle | null {
-    const ref = onlySelected();
-    if (backgroundEdit || !triggersVisible() || ref?.kind !== 'trigger') return null;
-    const trigger = positioned(ref);
+    const ref = isOnlySelected();
+    if (backgroundEdit || !areTriggersVisible() || ref?.kind !== 'trigger') return null;
+    const trigger = isPositioned(ref);
     if (!trigger || !('event' in trigger) || trigger.event === 'load') return null;
-    const pixel = viewportPixel(event);
+    const pixel = getViewportPixel(event);
     let nearest: ResizeHandle | null = null;
     let distance = 9 * 9;
     for (const point of handlePositions(trigger)) {
@@ -509,7 +521,7 @@ export function mountScenes(root: HTMLElement): () => void {
   }
 
   function applyView(): void {
-    $<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    get$<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
     redraw();
   }
 
@@ -543,13 +555,16 @@ export function mountScenes(root: HTMLElement): () => void {
     if (index !== -1) setZoom(SCENE_ZOOM_STEPS[index], x, y);
   }
 
-  function viewportPixel(event: Pick<MouseEvent, 'clientX' | 'clientY'>): { x: number; y: number } {
+  function getViewportPixel(event: Pick<MouseEvent, 'clientX' | 'clientY'>): {
+    x: number;
+    y: number;
+  } {
     const rect = viewport.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
   function syncCursor(event?: MouseEvent): void {
-    const point = event ? canvasPoint(event) : null;
+    const point = event ? getCanvasPoint(event) : null;
     const handle = event ? handleAt(event) : null;
     const cursor = pan
       ? 'grabbing'
@@ -607,7 +622,7 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function paintHoverContents(): void {
     if (blockedEdit) {
-      const point = canvasMouse && !pan && !spaceHeld ? canvasPoint(canvasMouse) : null;
+      const point = canvasMouse && !pan && !spaceHeld ? getCanvasPoint(canvasMouse) : null;
       if (point) {
         const inset = 1 / view.zoom;
         hoverContext.strokeStyle = '#ffffff';
@@ -631,7 +646,7 @@ export function mountScenes(root: HTMLElement): () => void {
             (entry) => showPropNames || (hovered?.kind === 'entity' && hovered.id === entry.id),
           )
           .map((entry) => ({ ...entry, trigger: false })),
-        ...(triggersVisible() ? triggerLabels : [])
+        ...(areTriggersVisible() ? triggerLabels : [])
           .filter(
             (entry) => showPropNames || (hovered?.kind === 'trigger' && hovered.id === entry.id),
           )
@@ -647,12 +662,14 @@ export function mountScenes(root: HTMLElement): () => void {
           ? current?.triggers.find((entry) => typeof entry !== 'string' && entry.id === label.id)
           : null;
         hoverContext.fillStyle =
-          trigger && typeof trigger !== 'string' ? sceneTriggerColors(trigger).selected : '#ffe1a1';
+          trigger && typeof trigger !== 'string'
+            ? getSceneTriggerColors(trigger).selected
+            : '#ffe1a1';
         hoverContext.fillText(label.name, x + 4, y + 2, Math.max(0, width - 8));
       }
     }
     if (drawingTrigger && current) {
-      const region = triggerRegion(
+      const region = getTriggerRegion(
         drawingTrigger.x,
         drawingTrigger.y,
         drawingTrigger.endX,
@@ -690,15 +707,16 @@ export function mountScenes(root: HTMLElement): () => void {
       hoverContext.setLineDash([]);
       return;
     }
-    const active = onlySelected();
-    const region = active?.kind === 'trigger' ? positioned(active) : null;
+    const active = isOnlySelected();
+    const region = active?.kind === 'trigger' ? isPositioned(active) : null;
     if (
       region &&
-      triggersVisible() &&
+      areTriggersVisible() &&
       'width' in region &&
       (!('event' in region) || region.event !== 'load')
     ) {
-      hoverContext.fillStyle = 'event' in region ? sceneTriggerColors(region).selected : '#ffae95';
+      hoverContext.fillStyle =
+        'event' in region ? getSceneTriggerColors(region).selected : '#ffae95';
       hoverContext.strokeStyle = '#102b2a';
       for (const { x, y } of handlePositions(region)) {
         const size = 8 / view.zoom;
@@ -706,15 +724,15 @@ export function mountScenes(root: HTMLElement): () => void {
         hoverContext.strokeRect(x * cell.width - size / 2, y * cell.height - size / 2, size, size);
       }
     }
-    if (!hovered || !selectable(hovered)) return;
+    if (!hovered || !isSelectable(hovered)) return;
     const box = [...hitBoxes]
       .reverse()
       .find((hit) => hit.ref.kind === hovered?.kind && hit.ref.id === hovered?.id);
     if (!box) return;
-    const hoverItem = positioned(hovered);
+    const hoverItem = isPositioned(hovered);
     hoverContext.strokeStyle =
       hovered.kind === 'trigger' && hoverItem && 'event' in hoverItem
-        ? sceneTriggerColors(hoverItem).selected
+        ? getSceneTriggerColors(hoverItem).selected
         : '#ffe1a1';
     hoverContext.lineWidth = 1;
     hoverContext.setLineDash([3, 3]);
@@ -741,13 +759,13 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function renderList(): void {
     list.replaceChildren();
-    const query = $<HTMLInputElement>('#scene-search').value.toLowerCase();
+    const query = get$<HTMLInputElement>('#scene-search').value.toLowerCase();
     for (const id of files.filter(
-      (file) => file.includes(query) || sceneName(file).toLowerCase().includes(query),
+      (file) => file.includes(query) || getSceneName(file).toLowerCase().includes(query),
     )) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = sceneName(id);
+      button.textContent = getSceneName(id);
       button.title = id;
       button.classList.toggle('active', current?.id === id);
       button.addEventListener('click', () => void open(id));
@@ -756,9 +774,9 @@ export function mountScenes(root: HTMLElement): () => void {
     if (!list.childElementCount) list.textContent = files.length ? 'No matches.' : 'No scenes.';
   }
 
-  function picked(): SceneEntity | SceneTrigger | null {
-    const ref = onlySelected();
-    if (!current || !ref || !selectable(ref)) return null;
+  function getPicked(): SceneEntity | SceneTrigger | null {
+    const ref = isOnlySelected();
+    if (!current || !ref || !isSelectable(ref)) return null;
     return ref.kind === 'entity'
       ? (current.entities.find((entry) => entry.id === ref.id) ?? null)
       : (current.triggers.find(
@@ -766,7 +784,7 @@ export function mountScenes(root: HTMLElement): () => void {
         ) ?? null);
   }
 
-  function field(
+  function createField(
     label: string,
     value: string | number,
     onChange: (value: string) => void,
@@ -785,7 +803,7 @@ export function mountScenes(root: HTMLElement): () => void {
     wrapper.append(input);
     container.append(wrapper);
   }
-  function numberField(
+  function createNumberField(
     label: string,
     value: number,
     min: number,
@@ -793,7 +811,7 @@ export function mountScenes(root: HTMLElement): () => void {
     set: (value: number) => void,
     container: HTMLElement = inspector,
   ): void {
-    field(
+    createField(
       label,
       value,
       (raw) => {
@@ -843,11 +861,11 @@ export function mountScenes(root: HTMLElement): () => void {
       inspector.append(heading);
       return;
     }
-    const item = picked();
+    const item = getPicked();
     if (!item || !current) return;
     const heading = document.createElement('h2');
     heading.textContent =
-      onlySelected()?.kind === 'trigger'
+      isOnlySelected()?.kind === 'trigger'
         ? 'TRIGGER'
         : typeof item !== 'string' && 'type' in item && item.type === 'Background'
           ? 'BACKGROUND'
@@ -955,7 +973,7 @@ export function mountScenes(root: HTMLElement): () => void {
       }
     } else {
       if (item.type === 'Prop' || item.type === 'Character')
-        field(
+        createField(
           'INSTANCE NAME',
           item.name ?? item.id,
           (value) => {
@@ -981,7 +999,7 @@ export function mountScenes(root: HTMLElement): () => void {
           },
           spriteLabels,
         );
-        numberField('FRAME (ZERO BASED)', item.index, 0, 255, (v) => {
+        createNumberField('FRAME (ZERO BASED)', item.index, 0, 255, (v) => {
           item.index = v;
         });
         const footprint = document.createElement('p');
@@ -989,11 +1007,11 @@ export function mountScenes(root: HTMLElement): () => void {
         inspector.append(footprint);
         const spriteId = item.sprite;
         const itemId = item.id;
-        void sheet(spriteId).then((sprite) => {
+        void getSheet(spriteId).then((sprite) => {
           if (
             !alive ||
             !footprint.isConnected ||
-            onlySelected()?.id !== itemId ||
+            isOnlySelected()?.id !== itemId ||
             item.sprite !== spriteId
           )
             return;
@@ -1002,6 +1020,17 @@ export function mountScenes(root: HTMLElement): () => void {
             : 'Sprite unavailable.';
         });
       } else if (item.type === 'Character') {
+        const talkBinding = document.createElement('label');
+        talkBinding.textContent = 'TALK SCRIPT';
+        talkBinding.append(createSearchSelect({
+          value: item.talkScript ?? '',
+          choices: Object.keys(scriptSources),
+          placeholder: 'Search or paste @script name…',
+          ariaLabel: 'Talk script',
+          onInput: (value) => { item.talkScript = value.trim().replace(/^@/, '') || undefined; },
+          onCommit: (value) => { item.talkScript = value.trim().replace(/^@/, '') || undefined; render(); },
+        }));
+        inspector.append(talkBinding);
         const assetId = item.character;
         const assetLabel = document.createElement('p');
         assetLabel.textContent = `Character asset: ${assetId}`;
@@ -1046,11 +1075,11 @@ export function mountScenes(root: HTMLElement): () => void {
         stateSelect.append(new Option(item.state, item.state));
         stateLabel.append(stateSelect);
         inspector.append(stateLabel);
-        void character(assetId).then((asset) => {
+        void getCharacter(assetId).then((asset) => {
           if (
             !alive ||
             !stateLabel.isConnected ||
-            onlySelected()?.id !== itemId ||
+            isOnlySelected()?.id !== itemId ||
             item.character !== assetId
           )
             return;
@@ -1096,7 +1125,7 @@ export function mountScenes(root: HTMLElement): () => void {
         positionRow.className = 'scene-position-row';
         inspector.append(positionRow);
       }
-      numberField(
+      createNumberField(
         'X',
         item.x,
         0,
@@ -1106,7 +1135,7 @@ export function mountScenes(root: HTMLElement): () => void {
         },
         positionRow,
       );
-      numberField(
+      createNumberField(
         'Y',
         item.y,
         0,
@@ -1117,7 +1146,7 @@ export function mountScenes(root: HTMLElement): () => void {
         positionRow,
       );
       if (item.type === 'Prop' || item.type === 'Character')
-        numberField(
+        createNumberField(
           'Z',
           item.z,
           -1000,
@@ -1132,7 +1161,7 @@ export function mountScenes(root: HTMLElement): () => void {
     remove.type = 'button';
     remove.textContent = 'REMOVE OBJECT';
     remove.addEventListener('click', () => {
-      const ref = onlySelected();
+      const ref = isOnlySelected();
       if (!current || !ref) return;
       if (ref.kind === 'entity')
         current.entities = current.entities.filter((entry) => entry.id !== ref.id);
@@ -1140,11 +1169,60 @@ export function mountScenes(root: HTMLElement): () => void {
         current.triggers = current.triggers.filter(
           (entry) => (typeof entry === 'string' ? entry : entry.id) !== ref.id,
         );
-      if (backgroundEdit && !background()) backgroundEdit = false;
+      if (backgroundEdit && !getBackground()) backgroundEdit = false;
       selected = [];
       render();
     });
     inspector.append(remove);
+  }
+
+  function renderSceneScripts(): void {
+    const host = get$<HTMLElement>('#scene-script-list');
+    host.replaceChildren();
+    if (!current) return;
+    const references = getSceneScriptReferences(current, triggerSources);
+    for (const entity of current.entities) {
+      if (entity.type !== 'Character' || !entity.talkScript) continue;
+      const files = scriptSources[entity.talkScript] ?? [];
+      for (const file of files.length ? files : [null])
+        references.push({ trigger: `@${entity.talkScript} (${entity.name ?? entity.id})`, script: file });
+    }
+    if (!references.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No scripts in this scene.';
+      host.append(empty);
+      return;
+    }
+    for (const { trigger, script } of references) {
+      const row = document.createElement('div');
+      row.className = 'scene-script-row';
+      const name = document.createElement('strong');
+      name.textContent = trigger.startsWith('@') ? trigger : `#${trigger}`;
+      const file = document.createElement('span');
+      file.textContent = script ? `${script}.rpgscript` : 'No script found';
+      row.append(name, file);
+      if (script) {
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.textContent = 'OPEN ↗';
+        open.setAttribute('aria-label', `Open ${script}.rpgscript with the default editor`);
+        open.addEventListener('click', () => {
+          open.disabled = true;
+          void requestJson(`/api/scripts/${encodeURIComponent(script)}/open`, { method: 'POST' })
+            .then(() => {
+              status.textContent = `Opened ${script}.rpgscript`;
+            })
+            .catch((error: unknown) => {
+              status.textContent = showMessage(error);
+            })
+            .finally(() => {
+              open.disabled = false;
+            });
+        });
+        row.append(open);
+      }
+      host.append(row);
+    }
   }
 
   async function draw(): Promise<void> {
@@ -1152,7 +1230,7 @@ export function mountScenes(root: HTMLElement): () => void {
     const drawToken = ++token;
     if (!scene) return;
     if (autoFit) fitView(false);
-    $<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    get$<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
     const composed = Array.from({ length: scene.width * scene.height }, () => ({
       ch: ' ',
       fg: '#000000',
@@ -1161,35 +1239,35 @@ export function mountScenes(root: HTMLElement): () => void {
     const visuals = await Promise.all(
       scene.entities.map(async (entry) => {
         if (entry.type === 'Background')
-          return { entry, sprite: await sheet(entry.sprite), index: entry.index, depth: 0 };
+          return { entry, sprite: await getSheet(entry.sprite), index: entry.index, depth: 0 };
         if (entry.type === 'Character') {
-          const asset = await character(entry.character);
-          const animationId = asset && characterAnimation(asset, entry.state, entry.facing);
-          const clip = animationId ? await animation(animationId) : null;
+          const asset = await getCharacter(entry.character);
+          const animationId = asset && getCharacterAnimation(asset, entry.state, entry.facing);
+          const clip = animationId ? await getAnimation(animationId) : null;
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
             return {
               entry,
               sprite: null,
               index: 0,
-              depth: sceneDepth(scene.depthMode, entry.y, entry.z, 0),
+              depth: getSceneDepth(scene.depthMode, entry.y, entry.z, 0),
             };
           return {
             entry,
-            sprite: await sheet(first.sprite),
+            sprite: await getSheet(first.sprite),
             index: first.index,
-            flips: animationFrameFlips(clip, first),
-            depth: sceneDepth(scene.depthMode, entry.y, entry.z, 0),
+            flips: getAnimationFrameFlips(clip, first),
+            depth: getSceneDepth(scene.depthMode, entry.y, entry.z, 0),
           };
         }
         if ('sprite' in entry)
           return {
             entry,
-            sprite: await sheet(entry.sprite),
+            sprite: await getSheet(entry.sprite),
             index: 0,
-            depth: sceneDepth(scene.depthMode, entry.y, entry.z, entry.depthOffset),
+            depth: getSceneDepth(scene.depthMode, entry.y, entry.z, entry.depthOffset),
           };
-        const asset = await prop(entry.prop);
+        const asset = await getProp(entry.prop);
         if (!asset) return { entry, sprite: null, index: 0, depth: entry.y };
         let spriteId: string;
         let index: number;
@@ -1198,21 +1276,21 @@ export function mountScenes(root: HTMLElement): () => void {
           spriteId = asset.visual.id;
           index = asset.visual.index;
         } else {
-          const clip = await animation(asset.visual.id);
+          const clip = await getAnimation(asset.visual.id);
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
             return { entry, sprite: null, index: 0, depth: entry.y, asset };
           spriteId = first.sprite;
           index = first.index;
-          flips = animationFrameFlips(clip, first);
+          flips = getAnimationFrameFlips(clip, first);
         }
         return {
           entry,
           asset,
-          sprite: await sheet(spriteId),
+          sprite: await getSheet(spriteId),
           index,
           flips,
-          depth: sceneDepth(
+          depth: getSceneDepth(
             scene.depthMode,
             entry.y,
             entry.z,
@@ -1263,7 +1341,7 @@ export function mountScenes(root: HTMLElement): () => void {
       const left = entry.x - sprite.originX;
       const top = entry.y - sprite.originY;
       const ref: ObjectRef = { kind: 'entity', id: entry.id };
-      if (selectable(ref)) {
+      if (isSelectable(ref)) {
         const box = { ref, x: left, y: top, width: sprite.width, height: sprite.height };
         hitBoxes.push(box);
         if (isSelected(ref)) outlines.push(box);
@@ -1275,12 +1353,12 @@ export function mountScenes(root: HTMLElement): () => void {
         const x = left + (flips?.flipH ? sprite.width - 1 - column : column);
         const y = top + (flips?.flipV ? sprite.height - 1 - row : row);
         if (x < 0 || y < 0 || x >= scene.width || y >= scene.height) return;
-        const bg = palette ? (paletteRgb(palette, glyph.bg) ?? '#000') : '#000';
+        const bg = palette ? (getPaletteRgb(palette, glyph.bg) ?? '#000') : '#000';
         const transparent = bg.toLowerCase() === '#000000' || bg.toLowerCase() === '#000';
         if (transparent && glyph.ch === ' ') return;
         const target = composed[y * scene.width + x];
         target.ch = glyph.ch;
-        target.fg = palette ? (paletteRgb(palette, glyph.fg) ?? '#fff') : '#fff';
+        target.fg = palette ? (getPaletteRgb(palette, glyph.fg) ?? '#fff') : '#fff';
         if (!transparent) target.bg = bg;
       });
     }
@@ -1304,7 +1382,7 @@ export function mountScenes(root: HTMLElement): () => void {
     context.fillStyle = '#dca665';
     for (const { x, y } of missing)
       drawTerminalGlyph(context, cell, '?', x * cell.width, y * cell.height);
-    for (const trigger of backgroundEdit || !triggersVisible() ? [] : scene.triggers) {
+    for (const trigger of backgroundEdit || !areTriggersVisible() ? [] : scene.triggers) {
       if (typeof trigger === 'string') continue;
       const width = trigger.event === 'action' ? trigger.width : 1;
       const height = trigger.event === 'action' ? trigger.height : 1;
@@ -1323,7 +1401,7 @@ export function mountScenes(root: HTMLElement): () => void {
         width,
         height,
       });
-      const colors = sceneTriggerColors(trigger);
+      const colors = getSceneTriggerColors(trigger);
       context.fillStyle = colors.fill;
       context.strokeStyle = isSelected({ kind: 'trigger', id: trigger.id })
         ? colors.selected
@@ -1341,13 +1419,13 @@ export function mountScenes(root: HTMLElement): () => void {
         height * cell.height - 2,
       );
     }
-    if ((blockedVisible() || blockedEdit) && !backgroundEdit) {
+    if ((areBlockedCellsVisible() || blockedEdit) && !backgroundEdit) {
       const blocked = new Set<number>(scene.blockedCells);
       for (const visual of blockedEdit ? [] : visuals) {
         const { entry, sprite } = visual;
         if (entry.type !== 'Prop' || !('prop' in entry) || !('asset' in visual) || !visual.asset)
           continue;
-        for (const { x, y } of propBlockedSceneCells(
+        for (const { x, y } of getPropBlockedSceneCells(
           entry,
           visual.asset,
           sprite ?? { originX: 0, originY: 0 },
@@ -1397,62 +1475,65 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function render(): void {
     ++token;
-    if (hovered && !selectable(hovered)) setHover(null);
+    if (hovered && !isSelectable(hovered)) setHover(null);
     renderList();
     renderTabs();
     scheduleTabs();
-    $<HTMLElement>('#scene-title').textContent = current ? sceneName(current.id) : 'NO SCENE';
-    $<HTMLElement>('#scene-workspace').hidden = !current;
-    $<HTMLButtonElement>('#scene-cancel-trigger').hidden = !placingTrigger;
-    $<HTMLButtonElement>('#scene-save').disabled = !current || saving;
-    $<HTMLButtonElement>('#scene-delete').disabled = !current;
-    $<HTMLButtonElement>('#scene-add-prop').disabled = !current || backgroundEdit || blockedEdit;
-    $<HTMLButtonElement>('#scene-add-character').disabled =
+    get$<HTMLElement>('#scene-title').textContent = current ? getSceneName(current.id) : 'NO SCENE';
+    get$<HTMLElement>('#scene-workspace').hidden = !current;
+    get$<HTMLButtonElement>('#scene-cancel-trigger').hidden = !placingTrigger;
+    get$<HTMLButtonElement>('#scene-save').disabled = !current || saving;
+    get$<HTMLButtonElement>('#scene-delete').disabled = !current;
+    get$<HTMLButtonElement>('#scene-add-prop').disabled = !current || backgroundEdit || blockedEdit;
+    get$<HTMLButtonElement>('#scene-add-character').disabled =
       !current || backgroundEdit || blockedEdit;
-    $<HTMLButtonElement>('#scene-add-trigger').disabled = !current || backgroundEdit || blockedEdit;
+    get$<HTMLButtonElement>('#scene-add-trigger').disabled =
+      !current || backgroundEdit || blockedEdit;
     if (!current) return;
-    const bg = background();
-    const backgroundLink = $<HTMLAnchorElement>('#scene-background-link');
+    const bg = getBackground();
+    const backgroundLink = get$<HTMLAnchorElement>('#scene-background-link');
     backgroundLink.hidden = !bg;
     if (bg) backgroundLink.href = `/art?id=${encodeURIComponent(bg.sprite)}`;
     if (backgroundEdit && !bg) {
       backgroundEdit = false;
       selected = [];
     }
-    const modeButton = $<HTMLButtonElement>('#scene-background-mode');
+    const modeButton = get$<HTMLButtonElement>('#scene-background-mode');
     modeButton.disabled = !bg;
     modeButton.setAttribute('aria-pressed', String(backgroundEdit));
-    const blockedButton = $<HTMLButtonElement>('#scene-blocked-mode');
+    const blockedButton = get$<HTMLButtonElement>('#scene-blocked-mode');
     blockedButton.setAttribute('aria-pressed', String(blockedEdit));
-    const addBackgroundButton = $<HTMLButtonElement>('#scene-add-background');
+    const addBackgroundButton = get$<HTMLButtonElement>('#scene-add-background');
     addBackgroundButton.setAttribute(
       'aria-label',
       bg ? 'REPLACE BACKGROUND SPRITE' : 'ADD BACKGROUND SPRITE',
     );
     addBackgroundButton.title = bg ? 'Replace background sprite' : 'Add background sprite';
-    const addTriggerButton = $<HTMLButtonElement>('#scene-add-trigger');
+    const addTriggerButton = get$<HTMLButtonElement>('#scene-add-trigger');
     addTriggerButton.setAttribute('aria-pressed', String(placingTrigger));
     addTriggerButton.textContent = placingTrigger ? 'Cancel Trigger' : 'Add Trigger';
-    $<HTMLInputElement>('#scene-width').value = String(current.width);
-    $<HTMLInputElement>('#scene-height').value = String(current.height);
-    $<HTMLSelectElement>('#scene-depth').value = current.depthMode;
+    get$<HTMLInputElement>('#scene-width').value = String(current.width);
+    get$<HTMLInputElement>('#scene-height').value = String(current.height);
+    get$<HTMLSelectElement>('#scene-depth').value = current.depthMode;
     renderInspector();
+    if (sidebarTab === 'scripts') renderSceneScripts();
     redraw();
   }
 
   async function refresh(): Promise<void> {
-    const [sceneList, propList, sheetList, colors, triggers] = await Promise.all([
+    const [sceneList, propList, sheetList, colors, triggers, scripts] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/scenes'),
       requestJson<{ files: string[] }>('/api/props'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
-      requestJson<{ names: string[] }>('/api/rpg-triggers'),
+      requestJson<{ names: string[]; sources: Record<string, string[]> }>('/api/rpg-triggers'),
+      requestJson<{ sources: Record<string, string[]> }>('/api/scripts/names'),
     ]);
     if (!alive) return;
     files = sceneList.files;
     sceneLabels = sceneList.labels;
     openTabs = openTabs.filter(
-      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && tabDirty(id)),
+      (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
     for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     props = propList.files;
@@ -1460,26 +1541,51 @@ export function mountScenes(root: HTMLElement): () => void {
     spriteLabels = sheetList.labels;
     palette = colors;
     rpgTriggers = triggers.names;
+    triggerSources = triggers.sources;
+    scriptSources = scripts.sources;
     render();
   }
   async function open(id: string): Promise<void> {
     if (current?.id === id || saving) return;
     const openToken = ++switchToken;
     const cached = sessions.get(id);
-    if (cached) {
-      activateScene(cached.doc, cached.saved);
-      status.textContent = `Opened ${id}`;
-      return;
-    }
     try {
+      if (cached) {
+        const missing = await getMissingSceneCharacters(
+          [cached.doc, cached.saved],
+          hasCharacterAsset,
+        );
+        if (!alive || openToken !== switchToken) return;
+        activateScene(
+          removeMissingSceneCharacters(cached.doc, missing),
+          cached.saved ? removeMissingSceneCharacters(cached.saved, missing) : null,
+        );
+        status.textContent = `Opened ${id}`;
+        return;
+      }
       const scene = await requestJson<SceneDocument>(`/api/scenes/${encodeURIComponent(id)}`);
       if (!alive || openToken !== switchToken) return;
       activateScene(scene, structuredClone(scene));
       status.textContent = `Opened ${id}`;
     } catch (error) {
-      if (alive && openToken === switchToken) status.textContent = message(error);
+      if (alive && openToken === switchToken) status.textContent = showMessage(error);
     }
   }
+
+  async function hasCharacterAsset(id: string): Promise<boolean> {
+    try {
+      await requestJson<CharacterDocument>(`/api/characters/${encodeURIComponent(id)}`);
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        characterCache.delete(id);
+        return false;
+      }
+      if (error instanceof ApiError && error.status === 422) return true;
+      throw error;
+    }
+  }
+
   async function save(): Promise<void> {
     if (!current || saving) return;
     if (current.triggers.some((entry) => typeof entry !== 'string' && !entry.trigger)) {
@@ -1487,11 +1593,16 @@ export function mountScenes(root: HTMLElement): () => void {
       toast(status.textContent, true);
       return;
     }
-    const sent = structuredClone(current);
-    const base = saved;
+    const sceneId = current.id;
     saving = true;
-    $<HTMLButtonElement>('#scene-save').disabled = true;
+    get$<HTMLButtonElement>('#scene-save').disabled = true;
     try {
+      const missing = await getMissingSceneCharacters([current, saved], hasCharacterAsset);
+      if (!alive || current?.id !== sceneId) return;
+      current = removeMissingSceneCharacters(current, missing);
+      if (saved) saved = removeMissingSceneCharacters(saved, missing);
+      const sent = structuredClone(current);
+      const base = saved;
       const stored = await saveDraft(`/api/scenes/${encodeURIComponent(sent.id)}`, sent, base);
       if (alive && current?.id === sent.id) {
         const mergedOnDisk = JSON.stringify(stored) !== JSON.stringify(sent);
@@ -1508,10 +1619,10 @@ export function mountScenes(root: HTMLElement): () => void {
       if (alive) await refresh();
     } catch (error) {
       if (alive) {
-        status.textContent = message(error);
+        status.textContent = showMessage(error);
         toast(status.textContent, true);
         if (error instanceof ApiError && error.status === 409)
-          await alertModal(`${message(error)}. Your draft is still open.`);
+          await alertModal(`${showMessage(error)}. Your draft is still open.`);
       }
     } finally {
       saving = false;
@@ -1543,10 +1654,10 @@ export function mountScenes(root: HTMLElement): () => void {
       const row = Math.floor(at / sprite.width);
       const x = x0 + (flips.flipH ? sprite.width - 1 - column : column) * grid.width;
       const y = y0 + (flips.flipV ? sprite.height - 1 - row : row) * grid.height;
-      preview.fillStyle = palette ? (paletteRgb(palette, cell.bg) ?? '#000') : '#000';
+      preview.fillStyle = palette ? (getPaletteRgb(palette, cell.bg) ?? '#000') : '#000';
       fillTerminalCell(preview, grid, x, y);
       if (cell.ch !== ' ') {
-        preview.fillStyle = palette ? (paletteRgb(palette, cell.fg) ?? '#fff') : '#fff';
+        preview.fillStyle = palette ? (getPaletteRgb(palette, cell.fg) ?? '#fff') : '#fff';
         drawTerminalGlyph(preview, grid, cell.ch, x, y);
       }
     });
@@ -1560,7 +1671,7 @@ export function mountScenes(root: HTMLElement): () => void {
     backgroundFrames.replaceChildren();
     if (!id) return;
     backgroundStatus.textContent = 'Loading sprite frames…';
-    const sprite = await sheet(id);
+    const sprite = await getSheet(id);
     if (!alive || !backgroundPicker.open || token !== pickerToken) return;
     if (!sprite) {
       backgroundStatus.textContent = `Could not load sprite ${id}`;
@@ -1630,8 +1741,8 @@ export function mountScenes(root: HTMLElement): () => void {
       void alertModal('Create a sprite sheet in Art first');
       return;
     }
-    const replacing = !!background();
-    $<HTMLElement>('#scene-background-picker-title').textContent = replacing
+    const replacing = !!getBackground();
+    get$<HTMLElement>('#scene-background-picker-title').textContent = replacing
       ? 'REPLACE BACKGROUND SPRITE'
       : 'ADD BACKGROUND SPRITE';
     backgroundAdd.textContent = replacing ? 'REPLACE SPRITE' : 'ADD SPRITE';
@@ -1649,7 +1760,7 @@ export function mountScenes(root: HTMLElement): () => void {
     renderBackgroundResults();
     if (backgroundSheetId && backgroundSheetId !== previous) void renderBackgroundFrames();
   });
-  $<HTMLButtonElement>('#scene-background-cancel').addEventListener('click', () =>
+  get$<HTMLButtonElement>('#scene-background-cancel').addEventListener('click', () =>
     backgroundPicker.close(),
   );
   backgroundPicker.addEventListener('close', () => {
@@ -1658,7 +1769,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   backgroundAdd.addEventListener('click', () => {
     if (!current || !backgroundChoice) return;
-    const existing = background();
+    const existing = getBackground();
     const entry = setSceneBackground(current, backgroundChoice.sprite, backgroundChoice.index);
     backgroundEdit = true;
     blockedEdit = false;
@@ -1700,7 +1811,7 @@ export function mountScenes(root: HTMLElement): () => void {
         });
       });
       void (async () => {
-        const asset = await prop(id);
+        const asset = await getProp(id);
         if (!alive || !propPicker.open || token !== propPickerToken) return;
         if (!asset) {
           details.textContent = 'Prop unavailable';
@@ -1710,12 +1821,12 @@ export function mountScenes(root: HTMLElement): () => void {
         if (asset.visual.type === 'sprite')
           frame = { sprite: asset.visual.id, index: asset.visual.index };
         else {
-          const clip = await animation(asset.visual.id);
+          const clip = await getAnimation(asset.visual.id);
           const first = clip?.frames.find((entry) => !isInvisibleFrame(entry));
           if (first && !isInvisibleFrame(first)) frame = first;
         }
         if (!alive || !propPicker.open || token !== propPickerToken) return;
-        const sprite = frame ? await sheet(frame.sprite) : null;
+        const sprite = frame ? await getSheet(frame.sprite) : null;
         if (!alive || !propPicker.open || token !== propPickerToken) return;
         if (!sprite || !frame || frame.index >= sprite.sprites.length) {
           details.textContent = 'No visible sprite frame';
@@ -1748,12 +1859,12 @@ export function mountScenes(root: HTMLElement): () => void {
       propSearch.focus();
     } catch (error) {
       if (alive && propPicker.open && token === propLoadToken)
-        propStatus.textContent = message(error);
+        propStatus.textContent = showMessage(error);
     }
   }
 
   propSearch.addEventListener('input', () => void renderPropResults());
-  $<HTMLButtonElement>('#scene-prop-cancel').addEventListener('click', () => propPicker.close());
+  get$<HTMLButtonElement>('#scene-prop-cancel').addEventListener('click', () => propPicker.close());
   propPicker.addEventListener('close', () => {
     ++propPickerToken;
     ++propLoadToken;
@@ -1762,7 +1873,7 @@ export function mountScenes(root: HTMLElement): () => void {
   propAdd.addEventListener('click', () => {
     if (!current || !propChoice || backgroundEdit) return;
     const assetId = propChoice;
-    const center = sceneCellAt(
+    const center = getSceneCellAt(
       view,
       viewport.clientWidth / 2,
       viewport.clientHeight / 2,
@@ -1821,7 +1932,7 @@ export function mountScenes(root: HTMLElement): () => void {
           button.disabled = true;
           characterResults.append(button);
           void (async () => {
-            const asset = await character(id);
+            const asset = await getCharacter(id);
             if (
               !alive ||
               !characterPicker.open ||
@@ -1841,9 +1952,9 @@ export function mountScenes(root: HTMLElement): () => void {
                 card.classList.toggle('active', card === button);
               });
             });
-            const clip = await animation(asset.animations['idle-down']);
+            const clip = await getAnimation(asset.animations['idle-down']);
             const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
-            const sprite = first && !isInvisibleFrame(first) ? await sheet(first.sprite) : null;
+            const sprite = first && !isInvisibleFrame(first) ? await getSheet(first.sprite) : null;
             if (
               !alive ||
               !characterPicker.open ||
@@ -1861,7 +1972,7 @@ export function mountScenes(root: HTMLElement): () => void {
               details.textContent = 'No idle-down preview';
               return;
             }
-            drawThumbnail(thumbnail, sprite, first.index, animationFrameFlips(clip, first));
+            drawThumbnail(thumbnail, sprite, first.index, getAnimationFrameFlips(clip, first));
             details.textContent = 'IDLE DOWN';
           })().catch(() => {
             if (alive && button.isConnected && picker === characterPickerToken)
@@ -1873,10 +1984,11 @@ export function mountScenes(root: HTMLElement): () => void {
       renderResults();
       characterSearch.focus();
     } catch (error) {
-      if (alive && picker === characterPickerToken) characterStatus.textContent = message(error);
+      if (alive && picker === characterPickerToken)
+        characterStatus.textContent = showMessage(error);
     }
   }
-  $<HTMLButtonElement>('#scene-character-cancel').addEventListener('click', () =>
+  get$<HTMLButtonElement>('#scene-character-cancel').addEventListener('click', () =>
     characterPicker.close(),
   );
   characterPicker.addEventListener('close', () => {
@@ -1885,7 +1997,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   characterAdd.addEventListener('click', () => {
     if (!current || !characterChoice || backgroundEdit) return;
-    const center = sceneCellAt(
+    const center = getSceneCellAt(
       view,
       viewport.clientWidth / 2,
       viewport.clientHeight / 2,
@@ -1899,8 +2011,8 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
   });
 
-  $<HTMLButtonElement>('#scene-background-mode').addEventListener('click', () => {
-    const bg = background();
+  get$<HTMLButtonElement>('#scene-background-mode').addEventListener('click', () => {
+    const bg = getBackground();
     if (!bg) return;
     backgroundEdit = !backgroundEdit;
     blockedEdit = false;
@@ -1911,7 +2023,7 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
   });
 
-  $<HTMLButtonElement>('#scene-blocked-mode').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#scene-blocked-mode').addEventListener('click', () => {
     if (!current) return;
     blockedEdit = !blockedEdit;
     backgroundEdit = false;
@@ -1957,13 +2069,13 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
     syncCursor();
   }
-  $<HTMLButtonElement>('#scene-cancel-trigger').addEventListener('click', cancelTrigger);
-  function canvasPoint(
+  get$<HTMLButtonElement>('#scene-cancel-trigger').addEventListener('click', cancelTrigger);
+  function getCanvasPoint(
     event: Pick<MouseEvent, 'clientX' | 'clientY'>,
   ): { x: number; y: number } | null {
     if (!current) return null;
-    const pixel = viewportPixel(event);
-    const { x, y } = sceneCellAt(view, pixel.x, pixel.y, cell.width, cell.height);
+    const pixel = getViewportPixel(event);
+    const { x, y } = getSceneCellAt(view, pixel.x, pixel.y, cell.width, cell.height);
     const uiWidth = Math.min(STANDARD_WIDTH, current.width);
     const uiLeft = Math.floor((current.width - uiWidth) / 2);
     return x >= 0 &&
@@ -1985,8 +2097,8 @@ export function mountScenes(root: HTMLElement): () => void {
         .reverse()
         .find(
           (box) =>
-            selectable(box.ref) &&
-            (box.ref.kind !== 'trigger' || triggersVisible()) &&
+            isSelectable(box.ref) &&
+            (box.ref.kind !== 'trigger' || areTriggersVisible()) &&
             x >= box.x &&
             y >= box.y &&
             x < box.x + box.width &&
@@ -1994,8 +2106,8 @@ export function mountScenes(root: HTMLElement): () => void {
         )?.ref ?? null
     );
   }
-  function scenePixel(event: PointerEvent): { x: number; y: number } {
-    const pixel = viewportPixel(event);
+  function getScenePixel(event: PointerEvent): { x: number; y: number } {
+    const pixel = getViewportPixel(event);
     return {
       x: (pixel.x - view.x) / (view.zoom * cell.width),
       y: (pixel.y - view.y) / (view.zoom * cell.height),
@@ -2004,7 +2116,7 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function updateTriggerResize(event: PointerEvent): void {
     if (!resizing || resizing.pointerId !== event.pointerId || !current) return;
-    const point = scenePixel(event);
+    const point = getScenePixel(event);
     const next = resizeTrigger(
       resizing.start,
       resizing.handle,
@@ -2013,7 +2125,7 @@ export function mountScenes(root: HTMLElement): () => void {
       current.width,
       current.height,
     );
-    const trigger = positioned({ kind: 'trigger', id: resizing.id });
+    const trigger = isPositioned({ kind: 'trigger', id: resizing.id });
     if (
       trigger &&
       'width' in trigger &&
@@ -2029,7 +2141,7 @@ export function mountScenes(root: HTMLElement): () => void {
   canvas.addEventListener('pointerdown', (event) => {
     canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (event.button !== 0 || spaceHeld) return;
-    const point = canvasPoint(event);
+    const point = getCanvasPoint(event);
     if (blockedEdit) {
       if (!current || !point) return;
       event.preventDefault();
@@ -2065,9 +2177,9 @@ export function mountScenes(root: HTMLElement): () => void {
       return;
     }
     const handle = handleAt(event);
-    const ref = onlySelected();
+    const ref = isOnlySelected();
     if (handle && ref?.kind === 'trigger') {
-      const trigger = positioned(ref);
+      const trigger = isPositioned(ref);
       if (trigger && 'width' in trigger) {
         resizing = {
           pointerId: event.pointerId,
@@ -2092,12 +2204,12 @@ export function mountScenes(root: HTMLElement): () => void {
       setHover(null);
       if ((event.ctrlKey || event.metaKey) && !backgroundEdit) {
         selected = isSelected(hit)
-          ? selected.filter((ref) => !sameSceneObject(ref, hit))
+          ? selected.filter((ref) => !isSameSceneObject(ref, hit))
           : [...selected, hit];
       } else if (!isSelected(hit)) selected = [hit];
       else if (backgroundEdit) selected = [hit];
       const items = selected.flatMap((ref) => {
-        const item = positioned(ref);
+        const item = isPositioned(ref);
         return item
           ? [
               {
@@ -2117,7 +2229,7 @@ export function mountScenes(root: HTMLElement): () => void {
       render();
       syncCursor(event);
     } else if (!backgroundEdit) {
-      const { x, y } = scenePixel(event);
+      const { x, y } = getScenePixel(event);
       marquee = {
         pointerId: event.pointerId,
         x,
@@ -2136,7 +2248,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   function updateDrag(event: PointerEvent): void {
     if (!drag || drag.pointerId !== event.pointerId || !current) return;
-    const pixel = scenePixel(event);
+    const pixel = getScenePixel(event);
     if (
       moveSceneGroup(
         current,
@@ -2151,7 +2263,7 @@ export function mountScenes(root: HTMLElement): () => void {
     canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (pan) return;
     if (blockStroke?.pointerId === event.pointerId && current) {
-      const point = canvasPoint(event);
+      const point = getCanvasPoint(event);
       if (point) {
         current.blockedCells = paintSceneBlockedCells(
           current.blockedCells,
@@ -2170,7 +2282,7 @@ export function mountScenes(root: HTMLElement): () => void {
       return;
     }
     if (drawingTrigger?.pointerId === event.pointerId && current) {
-      const point = scenePixel(event);
+      const point = getScenePixel(event);
       drawingTrigger.endX = point.x;
       drawingTrigger.endY = point.y;
       paintHover();
@@ -2181,14 +2293,14 @@ export function mountScenes(root: HTMLElement): () => void {
       return;
     }
     if (marquee && marquee.pointerId === event.pointerId) {
-      const point = scenePixel(event);
+      const point = getScenePixel(event);
       marquee.endX = Math.max(0, Math.min(current?.width ?? 0, point.x));
       marquee.endY = Math.max(0, Math.min(current?.height ?? 0, point.y));
       paintHover();
       return;
     }
     if (!drag) {
-      const point = canvasPoint(event);
+      const point = getCanvasPoint(event);
       setHover(point ? hitAt(point.x, point.y) : null);
       syncCursor(event);
     }
@@ -2196,7 +2308,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   canvas.addEventListener('pointerup', (event) => {
     if (blockStroke?.pointerId === event.pointerId) {
-      const point = canvasPoint(event);
+      const point = getCanvasPoint(event);
       if (point && current)
         current.blockedCells = paintSceneBlockedCells(
           current.blockedCells,
@@ -2212,8 +2324,8 @@ export function mountScenes(root: HTMLElement): () => void {
     if (drawingTrigger?.pointerId === event.pointerId && current) {
       const drawing = drawingTrigger;
       drawingTrigger = null;
-      const point = scenePixel(event);
-      const region = triggerRegion(
+      const point = getScenePixel(event);
+      const region = getTriggerRegion(
         drawing.x,
         drawing.y,
         point.x,
@@ -2221,7 +2333,7 @@ export function mountScenes(root: HTMLElement): () => void {
         current.width,
         current.height,
       );
-      const entry = newSceneTrigger(current, region);
+      const entry = createNewSceneTrigger(current, region);
       selected = [{ kind: 'trigger', id: entry.id }];
       placingTrigger = false;
       status.textContent = 'Trigger created. Select its RPGTrigger in the inspector before saving.';
@@ -2246,7 +2358,7 @@ export function mountScenes(root: HTMLElement): () => void {
       Math.abs(box.endX - box.x) * cell.width * view.zoom > 3 ||
       Math.abs(box.endY - box.y) * cell.height * view.zoom > 3;
     if (moved) {
-      const hits = boxesInSceneRect(hitBoxes, box.x, box.y, box.endX, box.endY);
+      const hits = getBoxesInSceneRect(hitBoxes, box.x, box.y, box.endX, box.endY);
       selected = box.additive ? [...selected, ...hits.filter((ref) => !isSelected(ref))] : hits;
     } else if (!box.additive) selected = [];
     render();
@@ -2271,7 +2383,7 @@ export function mountScenes(root: HTMLElement): () => void {
   viewport.addEventListener('pointerdown', (event) => {
     if (!current || (event.button !== 1 && !(event.button === 0 && spaceHeld))) return;
     event.preventDefault();
-    const pixel = viewportPixel(event);
+    const pixel = getViewportPixel(event);
     pan = { pointerId: event.pointerId, x: pixel.x, y: pixel.y, startX: view.x, startY: view.y };
     setHover(null);
     autoFit = false;
@@ -2280,7 +2392,7 @@ export function mountScenes(root: HTMLElement): () => void {
   });
   viewport.addEventListener('pointermove', (event) => {
     if (!pan || pan.pointerId !== event.pointerId) return;
-    const pixel = viewportPixel(event);
+    const pixel = getViewportPixel(event);
     view = { ...view, x: pan.startX + pixel.x - pan.x, y: pan.startY + pixel.y - pan.y };
     applyView();
   });
@@ -2299,23 +2411,23 @@ export function mountScenes(root: HTMLElement): () => void {
     (event) => {
       if (!current) return;
       event.preventDefault();
-      const pixel = viewportPixel(event);
+      const pixel = getViewportPixel(event);
       stepZoom(event.deltaY < 0 ? 1 : -1, pixel.x, pixel.y);
     },
     { passive: false },
   );
-  $<HTMLButtonElement>('#scene-zoom-out').addEventListener('click', () => stepZoom(-1));
-  $<HTMLButtonElement>('#scene-zoom-in').addEventListener('click', () => stepZoom(1));
-  $<HTMLButtonElement>('#scene-fit').addEventListener('click', () => fitView());
-  $<HTMLButtonElement>('#scene-add-background').addEventListener('click', openBackgroundPicker);
-  $<HTMLButtonElement>('#scene-add-prop').addEventListener('click', () => void openPropPicker());
-  $<HTMLButtonElement>('#scene-add-character').addEventListener(
+  get$<HTMLButtonElement>('#scene-zoom-out').addEventListener('click', () => stepZoom(-1));
+  get$<HTMLButtonElement>('#scene-zoom-in').addEventListener('click', () => stepZoom(1));
+  get$<HTMLButtonElement>('#scene-fit').addEventListener('click', () => fitView());
+  get$<HTMLButtonElement>('#scene-add-background').addEventListener('click', openBackgroundPicker);
+  get$<HTMLButtonElement>('#scene-add-prop').addEventListener('click', () => void openPropPicker());
+  get$<HTMLButtonElement>('#scene-add-character').addEventListener(
     'click',
     () => void openCharacterPicker(),
   );
-  $<HTMLButtonElement>('#scene-add-trigger').addEventListener('click', addTrigger);
+  get$<HTMLButtonElement>('#scene-add-trigger').addEventListener('click', addTrigger);
   for (const dimension of ['width', 'height'] as const) {
-    const input = $<HTMLInputElement>(`#scene-${dimension}`);
+    const input = get$<HTMLInputElement>(`#scene-${dimension}`);
     input.addEventListener('change', () => {
       if (!current) return;
       const value = Number(input.value);
@@ -2346,14 +2458,14 @@ export function mountScenes(root: HTMLElement): () => void {
       if (autoFit) fitView();
     });
   }
-  $<HTMLSelectElement>('#scene-depth').addEventListener('change', (event) => {
+  get$<HTMLSelectElement>('#scene-depth').addEventListener('change', (event) => {
     if (!current) return;
     current.depthMode = (event.target as HTMLSelectElement).value as SceneDocument['depthMode'];
     render();
   });
   showTriggersInput.addEventListener('change', () => {
     showTriggers = showTriggersInput.checked;
-    if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+    if (!areTriggersVisible() && hovered?.kind === 'trigger') hovered = null;
     render();
   });
   showBlockedInput.addEventListener('change', () => {
@@ -2365,7 +2477,39 @@ export function mountScenes(root: HTMLElement): () => void {
     setHover(null);
     render();
   });
-  $<HTMLInputElement>('#scene-search').addEventListener('input', renderList);
+  for (const tab of ['scene', 'scripts'] as const) {
+    get$<HTMLButtonElement>(
+      `#scene-tab-${tab === 'scene' ? 'controls' : 'scripts'}`,
+    ).addEventListener('click', () => {
+      sidebarTab = tab;
+      get$<HTMLButtonElement>('#scene-tab-controls').setAttribute(
+        'aria-selected',
+        String(tab === 'scene'),
+      );
+      get$<HTMLButtonElement>('#scene-tab-scripts').setAttribute(
+        'aria-selected',
+        String(tab === 'scripts'),
+      );
+      get$<HTMLElement>('#scene-panel-controls').hidden = tab !== 'scene';
+      get$<HTMLElement>('#scene-panel-scripts').hidden = tab !== 'scripts';
+      if (tab === 'scripts') {
+        renderSceneScripts();
+        void requestJson<{ names: string[]; sources: Record<string, string[]> }>(
+          '/api/rpg-triggers',
+        )
+          .then((result) => {
+            if (!alive) return;
+            rpgTriggers = result.names;
+            triggerSources = result.sources;
+            renderSceneScripts();
+          })
+          .catch((error: unknown) => {
+            if (alive) status.textContent = showMessage(error);
+          });
+      }
+    });
+  }
+  get$<HTMLInputElement>('#scene-search').addEventListener('input', renderList);
   const menus = [...root.querySelectorAll<HTMLDetailsElement>('.scene-menu')];
   for (const menu of menus) {
     menu.querySelectorAll('button').forEach((button) => {
@@ -2383,25 +2527,25 @@ export function mountScenes(root: HTMLElement): () => void {
     for (const menu of menus) menu.open = false;
   };
   document.addEventListener('pointerdown', closeMenus);
-  $<HTMLButtonElement>('#scene-save').addEventListener('click', () => void save());
-  $<HTMLButtonElement>('#scene-new').addEventListener('click', () => {
-    $<HTMLInputElement>('#scene-new-label').value = '';
-    $<HTMLInputElement>('#scene-new-width').value = '120';
-    $<HTMLInputElement>('#scene-new-height').value = '40';
-    $<HTMLSelectElement>('#scene-new-depth').value = 'bottom-up';
-    $<HTMLElement>('#scene-new-error').hidden = true;
+  get$<HTMLButtonElement>('#scene-save').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#scene-new').addEventListener('click', () => {
+    get$<HTMLInputElement>('#scene-new-label').value = '';
+    get$<HTMLInputElement>('#scene-new-width').value = '120';
+    get$<HTMLInputElement>('#scene-new-height').value = '40';
+    get$<HTMLSelectElement>('#scene-new-depth').value = 'bottom-up';
+    get$<HTMLElement>('#scene-new-error').hidden = true;
     newDialog.showModal();
-    $<HTMLInputElement>('#scene-new-label').focus();
+    get$<HTMLInputElement>('#scene-new-label').focus();
   });
-  $<HTMLButtonElement>('#scene-new-cancel').addEventListener('click', () => newDialog.close());
-  $<HTMLFormElement>('#scene-new-form').addEventListener('submit', (event) => {
+  get$<HTMLButtonElement>('#scene-new-cancel').addEventListener('click', () => newDialog.close());
+  get$<HTMLFormElement>('#scene-new-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    const label = $<HTMLInputElement>('#scene-new-label').value.trim();
-    const width = Number($<HTMLInputElement>('#scene-new-width').value);
-    const height = Number($<HTMLInputElement>('#scene-new-height').value);
-    const depthMode = $<HTMLSelectElement>('#scene-new-depth').value;
-    const error = $<HTMLElement>('#scene-new-error');
-    const labelError = spriteLabelError(label);
+    const label = get$<HTMLInputElement>('#scene-new-label').value.trim();
+    const width = Number(get$<HTMLInputElement>('#scene-new-width').value);
+    const height = Number(get$<HTMLInputElement>('#scene-new-height').value);
+    const depthMode = get$<HTMLSelectElement>('#scene-new-depth').value;
+    const error = get$<HTMLElement>('#scene-new-error');
+    const labelError = getSpriteLabelError(label);
     if (
       labelError ||
       !Number.isInteger(width) ||
@@ -2423,7 +2567,7 @@ export function mountScenes(root: HTMLElement): () => void {
     status.textContent = `New scene ${label}`;
     newDialog.close();
   });
-  $<HTMLButtonElement>('#scene-delete').addEventListener(
+  get$<HTMLButtonElement>('#scene-delete').addEventListener(
     'click',
     () =>
       void (async () => {
@@ -2451,7 +2595,7 @@ export function mountScenes(root: HTMLElement): () => void {
           if (next) await open(next);
           else persistTabs();
         } catch (error) {
-          status.textContent = message(error);
+          status.textContent = showMessage(error);
         }
       })(),
   );
@@ -2477,9 +2621,10 @@ export function mountScenes(root: HTMLElement): () => void {
       const removed = removeSelectedSceneObjects(current, selected);
       if (removed.length) {
         event.preventDefault();
-        selected = selected.filter((ref) => !removed.some((item) => sameSceneObject(ref, item)));
+        selected = selected.filter((ref) => !removed.some((item) => isSameSceneObject(ref, item)));
         const hoveredRef = hovered;
-        if (hoveredRef && removed.some((item) => sameSceneObject(hoveredRef, item))) hovered = null;
+        if (hoveredRef && removed.some((item) => isSameSceneObject(hoveredRef, item)))
+          hovered = null;
         drag = null;
         status.textContent = `Removed ${removed.length} object${removed.length === 1 ? '' : 's'} from the scene · save to keep changes`;
         render();
@@ -2512,7 +2657,7 @@ export function mountScenes(root: HTMLElement): () => void {
       }
       if (key === 'v' && objectClipboard) {
         event.preventDefault();
-        const point = canvasMouse && canvasPoint(canvasMouse);
+        const point = canvasMouse && getCanvasPoint(canvasMouse);
         if (!point) {
           status.textContent = 'Move the mouse over the scene to paste objects';
           return;
@@ -2591,8 +2736,8 @@ export function mountScenes(root: HTMLElement): () => void {
       !(event.target instanceof HTMLElement && event.target.isContentEditable)
     ) {
       event.preventDefault();
-      selected = selectableSceneObjects(current, backgroundEdit).filter(
-        (ref) => ref.kind !== 'trigger' || triggersVisible(),
+      selected = getSelectableSceneObjects(current, backgroundEdit).filter(
+        (ref) => ref.kind !== 'trigger' || areTriggersVisible(),
       );
       render();
       return;
@@ -2625,7 +2770,7 @@ export function mountScenes(root: HTMLElement): () => void {
     if (event.key === 'Tab' && showPropNames) {
       event.preventDefault();
       showPropNames = false;
-      if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+      if (!areTriggersVisible() && hovered?.kind === 'trigger') hovered = null;
       render();
     }
     if (event.key === ' ') {
@@ -2636,7 +2781,7 @@ export function mountScenes(root: HTMLElement): () => void {
   const onBlur = () => {
     const wasShowingNames = showPropNames;
     showPropNames = false;
-    if (!triggersVisible() && hovered?.kind === 'trigger') hovered = null;
+    if (!areTriggersVisible() && hovered?.kind === 'trigger') hovered = null;
     if (wasShowingNames) render();
     else paintHover();
     spaceHeld = false;
@@ -2668,7 +2813,7 @@ export function mountScenes(root: HTMLElement): () => void {
       }
     })
     .catch((error: unknown) => {
-      if (alive) status.textContent = message(error);
+      if (alive) status.textContent = showMessage(error);
     });
   return () => {
     alive = false;

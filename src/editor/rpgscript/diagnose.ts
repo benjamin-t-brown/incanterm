@@ -24,21 +24,21 @@ export function diagnoseScript(
     if (line === '{' || line === '}') return;
     if (isDialogue(line)) {
       if (!hasClosedQuote(line)) {
-        diagnostics.push(error(lineNumber, 'Dialogue string is missing its closing quote'));
+        diagnostics.push(reportError(lineNumber, 'Dialogue string is missing its closing quote'));
       }
       return;
     }
     if (line.startsWith('+')) {
       const parsed = parseCommand(line.slice(1).trim());
       if ('error' in parsed) {
-        diagnostics.push(error(lineNumber, parsed.error));
+        diagnostics.push(reportError(lineNumber, parsed.error));
         return;
       }
       if (parsed.name === 'callScript') {
         if (!parsed.target) {
-          diagnostics.push(error(lineNumber, 'callScript needs a script name'));
+          diagnostics.push(reportError(lineNumber, 'callScript needs a script name'));
         } else if (!known.has(parsed.target)) {
-          diagnostics.push(error(lineNumber, `No script exists with name "${parsed.target}".`));
+          diagnostics.push(reportError(lineNumber, `No script exists with name "${parsed.target}".`));
         }
         return;
       }
@@ -51,12 +51,12 @@ export function diagnoseScript(
       }
       return;
     }
-    diagnostics.push(error(lineNumber, `Unrecognized line: ${line}`));
+    diagnostics.push(reportError(lineNumber, `Unrecognized line: ${line}`));
   });
   return diagnostics;
 }
 
-export function scriptNames(source: string): string[] {
+export function getScriptNames(source: string): string[] {
   const names: string[] = [];
   for (const raw of source.split(/\r?\n/)) {
     const line = raw.trim();
@@ -93,13 +93,13 @@ function parseCommand(body: string): { name: string; target?: string } | { error
     return { error: 'Invalid command name' };
   }
   const args = source.slice(open + 1, close);
-  if (!quotesBalanced(args)) return { error: 'Invalid command, unterminated quote' };
+  if (!areQuotesBalanced(args)) return { error: 'Invalid command, unterminated quote' };
   if (name !== 'callScript') return { name };
-  const target = firstArg(args);
+  const target = getFirstArg(args);
   return { name, target };
 }
 
-function quotesBalanced(value: string): boolean {
+function areQuotesBalanced(value: string): boolean {
   let quote = '';
   for (const character of value) {
     if (quote) {
@@ -111,7 +111,7 @@ function quotesBalanced(value: string): boolean {
   return quote === '';
 }
 
-function firstArg(value: string): string {
+function getFirstArg(value: string): string {
   let quote = '';
   let current = '';
   for (const character of value) {
@@ -130,6 +130,6 @@ function firstArg(value: string): string {
   return current.trim();
 }
 
-function error(line: number, message: string): ScriptDiagnostic {
+function reportError(line: number, message: string): ScriptDiagnostic {
   return { line, severity: 'error', message };
 }

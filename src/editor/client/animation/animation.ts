@@ -1,9 +1,9 @@
-import { firstAnimationSheet, wrappedFrameIndex } from '../../animation/animation-navigation.js';
-import { paletteRgb, type PaletteDocument } from '../../palette.js';
+import { getFirstAnimationSheet, wrappedFrameIndex } from '../../animation/animation-navigation.js';
+import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import {
   createAnimation,
-  animationFrameFlips,
-  animationLabelError,
+  getAnimationFrameFlips,
+  getAnimationLabelError,
   DEFAULT_ANIMATION_DURATION_MS,
   flattenSprite,
   isAssetId,
@@ -16,17 +16,17 @@ import {
 } from '../../schema.js';
 import {
   preloadSpriteFonts,
-  spriteFontFamily,
-  spriteFontNativePx,
+  getSpriteFontFamily,
+  getSpriteFontNativePx,
   terminalCellAtZoom,
-  terminalFont,
+  getTerminalFont,
 } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
 import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { saveDraft } from '../save.js';
 import { mergeJson } from '../../safe-save.js';
 import { alertModal, askAssetMeta, askFrameDuration, confirmModal, isModalOpen } from '../modal.js';
-import { askId, pageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { createAssetTree } from '../asset-tree.js';
 import type { AssetFolders } from '../../asset-folders.js';
 
@@ -43,7 +43,7 @@ type DragPayload =
   | { kind: 'reel'; from: number };
 
 export function mountAnimation(root: HTMLElement): () => void {
-  root.innerHTML = pageShell(
+  root.innerHTML = createPageShell(
     'Animation',
     `<aside class="anim-library" aria-label="Animations">
         <input id="anim-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search animations" autocomplete="off" spellcheck="false">
@@ -185,33 +185,33 @@ export function mountAnimation(root: HTMLElement): () => void {
   });
   resizeObserver.observe(main);
 
-  const $ = <T extends Element>(selector: string) => {
+  const get$ = <T extends Element>(selector: string) => {
     const element = root.querySelector(selector);
     if (!element) throw new Error(`Missing ${selector}`);
     return element as T;
   };
-  const canvas = $<HTMLCanvasElement>('#preview');
-  const wrap = $<HTMLElement>('.anim-preview-wrap');
-  const reel = $<HTMLElement>('#reel');
-  const sheetList = $<HTMLElement>('#sheet-list');
-  const editSelectedSheet = $<HTMLAnchorElement>('#edit-selected-sheet');
-  const sheetSearch = $<HTMLInputElement>('#sheet-search');
-  const iconList = $<HTMLElement>('#sprite-icons');
-  const status = $<HTMLElement>('#animation-status');
-  const idLabel = $<HTMLElement>('#animation-id');
-  const loopInput = $<HTMLInputElement>('#loop');
-  const flipHInput = $<HTMLInputElement>('#anim-flip-h');
-  const flipVInput = $<HTMLInputElement>('#anim-flip-v');
-  const defaultMsInput = $<HTMLInputElement>('#default-ms');
-  const zoomLabel = $<HTMLElement>('#zoom-label');
-  const animList = $<HTMLElement>('#anim-list');
-  const animSearch = $<HTMLInputElement>('#anim-search');
-  const characterDialog = $<HTMLDialogElement>('#character-animation-dialog');
-  const characterName = $<HTMLInputElement>('#character-animation-name');
-  const characterSearch = $<HTMLInputElement>('#character-animation-search');
-  const characterSheets = $<HTMLElement>('#character-animation-sheets');
-  const characterError = $<HTMLElement>('#character-animation-error');
-  const characterCreate = $<HTMLButtonElement>('#character-animation-create');
+  const canvas = get$<HTMLCanvasElement>('#preview');
+  const wrap = get$<HTMLElement>('.anim-preview-wrap');
+  const reel = get$<HTMLElement>('#reel');
+  const sheetList = get$<HTMLElement>('#sheet-list');
+  const editSelectedSheet = get$<HTMLAnchorElement>('#edit-selected-sheet');
+  const sheetSearch = get$<HTMLInputElement>('#sheet-search');
+  const iconList = get$<HTMLElement>('#sprite-icons');
+  const status = get$<HTMLElement>('#animation-status');
+  const idLabel = get$<HTMLElement>('#animation-id');
+  const loopInput = get$<HTMLInputElement>('#loop');
+  const flipHInput = get$<HTMLInputElement>('#anim-flip-h');
+  const flipVInput = get$<HTMLInputElement>('#anim-flip-v');
+  const defaultMsInput = get$<HTMLInputElement>('#default-ms');
+  const zoomLabel = get$<HTMLElement>('#zoom-label');
+  const animList = get$<HTMLElement>('#anim-list');
+  const animSearch = get$<HTMLInputElement>('#anim-search');
+  const characterDialog = get$<HTMLDialogElement>('#character-animation-dialog');
+  const characterName = get$<HTMLInputElement>('#character-animation-name');
+  const characterSearch = get$<HTMLInputElement>('#character-animation-search');
+  const characterSheets = get$<HTMLElement>('#character-animation-sheets');
+  const characterError = get$<HTMLElement>('#character-animation-error');
+  const characterCreate = get$<HTMLButtonElement>('#character-animation-create');
   let characterSprite: string | null = null;
   const assetTree = createAssetTree({
     list: animList,
@@ -252,11 +252,11 @@ export function mountAnimation(root: HTMLElement): () => void {
       toast(message, true);
     },
   });
-  $<HTMLButtonElement>('#new-animation-folder').addEventListener(
+  get$<HTMLButtonElement>('#new-animation-folder').addEventListener(
     'click',
     () => void assetTree.createFolder(),
   );
-  $<HTMLButtonElement>('#new-character-animations').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#new-character-animations').addEventListener('click', () => {
     if (assetOperation || characterDialog.open) return;
     characterName.value = '';
     characterSearch.value = '';
@@ -310,13 +310,13 @@ export function mountAnimation(root: HTMLElement): () => void {
       characterSheets.append(message);
     }
   });
-  $<HTMLButtonElement>('#character-animation-cancel').addEventListener('click', () => {
+  get$<HTMLButtonElement>('#character-animation-cancel').addEventListener('click', () => {
     if (!assetOperation) characterDialog.close();
   });
   characterDialog.addEventListener('cancel', (event) => {
     if (assetOperation) event.preventDefault();
   });
-  $<HTMLFormElement>('#character-animation-form').addEventListener('submit', (event) => {
+  get$<HTMLFormElement>('#character-animation-form').addEventListener('submit', (event) => {
     event.preventDefault();
     if (assetOperation) return;
     const name = characterName.value.trim();
@@ -387,9 +387,9 @@ export function mountAnimation(root: HTMLElement): () => void {
   let alive = true;
   const spriteCache = new Map<string, SpriteDocument>();
 
-  const dirty = () => current !== null && JSON.stringify(current) !== saved;
+  const isDirty = () => current !== null && JSON.stringify(current) !== saved;
   setDirtyGuard(
-    async () => !dirty() || confirmModal('Discard unsaved animation changes?', 'DISCARD'),
+    async () => !isDirty() || confirmModal('Discard unsaved animation changes?', 'DISCARD'),
   );
 
   function setStatus(message: string): void {
@@ -402,7 +402,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     item.innerHTML = `<span class="toast-icon">${error ? '!' : '✓'}</span><span class="toast-message"></span><button class="close-toast" type="button">×</button>`;
     item.querySelector('.toast-message')!.textContent = message;
     item.querySelector('button')!.addEventListener('click', () => item.remove());
-    $<HTMLElement>('#toast-stack').append(item);
+    get$<HTMLElement>('#toast-stack').append(item);
     setTimeout(() => item.remove(), 4000);
   }
 
@@ -450,7 +450,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       const sprite = await requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`);
       spriteCache.set(id, sprite);
       await document.fonts
-        .load(terminalFont(spriteFontNativePx(sprite.font), spriteFontFamily(sprite.font)))
+        .load(getTerminalFont(getSpriteFontNativePx(sprite.font), getSpriteFontFamily(sprite.font)))
         .catch(() => undefined);
       return sprite;
     } catch {
@@ -483,7 +483,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     flipV = false,
   ): void {
     if (!palette) return;
-    target.fillStyle = paletteRgb(palette, 'black') ?? '#000';
+    target.fillStyle = getPaletteRgb(palette, 'black') ?? '#000';
     target.fillRect(0, 0, width, height);
     const grid = terminalCellAtZoom(target, scale, sprite.font);
     const originX = Math.floor((width - sprite.width * grid.width) / 2);
@@ -496,10 +496,10 @@ export function mountAnimation(root: HTMLElement): () => void {
       const row = Math.floor(index / sprite.width);
       const x = originX + (flipH ? sprite.width - 1 - column : column) * grid.width;
       const y = originY + (flipV ? sprite.height - 1 - row : row) * grid.height;
-      target.fillStyle = paletteRgb(palette, cell.bg) ?? '#000';
+      target.fillStyle = getPaletteRgb(palette, cell.bg) ?? '#000';
       fillTerminalCell(target, grid, x, y);
       if (cell.ch !== ' ') {
-        target.fillStyle = paletteRgb(palette, cell.fg) ?? '#fff';
+        target.fillStyle = getPaletteRgb(palette, cell.fg) ?? '#fff';
         drawTerminalGlyph(target, grid, cell.ch, x, y);
       }
     }
@@ -516,17 +516,17 @@ export function mountAnimation(root: HTMLElement): () => void {
   }
 
   function clearPreview(): void {
-    ctx.fillStyle = palette ? (paletteRgb(palette, 'black') ?? '#000') : '#000';
+    ctx.fillStyle = palette ? (getPaletteRgb(palette, 'black') ?? '#000') : '#000';
     ctx.fillRect(0, 0, viewW, viewH);
   }
 
-  function viewedFrame(): AnimationFrame | { sprite: string; index: number } | null {
+  function getViewedFrame(): AnimationFrame | { sprite: string; index: number } | null {
     if (inspect) return inspect;
     if (!current || current.frames.length === 0) return null;
     return current.frames[Math.min(playIndex, current.frames.length - 1)] ?? null;
   }
 
-  function visibleSprite(
+  function isVisibleSprite(
     frame: AnimationFrame | { sprite: string; index: number },
   ): {
     sprite: string;
@@ -545,7 +545,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     if (!viewW || !viewH) sizePreview();
     clearPreview();
     refreshToolbar();
-    const frame = viewedFrame();
+    const frame = getViewedFrame();
     if (!current) {
       setStatus('Create an animation or open one.');
       return;
@@ -554,7 +554,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       setStatus('This clip has no frames.');
       return;
     }
-    const visible = visibleSprite(frame);
+    const visible = isVisibleSprite(frame);
     if (!visible) {
       setStatus(
         `Invisible · ${'durationMs' in frame ? frame.durationMs : DEFAULT_ANIMATION_DURATION_MS} ms`,
@@ -582,7 +582,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     if (autoFit && !playing) {
       zoom = containZoom(sprite, viewW, viewH);
     }
-    const flips = inspect ? { flipH: false, flipV: false } : animationFrameFlips(current, visible);
+    const flips = inspect ? { flipH: false, flipV: false } : getAnimationFrameFlips(current, visible);
     paintSprite(ctx, sprite, visible.index, viewW, viewH, zoom, flips.flipH, flips.flipV);
     const duration = visible.durationMs !== undefined ? ` · ${visible.durationMs} ms` : '';
     setStatus(
@@ -685,7 +685,7 @@ export function mountAnimation(root: HTMLElement): () => void {
             if (!current) return;
             frame[axis] = toggle.checked;
             void drawPreview();
-            const effective = animationFrameFlips(current, frame);
+            const effective = getAnimationFrameFlips(current, frame);
             void paintThumb(thumb, frame.sprite, frame.index, effective.flipH, effective.flipV);
             autoSave();
           });
@@ -738,7 +738,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       reel.append(cell);
       if (isInvisibleFrame(frame)) paintInvisible(thumb);
       else {
-        const flips = animationFrameFlips(animation, frame);
+        const flips = getAnimationFrameFlips(animation, frame);
         void paintThumb(thumb, frame.sprite, frame.index, flips.flipH, flips.flipV);
       }
     });
@@ -766,7 +766,7 @@ export function mountAnimation(root: HTMLElement): () => void {
   ): Promise<void> {
     const context = target.getContext('2d');
     if (!context || !palette) return;
-    context.fillStyle = paletteRgb(palette, 'black') ?? '#000';
+    context.fillStyle = getPaletteRgb(palette, 'black') ?? '#000';
     context.fillRect(0, 0, target.width, target.height);
     const sprite = await loadSprite(spriteId);
     if (!alive || !sprite || frameIndex >= sprite.sprites.length) return;
@@ -782,7 +782,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     );
   }
 
-  function usedSheetIds(): Set<string> {
+  function getUsedSheetIds(): Set<string> {
     const used = new Set<string>();
     if (!current) return used;
     for (const frame of current.frames) {
@@ -798,7 +798,7 @@ export function mountAnimation(root: HTMLElement): () => void {
 
   function renderSheets(): void {
     sheetList.replaceChildren();
-    const used = usedSheetIds();
+    const used = getUsedSheetIds();
     const pinned = sprites.filter((id) => used.has(id) && sheetMatches(id));
     const rest = sprites.filter((id) => !used.has(id) && sheetMatches(id));
     if (!selectedSheet || !sprites.includes(selectedSheet)) {
@@ -1073,13 +1073,13 @@ export function mountAnimation(root: HTMLElement): () => void {
       saving = false;
       const pending = autoSavePending;
       autoSavePending = null;
-      if (pending && current?.id === pending && dirty()) autoSave();
+      if (pending && current?.id === pending && isDirty()) autoSave();
     }
   }
 
   async function openAnimation(id: string): Promise<void> {
     if (current?.id === id) return;
-    if (dirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
+    if (isDirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
     const token = ++openToken;
     try {
       const animation = await requestJson<AnimationDocument>(
@@ -1097,7 +1097,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       autoFit = true;
       renderReel();
       assetTree.select(id);
-      const firstSheet = firstAnimationSheet(animation, sprites);
+      const firstSheet = getFirstAnimationSheet(animation, sprites);
       if (firstSheet) {
         selectedSheet = firstSheet;
         if (!sheetMatches(firstSheet)) sheetSearch.value = '';
@@ -1140,7 +1140,9 @@ export function mountAnimation(root: HTMLElement): () => void {
   reel.addEventListener('dragover', (event) => {
     if (!current) return;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = event.dataTransfer.effectAllowed === 'move' ? 'move' : 'copy';
+    }
     markDrop(event);
   });
   reel.addEventListener('dragleave', (event) => {
@@ -1181,9 +1183,9 @@ export function mountAnimation(root: HTMLElement): () => void {
       const entered = await askId('New animation label');
       if (entered === null || !alive) return;
       const label = entered.trim();
-      const labelError = animationLabelError(label);
+      const labelError = getAnimationLabelError(label);
       if (labelError) return void alertModal(labelError);
-      if (dirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
+      if (isDirty() && !(await confirmModal('Discard unsaved animation changes?', 'DISCARD'))) return;
       if (!alive) return;
       ++openToken;
       stop();
@@ -1226,7 +1228,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       const entered = await askId('Copy animation label', `${source.label} copy`);
       if (entered === null || current !== source) return;
       const label = entered.trim();
-      const labelError = animationLabelError(label);
+      const labelError = getAnimationLabelError(label);
       if (labelError) return void alertModal(labelError);
       const id = crypto.randomUUID();
       assetOperation = true;
@@ -1266,7 +1268,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       const entered = await askAssetMeta('ANIMATION', clip.label, clip.id);
       if (entered === null || !alive || current !== clip) return;
       const label = entered.trim();
-      const error = animationLabelError(label);
+      const error = getAnimationLabelError(label);
       if (error) return void alertModal(error);
       if (label === clip.label) return;
       clip.label = label;

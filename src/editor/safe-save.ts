@@ -34,7 +34,7 @@ export class SaveCoordinator {
         disk && base ? options.merge(base, ours, disk) : { ok: true as const, value: ours };
       if (!merged.ok) throw new SaveConflict(`${merged.reason}; nothing was saved`);
       const valid = options.validate(merged.value);
-      if (disk === null || !same(disk, valid)) await options.write(valid);
+      if (disk === null || !isSame(disk, valid)) await options.write(valid);
       return valid;
     });
   }
@@ -81,11 +81,11 @@ function mergeValue(
   theirs: unknown,
   at: string,
 ): MergeResult<unknown> {
-  if (same(ours, base)) return { ok: true, value: theirs };
-  if (same(theirs, base) || same(ours, theirs)) return { ok: true, value: ours };
+  if (isSame(ours, base)) return { ok: true, value: theirs };
+  if (isSame(theirs, base) || isSame(ours, theirs)) return { ok: true, value: ours };
   if (isRecord(base) && isRecord(ours) && isRecord(theirs)) {
     const keys = Object.keys(base);
-    if (!same(keys, Object.keys(ours)) || !same(keys, Object.keys(theirs))) {
+    if (!isSame(keys, Object.keys(ours)) || !isSame(keys, Object.keys(theirs))) {
       return { ok: false, reason: `Both editors changed the structure of ${at}` };
     }
     const result: Record<string, unknown> = {};
@@ -100,7 +100,7 @@ function mergeValue(
     Array.isArray(base) &&
     Array.isArray(ours) &&
     Array.isArray(theirs) &&
-    stableIds(base, ours, theirs)
+    getStableIds(base, ours, theirs)
   ) {
     const result: unknown[] = [];
     for (let index = 0; index < base.length; index++) {
@@ -113,14 +113,14 @@ function mergeValue(
   return { ok: false, reason: `Both editors changed ${at}` };
 }
 
-function stableIds(base: unknown[], ours: unknown[], theirs: unknown[]): boolean {
+function getStableIds(base: unknown[], ours: unknown[], theirs: unknown[]): boolean {
   if (base.length !== ours.length || base.length !== theirs.length) return false;
-  const ids = (values: unknown[]) => values.map((value) => (isRecord(value) ? value.id : null));
-  const original = ids(base);
+  const getIds = (values: unknown[]) => values.map((value) => (isRecord(value) ? value.id : null));
+  const original = getIds(base);
   return (
     original.every((id) => typeof id === 'string') &&
-    same(original, ids(ours)) &&
-    same(original, ids(theirs))
+    isSame(original, getIds(ours)) &&
+    isSame(original, getIds(theirs))
   );
 }
 
@@ -128,7 +128,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function same(a: unknown, b: unknown): boolean {
+function isSame(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
