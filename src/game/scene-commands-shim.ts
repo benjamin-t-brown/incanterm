@@ -1,5 +1,5 @@
 import { commands, getAnimationStateName, getBusyState, getFacingDirection, getPlayerCharacterName, getSkipWait, getWalkDestination } from './scene-commands.js';
-import { getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
+import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
 import { defineCommand } from './rpgscript/command.js';
@@ -113,10 +113,13 @@ export async function runSceneCommandsShim(
   io: ShimIO,
 ): Promise<void> {
   while (!runner.isIdle()) {
-    if (runner.dialogue) {
+    if (runner.centerToast !== undefined) {
+      io.writeLine(runner.centerToast);
+      runner.dismissCenterToast();
+    } else if (runner.dialogue) {
       if (runner.getStorage('dialogue.active') === true)
         printPortrait(io, runner.dialogue.actor, runner.dialogue.emotion);
-      io.writeLine(`${runner.dialogue.actor}: ${runner.dialogue.text}`);
+       io.writeLine(`${getDialogueActorName(io.portraits, runner.dialogue.actor)}: ${runner.dialogue.text}`);
       runner.advance();
     } else if (runner.choice) {
       const index = await io.promptChoice(runner.choice.options);

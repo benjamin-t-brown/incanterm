@@ -3,6 +3,7 @@
 @classroom1Load
   +setPlayerWalkCh(test3x3)
   +tmp.ralgoMoveVar=0
+  +^vars.hasEnvelopeQuest=0
   // +^tmp.evaTalk=0
 
 #classroom1Updater
@@ -32,7 +33,7 @@
   +tmp.ralgoMoveVar=1
 
 #@classroom1_toHallway1
-  +?isnot(func(hasItem, OfficeEnvelop)):{
+  +?isnot(func(hasItem, OfficeEnvelope)):{
     +?eq(vars.hasEnvelopeQuest, 0):{
       +setConv()
       Johnathan: "Mr. Ralgo said he wanted to see me. I'd better go see what he wants."
@@ -96,7 +97,7 @@
       +setConv()
       Johnathan: "Is this the envelope Mr Ralgo was talking about?"
       +acquireItem(OfficeEnvelope)
-      Narrator: "(Got item Office Envelope.)"
+      +showCenterToast("(Got item: Office Envelope.)")
       Johnathan: "I wonder what's so important that it needs to go to the office now..."
       Johnathan: "Probably just some dumb attendance records or something."
     }
@@ -123,8 +124,6 @@
   +endConv()
 
 @classroom1_RalgoTalk
-  +^vars.hasEnvelopeQuest=0
-
   +?eq(vars.hasEnvelopeQuest, 0):{
     +setAnimState(Mr Ralgo, idle)
     +setConv2(Mr Ralgo, Johnathan)

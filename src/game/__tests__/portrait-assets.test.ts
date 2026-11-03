@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAnimation, createSprite, createEmptySpriteFrame, createCharacter, parseCharacter } from '../../editor/schema.js';
 import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
-import { loadPortraitAssets, getDialoguePortrait, getPortraitFrameAt, portraitNextFrameDelay } from '../portrait-assets.js';
+import { loadPortraitAssets, getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, portraitNextFrameDelay } from '../portrait-assets.js';
 
 describe('portrait assets', () => {
   it('resolves actor emotions and facing from character definitions, falling back to default', async () => {
@@ -14,16 +14,19 @@ describe('portrait assets', () => {
     const sprite = createSprite('face', 1, 1);
     sprite.sprites.push(createEmptySpriteFrame(1, 1));
     await fs.writeFile(path.join(root, 'sprites', 'face.json'), encodeStoredSprite(sprite));
-    const character = { ...createCharacter('eva', 'idle'), scriptName: 'Eva', portraits: [
+    const character = { ...createCharacter('eva', 'idle'), scriptName: 'Eva/Ms Eva', portraits: [
       { facing: 'left' as const, emotion: '', portrait: 'face_0' },
       { facing: 'right' as const, emotion: 'happy', portrait: 'face_1' },
     ] };
-    expect(parseCharacter(character)).toMatchObject({ ok: true, value: { scriptName: 'Eva', portraits: character.portraits } });
+    expect(parseCharacter(character)).toMatchObject({ ok: true, value: { scriptName: 'Eva/Ms Eva', portraits: character.portraits } });
     expect(parseCharacter({ ...character, scriptName: undefined }).ok).toBe(false);
     expect(parseCharacter({ ...character, portraits: [...character.portraits, character.portraits[0]] }).ok).toBe(false);
     await fs.writeFile(path.join(root, 'characters', 'eva.json'), JSON.stringify(character));
     const assets = await loadPortraitAssets(root);
+    expect(getDialogueActorName(assets, 'Ms Eva')).toBe('Eva');
+    expect(getDialogueActorName(assets, 'Unknown')).toBe('Unknown');
     expect(getDialoguePortrait(assets, 'Eva', 'happy')).toEqual({ asset: assets.get('face_1'), facing: 'right' });
+    expect(getDialoguePortrait(assets, 'Ms Eva', 'happy')).toEqual({ asset: assets.get('face_1'), facing: 'right' });
     expect(getDialoguePortrait(assets, 'Eva', 'happy', 'right')).toEqual({ asset: assets.get('face_1'), facing: 'right' });
     expect(getDialoguePortrait(assets, 'Eva', 'sad')).toBeUndefined();
     expect(getDialoguePortrait(assets, 'Eva', 'sad', 'left')).toEqual({ asset: assets.get('face_0'), facing: 'left' });

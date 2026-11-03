@@ -2,6 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { parseRpgScript, ScriptRunner } from './test-support.js';
 
 describe('item commands and conditions', () => {
+  it('negates hasItem for an exact item name in a braced condition', () => {
+    const scripts = parseRpgScript(`@start
++?isnot(func(hasItem, OfficeEnvelope)):{
+  +setStorage(doorBlocked, true)
+}
++?else:{
+  +setStorage(doorOpen, true)
+}`, 'items.rpgscript');
+    const withoutItem = new ScriptRunner(scripts);
+    withoutItem.start('start');
+    expect(withoutItem.getStorage('doorBlocked')).toBe(true);
+    expect(withoutItem.getStorage('doorOpen')).toBeUndefined();
+
+    const withItem = new ScriptRunner(scripts);
+    withItem.setStorage('vars.inventory', ['OfficeEnvelope']);
+    withItem.start('start');
+    expect(withItem.getStorage('doorBlocked')).toBeUndefined();
+    expect(withItem.getStorage('doorOpen')).toBe(true);
+  });
+
   it('acquires unique items, checks membership, removes items and keeps inventory per player', () => {
     const scripts = parseRpgScript(`@start(item)
 +acquireItem([item])

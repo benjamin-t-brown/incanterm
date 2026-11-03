@@ -331,6 +331,7 @@ export class ScriptRunner<Host> {
   private usedOnce = new Set<string>();
   private subscripts = new Map<string, ScriptRunner<Host>>();
   dialogue: Dialogue | undefined;
+  centerToast: string | undefined;
   choice: ChoicePrompt | undefined;
   private onChoose: ((index: number) => void) | undefined;
   private isWaitComplete: (() => boolean) | undefined;
@@ -350,12 +351,13 @@ export class ScriptRunner<Host> {
   }
 
   isIdle(): boolean {
-    return this.stack.length === 0 && !this.dialogue && !this.choice;
+    return this.stack.length === 0 && !this.dialogue && !this.choice && this.centerToast === undefined;
   }
 
   start(name: string, args: readonly RuntimeValue[] = []): void {
     this.stack = [this.createFrame(name, args)];
     this.dialogue = this.choice = undefined;
+    this.centerToast = undefined;
     this.onChoose = undefined;
     this.isWaitComplete = undefined;
     this.waitLocation = undefined;
@@ -484,6 +486,12 @@ export class ScriptRunner<Host> {
   advance(): void {
     if (!this.dialogue) return;
     this.dialogue = undefined;
+    this.run();
+  }
+
+  dismissCenterToast(): void {
+    if (this.centerToast === undefined) return;
+    this.centerToast = undefined;
     this.run();
   }
 
@@ -711,7 +719,7 @@ export class ScriptRunner<Host> {
         this.waitLocation = undefined;
         this.options.onCommandError(error, `${frame.script.file}:${step.line} (+${step.command})`);
       }
-      if (this.dialogue || this.choice || this.isWaitComplete) return;
+      if (this.dialogue || this.choice || this.centerToast !== undefined || this.isWaitComplete) return;
     }
   }
 
@@ -755,6 +763,10 @@ export class ScriptRunner<Host> {
       showDialogue: (actor, text, emotion) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show dialogue`);
         this.dialogue = emotion ? { actor, text, emotion } : { actor, text };
+      },
+      showCenterToast: (message) => {
+        if (this.options.background) throw new Error(`${location}: Character subscripts cannot show a center toast`);
+        this.centerToast = message;
       },
       showChoices: (options, onChoose) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show choices`);

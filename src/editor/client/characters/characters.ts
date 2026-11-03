@@ -33,6 +33,7 @@ import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../she
 import { characterListEntries } from './character-list.js';
 import { getPortraitAssetLabel } from '../../characters/portrait-label.js';
 import { getMissingAnimationStates } from '../../characters/missing-animation.js';
+import { getAnimationChoiceLabels } from '../../characters/animation-choice-labels.js';
 
 export function mountCharacters(root: HTMLElement): () => void {
   root.innerHTML = createPageShell(
@@ -53,7 +54,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       <div class="character-settings"><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
         <option value="up">UP</option><option value="down">DOWN</option>
         <option value="left">LEFT</option><option value="right">RIGHT</option></select></label>
-         <label class="character-label">SCRIPT NAME <input id="character-script-name" class="text-input" placeholder="e.g. Eva" spellcheck="false"></label>
+         <label class="character-label">SCRIPT NAME <input id="character-script-name" class="text-input" placeholder="e.g. Ralgo/Mr Ralgo" spellcheck="false"></label>
          <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default.</p>
          <div id="character-portraits" class="character-state-list"></div>
          <button id="add-character-portrait" type="button">+ PORTRAIT</button>
@@ -315,9 +316,9 @@ export function mountCharacters(root: HTMLElement): () => void {
     row.dataset.state = name;
     const label = document.createElement('label');
     label.textContent = name.toUpperCase();
-    const display = (id: string) =>
-      clips.includes(id) ? `${clipLabels[id] ?? id} · ${id}` : `${id} (missing)`;
     const choices = [...new Set([...clips, animation])];
+    const labels = getAnimationChoiceLabels(choices, clipLabels, clips);
+    const display = (id: string) => labels.get(id) ?? 'Missing animation';
     const byDisplay = new Map(choices.map((id) => [display(id), id]));
     const picker = createSearchSelect({
       value: display(animation),

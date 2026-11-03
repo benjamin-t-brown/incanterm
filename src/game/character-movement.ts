@@ -1,3 +1,4 @@
+import { getCharacterScriptNames } from '../editor/schema.js';
 import { Character } from './character.js';
 import type { Scene } from './scene.js';
 
@@ -132,7 +133,7 @@ export function findCharacter(scene: Scene, reference: string, controlled?: Char
     characters.find((entity) => entity.id === reference) ??
     characters.find((entity) => entity.instanceName === reference) ??
     characters.find((entity) => entity.characterId === reference) ??
-    characters.find((entity) => entity.scriptName === reference);
+    characters.find((entity) => getCharacterScriptNames(entity.scriptName).includes(reference));
   if (!character) throw new Error(`Scene ${scene.id} has no character ${reference}`);
   return character;
 }

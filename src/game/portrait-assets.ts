@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDefaultPalette, getPaletteRgb, type PaletteDocument } from '../editor/palette.js';
-import { getAnimationFrameFlips, flattenSprite, parseAnimation, parsePalette, parseCharacter, type CharacterDocument } from '../editor/schema.js';
+import { getAnimationFrameFlips, flattenSprite, getCharacterScriptNames, parseAnimation, parsePalette, parseCharacter, type CharacterDocument } from '../editor/schema.js';
 import { parseStoredSprite } from '../editor/art/sprite-storage.js';
 import type { Cell } from './cell-buffer.js';
 import { parseHexColor } from './color.js';
@@ -23,6 +23,10 @@ export type PortraitAsset = Readonly<{
 export type PortraitAssets = ReadonlyMap<string, PortraitAsset> & {
   readonly characters?: ReadonlyMap<string, Pick<CharacterDocument, 'id' | 'scriptName' | 'portraits'>>;
 };
+
+export function getDialogueActorName(assets: PortraitAssets | undefined, actor: string): string {
+  return getCharacterScriptNames(assets?.characters?.get(actor)?.scriptName)[0] ?? actor;
+}
 
 export function getDialoguePortrait(
   assets: PortraitAssets | undefined,
@@ -132,9 +136,10 @@ export async function loadPortraitAssets(root: string): Promise<PortraitAssets> 
   for (const file of await getAssetFiles(root, 'characters')) {
     const parsed = parseCharacter(await readAsset(path.join(root, 'characters', file)));
     if (!parsed.ok || file !== `${parsed.value.id}.json` || !parsed.value.scriptName) continue;
-    if (characters.has(parsed.value.scriptName))
-      throw new Error(`Duplicate character scriptName ${parsed.value.scriptName}`);
-    characters.set(parsed.value.scriptName, parsed.value);
+    for (const name of getCharacterScriptNames(parsed.value.scriptName)) {
+      if (characters.has(name)) throw new Error(`Duplicate character scriptName ${name}`);
+      characters.set(name, parsed.value);
+    }
   }
   return Object.assign(assets, { characters });
 }

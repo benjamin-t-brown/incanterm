@@ -4,6 +4,7 @@ import { UIElement, DrawContext } from './element.js';
 import { ParagraphWrapped, wrapParagraph } from './paragraph-wrapped.js';
 import { TabbedView } from './tabbed-view.js';
 import { DialoguePanel } from './dialogue-panel.js';
+import { CenterToast } from './center-toast.js';
 import {
   MIN_STANDARD_WIDTH,
   STANDARD_TABS,
@@ -31,6 +32,7 @@ export class LayoutStandardScene extends UIElement {
   readonly ui: UIElement;
   readonly tabs: TabbedView;
   readonly dialoguePanel: DialoguePanel;
+  readonly centerToast = new CenterToast();
   readonly message: ParagraphWrapped;
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
@@ -45,6 +47,7 @@ export class LayoutStandardScene extends UIElement {
     const rightPortrait = this.dialoguePanel.rightPortraitBox;
     if (
       !this.canClick ||
+      this.centerToast.visible ||
       x < 0 ||
       y < 0 ||
       x >= this.viewportWidth ||
@@ -184,6 +187,7 @@ export class LayoutStandardScene extends UIElement {
       Math.min(buffer.height - 1, this.y + this.ui.y + this.ui.height - 1),
       'right',
     );
+    if (this.centerToast.visible) this.centerToast.render(buffer);
   }
 
   protected paint(ctx: DrawContext): void {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { getCharacterScriptNames } from '../editor/schema.js';
 import { Scene } from '../game/scene.js';
 import { Character } from '../game/character.js';
 import { findCharacter } from '../game/character-movement.js';
@@ -8,7 +9,7 @@ import { encodeTerminal, encodeTerminalDiff } from '../game/terminal.js';
 import { ScriptRunner, TriggerType, type ScriptLibrary } from '../game/rpgscript/index.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-standard-scene.js';
 import { CellBuffer } from '../game/cell-buffer.js';
-import { getDialoguePortrait, getPortraitFrameAt, type PortraitAssets } from '../game/portrait-assets.js';
+import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type PortraitAssets } from '../game/portrait-assets.js';
 
 const MAX_AXIS = 1000;
 const FRAME_INTERVAL_MS = Math.ceil(1000 / 30);
@@ -159,7 +160,11 @@ export function createGameSession(
           if (Number(match[1]) === 0 && match[4] === 'M') {
             const x = Number(match[2]) - 1;
             const y = Number(match[3]) - 1;
-            if (runner?.dialogue) {
+            if (runner?.centerToast !== undefined) {
+              runner.dismissCenterToast();
+              finishConversationIfIdle();
+              dispatchLoadTriggers();
+            } else if (runner?.dialogue) {
               runner.advance();
               finishConversationIfIdle();
               dispatchLoadTriggers();
@@ -187,11 +192,13 @@ export function createGameSession(
         return;
       }
       if (data === '\t' || data === '\x1b[Z') {
+        if (runner?.centerToast !== undefined) return;
         layout.tabs.selectNext(data === '\t' ? 1 : -1);
         paint();
         return;
       }
       if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[5~' || data === '\x1b[6~') {
+        if (runner?.centerToast !== undefined) return;
         const pane = runner?.dialogue
           ? layout.dialoguePanel
           : layout.tabs.getContent(layout.tabs.selectedId);
@@ -202,7 +209,10 @@ export function createGameSession(
         return;
       }
       if (!runner || data.startsWith('\x1b')) return;
-      if (runner.choice) {
+      if (runner.centerToast !== undefined) {
+        if (data !== ' ' && data !== '\r' && data !== '\n') return;
+        runner.dismissCenterToast();
+      } else if (runner.choice) {
         const selected = /^[1-9]$/.exec(data)?.[0];
         if (!selected || Number(selected) > runner.choice.options.length) return;
         runner.choose(Number(selected) - 1);
@@ -282,25 +292,32 @@ export function createGameSession(
     needsFrame ||= force;
     if (!opened) return;
     layout.conversationOpen = runner?.getStorage('dialogue.active') === true;
+    layout.centerToast.visible = runner?.centerToast !== undefined;
+    if (runner?.centerToast !== undefined)
+      layout.centerToast.setMessage(runner.centerToast, session.cols, session.rows);
     const leftActor = runner?.getStorage('dialogue.leftActor');
     const rightActor = runner?.getStorage('dialogue.rightActor');
     const paired = layout.conversationOpen && typeof leftActor === 'string' && typeof rightActor === 'string';
+    const dialogue = runner?.dialogue;
+    const displayedActor = dialogue && getDisplayedActorName(dialogue.actor);
+    const displayedLeft = typeof leftActor === 'string' ? getDisplayedActorName(leftActor) : undefined;
+    const displayedRight = typeof rightActor === 'string' ? getDisplayedActorName(rightActor) : undefined;
     layout.dialoguePanel.advanceHint.visible = runner?.dialogue !== undefined;
-    if (paired) layout.dialoguePanel.setSpeakers(leftActor, rightActor, runner?.dialogue?.actor);
-    else layout.dialoguePanel.setSpeaker(runner?.dialogue?.actor);
+    if (paired && displayedLeft && displayedRight)
+      layout.dialoguePanel.setSpeakers(displayedLeft, displayedRight, displayedActor);
+    else layout.dialoguePanel.setSpeaker(displayedActor);
     layout.message.text = runner?.dialogue
       ? runner.dialogue.text
       : '';
     layout.choiceMessage.text =
       runner?.choice?.options.map((option, index) => `${index + 1}. ${option}`).join('  ') ?? '';
-    const dialogue = runner?.dialogue;
     const selection = paired
-      ? getDialoguePortrait(activePortraits, leftActor, dialogue?.actor === leftActor ? dialogue.emotion : '', 'right')
+      ? getDialoguePortrait(activePortraits, leftActor, displayedActor === displayedLeft ? dialogue?.emotion : '', 'right')
       : dialogue && layout.conversationOpen
       ? getDialoguePortrait(activePortraits, dialogue.actor, dialogue.emotion, 'right')
       : undefined;
     const rightSelection = paired
-      ? getDialoguePortrait(activePortraits, rightActor, dialogue?.actor === rightActor ? dialogue.emotion : '', 'left')
+      ? getDialoguePortrait(activePortraits, rightActor, displayedActor === displayedRight ? dialogue?.emotion : '', 'left')
       : undefined;
     const key = `${dialogue?.actor ?? ''}:${dialogue?.emotion ?? ''}:${selection?.facing ?? ''}:${rightSelection?.facing ?? ''}`;
     if (key !== portraitKey) {
@@ -330,6 +347,13 @@ export function createGameSession(
       previousFrame = buffer;
       needsFrame = false;
     }
+  }
+
+  function getDisplayedActorName(actor: string): string {
+    const character = scene.entities.find((entity) =>
+      entity instanceof Character && getCharacterScriptNames(entity.scriptName).includes(actor));
+    return getCharacterScriptNames(character instanceof Character ? character.scriptName : undefined)[0]
+      ?? getDialogueActorName(activePortraits, actor);
   }
 
   return session;

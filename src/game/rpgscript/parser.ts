@@ -3,6 +3,8 @@
 import { parseScriptSignature } from './signature.js';
 import { isNumericExpression, validateNumericExpression } from './expression.js';
 
+const DIALOGUE_LINE = /^_?[A-Za-z_][\w. -]*(?:&[\w-]+)?:\s*["']/;
+
 function splitNotInParens(str: string, spl: string) {
   const ret: string[] = [];
   let agg = '';
@@ -223,7 +225,7 @@ export class ScriptParser {
     const firstParenIndex = commandSrc.indexOf('(');
     const lastParenIndex = commandSrc.lastIndexOf(')');
 
-    if (commandSrc.match(/^(\w)+:/) && script) {
+    if (script && DIALOGUE_LINE.test(commandSrc)) {
       return this.createDialogCommand(commandSrc, lineNum);
     }
 
@@ -613,7 +615,7 @@ export class ScriptParser {
             block.conditional = this.createAllConditional(conditional, ...conditionalStack);
             let commandSrc = commandContents.slice(endIndex);
             if (commandSrc[0] === '+') commandSrc = commandSrc.slice(1);
-            const isDialog = /^_?[\w-]+(?:&[\w-]+)?:\s*["']/.test(commandSrc);
+            const isDialog = DIALOGUE_LINE.test(commandSrc);
             block.commands.push(
               isDialog
                 ? this.createDialogCommand(commandSrc, lineNum)
@@ -641,7 +643,7 @@ export class ScriptParser {
           }
 
           let commandSrc = commandContents.substr(endIndex);
-          const isDialog = /^_?[\w-]+(?:&[\w-]+)?:\s*["']/.test(commandSrc);
+          const isDialog = DIALOGUE_LINE.test(commandSrc);
           if (commandSrc[0] === '?') {
             this.throwParsingError(
               `Invalid conditional, did you forget '+' at the start?`,

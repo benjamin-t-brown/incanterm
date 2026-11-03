@@ -104,6 +104,17 @@ const playDialogue = defineCommand({
     context.showDialogue(context.interpolate(step.actor), context.interpolate(step.text), step.emotion),
 });
 
+const showCenterToast = defineCommand({
+  parse: (args, location) => args.length === 1
+    ? { message: getScriptValue(args[0], location) } : undefined,
+  execute: (step, context) => {
+    const message = context.value(step.message);
+    if (typeof message !== 'string')
+      throw new Error(`${context.location}: showCenterToast requires a message`);
+    context.showCenterToast(context.interpolate(message));
+  },
+});
+
 const setStorage = defineCommand({
   parse: (args, location) => {
     if (args.length !== 2) return;
@@ -421,6 +432,7 @@ export const commands = {
   callChSubscript,
   setBusy,
   playDialogue,
+  showCenterToast,
   setStorage,
   rand100,
   acquireItem,

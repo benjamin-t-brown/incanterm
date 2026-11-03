@@ -15,6 +15,7 @@ export type CommandContext = {
   returnValue: (value: RuntimeValue) => void;
   callSubscript: (ownerId: string, target: string) => void;
   showDialogue: (actor: string, text: string, emotion?: string) => void;
+  showCenterToast: (message: string) => void;
   showChoices: (options: readonly string[], onChoose?: (index: number) => void) => void;
   waitUntil: (isComplete: () => boolean) => void;
   writeLog: (message: string) => void;

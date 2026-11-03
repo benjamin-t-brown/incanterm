@@ -124,6 +124,10 @@ export type CharacterDocument = {
   customAnimations: Record<string, string>;
 };
 
+export function getCharacterScriptNames(scriptName: string | undefined): string[] {
+  return scriptName?.split('/').map((name) => name.trim()) ?? [];
+}
+
 export function getCharacterAnimation(
   character: CharacterDocument,
   state: string,
@@ -162,9 +166,15 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
   const label = record.label === undefined ? id.value : record.label;
   if (typeof label !== 'string' || getCharacterLabelError(label))
     return fail('Character label must be 1 to 80 characters without control characters');
-  if (record.scriptName !== undefined &&
-    (typeof record.scriptName !== 'string' || !/^[A-Za-z_][\w -]*$/.test(record.scriptName)))
-    return fail('Character scriptName must be an RPGScript actor name');
+  if (record.scriptName !== undefined) {
+    if (typeof record.scriptName !== 'string')
+      return fail('Character scriptName must be an RPGScript actor name');
+    const names = getCharacterScriptNames(record.scriptName);
+    if (names.some((name) => !/^[A-Za-z_][\w. -]*$/.test(name)))
+      return fail('Character scriptName must contain RPGScript actor names');
+    if (new Set(names).size !== names.length)
+      return fail('Character scriptName must contain distinct RPGScript actor names');
+  }
   if (record.portraits !== undefined && (!Array.isArray(record.portraits) || record.portraits.length > 128))
     return fail('Character portraits must contain at most 128 entries');
   const portraits: NonNullable<CharacterDocument['portraits']> = [];
