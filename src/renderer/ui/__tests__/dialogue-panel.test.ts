@@ -169,7 +169,7 @@ describe('dialogue overlay', () => {
     expect(getLines(layout, 120, 40).join('\n')).not.toContain('[Space/Enter]');
   });
 
-  it('frames the bright blue speaker label in the top-left and starts the message below it', () => {
+  it('frames the blue single-speaker name in white and starts the message below it', () => {
     const layout = new LayoutStandardScene(
       new Scene('room', 1, 1, 'regular-z', STANDARD_BACKGROUND, []),
     );
@@ -184,7 +184,7 @@ describe('dialogue overlay', () => {
     expect(lines[row][x + 'Johnathan'.length]).toBe(' ');
     expect(lines[row - 1][x - 2]).toBe('╔');
     expect(lines[row + 1][x - 2]).toBe('╚');
-    expect(buffer.get(x - 2, row - 1).fg).toEqual({ r: 64, g: 160, b: 255 });
+    expect(buffer.get(x - 2, row - 1).fg).toEqual({ r: 255, g: 255, b: 255 });
     expect(lines[row + 3]).toContain('A long message');
     expect(lines.join('\n')).not.toContain('Johnathan: A long message');
     expect(buffer.get(x, row).fg).toEqual({ r: 64, g: 160, b: 255 });

@@ -78,7 +78,7 @@ describe('dialogue portraits', () => {
       expect(lines[labelRow][labelX + 'Eva'.length]).toBe(' ');
       expect(lines[labelRow - 1][labelX - 2]).toBe('╔');
       expect(lines[labelRow + 1][labelX - 2]).toBe('╚');
-      expect(screen.buffer.get(labelX - 2, labelRow - 1).fg).toEqual({ r: 64, g: 160, b: 255 });
+      expect(screen.buffer.get(labelX - 2, labelRow - 1).fg).toEqual({ r: 255, g: 255, b: 255 });
       expect(dialogueRow).toBeGreaterThan(labelRow + 1);
       for (let x = labelX; x < labelX + 'Eva'.length; x++)
         expect(screen.buffer.get(x, labelRow).fg).toEqual({ r: 64, g: 160, b: 255 });
@@ -186,11 +186,15 @@ describe('dialogue portraits', () => {
       const firstNames = first.split('\n').findIndex((line) => line.includes('Johnathan'));
       const leftNameX = first.split('\n')[firstNames].indexOf('Johnathan') - 2;
       const rightNameX = first.split('\n')[firstNames].indexOf('Eva') - 2;
+      expect(screen.buffer.get(leftNameX + 2, firstNames).fg).toEqual({ r: 64, g: 160, b: 255 });
+      expect(screen.buffer.get(rightNameX + 2, firstNames).fg).toEqual({ r: 64, g: 160, b: 255 });
       expect(screen.buffer.get(leftNameX, firstNames - 1).fg).toEqual({ r: 255, g: 255, b: 255 });
       expect(screen.buffer.get(rightNameX, firstNames - 1).fg).toEqual({ r: 128, g: 128, b: 128 });
       expect(screen.buffer.get(0, 36).fg).toEqual({ r: 255, g: 255, b: 255 });
       expect(screen.buffer.get(115, 36).fg).toEqual({ r: 128, g: 128, b: 128 });
-      session.input(' ');
+      const hintRow = first.split('\n').findIndex((line) => line.includes('[Space/Enter]'));
+      const hintX = first.split('\n')[hintRow].indexOf('[Space/Enter]');
+      session.input(`\x1b[<0;${hintX + 1};${hintRow + 1}M`);
       expect(getPlainText(screen.buffer)).toContain('Hi');
       expect(screen.buffer.get(leftNameX, firstNames - 1).fg).toEqual({ r: 128, g: 128, b: 128 });
       expect(screen.buffer.get(rightNameX, firstNames - 1).fg).toEqual({ r: 255, g: 255, b: 255 });
@@ -264,6 +268,33 @@ describe('dialogue portraits', () => {
       expect(getPlainText(screen.buffer)).not.toContain('[Space/Enter]');
       vi.advanceTimersByTime(1020);
       expect(getPlainText(screen.buffer)).not.toContain('[Space/Enter]');
+    } finally {
+      session.close();
+    }
+  });
+
+  it('advances on a left-click anywhere while dialogue is waiting', () => {
+    const scene = new Scene('room', 1, 1, 'regular-z', clear, [], ['entry']);
+    const scripts = parseRpgScript(
+      '#entry\nload,start\n@start\n+setConv()\nGuide: "First"\nGuide: "Second"\n+endConv()',
+      'click-dialogue.rpgscript',
+    );
+    const screen = new TerminalScreen();
+    const session = createGameSession(scene, (text, cols, rows) => screen.apply(text, cols, rows), scripts);
+    session.resize(80, 24);
+    try {
+      session.open();
+      session.input('\x1b[<0;11;3m');
+      session.input('\x1b[<2;11;3M');
+      expect(getPlainText(screen.buffer)).toContain('First');
+      session.input('\x1b[<0;11;3M'); // World area, not the hint.
+      expect(getPlainText(screen.buffer)).toContain('Second');
+      expect(getPlainText(screen.buffer)).not.toContain('First');
+      session.input('\x1b[<0;6;11M'); // Nameplate area.
+      expect(getPlainText(screen.buffer)).toContain('Inventory');
+      expect(getPlainText(screen.buffer)).not.toContain('[Space/Enter]');
+      session.input('\x1b[<0;11;3M');
+      expect(getPlainText(screen.buffer)).toContain('Inventory');
     } finally {
       session.close();
     }

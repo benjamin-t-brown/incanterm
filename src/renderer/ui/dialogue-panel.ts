@@ -99,7 +99,8 @@ export class DialoguePanel extends BorderBox {
     this.twoSpeakers = false;
     this.rightSpeakerBox.visible = false;
     this.rightPortraitBox.visible = false;
-    this.speakerBox.fg = SPEAKER_FG;
+    this.speakerBox.fg = ACTIVE_BORDER;
+    this.speakerLabel.fg = SPEAKER_FG;
     this.portraitBox.fg = FG;
     this.speakerBox.visible = actor !== undefined;
     this.speakerLabel.text = actor ?? '';
@@ -111,6 +112,7 @@ export class DialoguePanel extends BorderBox {
 
   setSpeakers(left: string, right: string, active: string | undefined): void {
     this.twoSpeakers = true;
+    this.speakerLabel.fg = SPEAKER_FG;
     this.speakerBox.visible = true;
     this.rightSpeakerBox.visible = true;
     this.speakerLabel.text = left;

@@ -115,8 +115,13 @@ export function createGameSession(
           }
           mouseInput = mouseInput.slice(match[0].length + 1);
           if (Number(match[1]) === 0 && match[4] === 'M') {
-            const point = layout.getScenePoint(Number(match[2]) - 1, Number(match[3]) - 1);
-            if (runner?.getStorage('dialogue.active') !== true && !runner?.dialogue) {
+            const x = Number(match[2]) - 1;
+            const y = Number(match[3]) - 1;
+            if (runner?.dialogue) {
+              runner.advance();
+              dispatchLoadTriggers();
+            } else if (runner?.getStorage('dialogue.active') !== true && !runner?.dialogue) {
+              const point = layout.getScenePoint(x, y);
               if (point)
                 control.click(
                   point.x,

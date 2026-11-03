@@ -15,13 +15,13 @@
 
 
 @classroom1_EvaTalk
-  +?isnot(vars.a):{
+  +?is(vars.a):{
     +setConv()
     Johnathan: "Hey Eva! Where you headed?"
     Eva: "Oh hey...  I'm just headed to my locker, you know.  Like I always do."
     Johnathan: "Great!  You do that!"
     Eva: "Ugh."
-    +vars.a=1
+    +vars.a=0
   }
   +?else:{
     +setConv2(Eva, Johnathan)
@@ -29,8 +29,9 @@
     Eva: "Um no?  I don't have your locker code."
     Johnathan: "I could give it to you..."
     Eva: "No way.  I don't want to get in trouble for something like that."
+    Pilgrim: "Hey! I'm speaking now!"
     +endConv()
-    +vars.a=0
+    +vars.a=1
   }
   +endConv()
 
