@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "194a0b20-43c2-4072-9efc-a682f684d272",
+  "label": "conscience3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 4,
+      "durationMs": 500
+    },
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 5,
+      "durationMs": 500
+    }
+  ]
+}

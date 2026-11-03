@@ -31,5 +31,7 @@
     "talking-left": "edb339b4-16fe-4490-b62e-03ef12a2326b",
     "talking-right": "64336656-5508-4b74-b3f1-c4760aaea94b"
   },
-  "customAnimations": {}
+  "customAnimations": {
+    "sit-left": "107ebe3e-6499-415a-ab23-f415a9ef055a"
+  }
 }

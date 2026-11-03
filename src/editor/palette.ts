@@ -30,6 +30,13 @@ export const PALETTE_COLORS: readonly PaletteColor[] = [
 
 export const PALETTE_IDS = PALETTE_COLORS.map((color) => color.id);
 
+export function parseHexColor(value: string): string | null {
+  const hex = value.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(hex))
+    return `#${[...hex].map((digit) => digit.repeat(2)).join('').toLowerCase()}`;
+  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex.toLowerCase()}` : null;
+}
+
 export function isSpriteColor(value: string): boolean {
   return PALETTE_IDS.includes(value) || /^#[0-9a-fA-F]{6}$/.test(value);
 }

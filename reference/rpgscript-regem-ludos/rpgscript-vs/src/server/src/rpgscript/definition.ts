@@ -18,7 +18,7 @@ const isScriptCall = (str: string) => {
 };
 
 const isTriggerScriptCall = (str: string) => {
-  return str.match(/^[\w]+,(.*)/)?.[1];
+  return str.match(/^[\w-]+,\s*([\w-]+)(?:\s*,|\s*$)/)?.[1];
 };
 
 export const getDefinition = (line: string): LocationLink | undefined => {
@@ -26,6 +26,8 @@ export const getDefinition = (line: string): LocationLink | undefined => {
   if (!line) {
     return undefined;
   }
+  const returnCall = /^\+(?:\[[A-Za-z_][\w-]*\]|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\s*<\s*(\+:[\w-]+\s*\(.*)$/.exec(line);
+  if (returnCall) line = returnCall[1];
 
   const settings = getCurrentSettings();
   const configuredScenePath = resolveWorkspacePath(
@@ -68,7 +70,7 @@ export const getDefinition = (line: string): LocationLink | undefined => {
     if (i === -1) {
       i = line.length;
     }
-    const scriptName = scriptNameFromTrigger || line.slice(2, i);
+    const scriptName = scriptNameFromTrigger || line.slice(2, i).trim();
     const script = parser.getScripts()?.[scriptName];
 
     if (script) {

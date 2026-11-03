@@ -100,8 +100,6 @@ describe('RPGScript call-local arguments', () => {
 
   it.each([
     '+log("[missing]")',
-    '+[missing]=1',
-    '+setLocal(missing, 1)',
     '+?is([missing]):+log("x")',
   ])('rejects unknown locals in %s', (body) => {
     expect(() => parseRpgScript(`@start(known)\n${body}`, 'bad.rpgscript')).toThrow(

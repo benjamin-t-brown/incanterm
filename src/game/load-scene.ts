@@ -32,6 +32,33 @@ export function getDefaultAssetsRoot(): string {
   return path.join(process.cwd(), 'assets');
 }
 
+export async function loadSceneByReference(assetsRoot: string, reference: string): Promise<Scene> {
+  const scenesRoot = path.join(assetsRoot, 'scenes');
+  if (/^[a-z0-9_-]+$/.test(reference)) {
+    try {
+      await fs.access(getAssetPath(assetsRoot, 'scenes', reference));
+      return loadScene(assetsRoot, reference);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  const matches: string[] = [];
+  for (const entry of await fs.readdir(scenesRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !/^[a-z0-9_-]+\.json$/.test(entry.name)) continue;
+    const id = entry.name.slice(0, -5);
+    const text = await fs.readFile(path.join(scenesRoot, entry.name), 'utf8');
+    let record: unknown;
+    try { record = JSON.parse(text); } catch { continue; }
+    if (record && typeof record === 'object' && !Array.isArray(record) &&
+      'format' in record && record.format === 'incanterm-scene' &&
+      'id' in record && record.id === id && 'label' in record && record.label === reference)
+      matches.push(id);
+  }
+  if (!matches.length) throw new Error(`Scene ${reference} was not found by ID or label`);
+  if (matches.length > 1) throw new Error(`Scene label ${reference} is ambiguous: ${matches.join(', ')}`);
+  return loadScene(assetsRoot, matches[0]);
+}
+
 export async function loadScene(assetsRoot: string, sceneId: string): Promise<Scene> {
   const scenePath = getAssetPath(assetsRoot, 'scenes', sceneId);
   const record = readObject(await readJson(scenePath), scenePath);
@@ -76,9 +103,22 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
   const sprites = new Map<string, Sprite>();
   const seen = new Set<string>();
   const entities: Prop[] = [];
+  const markers: { id: string; name: string; x: number; y: number }[] = [];
+  const markerNames = new Set<string>();
   let hasBackground = false;
   for (let index = 0; index < record.entities.length; index++) {
     const entry = readObject(record.entities[index], `${scenePath} entity ${index}`);
+    if (entry.type === 'Marker') {
+      const id = readId(entry.id, `${scenePath} marker ${index} id`);
+      if (seen.has(id)) throw new Error(`${scenePath} duplicates id ${id}`);
+      seen.add(id);
+      if (typeof entry.name !== 'string' || !/^[A-Za-z_][\w-]*$/.test(entry.name) || entry.name.length > 80)
+        throw new Error(`${scenePath} marker ${index} needs a valid name`);
+      if (markerNames.has(entry.name)) throw new Error(`${scenePath} duplicates marker name ${entry.name}`);
+      markerNames.add(entry.name);
+      markers.push({ id, name: entry.name, x: readInt(entry.x, 'marker x', 0, width - 1), y: readInt(entry.y, 'marker y', 0, height - 1) });
+      continue;
+    }
     if (entry.type === 'Background') {
       if (hasBackground) throw new Error(`${scenePath} can contain only one background`);
       hasBackground = true;
@@ -109,6 +149,7 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
     blockedCells,
     actionTriggers,
     stepTriggers,
+    markers,
   );
 }
 
@@ -126,7 +167,7 @@ function readTriggers(value: unknown, scenePath: string): readonly string[] {
     if (
       typeof name !== 'string' ||
       !/^[\w-]+$/.test(name) ||
-      (event !== 'load' && event !== 'action')
+      (event !== 'load' && event !== 'action' && event !== 'timer')
     ) {
       throw new Error(`${scenePath} trigger names must be nonempty identifiers`);
     }
@@ -134,7 +175,7 @@ function readTriggers(value: unknown, scenePath: string): readonly string[] {
       typeof trigger === 'string' ? name : String((trigger as { id?: unknown }).id ?? name);
     if (seen.has(instanceId)) throw new Error(`${scenePath} duplicates trigger ${instanceId}`);
     seen.add(instanceId);
-    if (event === 'load') names.add(name);
+    if (event === 'load' || event === 'timer') names.add(name);
   }
   return [...names];
 }
@@ -230,6 +271,7 @@ async function readProp(
       readInt(record.speed ?? parsed.value.speed ?? 150, `${label} speed`, 1, 60000),
       clips,
       typeof record.talkScript === 'string' ? record.talkScript : undefined,
+      parsed.value.scriptName,
     );
   }
   if (record.type !== 'Prop')

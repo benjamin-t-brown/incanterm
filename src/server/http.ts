@@ -6,6 +6,7 @@ import type { Scene } from '../game/scene.js';
 import type { ScriptLibrary } from '../game/rpgscript/index.js';
 import type { PortraitAssets } from '../game/portrait-assets.js';
 import { encodeMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.js';
+import { getSessionErrorText } from '../protocol/session-error.js';
 import { createGameSession } from './game-session.js';
 import { closeServer, listen } from './listen.js';
 
@@ -37,6 +38,7 @@ export async function startHttpServer(options: {
   scripts: ScriptLibrary;
   portraits?: PortraitAssets;
   reloadPortraits?: () => Promise<PortraitAssets>;
+  loadSceneById?: (sceneId: string) => Promise<Scene>;
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -52,7 +54,7 @@ export async function startHttpServer(options: {
   });
 
   webSocketServer.on('connection', (socket) => {
-    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits);
+    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits, options.loadSceneById);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -79,6 +81,7 @@ function attachSocket(
   scripts: ScriptLibrary,
   portraits?: PortraitAssets,
   reloadPortraits?: () => Promise<PortraitAssets>,
+  loadSceneById?: (sceneId: string) => Promise<Scene>,
 ): void {
   let sendingFrame = false;
   const session = createGameSession(
@@ -94,17 +97,34 @@ function attachSocket(
     portraits,
     () => socket.readyState === WebSocket.OPEN && !sendingFrame && socket.bufferedAmount === 0,
     reloadPortraits,
+    handleSessionError,
+    loadSceneById,
   );
+  function handleSessionError(error: unknown): void {
+    console.error('Game session failed:', error);
+    session.close();
+    send(socket, { type: 'session-error', details: getSessionErrorText(error) });
+    socket.close();
+  }
   socket.on('close', () => session.close());
   send(socket, { type: 'session-status', status: 'connected', sessionId: session.id });
-  session.open();
+  try {
+    session.open();
+  } catch (error) {
+    handleSessionError(error);
+    return;
+  }
 
   socket.on('message', (data, isBinary) => {
     if (isBinary) return;
     const message = parseClientMessage(data.toString());
     if (!message) return;
-    if (message.type === 'input') session.input(message.data);
-    else session.resize(message.cols, message.rows);
+    try {
+      if (message.type === 'input') session.input(message.data);
+      else session.resize(message.cols, message.rows);
+    } catch (error) {
+      handleSessionError(error);
+    }
   });
 }
 

@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "6d3c313d-be1e-433e-aefb-109c2dccd286",
+  "label": "ralgo3x3 idle up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 6,
+      "durationMs": 135
+    }
+  ]
+}

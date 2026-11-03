@@ -12,6 +12,35 @@
     "fg": "#e0e9db",
     "bg": "#102b2a"
   },
-  "entities": [],
-  "triggers": []
+  "entities": [
+    {
+      "id": "background-1",
+      "type": "Background",
+      "sprite": "f8f61f8c-4d31-4cdd-bf5e-4c34fa3f3533",
+      "index": 0,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "marker-1",
+      "type": "Marker",
+      "name": "fromClassroom1",
+      "x": 83,
+      "y": 21
+    }
+  ],
+  "triggers": [
+    {
+      "id": "45a2fae9-8458-4a31-8f54-ac671c7e6c55",
+      "trigger": "classroom1_toClassroom1",
+      "event": "action",
+      "x": 82,
+      "y": 18,
+      "width": 3,
+      "height": 4,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    }
+  ]
 }

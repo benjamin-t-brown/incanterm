@@ -9,6 +9,7 @@ type TreeOptions = {
   list: HTMLElement;
   search: HTMLInputElement;
   label: string;
+  assetName?: string;
   storageKey: string;
   onSelect: (id: string) => void;
   onCreateAsset?: (folder: string) => void;
@@ -94,6 +95,7 @@ export function createAssetTree(options: TreeOptions) {
   }
 
   function select(id: string | null): void {
+    if (selected === id) return;
     selected = id;
     if (id) reveal(id);
     render();
@@ -109,10 +111,16 @@ export function createAssetTree(options: TreeOptions) {
     row.addEventListener('dragover', (event) => {
       if (!event.dataTransfer?.types.includes('application/x-incanterm-asset')) return;
       event.preventDefault();
+      event.stopPropagation();
       event.dataTransfer.dropEffect = 'move';
+      list.querySelectorAll('.drop-target').forEach((target) => {
+        if (target !== row) target.classList.remove('drop-target');
+      });
       row.classList.add('drop-target');
     });
-    row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+    row.addEventListener('dragleave', (event) => {
+      if (event.target === row) row.classList.remove('drop-target');
+    });
     row.addEventListener('drop', (event) => {
       row.classList.remove('drop-target');
       const id = event.dataTransfer?.getData('application/x-incanterm-asset');
@@ -122,6 +130,9 @@ export function createAssetTree(options: TreeOptions) {
       if ((tree.placements[id] ?? '') !== folder) void change({ action: 'move', id, folder });
     });
   }
+  list.addEventListener('dragend', () => {
+    list.querySelectorAll('.drop-target').forEach((target) => target.classList.remove('drop-target'));
+  });
 
   function render(): void {
     list.replaceChildren();
@@ -129,6 +140,7 @@ export function createAssetTree(options: TreeOptions) {
     const matching = files.filter(
       (id) =>
         !query ||
+        id.toLowerCase().includes(query) ||
         (labels[id] ?? id).toLowerCase().includes(query) ||
         (tree.placements[id] ?? '').toLowerCase().includes(query),
     );
@@ -191,16 +203,26 @@ export function createAssetTree(options: TreeOptions) {
           button.setAttribute('aria-label', title);
           button.addEventListener('click', callback);
           actions.append(button);
+          return button;
         };
-        createActionButton('+', `New folder in ${folder}`, () => void createFolder(folder));
+        const newFolderButton = createActionButton('', `New folder in ${folder}`, () => void createFolder(folder));
+        // Open folder icon by Delapouite, CC BY 3.0: https://game-icons.net/1x1/delapouite/open-folder.html
+        newFolderButton.innerHTML = '<svg viewBox="0 0 512 512" aria-hidden="true"><path d="M41 73v304.563L88.697 151H423v-30H185.514l-16-48H41zm62.303 96L43.092 455h381.605l60.211-286H103.303z"/></svg>';
         const createAsset = options.onCreateAsset;
         if (createAsset)
-          createActionButton('A', `New animation in ${folder}`, () => createAsset(folder));
+          createActionButton('+', `New ${options.assetName ?? 'animation'} in ${folder}`, () => createAsset(folder));
         createActionButton('×', `Delete ${folder}`, () => void deleteFolder(folder));
         row.append(toggle, actions);
         dropZone(row, folder);
         container.append(row);
-        if (open) addLevel(folder, depth + 1, container);
+        if (open) {
+          const contents = document.createElement('div');
+          contents.className = 'asset-tree-contents';
+          contents.dataset.folder = folder;
+          dropZone(contents, folder);
+          container.append(contents);
+          addLevel(folder, depth + 1, contents);
+        }
       }
       for (const id of matching.filter((file) => (tree.placements[file] ?? '') === parent)
         .sort((a, b) => (labels[a] ?? a).localeCompare(labels[b] ?? b))) {
@@ -231,14 +253,18 @@ export function createAssetTree(options: TreeOptions) {
     const root = document.createElement('div');
     root.className = 'asset-tree-root';
     root.textContent = options.label;
-    root.title = 'Drop here to move an animation out of a folder';
+    root.title = `Drop here to move ${options.assetName ?? 'an animation'} out of a folder`;
     dropZone(root, '');
     list.append(root);
-    addLevel('', 0, list);
+    const rootContents = document.createElement('div');
+    rootContents.className = 'asset-tree-contents asset-tree-root-contents';
+    dropZone(rootContents, '');
+    list.append(rootContents);
+    addLevel('', 0, rootContents);
     if (matching.length === 0 && folders.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'anim-picker-empty';
-      empty.textContent = files.length === 0 && !query ? 'No animations.' : 'No matches.';
+      empty.textContent = files.length === 0 && !query ? `No ${options.label.toLowerCase()}.` : 'No matches.';
       list.append(empty);
     }
   }

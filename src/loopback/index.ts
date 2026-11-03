@@ -5,6 +5,8 @@ import { routeLoopbackInput } from './input.js';
 import { startLoopback, type Loopback } from './start.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
 import { encodeTerminal } from '../game/terminal.js';
+import { formatTerminalError, installTerminalCleanup } from '../client/terminal-cleanup.js';
+import { getSessionErrorText } from '../protocol/session-error.js';
 
 function parseOptionsFromArgs(args: string[]): {
   sceneId?: string;
@@ -25,11 +27,13 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   console.error('Loopback mode needs an interactive terminal.');
   process.exitCode = 1;
 } else {
+  const restoreTerminal = installTerminalCleanup();
   let loopback: Loopback | undefined;
   let latestFrame = '';
   const terminal = new TerminalScreen();
   let screen: 'client' | 'server' = 'client';
   let sessionId = 'connecting';
+  let failure: string | undefined;
   let frames = 0;
   let closing = false;
   let started = false;
@@ -74,6 +78,8 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
     } else if (message.type === 'session-status') {
       sessionId = message.sessionId;
       log(`Session ${sessionId} connected`);
+    } else if (message.type === 'session-error') {
+      failure = getSessionErrorText(message.details);
     } else {
       log(`${message.type}: ${message.assetId}`);
     }
@@ -114,9 +120,9 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
     process.stdout.off('resize', onResize);
     process.off('SIGINT', onSignal);
     process.off('SIGTERM', onSignal);
-    process.stdin.setRawMode(false);
+    restoreTerminal();
     process.stdin.pause();
-    process.stdout.write('\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l');
+    if (failure) console.error(`\n${formatTerminalError(`Game session failed:\n${failure}`)}`);
     try {
       await loopback?.close();
     } finally {
@@ -137,12 +143,13 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
         if (!closing) void stop(1);
       },
       onError(error) {
-        log(`Connection error: ${error.message}`);
+        failure = getSessionErrorText(error);
         void stop(1);
       },
     });
-    process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
+    if (closing) throw new Error('Game session closed during startup');
     started = true;
+    process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
     process.stdin.setRawMode(true);
     process.stdin.on('data', onInput);
     process.stdin.resume();
@@ -152,6 +159,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
     onResize();
     process.stdout.write(latestFrame || 'Waiting for game frame…');
   } catch (error) {
+    restoreTerminal();
     console.error(error);
     process.exitCode = 1;
   }

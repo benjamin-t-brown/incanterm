@@ -18,9 +18,9 @@ const declarations = (file: string, source: string): Declaration[] => {
   const result: Declaration[] = [];
   let trigger = '';
   sourceLinesWithoutComments(source).forEach((visible, lineNumber) => {
-    const header = /^(\s*)([@#])(.+?)\s*$/.exec(visible);
+    const header = /^(\s*)(#@|[@#])(.+?)\s*$/.exec(visible);
     if (!header || !header[3].trim()) return;
-    const kind = header[2] === '@' ? 'script' : 'trigger';
+    const kind = header[2] === '#' ? 'trigger' : 'script';
     let rawName = header[3];
     let parameters: string[] = [];
     if (kind === 'script') {
@@ -30,10 +30,11 @@ const declarations = (file: string, source: string): Declaration[] => {
         parameters = signature.parameters;
       } catch { return; }
     }
+    if (header[2] === '#@') trigger = rawName;
     const name = kind === 'script' && rawName === 'this' ? trigger : rawName;
     if (kind === 'trigger') trigger = name;
     if (!name) return;
-    const character = header[1].length + 1;
+    const character = header[1].length + header[2].length;
     result.push({
       kind, name, file, parameters,
       range: {
@@ -41,6 +42,7 @@ const declarations = (file: string, source: string): Declaration[] => {
         end: { line: lineNumber, character: character + rawName.length },
       },
     });
+    if (header[2] === '#@') result.push({ ...result[result.length - 1], kind: 'trigger' });
   });
   return result;
 };

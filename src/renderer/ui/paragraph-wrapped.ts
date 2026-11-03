@@ -66,6 +66,7 @@ function breakIndex(word: string, width: number): number {
 export class ParagraphWrapped extends UIElement {
   fg: Rgb;
   bg: Rgb;
+  lineColors?: readonly Rgb[];
   private _text: string;
   private _lines: string[] = [''];
   private _layoutWidth = 0;
@@ -114,7 +115,7 @@ export class ParagraphWrapped extends UIElement {
     for (let y = 0; y < this.height; y++) {
       const line = this._lines[y] ?? '';
       for (let x = 0; x < this.width; x++) {
-        ctx.set(x, y, this.getInk(line[x] ?? ' '));
+        ctx.set(x, y, this.getInk(line[x] ?? ' ', this.lineColors?.[y] ?? this.fg));
       }
     }
   }
@@ -127,7 +128,7 @@ export class ParagraphWrapped extends UIElement {
     this.height = Math.max(1, this._lines.length);
   }
 
-  private getInk(ch: string): Cell {
-    return { ch, fg: this.fg, bg: this.bg };
+  private getInk(ch: string, fg: Rgb): Cell {
+    return { ch, fg, bg: this.bg };
   }
 }

@@ -18,7 +18,7 @@ import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
 import { fillCells } from '../../art/art-fill.js';
 import { moveSelectedCells, type SelectionRect } from '../../art/art-move.js';
 import { isSingleWidthGlyph } from '../../glyph.js';
-import { PALETTE_COLORS, PALETTE_IDS, getPaletteRgb, type PaletteDocument } from '../../palette.js';
+import { PALETTE_COLORS, PALETTE_IDS, getPaletteRgb, parseHexColor, type PaletteDocument } from '../../palette.js';
 import {
   createBlankCell,
   createSprite,
@@ -84,7 +84,8 @@ import {
   ApiError,
 } from '../api.js';
 import { mergeSprite, rebaseSpriteSaveAs } from '../../art/sprite-merge.js';
-import { filterSprites } from '../../art/sprite-search.js';
+import type { AssetFolders } from '../../asset-folders.js';
+import { createAssetTree } from '../asset-tree.js';
 import { mergeJson } from '../../safe-save.js';
 import { saveDraft } from '../save.js';
 import { getArtCursorCss } from './cursors.js';
@@ -233,8 +234,6 @@ export function mountArt(root: HTMLElement): () => void {
   const wrap = get$<HTMLElement>('#canvas-wrap');
 
   let palette: PaletteDocument = { format: 'incanterm-palette', version: 1, colors: [] };
-  let paletteSaved: PaletteDocument = palette;
-  let paletteSaving = false;
   let doc: SpriteDocument | null = null;
   let selectedFrame = 0;
   let playFrom = 0;
@@ -264,7 +263,6 @@ export function mountArt(root: HTMLElement): () => void {
   let fg = 'bright-white';
   let bg = 'black';
   let colorTarget: 'fg' | 'bg' = 'fg';
-  let paletteEdit = 'bright-white';
   const generateColors = { shirt: 'yellow', letter: 'bright-white' };
   function getGeneratorColorHex(kind: 'shirt' | 'letter'): string {
     const color = generateColors[kind];
@@ -328,6 +326,7 @@ export function mountArt(root: HTMLElement): () => void {
   let openTabs: string[] = [];
   const spriteLabels = new Map<string, string>();
   let spriteFiles: string[] = [];
+  let spriteFolders: AssetFolders = { folders: [], placements: {} };
   const sessions = new Map<string, TabSession>();
   const displayName = (id: string) =>
     (id === spriteId ? doc?.label : sessions.get(id)?.doc.label ?? spriteLabels.get(id)) ?? id;
@@ -346,6 +345,46 @@ export function mountArt(root: HTMLElement): () => void {
     target.addEventListener(type, listener, options);
     stops.push(() => target.removeEventListener(type, listener, options));
   };
+
+  const assetTree = createAssetTree({
+    list: get$<HTMLElement>('#sprite-list'),
+    search: get$<HTMLInputElement>('#sprite-search'),
+    label: 'SPRITES',
+    assetName: 'sprite',
+    storageKey: 'incanterm-sprite-folders-expanded',
+    onSelect: (id) => void openSprite(id),
+    onCreateAsset: (folder) => void createNewSprite(folder),
+    onChange: async (change) => {
+      if (change.action === 'delete' && change.expectedIds.some((id) => getDirtyIds().has(id)))
+        throw new Error('Save or close unsaved sprite drafts before deleting this folder');
+      const folders = await requestJson<AssetFolders>('/api/sprite-folders', jsonRequest('POST', change));
+      spriteFolders = folders;
+      if (change.action === 'delete') {
+        const deletedCurrent = spriteId !== null && change.expectedIds.includes(spriteId);
+        for (const id of change.expectedIds) {
+          openTabs = closeOpenTab(openTabs, id);
+          dropSession(id);
+        }
+        if (deletedCurrent) {
+          ++switchToken;
+          clearWorkspace();
+          refreshControls();
+        }
+        flushPersist();
+        await refreshFiles();
+        const next = openTabs[openTabs.length - 1];
+        if (deletedCurrent && next) await activateSprite(next);
+      }
+      return folders;
+    },
+    askName: askId,
+    confirmDelete: (folder, sprites, subfolders) => confirmModal(
+      `Delete folder ${folder} and everything inside it?${subfolders.length ? `\nSubfolders: ${subfolders.join(', ')}` : ''}${sprites.length ? `\nSprites to delete:\n${sprites.map(({ label, id }) => `• ${label} (${id})`).join('\n')}` : ''}\nThis cannot be undone.`,
+      'DELETE',
+    ),
+    onError: (message) => { announce(message); toast(message, true); },
+  });
+  get$<HTMLButtonElement>('#new-sprite-folder').addEventListener('click', () => void assetTree.createFolder());
 
   function getRgb(id: string): string {
     return getPaletteRgb(palette, id) ?? '#000000';
@@ -605,8 +644,10 @@ export function mountArt(root: HTMLElement): () => void {
     get$<HTMLElement>('#bg-target').classList.toggle('active', colorTarget === 'bg');
     get$<HTMLElement>('#fg-chip').style.background = getRgb(fg);
     get$<HTMLElement>('#bg-chip').style.background = getRgb(bg);
-    const paintHex = get$<HTMLInputElement>('#paint-hex');
-    if (document.activeElement !== paintHex) paintHex.value = getRgb(colorTarget === 'fg' ? fg : bg);
+    for (const [target, color] of [['fg', fg], ['bg', bg]] as const) {
+      const input = get$<HTMLInputElement>(`#${target}-hex`);
+      if (document.activeElement !== input) input.value = getRgb(color);
+    }
     get$<HTMLElement>('#glyph-capture-char').textContent = glyph;
     get$<HTMLButtonElement>('#glyph-capture').setAttribute('aria-pressed', String(keyMode));
     get$<HTMLElement>('#key-mode-hint').hidden = !keyMode;
@@ -626,7 +667,6 @@ export function mountArt(root: HTMLElement): () => void {
     syncCanvasCursor();
     renderTimeline();
     get$<HTMLElement>('#zoom-label').textContent = `${Math.round(zoom * 100)}%`;
-    get$<HTMLInputElement>('#palette-rgb').value = getRgb(paletteEdit);
     const family = getSpriteFontFamily(doc?.font ?? DEFAULT_SPRITE_FONT);
     get$<HTMLElement>('#glyph-capture-char').style.fontFamily = family;
     root.querySelectorAll<HTMLElement>('.glyph-list').forEach((list) => {
@@ -649,7 +689,7 @@ export function mountArt(root: HTMLElement): () => void {
     }
     root.querySelectorAll<HTMLButtonElement>('#palette button').forEach((button) => {
       const id = button.dataset.color ?? '';
-      button.classList.toggle('selected', id === fg || id === bg || id === paletteEdit);
+      button.classList.toggle('selected', id === fg || id === bg);
       button.style.background = getRgb(id);
     });
     refreshGenerateColors();
@@ -1634,7 +1674,7 @@ export function mountArt(root: HTMLElement): () => void {
     pressing = false;
   }
   function renderTabs(): void {
-    renderFileList();
+    assetTree.select(spriteId);
     const host = get$<HTMLElement>('#document-tabs');
     host.replaceChildren();
     if (openTabs.length === 0) {
@@ -1759,31 +1799,17 @@ export function mountArt(root: HTMLElement): () => void {
     flushPersist();
     renderTabs();
   }
-  function renderFileList(): void {
-    const list = get$<HTMLElement>('#file-list');
-    const matches = filterSprites(spriteFiles, spriteLabels, get$<HTMLInputElement>('#file-search').value);
-    list.replaceChildren();
-    if (!matches.length) {
-      const empty = document.createElement('div');
-      empty.className = 'anim-picker-empty';
-      empty.textContent = spriteFiles.length ? 'No matches.' : 'No sprites.';
-      list.append(empty);
-    }
-    for (const id of matches) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = displayName(id);
-      button.title = id;
-      button.classList.toggle('active', id === spriteId);
-      button.addEventListener('click', () => void openSprite(id));
-      list.append(button);
-    }
-  }
   async function refreshFiles(): Promise<void> {
     try {
-      const { files, labels } = await requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites');
+      const [{ files, labels }, folders] = await Promise.all([
+        requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
+        requestJson<AssetFolders>('/api/sprite-folders'),
+      ]);
+      if (!alive) return;
       for (const [id, label] of Object.entries(labels)) spriteLabels.set(id, label);
       spriteFiles = files;
+      spriteFolders = folders;
+      assetTree.setData(files, folders, Object.fromEntries(spriteLabels));
       await syncOpenTabs(files);
       // Labels can change without the set of open tabs changing.
       renderTabs();
@@ -1832,7 +1858,6 @@ export function mountArt(root: HTMLElement): () => void {
   }
   async function openSprite(id: string): Promise<void> {
     if (await activateSprite(id)) {
-      get$<HTMLDialogElement>('#file-dialog').close();
       announce(`Opened ${displayName(id)}`);
     }
   }
@@ -1946,6 +1971,15 @@ export function mountArt(root: HTMLElement): () => void {
         next,
         null,
       );
+      const folder = spriteFolders.placements[from];
+      let folderError: string | null = null;
+      if (folder) {
+        try {
+          await placeSpriteInFolder(id, folder);
+        } catch (error) {
+          folderError = error instanceof Error ? error.message : 'Folder update failed';
+        }
+      }
       if (spriteId !== from || !doc) return;
       doc = rebaseSpriteSaveAs(next, doc, saved);
       spriteLabels.set(saved.id, saved.label);
@@ -1963,8 +1997,11 @@ export function mountArt(root: HTMLElement): () => void {
       flushPersist();
       updateTitle();
       refreshControls();
-      announce(`Saved as ${saved.label}`);
-      toast(`Saved as ${saved.label}`);
+      const message = folderError
+        ? `Saved as ${saved.label}, but could not place it in ${folder}: ${folderError}`
+        : `Saved as ${saved.label}`;
+      announce(message);
+      toast(message, !!folderError);
       void refreshFiles();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Save as failed';
@@ -2061,7 +2098,7 @@ export function mountArt(root: HTMLElement): () => void {
         announce(`Font ${SPRITE_FONTS.find((font) => font.id === value)?.label ?? value}`);
       });
   }
-  async function createNewSprite(): Promise<void> {
+  async function createNewSprite(folder = ''): Promise<void> {
     const draft = await askNewSprite();
     if (!draft) return;
     const id = crypto.randomUUID();
@@ -2080,12 +2117,30 @@ export function mountArt(root: HTMLElement): () => void {
           sprite,
           null,
         );
+        let folderError: string | null = null;
+        if (folder) {
+          try {
+            await placeSpriteInFolder(id, folder);
+          } catch (error) {
+            folderError = error instanceof Error ? error.message : 'Folder update failed';
+          }
+        }
         loadSprite(saved);
-        announce(`Created ${draft.label}`);
+        const message = folderError
+          ? `Created ${draft.label}, but could not place it in ${folder}: ${folderError}`
+          : `Created ${draft.label}`;
+        announce(message);
+        if (folderError) toast(message, true);
       } catch (createError) {
         announce(createError instanceof Error ? createError.message : 'Create failed');
       }
     }
+  }
+  async function placeSpriteInFolder(id: string, folder: string): Promise<void> {
+    spriteFolders = await requestJson<AssetFolders>('/api/sprite-folders', jsonRequest('POST', {
+      action: 'move', id, folder,
+    }));
+    assetTree.setData(spriteFiles, spriteFolders, Object.fromEntries(spriteLabels));
   }
   async function generateCharacter(): Promise<void> {
     const form = get$<HTMLFormElement>('#generate-character-form');
@@ -2135,6 +2190,14 @@ export function mountArt(root: HTMLElement): () => void {
       '/api/duplicate',
       jsonRequest('POST', { kind: 'sprite', from: spriteId, id, label }),
     );
+    const folder = spriteFolders.placements[spriteId];
+    if (folder) {
+      try {
+        await placeSpriteInFolder(copy.id, folder);
+      } catch (error) {
+        toast(`Duplicated ${label}, but could not place it in ${folder}: ${error instanceof Error ? error.message : 'Folder update failed'}`, true);
+      }
+    }
     loadSprite(copy);
     announce(`Duplicated as ${label}`);
   }
@@ -2747,48 +2810,6 @@ export function mountArt(root: HTMLElement): () => void {
     loadSprite(sprite);
     announce(`Imported ${label}`);
   }
-  async function savePaletteColor(value: string): Promise<void> {
-    if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
-      announce('Use an #rrggbb color');
-      return;
-    }
-    palette = {
-      ...palette,
-      colors: palette.colors.map((color) =>
-        color.id === paletteEdit ? { ...color, rgb: value.toLowerCase() } : color,
-      ),
-    };
-    refreshControls();
-    await persistPalette();
-  }
-  async function persistPalette(): Promise<void> {
-    if (paletteSaving || JSON.stringify(palette) === JSON.stringify(paletteSaved)) return;
-    const sent = structuredClone(palette);
-    paletteSaving = true;
-    let committed = false;
-    try {
-      const stored = await saveDraft('/api/palette', sent, paletteSaved);
-      const rebased = mergeJson(sent, palette, stored);
-      if (rebased.ok) {
-        palette = rebased.value;
-        paletteSaved = stored;
-        committed = true;
-      } else announce('Palette saved, but newer edits need review');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not save palette';
-      announce(message);
-      if (error instanceof ApiError && error.status === 409) await alertModal(message);
-      return;
-    } finally {
-      paletteSaving = false;
-    }
-    refreshControls();
-    if (committed) announce(`Recolored ${paletteEdit}`);
-    if (committed && JSON.stringify(palette) !== JSON.stringify(paletteSaved)) {
-      void persistPalette();
-    }
-  }
-
   const paletteHost = get$<HTMLElement>('#palette');
   for (const color of [
     'black',
@@ -2813,7 +2834,6 @@ export function mountArt(root: HTMLElement): () => void {
     button.dataset.color = color;
     button.title = color;
     button.addEventListener('click', () => {
-      paletteEdit = color;
       if (colorTarget === 'fg') fg = color;
       else bg = color;
       refreshControls();
@@ -2908,14 +2928,6 @@ export function mountArt(root: HTMLElement): () => void {
 
   const actions: Record<string, () => void> = {
     new: () => void createNewSprite(),
-    browse: () => {
-      void refreshFiles();
-      setGlyphCapture(false);
-      get$<HTMLDialogElement>('#file-dialog').showModal();
-      const search = get$<HTMLInputElement>('#file-search');
-      search.focus();
-      search.select();
-    },
     save: () => void save(),
     'save-as': () => void saveAs(),
     duplicate: () => void duplicateSprite(),
@@ -3154,21 +3166,29 @@ export function mountArt(root: HTMLElement): () => void {
     [fg, bg] = [bg, fg];
     refreshControls();
   });
-  get$<HTMLInputElement>('#palette-rgb').addEventListener('change', (event) => {
-    void savePaletteColor((event.target as HTMLInputElement).value.trim());
-  });
-  get$<HTMLInputElement>('#paint-hex').addEventListener('change', (event) => {
-    const value = (event.target as HTMLInputElement).value.trim();
-    if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
-      announce('Use an #rrggbb color');
-      (event.target as HTMLInputElement).value = getRgb(colorTarget === 'fg' ? fg : bg);
+  function applyPaintHexColor(target: 'fg' | 'bg', input: HTMLInputElement, text: string): void {
+    const value = parseHexColor(text);
+    if (!value) {
+      announce('Use a 3- or 6-digit hex color');
+      input.value = getRgb(target === 'fg' ? fg : bg);
       return;
     }
-    if (colorTarget === 'fg') fg = value.toLowerCase();
-    else bg = value.toLowerCase();
+    if (target === 'fg') fg = value;
+    else bg = value;
+    input.value = value;
     refreshControls();
-  });
-  get$<HTMLInputElement>('#paint-hex').addEventListener('blur', refreshControls);
+  }
+  for (const target of ['fg', 'bg'] as const) {
+    const input = get$<HTMLInputElement>(`#${target}-hex`);
+    input.addEventListener('change', () => applyPaintHexColor(target, input, input.value));
+    input.addEventListener('paste', (event) => {
+      const hex = parseHexColor(event.clipboardData?.getData('text') ?? '');
+      if (!hex) return;
+      event.preventDefault();
+      applyPaintHexColor(target, input, hex);
+    });
+    input.addEventListener('blur', refreshControls);
+  }
   for (const id of ['#origin-x', '#origin-y']) {
     const input = get$<HTMLInputElement>(id);
     input.addEventListener('focus', () => redraw());
@@ -3192,10 +3212,6 @@ export function mountArt(root: HTMLElement): () => void {
     remember(before);
     refreshControls();
   });
-  get$<HTMLInputElement>('#file-search').addEventListener('input', renderFileList);
-  get$<HTMLButtonElement>('#close-files').addEventListener('click', () =>
-    get$<HTMLDialogElement>('#file-dialog').close(),
-  );
   get$<HTMLButtonElement>('#close-size').addEventListener('click', () =>
     get$<HTMLDialogElement>('#size-dialog').close(),
   );
@@ -3336,7 +3352,6 @@ export function mountArt(root: HTMLElement): () => void {
     if (part !== 'paper') {
       glyph = picked.ch;
       fg = picked.fg;
-      paletteEdit = picked.fg;
     }
     if (part !== 'ink') bg = picked.bg;
     const name = picked.ch === ' ' ? 'space' : picked.ch;
@@ -3661,9 +3676,7 @@ export function mountArt(root: HTMLElement): () => void {
           ? get$<HTMLDialogElement>('#size-dialog')
           : get$<HTMLDialogElement>('#font-dialog').open
             ? get$<HTMLDialogElement>('#font-dialog')
-            : get$<HTMLDialogElement>('#file-dialog').open
-              ? get$<HTMLDialogElement>('#file-dialog')
-              : null;
+            : null;
       if (modal) {
         if (keyEvent.key === 'Escape') {
           keyEvent.preventDefault();
@@ -3709,7 +3722,11 @@ export function mountArt(root: HTMLElement): () => void {
         }
         if (key === 'y') actions.redo();
         if (key === 'n') void createNewSprite();
-        if (key === 'o') actions.browse();
+        if (key === 'o') {
+          const search = get$<HTMLInputElement>('#sprite-search');
+          search.focus();
+          search.select();
+        }
         if (key === 'd') void duplicateSprite();
         if (key === 'c') actions.copy();
         if (key === 'v') actions.paste();
@@ -3836,7 +3853,6 @@ export function mountArt(root: HTMLElement): () => void {
 
   void (async () => {
     palette = await requestJson<PaletteDocument>('/api/palette');
-    paletteSaved = structuredClone(palette);
     const stored = readArtTabStore(localStorage);
     // Recover the last saved brush once; tab changes must not replace it.
     stamp = stored.active ? (stored.sessions[stored.active]?.stamp ?? null) : null;
@@ -3899,7 +3915,6 @@ function getArtMarkup(): string {
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
-        <button type="button" data-action="browse">Browse sprites <kbd>Ctrl+O</kbd></button>
         <button type="button" data-action="save">Save <kbd>Ctrl+S</kbd></button>
         <button type="button" data-action="save-as">Save as… <kbd>Ctrl+Shift+S</kbd></button>
         <button type="button" data-action="duplicate">Duplicate <kbd>Ctrl+D</kbd></button>
@@ -3934,6 +3949,11 @@ function getArtMarkup(): string {
       <div id="document-tabs" class="document-tabs" role="tablist"></div>
     </nav>
     <main class="editor">
+      <aside class="art-library" aria-label="Sprites">
+        <input id="sprite-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search sprites" autocomplete="off" spellcheck="false">
+        <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-sprite-folder" type="button" aria-label="New folder">+ FOLDER</button></div></div>
+        <div id="sprite-list" class="art-library-list"></div>
+      </aside>
       <aside class="sidebar">
         <div class="sidebar-heading"><span>CONTROL PANEL</span><span class="tiny-box">ART</span></div>
         <section class="panel">
@@ -4001,10 +4021,10 @@ function getArtMarkup(): string {
           <div class="section-title"><span>03</span> PALETTE</div>
           <div class="color-targets"><button id="fg-target" class="color-target active" type="button"><span id="fg-chip" class="color-chip"></span><span>FG</span></button><button id="bg-target" class="color-target" type="button"><span id="bg-chip" class="color-chip"></span><span>BG</span></button><button id="swap-colors" type="button">⇄</button></div>
            <div id="palette" class="palette"></div>
-           <label class="field-head" for="paint-hex">PAINT HEX · ACTIVE FG/BG</label>
-           <input id="paint-hex" class="palette-rgb" spellcheck="false" value="#ffffff" maxlength="7">
-           <label class="field-head" for="palette-rgb">SELECTED RGB</label>
-          <input id="palette-rgb" class="palette-rgb" spellcheck="false" value="#000000">
+           <div class="palette-hex-fields">
+             <label for="fg-hex"><span class="field-head">FG HEX</span><input id="fg-hex" class="palette-rgb" spellcheck="false" value="#ffffff" maxlength="7" title="Foreground paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"></label>
+             <label for="bg-hex"><span class="field-head">BG HEX</span><input id="bg-hex" class="palette-rgb" spellcheck="false" value="#000000" maxlength="7" title="Background paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"></label>
+           </div>
         </section>
         <section class="panel">
           <div class="section-title"><span>04</span> ORIGIN</div>
@@ -4053,14 +4073,6 @@ function getArtMarkup(): string {
     </main>
     <input id="import-file" type="file" accept="application/json,.json" hidden>
     <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-    <dialog id="file-dialog" aria-labelledby="file-dialog-title">
-      <div class="dialog-heading"><span id="file-dialog-title">BROWSE SPRITES</span><button id="close-files" type="button" aria-label="Close sprite browser">×</button></div>
-      <section class="art-library" aria-label="Sprites">
-        <label for="file-search">SPRITES</label>
-        <input id="file-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search sprites" autocomplete="off" spellcheck="false">
-        <div id="file-list" class="asset-list"></div>
-      </section>
-    </dialog>
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
     <dialog id="generate-character-dialog">

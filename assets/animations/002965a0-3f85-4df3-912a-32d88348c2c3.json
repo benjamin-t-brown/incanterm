@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "002965a0-3f85-4df3-912a-32d88348c2c3",
+  "label": "conscience3x3 talking up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 6,
+      "durationMs": 500
+    },
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 7,
+      "durationMs": 500
+    }
+  ]
+}

@@ -199,7 +199,7 @@
       "id": "desk1-1",
       "type": "Prop",
       "prop": "desk1",
-      "x": 84,
+      "x": 86,
       "y": 18,
       "z": 0
     },
@@ -216,8 +216,8 @@
       "type": "Prop",
       "name": "desk1-1",
       "prop": "desk1",
-      "x": 47,
-      "y": 14,
+      "x": 46,
+      "y": 13,
       "z": 0
     },
     {
@@ -225,8 +225,8 @@
       "type": "Prop",
       "name": "desk1-1",
       "prop": "desk1",
-      "x": 69,
-      "y": 14,
+      "x": 68,
+      "y": 13,
       "z": 0
     },
     {
@@ -234,8 +234,8 @@
       "type": "Prop",
       "name": "desk1-1",
       "prop": "desk1",
-      "x": 58,
-      "y": 14,
+      "x": 57,
+      "y": 13,
       "z": 0
     },
     {
@@ -243,8 +243,8 @@
       "type": "Prop",
       "name": "desk1-1",
       "prop": "desk1",
-      "x": 80,
-      "y": 14,
+      "x": 79,
+      "y": 13,
       "z": 0
     },
     {
@@ -281,9 +281,9 @@
       "character": "be64804a-0f95-4067-9151-76ec698c58cf",
       "talkScript": "classroom1_EvaTalk",
       "facing": "left",
-      "state": "idle",
-      "x": 64,
-      "y": 12,
+      "state": "sit-left",
+      "x": 58,
+      "y": 18,
       "z": 0
     },
     {
@@ -293,7 +293,7 @@
       "character": "d56fe31d-25db-43ab-99f8-4a8e463d06d6",
       "facing": "down",
       "state": "sit_left",
-      "x": 88,
+      "x": 90,
       "y": 18,
       "z": 0
     },
@@ -307,17 +307,118 @@
       "x": 76,
       "y": 11,
       "z": 0
+    },
+    {
+      "id": "marker-1",
+      "type": "Marker",
+      "name": "examine1",
+      "x": 39,
+      "y": 12
+    },
+    {
+      "id": "poster_smiley-1",
+      "type": "Prop",
+      "name": "poster_smiley-1",
+      "prop": "poster_smiley",
+      "x": 38,
+      "y": 8,
+      "z": 0
+    },
+    {
+      "id": "9e7e1c1d-e0ba-4e32-b88b-4a87dfe251b0",
+      "type": "Marker",
+      "name": "examineShelf",
+      "x": 61,
+      "y": 12
+    },
+    {
+      "id": "e0bff5b6-732c-4f34-ab16-40edb6b7782a",
+      "type": "Marker",
+      "name": "fromHallway1",
+      "x": 29,
+      "y": 12
+    },
+    {
+      "id": "podium-1",
+      "type": "Prop",
+      "name": "podium-1",
+      "prop": "podium",
+      "x": 41,
+      "y": 17,
+      "z": 0
+    },
+    {
+      "id": "e8975d02-53ad-4bd9-82ba-4b8e7758d20a-1",
+      "type": "Character",
+      "name": "otis3x3_ch",
+      "character": "e8975d02-53ad-4bd9-82ba-4b8e7758d20a",
+      "facing": "left",
+      "state": "sit-left",
+      "x": 80,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "4180db7c-6324-418d-ae82-e77e69a424df-1",
+      "type": "Character",
+      "name": "ada3x3_ch",
+      "character": "4180db7c-6324-418d-ae82-e77e69a424df",
+      "facing": "down",
+      "state": "sit-left",
+      "x": 50,
+      "y": 13,
+      "z": 0
+    },
+    {
+      "id": "782c9198-45df-4c37-ab66-4ae821ac225c-1",
+      "type": "Character",
+      "name": "ralgo3x3",
+      "character": "782c9198-45df-4c37-ab66-4ae821ac225c",
+      "talkScript": "classroom1_RalgoTalk",
+      "facing": "right",
+      "state": "idle",
+      "x": 38,
+      "y": 17,
+      "z": 0
+    },
+    {
+      "id": "025d1288-df37-4bdf-a68e-dd18d334393a",
+      "type": "Marker",
+      "name": "ralgo1",
+      "x": 33,
+      "y": 17
+    },
+    {
+      "id": "6a502220-6008-4403-a6d2-fdabd5be7aa7",
+      "type": "Marker",
+      "name": "ralgo2",
+      "x": 38,
+      "y": 19
+    },
+    {
+      "id": "5081afa6-7f6a-48c7-9a97-68b6943b2597",
+      "type": "Marker",
+      "name": "podium1",
+      "x": 45,
+      "y": 20
+    },
+    {
+      "id": "e3a5e29f-3532-46bb-aeb7-749d046c3b00",
+      "type": "Marker",
+      "name": "podium2",
+      "x": 38,
+      "y": 20
     }
   ],
   "triggers": [
     {
       "id": "4d49af56-5a36-4d13-971a-799096818b3d",
-      "trigger": "trigger6",
+      "trigger": "classroom1_smileyPoster",
       "event": "action",
-      "x": 37,
+      "x": 38,
       "y": 8,
-      "width": 17,
-      "height": 2,
+      "width": 3,
+      "height": 3,
       "actionEnabled": true,
       "stepEnabled": false,
       "description": ""
@@ -326,23 +427,58 @@
       "id": "8d9f9238-325b-4afe-8af8-3781f9932dbd",
       "trigger": "classroom1Load",
       "event": "load",
-      "x": 16,
-      "y": 15,
+      "x": 2,
+      "y": 1,
       "width": 5,
       "height": 3,
       "actionEnabled": false,
       "stepEnabled": false
     },
     {
-      "id": "6719cbf5-1db0-4fe0-b80d-f5bcbdccfbf1",
-      "trigger": "trigger7",
+      "id": "07501042-10c0-4a8b-91ac-d92c053df094",
+      "trigger": "classroom1_bookshelf",
       "event": "action",
-      "x": 27,
-      "y": 12,
+      "x": 55,
+      "y": 4,
+      "width": 12,
+      "height": 3,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "ebd70107-3e48-4cef-be73-695cddef21f3",
+      "trigger": "classroom1_toHallway1",
+      "event": "action",
+      "x": 28,
+      "y": 8,
+      "width": 3,
+      "height": 4,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "f362786c-d6bb-417d-8a1a-5c3c6bc3be4d",
+      "trigger": "classroom1Updater",
+      "event": "timer",
+      "x": 2,
+      "y": 5,
       "width": 5,
-      "height": 2,
+      "height": 3,
       "actionEnabled": false,
-      "stepEnabled": true,
+      "stepEnabled": false
+    },
+    {
+      "id": "e428c614-0bac-4c81-b4ce-9af16de31c00",
+      "trigger": "classroom1_podium",
+      "event": "action",
+      "x": 41,
+      "y": 17,
+      "width": 3,
+      "height": 4,
+      "actionEnabled": true,
+      "stepEnabled": false,
       "description": ""
     }
   ]

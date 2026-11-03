@@ -20,6 +20,14 @@
     +log("A is set")
   }
 
+@testReturn1
+  +[local]<+:testReturn2()
+
+@testReturn2
+  +^a=1
+  +a={a} + 1
+  <{a}
+
 @testArgs
   +:testArgs2("a")
   +:testArgs2("")

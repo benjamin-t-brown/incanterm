@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "6b31bc1f-dda4-4836-bb32-efc2ea30e4ad",
+  "label": "ralgo3x3 walk left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 10,
+      "durationMs": 135
+    },
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 11,
+      "durationMs": 135
+    }
+  ]
+}

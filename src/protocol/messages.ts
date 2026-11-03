@@ -5,11 +5,13 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'terminal-data'; data: string; cols?: number; rows?: number }
   | { type: 'session-status'; status: 'connected'; sessionId: string }
+  | { type: 'session-error'; details: string }
   | { type: 'play-sound'; assetId: string }
   | { type: 'stop-sound'; assetId: string };
 
 const MAX_INPUT_CHARS = 8192;
 const MAX_TERMINAL_CHARS = 1_000_000;
+const MAX_ERROR_CHARS = 16_384;
 const MAX_ID_CHARS = 256;
 const MAX_AXIS_CELLS = 1000;
 
@@ -33,6 +35,13 @@ export function parseServerMessage(raw: string): ServerMessage | null {
       return { type: 'terminal-data', data: value.data };
     if (!isCellCount(value.cols) || !isCellCount(value.rows)) return null;
     return { type: 'terminal-data', data: value.data, cols: value.cols, rows: value.rows };
+  }
+  if (
+    value.type === 'session-error' &&
+    isBoundedString(value.details, MAX_ERROR_CHARS) &&
+    value.details.length > 0
+  ) {
+    return { type: 'session-error', details: value.details };
   }
   if (
     value.type === 'session-status' &&

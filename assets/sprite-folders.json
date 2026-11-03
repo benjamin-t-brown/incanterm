@@ -1,0 +1,26 @@
+{
+  "folders": [
+    "props",
+    "3x3",
+    "portraits",
+    "bg"
+  ],
+  "placements": {
+    "007ba615-9410-4d38-ab33-65091d4bcca4": "props",
+    "clock": "props",
+    "desk": "props",
+    "0681c7b4-062a-4fc3-9045-6a814da4b08c": "3x3",
+    "54084689-73f9-4d5e-bc82-36ab2511d20f": "3x3",
+    "johnathan1": "portraits",
+    "edfc4869-e750-4c9a-96c1-c33380aac47a": "portraits",
+    "vivi1": "portraits",
+    "9088b556-cc64-4c7d-aff6-66113b702a4a": "props",
+    "bg_classroom1": "bg",
+    "f8f61f8c-4d31-4cdd-bf5e-4c34fa3f3533": "bg",
+    "5c20afe2-cf9e-477c-9ccf-63bd0b470a54": "3x3",
+    "ae12a341-1474-4dda-8c1e-27b006279c79": "3x3",
+    "256de50b-67ec-46ae-bc5e-3b2f58fedc3a": "3x3",
+    "abd6c5d1-90d2-4434-b1b0-6ff7036ede9d": "3x3",
+    "2addb14b-a85a-4094-9842-e1a535f636ca": "3x3"
+  }
+}

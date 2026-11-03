@@ -1,0 +1,25 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "e8975d02-53ad-4bd9-82ba-4b8e7758d20a",
+  "label": "otis3x3_ch",
+  "scriptName": "Otis",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "4532c59d-7b7a-44be-8afd-50d7184d507a",
+    "idle-down": "8d3051e6-18c9-48d5-b9a0-3b46032c09eb",
+    "idle-left": "20e1a5b8-8f89-41b8-88b8-7c1fc8d57265",
+    "idle-right": "c32b462b-8787-4476-9674-cd1c0164debe",
+    "walk-up": "6cc33e00-93f9-4499-92b7-74a63e53b26e",
+    "walk-down": "4e3617fa-088d-4482-b6fa-22830f9eab2d",
+    "walk-left": "fccc9d45-3148-412f-b20a-a4b89edc8af4",
+    "walk-right": "4b8e949b-4998-4a75-a044-d49bd8c84e03",
+    "talking-up": "7faec63b-88cf-48d9-b1ea-c4167ed6e0ea",
+    "talking-down": "f6d95053-d8b7-4399-86a7-623647900d51",
+    "talking-left": "009589e7-20f0-4618-ad7a-2c380c16a42a",
+    "talking-right": "dd7198b5-239b-49f0-8846-5cd2a19fbab6"
+  },
+  "customAnimations": {
+    "sit-left": "854ec518-31b2-48cd-a1f5-5b872f18127e"
+  }
+}

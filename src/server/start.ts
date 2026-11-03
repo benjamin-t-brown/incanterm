@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { TEST_SCENE_ID, getDefaultAssetsRoot, loadScene } from '../game/load-scene.js';
+import { TEST_SCENE_ID, getDefaultAssetsRoot, loadScene, loadSceneByReference } from '../game/load-scene.js';
 import { loadOrCreateHostKey } from './host-key.js';
 import { loadRpgScripts } from '../game/rpgscript/index.js';
 import { commands } from '../game/scene-commands.js';
@@ -43,6 +43,7 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
     scripts,
     portraits,
     reloadPortraits: () => loadPortraitAssets(assetsRoot),
+    loadSceneById: (sceneId) => loadSceneByReference(assetsRoot, sceneId),
   });
   try {
     const ssh = await startSshServer({
@@ -53,6 +54,7 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
       scripts,
       portraits,
       reloadPortraits: () => loadPortraitAssets(assetsRoot),
+      loadSceneById: (sceneId) => loadSceneByReference(assetsRoot, sceneId),
     });
     return {
       httpPort: http.port,

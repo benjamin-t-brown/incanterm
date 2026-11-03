@@ -1,6 +1,6 @@
 import type { Command, ScriptValue } from './parser.js';
 
-export type RuntimeValue = string | number | boolean | undefined;
+export type RuntimeValue = string | number | boolean | readonly string[] | undefined;
 
 // Only interpreter operations belong here. Host state is a separate generic argument.
 export type CommandContext = {
@@ -8,10 +8,15 @@ export type CommandContext = {
   value: (value: ScriptValue) => RuntimeValue;
   interpolate: (text: string) => string;
   setStorage: (key: string, value: RuntimeValue) => void;
+  getStorage: (key: string) => RuntimeValue;
   setLocal: (name: string, value: RuntimeValue) => void;
   call: (target: string, args: readonly RuntimeValue[]) => void;
+  callWithResult: (target: string, args: readonly RuntimeValue[], destination: string, local: boolean) => void;
+  returnValue: (value: RuntimeValue) => void;
+  callSubscript: (ownerId: string, target: string) => void;
   showDialogue: (actor: string, text: string, emotion?: string) => void;
   showChoices: (options: readonly string[], onChoose?: (index: number) => void) => void;
+  waitUntil: (isComplete: () => boolean) => void;
   writeLog: (message: string) => void;
 };
 

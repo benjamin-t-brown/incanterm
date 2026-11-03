@@ -34,7 +34,7 @@ __TRIGGERNAME \= (^#(.)+$)
 __SCENENAME \= (^(\s)*@[^\s()]+)
 __INLINE \= (^(\s)*\+(.)+$)
 __DIALOG \= ((^(\s)*[\w &]*:)|(^(\s)+([\w&])+:))
-__TRIGGERTYPE \= (^(\s)*(action|step|item|step-first|step-off|load),)
+__TRIGGERTYPE \= (^(\s)*(action|step|item|step-first|step-off|load|timer),)
 __STORAGE \= (^(\s)*(\+setStorage))
 __INLINE_SCRIPT \= (^(\s)*(\+:([\w-]*)))
 
@@ -147,6 +147,12 @@ contexts [] {
 ##############################################
 
 main : context {
+   : inline_push {
+      regex          \= (^\s*<)
+      styles []       = .control;
+      : eol_pop {}
+      : include "in_parens" ;
+   }
    : inline_push {
       regex          \= $${__STORAGE}
       styles []       = .control;
@@ -306,9 +312,22 @@ main : context {
 
 storage_assignment : context {
    : inline_push {
-      regex          \= (([A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=)
-      styles []       = .control;
+      regex          \= (?=\^?(?:[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*(?:=|<(?=\s*\+:)))
       : eol_pop {}
+      : pattern {
+         regex       \= (\^|=|<)
+         styles []    = .control;
+      }
+      : inline_push {
+         regex       \= (\+:[\w-]+)
+         styles []    = .inline_function;
+         : eol_pop {}
+         : pattern {
+            regex    \= ([()])
+            styles [] = .inline_function;
+         }
+         : include "in_parens" ;
+      }
       : include "in_parens" ;
    }
 }

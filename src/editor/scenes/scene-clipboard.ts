@@ -1,7 +1,8 @@
 import type { SceneDocument, SceneEntity, SceneTrigger } from '../schema.js';
 import { groupSceneDelta, type SceneObjectRef } from './scene-selection.js';
+import { getAvailableMarkerName } from './scene-markers.js';
 
-type CopyableEntity = Extract<SceneEntity, { type: 'Prop' }>;
+type CopyableEntity = Extract<SceneEntity, { type: 'Prop' | 'Marker' }>;
 type CopyableTrigger = Exclude<SceneTrigger, string>;
 export type SceneClipboard = {
   entities: CopyableEntity[];
@@ -16,6 +17,7 @@ export function copySceneObjects(scene: SceneDocument, selected: SceneObjectRef[
       const entity = scene.entities.find((entry) => entry.id === ref.id);
       if (entity?.type === 'Prop')
         entities.push({ ...structuredClone(entity), name: entity.name ?? entity.id });
+      else if (entity?.type === 'Marker') entities.push(structuredClone(entity));
     } else {
       const trigger = scene.triggers.find(
         (entry) => typeof entry !== 'string' && entry.id === ref.id,
@@ -64,6 +66,7 @@ export function pasteSceneObjects(
     const entry = {
       ...structuredClone(source),
       id: createNewId(),
+      ...(source.type === 'Marker' ? { name: getAvailableMarkerName(scene, source.name) } : {}),
       x: source.x + offset.x,
       y: source.y + offset.y,
     };

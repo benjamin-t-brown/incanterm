@@ -12,6 +12,80 @@ The [extracted sources and editor tooling](../../reference/rpgscript-regem-ludos
 
 The existing implementation supports named scripts (`@name`), trigger definitions (`#name`), dialogue (`Character: "Text"`), command calls (`+command(...)`), conditionals and blocks, choices, substitutions, and script-to-script calls. Preserve existing syntax and semantics where applicable; inventory the existing tests and script corpus before changing behavior.
 
+### Character subscripts
+
+`+callChSubscript(Ralgo, moveToBoard)` starts `@moveToBoard(ch)` independently of
+the main script runner. The first argument resolves a character using the usual
+character references; `[ch]` receives its scene instance ID. Each character has
+one background task with its own call stack, locals, and waits. Calls for a busy
+character are ignored; different characters can run simultaneously. Ordinary
+`+:helper([ch])` calls stay within that character's task.
+
+Talking to a character marks it busy until the conversation ends. Direct subscript
+calls and character timer ticks skip busy characters without queuing. Use
+`+setBusy(Ralgo, true)` to mark a character busy manually and
+`+setBusy(Ralgo, false)` to clear that manual state. Character references and local
+arguments work as usual (`+setBusy([ch], true)`). Conversation and manual busy
+states are independent: ending a conversation does not clear a manual busy flag,
+and clearing the manual flag does not release a character still in conversation.
+Busy flags prevent new tasks; they do not cancel an already-running subscript.
+
+Globals and once keys are shared with the session, so assignments such as
+`+tmp.ralgoMoveVar=1` are visible to the main timer script. Tasks advance on scene
+updates even while the main runner waits or displays dialogue, and are discarded
+on scene changes or session close. Dialogue and choices must run on the main
+runner; attempting them in a character task reports a script error.
+
+```rpgscript
+@moveToBoard(ch)
+  +walkToMarker([ch], ralgo1)
+  +setFacing([ch], left)
+  +tmp.ralgoMoveVar=1
+```
+
+### Timer triggers
+
+Bind a timer trigger to a scene through its `triggers` array (for example,
+`"triggers": ["classroom1Updater"]`):
+
+```rpgscript
+#classroom1Updater
+  timer,classroom1Updater,1000
+@classroom1Updater
+  +log("Tick!")
+```
+
+`timer,scriptName[,intervalMs]` repeats after each interval, starting one interval
+after scene entry. The interval defaults to 1000 ms and must be a positive finite
+number. Each binding has its own session-local clock. Leaving the scene removes
+its timers; entering a scene resets them. Timers defer while the runner is busy,
+coalescing missed ticks into one firing rather than replaying a backlog. Timer
+conditions are evaluated when due, using the usual trigger condition syntax.
+
+To run the timer on a character's independent subscript runner, use
+`timer,scriptName,characterNameOrId,intervalMs`:
+
+```rpgscript
+#classroom1Updater
+  timer,classroom1Updater,Ralgo,2000
+@classroom1Updater(ch)
+  +walkToMarker([ch], ralgo1)
+```
+
+The target must take exactly one parameter; `[ch]` receives the resolved character
+instance ID. Character timers run even while the main runner is busy. If that
+character already has a subscript running, the tick is skipped without queuing or
+restarting it. Conditions run with the character's instance ID, and ordinary calls
+inside the timer script stay on that character's runner. The scene editor uses the
+same TIMER option for both forms; the RPGScript binding selects the behavior.
+
+`#@name` defines a trigger with an unconditional `action,name` binding and opens
+the script `@name`. Write its body immediately below the header. For example,
+`#@classroom1_smileyPoster` replaces `#classroom1_smileyPoster`,
+`action,classroom1_smileyPoster`, and `@classroom1_smileyPoster`.
+Action shorthand scripts take no parameters. The editor highlights `#` as a
+trigger and `@name` as a script declaration.
+
 Existing authoring example:
 
 ```text
@@ -41,6 +115,52 @@ Scene changes rebuild the room and cancel room-owned scripts/actions. Session st
 
 ## Incanterm scene commands
 
+### Numeric expressions
+
+Assignments and scalar command arguments accept numeric expressions, for example
+`+a={a}+1`, `+[b]=({a}+2)*3`, and `+^count=2**3`. Global references (`{a}`)
+and local references (`[b]`) are resolved at execution time, then JavaScript's
+`eval` evaluates the numeric expression with its normal precedence. Supported
+operators include `+`, `-`, `*`, `/`, `%`, and `**`, unary signs, and parentheses.
+Only numeric literals, arithmetic operators, and variable references are accepted;
+this is not arbitrary JavaScript execution. Quoted strings remain strings.
+
+Malformed expression syntax is rejected during parsing. Every referenced operand
+must be a finite number. A string (even `"1"`), boolean, undefined value, or non-finite result logs a script error and
+aborts the current runner's call stack. A character subscript error stops that
+character's task, not the main runner. Set-if-undefined assignments do not evaluate
+their initializer when the destination is already defined.
+
+### Set-if-undefined globals
+
+`+^a=1` initializes global `a` only when its value is undefined. Later executions
+leave it unchanged, including when it is `0`, `false`, or an empty string. This
+uses shared session storage, not a per-script static slot. If the global becomes
+undefined again, the next execution initializes it again. Dotted names and
+indirect global keys work too (`+^tmp.flag=false`, `+^{key}=1`). Local targets such
+as `+^[a]=1` are rejected. The long form is `+setStorageIfUndefined(a, 1)`.
+
+### Returning values
+
+`<value` exits the current script immediately and returns a scalar value or numeric
+expression. `<` returns undefined; reaching the end also returns undefined.
+Use `+[local]<+:script(args);` to call a script and capture its result in a local
+(declaring it if needed), or `+globalName<+:script(args);` to store it globally.
+The caller resumes only when the callee returns, including after waits or dialogue.
+Ordinary `+:script(args)` calls discard returned values. Return values never leak
+between calls or character tasks.
+
+```rpgscript
+@testReturn1
+  +[local]<+:testReturn2();
+@testReturn2
+  +^a=1
+  +a={a}+1
+  <{a}
+```
+
+Here `[local]` receives 2, then 3, and so on on successive calls to `testReturn1`.
+
 ### Script parameters and locals
 
 ```rpgscript
@@ -55,10 +175,23 @@ Scene changes rebuild the room and cancel room-owned scripts/actions. Session st
 Each invocation binds its declared parameters to a separate local scope, including
 nested and recursive calls. `[name]` reads a local; `{name}` reads session-global
 storage. Passing arguments does not write globals. `+[name]=value` (or
-`+setLocal(name, value)`) updates a declared local. Bare `+name=value` still writes
+`+setLocal(name, value)`) declares or updates a local. Bare `+name=value` still writes
 global storage. Unquoted references preserve value types; references inside strings
 interpolate as text. Calls also accept numbers and booleans; quoted call arguments
 remain strings. Argument values are evaluated in the caller before binding the callee.
+
+Body locals do not need parameters or caller arguments:
+
+```rpgscript
+@testReturn
+  +[a]=1
+  +log("[a]")
+```
+
+Assignments declare names for the entire script invocation, including assignments
+inside conditional blocks. Locals start undefined until assigned (so a skipped
+assignment leaves an undefined value), reset on every call, and are not visible
+to other scripts. Parameters retain their passed values until reassigned.
 
 The runtime and editor reject undeclared locals and incorrect argument counts.
 The editor warns `Did you mean [name]?` when `{name}` matches a local parameter;

@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "poster_smiley",
+  "visual": {
+    "type": "sprite",
+    "id": "9088b556-cc64-4c7d-aff6-66113b702a4a",
+    "index": 0
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

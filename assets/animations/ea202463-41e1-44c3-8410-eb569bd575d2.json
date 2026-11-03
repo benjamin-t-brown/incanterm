@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "ea202463-41e1-44c3-8410-eb569bd575d2",
+  "label": "ada3x3 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "abd6c5d1-90d2-4434-b1b0-6ff7036ede9d",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "abd6c5d1-90d2-4434-b1b0-6ff7036ede9d",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

@@ -163,7 +163,7 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
   if (typeof label !== 'string' || getCharacterLabelError(label))
     return fail('Character label must be 1 to 80 characters without control characters');
   if (record.scriptName !== undefined &&
-    (typeof record.scriptName !== 'string' || !/^[A-Za-z_][\w-]*$/.test(record.scriptName)))
+    (typeof record.scriptName !== 'string' || !/^[A-Za-z_][\w -]*$/.test(record.scriptName)))
     return fail('Character scriptName must be an RPGScript actor name');
   if (record.portraits !== undefined && (!Array.isArray(record.portraits) || record.portraits.length > 128))
     return fail('Character portraits must contain at most 128 entries');
@@ -246,6 +246,7 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
 
 export type SceneEntity =
   | { id: string; type: 'Background'; sprite: string; index: number; x: number; y: number }
+  | { id: string; type: 'Marker'; name: string; x: number; y: number }
   | { id: string; type: 'Prop'; name?: string; prop: string; x: number; y: number; z: number }
   | {
       id: string;
@@ -277,7 +278,7 @@ export type SceneTrigger =
   | {
       id: string;
       trigger: string;
-      event: 'load' | 'action';
+      event: 'load' | 'action' | 'timer';
       x: number;
       y: number;
       width: number;
@@ -482,6 +483,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   const entities: SceneEntity[] = [];
   const triggers: SceneTrigger[] = [];
   const ids = new Set<string>();
+  const markerNames = new Set<string>();
   let hasBackground = false;
   for (const [index, raw] of scene.entities.entries()) {
     const entry = getObject(raw);
@@ -494,7 +496,13 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
     if (!x.ok) return x;
     const y = readInt(entry.y, `Scene entity ${index} y`, 0, height.value - 1);
     if (!y.ok) return y;
-    if (entry.type === 'Background') {
+    if (entry.type === 'Marker') {
+      if (typeof entry.name !== 'string' || !/^[A-Za-z_][\w-]*$/.test(entry.name) || entry.name.length > 80)
+        return fail(`Scene marker ${index} name must be an identifier of at most 80 characters`);
+      if (markerNames.has(entry.name)) return fail(`Scene repeats marker name ${entry.name}`);
+      markerNames.add(entry.name);
+      entities.push({ id: entityId.value, type: 'Marker', name: entry.name, x: x.value, y: y.value });
+    } else if (entry.type === 'Background') {
       if (hasBackground) return fail('Scene can contain only one background');
       hasBackground = true;
       const sprite = readId(entry.sprite, `Scene background ${index} sprite`);
@@ -589,7 +597,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           depthOffset: depthOffset.value,
         });
       }
-    } else return fail(`Scene entity ${index} must be a Background, Prop, or Character`);
+    } else return fail(`Scene entity ${index} must be a Background, Prop, Character, or Marker`);
   }
   for (const [index, raw] of (scene.triggers ?? []).entries()) {
     if (typeof raw === 'string') {
@@ -604,8 +612,8 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
     if (!triggerId.ok) return triggerId;
     if (ids.has(triggerId.value)) return fail(`Scene repeats trigger id ${triggerId.value}`);
     ids.add(triggerId.value);
-    if (entry?.event !== 'load' && entry?.event !== 'action')
-      return fail(`Scene trigger ${index} event must be load or action`);
+    if (entry?.event !== 'load' && entry?.event !== 'action' && entry?.event !== 'timer')
+      return fail(`Scene trigger ${index} event must be load, action, or timer`);
     if (
       (entry.actionEnabled !== undefined && typeof entry.actionEnabled !== 'boolean') ||
       (entry.stepEnabled !== undefined && typeof entry.stepEnabled !== 'boolean')

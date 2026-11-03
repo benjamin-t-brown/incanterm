@@ -6,6 +6,7 @@ import { loadScene, getDefaultAssetsRoot, TEST_SCENE_ID } from '../../../game/lo
 import { getPlainText } from '../../../game/terminal.js';
 import {
   LayoutStandardScene,
+  ERROR_LOG_FG,
   STANDARD_BACKGROUND,
   STANDARD_HEIGHT,
   STANDARD_UI_HEIGHT,
@@ -15,6 +16,17 @@ import {
 import { renderStandardUiPreview } from '../standard-ui.js';
 
 describe('LayoutStandardScene', () => {
+  it('colors error entries and all their wrapped lines red without recoloring normal entries', () => {
+    const scene = new Scene('room', 3, 3, 'regular-z', STANDARD_BACKGROUND, []);
+    const layout = new LayoutStandardScene(scene);
+    layout.appendLog('Ordinary log');
+    layout.appendLog(`[RPGSCRIPT ERROR] ${'missing marker '.repeat(20)}`, true);
+    layout.render(new CellBuffer(80, 24, STANDARD_BACKGROUND));
+    expect(layout.scriptLog.lineColors?.[0]).toEqual(layout.scriptLog.fg);
+    expect(layout.scriptLog.lineColors?.slice(1).length).toBeGreaterThan(1);
+    expect(layout.scriptLog.lineColors?.slice(1).every((color) => color === ERROR_LOG_FG)).toBe(true);
+  });
+
   async function createFrame(cols: number, rows: number): Promise<string[]> {
     const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
     const layout = new LayoutStandardScene(scene);

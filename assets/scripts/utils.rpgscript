@@ -1,0 +1,7 @@
+@ld(ch, dir)
+  +setAnimState([ch], idle)
+  +setFacing([ch], [dir])
+
+@rand
+  +rand100()
+  <{vars.rand100}

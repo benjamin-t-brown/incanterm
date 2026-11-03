@@ -1,0 +1,22 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "podium",
+  "visual": {
+    "type": "sprite",
+    "id": "007ba615-9410-4d38-ab33-65091d4bcca4",
+    "index": 0
+  },
+  "width": 3,
+  "height": 4,
+  "blockedCells": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

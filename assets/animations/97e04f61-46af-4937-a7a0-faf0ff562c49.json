@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "97e04f61-46af-4937-a7a0-faf0ff562c49",
+  "label": "conscience3x3 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

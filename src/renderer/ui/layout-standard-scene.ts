@@ -1,7 +1,7 @@
 import type { CellBuffer, Cell } from '../../game/cell-buffer.js';
 import { renderView, type Scene } from '../../game/scene.js';
 import { UIElement, DrawContext } from './element.js';
-import { ParagraphWrapped } from './paragraph-wrapped.js';
+import { ParagraphWrapped, wrapParagraph } from './paragraph-wrapped.js';
 import { TabbedView } from './tabbed-view.js';
 import { DialoguePanel } from './dialogue-panel.js';
 import {
@@ -25,6 +25,7 @@ export const STANDARD_BACKGROUND: Cell = {
   bg: { r: 12, g: 14, b: 13 },
 };
 const MAX_LOG_ENTRIES = 100;
+export const ERROR_LOG_FG = { r: 255, g: 64, b: 64 };
 
 export class LayoutStandardScene extends UIElement {
   readonly ui: UIElement;
@@ -34,7 +35,7 @@ export class LayoutStandardScene extends UIElement {
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
   conversationOpen = false;
-  private readonly logEntries: string[] = [];
+  private readonly logEntries: { message: string; error: boolean }[] = [];
   private viewportWidth = 0;
   private viewportHeight = 0;
   private canClick = false;
@@ -68,7 +69,7 @@ export class LayoutStandardScene extends UIElement {
     return { x: sceneX, y: sceneY };
   }
 
-  constructor(readonly scene: Scene) {
+  constructor(public scene: Scene) {
     super('layout-standard-scene', 0, 0, STANDARD_WIDTH, STANDARD_HEIGHT);
     this.ui = new StandardSceneUi(
       'scene-ui',
@@ -108,10 +109,10 @@ export class LayoutStandardScene extends UIElement {
     this.addChild(this.ui);
   }
 
-  appendLog(message: string): void {
-    this.logEntries.push(message);
+  appendLog(message: string, error = false): void {
+    this.logEntries.push({ message, error });
     if (this.logEntries.length > MAX_LOG_ENTRIES) this.logEntries.shift();
-    this.scriptLog.text = this.logEntries.join('\n');
+    this.scriptLog.text = this.logEntries.map((entry) => entry.message).join('\n');
     this.tabs.getContent('log').scrollToEnd();
   }
 
@@ -159,6 +160,11 @@ export class LayoutStandardScene extends UIElement {
     this.choiceMessage.visible = this.choiceMessage.text.length > 0;
     this.scriptLog.y = this.choiceMessage.visible ? this.choiceMessage.y + this.choiceMessage.lines.length + 1 : 1;
     this.scriptLog.width = this.choiceMessage.width;
+    this.scriptLog.lineColors = this.logEntries.flatMap((entry) =>
+      wrapParagraph(entry.message, this.scriptLog.width).map(() =>
+        entry.error ? ERROR_LOG_FG : this.scriptLog.fg,
+      ),
+    );
     this.scriptLog.visible = this.logEntries.length > 0;
     this.scriptLog.height = this.scriptLog.lines.length;
     if (followsLog) logPanel.scrollToEnd();

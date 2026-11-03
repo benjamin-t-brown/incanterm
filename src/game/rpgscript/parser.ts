@@ -1,6 +1,7 @@
 // Adapted from reference/rpgscript-regem-ludos/src/lib/rpgscript.ts.
 // Keep RPGScript syntax here; no browser globals, fetch, or original Scene runtime.
 import { parseScriptSignature } from './signature.js';
+import { isNumericExpression, validateNumericExpression } from './expression.js';
 
 function splitNotInParens(str: string, spl: string) {
   const ret: string[] = [];
@@ -78,10 +79,13 @@ export enum TriggerType {
   STEP_OFF = 'step-off',
   ACTION = 'action',
   LOAD = 'load',
+  TIMER = 'timer',
   ITEM = 'item',
 }
 
 export interface ScriptCall {
+  character?: string;
+  intervalMs?: number;
   type: string;
   condition: Conditional | boolean;
   scriptName: string;
@@ -95,7 +99,7 @@ export interface Conditional {
 
 export type StorageReference = Readonly<{ storageKey: string }>;
 export type LocalReference = Readonly<{ localName: string }>;
-export type ScriptValue = string | number | boolean | StorageReference | LocalReference;
+export type ScriptValue = string | number | boolean | StorageReference | LocalReference | Readonly<{ expression: string }>;
 
 export type CommandArg =
   | ScriptValue
@@ -145,17 +149,39 @@ export class ScriptParser {
 
   parseCommand(commandSrc: string, lineNum: number, script?: ParsedScript): Command {
     commandSrc = commandSrc.trim();
+    if (commandSrc.startsWith('<')) {
+      const value = commandSrc.slice(1).replace(/;$/, '').trim();
+      return this.parseCommand(`returnValue(${value})`, lineNum, script);
+    }
+    const returnAssignment = /^(\[[A-Za-z_][\w-]*\]|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\s*<\s*\+(:.*)$/.exec(commandSrc);
+    if (returnAssignment) {
+      const local = returnAssignment[1].startsWith('[');
+      const destination = local ? returnAssignment[1].slice(1, -1) : returnAssignment[1];
+      const call = this.parseCommand(returnAssignment[2], lineNum, script);
+      return { i: lineNum, type: 'callScriptResult', args: [destination, local, ...call.args] };
+    }
 
     // Lower assignments before parsing calls so blocks and inline conditions use
-    // exactly the same setStorage command as the long form.
+    // the same storage/local commands as their long forms.
     const assignment =
-      /^([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=\s*(.*)$/.exec(
+      /^\^?([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=\s*(.*)$/.exec(
         commandSrc,
       );
     if (assignment) {
+      const ifUndefined = commandSrc.startsWith('^');
+      if (ifUndefined && assignment[1].startsWith('[')) {
+        this.throwParsingError('Set-if-undefined assignments cannot target local variables', lineNum, commandSrc);
+      }
       const value = assignment[2].replace(/;$/, '').trim();
+      if (isNumericExpression(value)) {
+        try {
+          validateNumericExpression(value);
+        } catch (error) {
+          this.throwParsingError(`Invalid storage assignment: ${String(error)}`, lineNum, commandSrc);
+        }
+      }
       if (
-        !/^(?:"[^"]*"|'[^']*'|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|[^\s,;=(){}"']+)$/.test(
+        !isNumericExpression(value) && !/^(?:"[^"]*"|'[^']*'|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|[^\s,;=(){}"']+)$/.test(
           value,
         )
       ) {
@@ -167,7 +193,7 @@ export class ScriptParser {
       }
       commandSrc = assignment[1].startsWith('[')
         ? `setLocal(${assignment[1].slice(1, -1)}, ${value})`
-        : `setStorage(${assignment[1]}, ${value})`;
+        : `${ifUndefined ? 'setStorageIfUndefined' : 'setStorage'}(${assignment[1]}, ${value})`;
     }
 
     // shorthand for callScript(scriptName, ...args)
@@ -233,8 +259,8 @@ export class ScriptParser {
 
     const type = commandSrc.substr(0, firstParenIndex);
     const formattedArgs: CommandArg[] = formatArgs(args);
-    if (type === 'callScript' || type === 'setLocal') {
-      for (let index = 1; index < args.length; index++) {
+    if (type === 'callScript' || type === 'setLocal' || type === 'returnValue') {
+      for (let index = type === 'returnValue' ? 0 : 1; index < args.length; index++) {
         const arg = args[index];
         if (arg.startsWith('"') || arg.startsWith("'")) formattedArgs[index] = arg.slice(1, -1);
         else if (arg === 'true' || arg === 'false') formattedArgs[index] = arg === 'true';
@@ -245,6 +271,15 @@ export class ScriptParser {
       .map((_, index) => index)
       .filter((index) => index > 0 || (type !== 'callScript' && type !== 'setLocal'));
     for (const index of indices) {
+      if (isNumericExpression(args[index])) {
+        try {
+          validateNumericExpression(args[index]);
+        } catch (error) {
+          this.throwParsingError(String(error), lineNum, commandSrc);
+        }
+        formattedArgs[index] = { expression: args[index] };
+        continue;
+      }
       if (args[index]?.startsWith('[')) {
         const local = /^\[([A-Za-z_][\w-]*)\]$/.exec(args[index]);
         if (!local) this.throwParsingError('Invalid local reference', lineNum, commandSrc);
@@ -442,15 +477,38 @@ export class ScriptParser {
         }
         isCodeBlock = conditionalStack.length > 0;
         currentBlock = null;
-      } else if (firstCh === '@' && !isCodeBlock) {
+      } else if ((firstCh === '@' || line.startsWith('#@')) && !isCodeBlock) {
+        const isActionHeader = line.startsWith('#@');
         let signature: ReturnType<typeof parseScriptSignature>;
         try {
-          signature = parseScriptSignature(line.slice(1));
+          signature = parseScriptSignature(line.slice(isActionHeader ? 2 : 1));
         } catch (error) {
           this.throwParsingError((error as Error).message, lineNum, line);
           return;
         }
         let scriptName = signature.name;
+        if (isActionHeader) {
+          if (signature.parameters.length > 0) {
+            this.throwParsingError(
+              'Action shorthand scripts cannot have parameters',
+              lineNum,
+              line,
+            );
+          }
+          if (Object.hasOwn(triggers, scriptName)) {
+            this.throwParsingError(`Duplicate trigger ${scriptName}`, lineNum, line);
+          }
+          currentTriggerName = scriptName;
+          currentTrigger = {
+            name: scriptName,
+            filename: this.name,
+            lineNum,
+            scriptCalls: [{ type: TriggerType.ACTION, condition: true, scriptName, line: lineNum }],
+            x: 0,
+            y: 0,
+          };
+          addTrigger(scriptName, currentTrigger);
+        }
         if (scriptName === 'this') {
           scriptName = currentTriggerName || '';
         }
@@ -468,6 +526,7 @@ export class ScriptParser {
           blocks: [],
         };
         addScript(scriptName, currentScript);
+        currentBlock = null;
         isTrigger = false;
         isChoice = false;
         conditionalStack = [];
@@ -502,9 +561,9 @@ export class ScriptParser {
           y: 0,
         };
         addTrigger(line.substr(1), currentTrigger);
-      } else if (firstCh === '+' || isCodeBlock) {
+      } else if (firstCh === '+' || firstCh === '<' || isCodeBlock) {
         isChoice = false;
-        const commandContents = line.substr(isCodeBlock ? 0 : 1);
+        const commandContents = line.substr(isCodeBlock || firstCh === '<' ? 0 : 1);
         if (currentScript) {
           let { conditional, endIndex } = this.getConditionalFromLine(
             commandContents,
@@ -647,6 +706,20 @@ export class ScriptParser {
         }
 
         let scriptName = triggerContents.substr(endIndex);
+        let intervalMs: number | undefined;
+        let character: string | undefined;
+        if (triggerType === TriggerType.TIMER) {
+          const parts = scriptName.split(',');
+          scriptName = parts[0].trim();
+          if (parts.length === 3) {
+            character = parts[1].trim();
+            if (!character) this.throwParsingError('Character timer requires a character name or ID', lineNum, line);
+          }
+          intervalMs = parts.length === 1 ? 1000 : Number(parts.at(-1)?.trim());
+          if (parts.length > 3 || !Number.isFinite(intervalMs) || intervalMs <= 0) {
+            this.throwParsingError('Timer interval must be a positive number of milliseconds', lineNum, line);
+          }
+        }
         if (scriptName === 'this' && currentTriggerName) {
           scriptName = currentTriggerName;
         }
@@ -656,6 +729,8 @@ export class ScriptParser {
             condition: conditional,
             scriptName,
             line: lineNum,
+            ...(intervalMs === undefined ? {} : { intervalMs }),
+            ...(character === undefined ? {} : { character }),
           });
         }
       } else if (firstCh === '>') {

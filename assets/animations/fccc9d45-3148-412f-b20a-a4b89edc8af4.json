@@ -1,0 +1,30 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "fccc9d45-3148-412f-b20a-a4b89edc8af4",
+  "label": "otis3x3 walk left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 10,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 11,
+      "durationMs": 135
+    }
+  ]
+}

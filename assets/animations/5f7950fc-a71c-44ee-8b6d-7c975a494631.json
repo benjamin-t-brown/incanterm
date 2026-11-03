@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "5f7950fc-a71c-44ee-8b6d-7c975a494631",
+  "label": "johnathan3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ae12a341-1474-4dda-8c1e-27b006279c79",
+      "index": 4,
+      "durationMs": 500
+    },
+    {
+      "sprite": "ae12a341-1474-4dda-8c1e-27b006279c79",
+      "index": 5,
+      "durationMs": 500
+    }
+  ]
+}

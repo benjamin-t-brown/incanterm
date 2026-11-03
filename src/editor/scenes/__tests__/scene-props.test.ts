@@ -8,8 +8,8 @@ describe('placing existing props', () => {
     scene.triggers = ['chair-1'];
     const first = addSceneProp(scene, 'chair', 12, 8);
     const second = addSceneProp(scene, 'chair', 20, 10);
-    expect(first).toMatchObject({ id: 'chair-2', name: 'chair-2', prop: 'chair', x: 12, y: 8 });
-    expect(second).toMatchObject({ id: 'chair-3', name: 'chair-3', prop: 'chair', x: 20, y: 10 });
+    expect(first).toMatchObject({ id: 'chair-2', name: 'chair_2', prop: 'chair', x: 12, y: 8 });
+    expect(second).toMatchObject({ id: 'chair-3', name: 'chair_3', prop: 'chair', x: 20, y: 10 });
     expect(parseScene(scene).ok).toBe(true);
   });
 });

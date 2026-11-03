@@ -35,20 +35,26 @@ export const getStorageAssignmentHover = (
     }
     source = source.trimEnd();
     const assignment = storageAssignmentPattern.exec(source);
+    const returnAssignment = /^(\[[A-Za-z_][\w-]*\]|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\s*<\s*\+:/.test(source);
     const start = offset - (line[offset - 1] === '+' ? 1 : 0);
-    if (!assignment || character < start || character >= offset + source.length) {
+    if ((!assignment && !returnAssignment) || character < start || character >= offset + source.length) {
       return;
     }
     // Use the parser's validation so incomplete edits do not show a misleading call.
     parser.parseCommand(source, 1);
+    if (returnAssignment) return {
+      kind: 'markdown',
+      value: ['Return Assignment', 'Waits for the called script and assigns its returned value (undefined if no value is returned).', '```rpgscript', `+${source}`, '```'].join('\n'),
+    };
+    if (!assignment) return;
     const value = assignment[2].replace(/;$/, '').trim();
     const local = assignment[1].startsWith('[');
     return {
       kind: 'markdown',
       value: [
-        local ? 'Local Assignment' : 'Storage Assignment',
+        source.startsWith('^') ? 'Set If Undefined (Global Storage)' : local ? 'Local Assignment' : 'Storage Assignment',
         '```rpgscript',
-        local ? `setLocal(${assignment[1].slice(1, -1)}, ${value})` : `setStorage(${assignment[1]}, ${value})`,
+        local ? `setLocal(${assignment[1].slice(1, -1)}, ${value})` : `${source.startsWith('^') ? 'setStorageIfUndefined' : 'setStorage'}(${assignment[1]}, ${value})`,
         '```',
       ].join('\n'),
     };

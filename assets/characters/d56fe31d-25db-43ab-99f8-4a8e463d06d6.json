@@ -18,20 +18,20 @@
   ],
   "defaultFacing": "down",
   "animations": {
-    "idle-up": "4b1a7a06-d32e-47ef-a54f-29cfc8db2e80",
-    "idle-down": "b851f0ea-2713-4897-8bf0-09f0b985da10",
-    "idle-left": "375d23f3-b731-4203-a9e4-8c4dceddbce0",
-    "idle-right": "d5071b12-4cbd-4257-b411-56adb39ec53a",
-    "walk-up": "8e0ae662-22e6-4d23-99b3-ec4eaa5ba9ce",
-    "walk-down": "c3464641-93df-4d1d-a431-2017fe17aded",
-    "walk-left": "243cf5e4-ad70-4601-bece-fc247c70d041",
-    "walk-right": "fafecfd5-daac-47c0-af51-a3ea3090ba55",
-    "talking-up": "a7a4ac19-b2a5-4dc8-8b12-5480d692ceeb",
-    "talking-down": "ff7df3eb-52f8-4013-97e3-c8748b126b67",
-    "talking-left": "f78137a5-e69d-4c77-bead-87ce4c7b933e",
-    "talking-right": "25f6beac-3f9d-4bab-b9ab-a8eb6951dc1e"
+    "idle-up": "2c9579b7-a9d2-4789-a79f-0df5a6bb981e",
+    "idle-down": "40e88dad-0df0-477d-a790-c056972e9137",
+    "idle-left": "6a9fc6b8-9cea-4508-ae07-4e88727fae39",
+    "idle-right": "0ced0ef9-f5e1-4e2f-b642-2ebfac350413",
+    "walk-up": "210cd46a-158a-4991-b6f2-db95ee4ed2aa",
+    "walk-down": "c0feeaae-da4d-453c-a6c3-3179f23e77fe",
+    "walk-left": "b1eef7da-a41c-4789-8125-04525a5cb357",
+    "walk-right": "264874d2-fdb0-45fa-b11c-4e56b38231c4",
+    "talking-up": "a219983b-e073-4ca6-8656-29e59725650b",
+    "talking-down": "4a953dda-4126-4ba4-a9fc-10972da5bcf3",
+    "talking-left": "872aa68c-0481-4436-a217-bd9eec762ebb",
+    "talking-right": "5f7950fc-a71c-44ee-8b6d-7c975a494631"
   },
   "customAnimations": {
-    "sit_left": "bb53522b-2a60-4819-aa3b-f69cd8bb4da2"
+    "sit_left": "657cb7df-591c-4eb0-858c-cbb5715f1c7a"
   }
 }

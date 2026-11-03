@@ -1,5 +1,10 @@
 export const COMMAND_NAMES = [
+  'callChSubscript',
+  'setBusy',
   'walkTo',
+  'walkToMarker',
+  'setFacing',
+  'changeScene',
   'spawnAtMarker',
   'lookAtMarker',
   'face',

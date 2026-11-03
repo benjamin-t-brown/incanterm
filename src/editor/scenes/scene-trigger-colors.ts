@@ -9,6 +9,8 @@ export function getSceneTriggerColors(trigger: RegionTrigger): {
 } {
   if (trigger.event === 'load')
     return { fill: 'rgba(236, 180, 80, 0.25)', stroke: '#e6bc74', selected: '#ffe1a1' };
+  if (trigger.event === 'timer')
+    return { fill: 'rgba(140, 110, 220, 0.25)', stroke: '#a58ae6', selected: '#d4c2ff' };
   const action = trigger.actionEnabled ?? true;
   const step = trigger.stepEnabled ?? false;
   if (action && step)

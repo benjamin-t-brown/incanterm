@@ -1,0 +1,3 @@
+#@classroom1_toClassroom1
+  +walkToMarker(player, fromClassroom1)
+  +changeScene(classroom1, fromHallway1)

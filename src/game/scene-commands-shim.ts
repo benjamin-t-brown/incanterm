@@ -1,4 +1,4 @@
-import { commands, getPlayerCharacterName, getWalkDestination } from './scene-commands.js';
+import { commands, getAnimationStateName, getBusyState, getFacingDirection, getPlayerCharacterName, getSkipWait, getWalkDestination } from './scene-commands.js';
 import { getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -7,10 +7,60 @@ import { defineCommand } from './rpgscript/command.js';
 // A terminal has no player character. Validate the command without controlling a scene.
 export const sceneCommandsShim = {
   ...commands,
+  setBusy: defineCommand({
+    parse: commands.setBusy.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setBusy');
+      getBusyState(step.busy, script);
+    },
+  }),
+  callChSubscript: defineCommand({
+    parse: commands.callChSubscript.parse,
+    execute: (step, script) => {
+      const name = getPlayerCharacterName(step.character, script, 'callChSubscript');
+      script.callSubscript(name, step.target);
+    },
+    targets: (step) => [{ name: step.target, argumentCount: 1 }],
+  }),
   chWalkToCoord: defineCommand({
     parse: commands.chWalkToCoord.parse,
     execute: (step, script) => {
       getWalkDestination(step, script);
+    },
+  }),
+  walkToMarker: defineCommand({
+    parse: commands.walkToMarker.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'walkToMarker');
+      const marker = script.value(step.marker);
+      getSkipWait(step.skipWait, script);
+      if (typeof marker !== 'string' || !marker.trim())
+        throw new Error(`${script.location}: walkToMarker requires a marker name`);
+    },
+  }),
+  setFacing: defineCommand({
+    parse: commands.setFacing.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setFacing');
+      getFacingDirection(step.direction, script);
+    },
+  }),
+  setAnimState: defineCommand({
+    parse: commands.setAnimState.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setAnimState');
+      getAnimationStateName(step.state, script);
+    },
+  }),
+  changeScene: defineCommand({
+    parse: commands.changeScene.parse,
+    execute: (step, script) => {
+      const sceneId = script.value(step.sceneId);
+      const markerName = step.markerName === undefined ? undefined : script.value(step.markerName);
+      if (typeof sceneId !== 'string' || !sceneId.trim())
+        throw new Error(`${script.location}: changeScene requires a scene ID`);
+      if (markerName !== undefined && (typeof markerName !== 'string' || !markerName.trim()))
+        throw new Error(`${script.location}: changeScene requires a marker name`);
     },
   }),
   setPlayerWalkCh: defineCommand({

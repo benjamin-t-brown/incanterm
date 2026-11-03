@@ -2,6 +2,23 @@ import type { SceneDocument, SceneTrigger } from '../schema.js';
 
 export type Region = { x: number; y: number; width: number; height: number };
 export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+export type SceneTriggerKind = 'load' | 'action' | 'step' | 'timer';
+
+export function getSceneTriggerKind(trigger: Exclude<SceneTrigger, string>): SceneTriggerKind | null {
+  if (trigger.event === 'load') return 'load';
+  if (trigger.event === 'timer') return 'timer';
+  if (trigger.actionEnabled ?? true) return 'action';
+  return trigger.stepEnabled ? 'step' : null;
+}
+
+export function setSceneTriggerKind(
+  trigger: Exclude<SceneTrigger, string>,
+  kind: SceneTriggerKind,
+): void {
+  trigger.event = kind === 'load' || kind === 'timer' ? kind : 'action';
+  trigger.actionEnabled = kind === 'action';
+  trigger.stepEnabled = kind === 'step';
+}
 
 export function getTriggerRegion(
   startX: number,

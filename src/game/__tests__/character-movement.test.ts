@@ -102,4 +102,17 @@ describe('character walking footprints', () => {
     expect(mover.x === 3 && mover.bottomY === 2).toBe(false);
     expect(mover.state).toBe('idle');
   });
+
+  it('prefers a straighter route over a shorter zigzag around staggered blockers', () => {
+    const walker = createCharacter('walker', 1, 0, 1, 3);
+    const width = 12;
+    const blocked = [
+      [5, 2], [10, 2], [2, 3], [3, 3], [2, 4], [7, 4], [10, 4],
+    ].map(([x, y]) => y * width + x);
+    const scene = new Scene('room', width, 7, 'regular-z', ink, [walker], [], new Set(blocked));
+    const path = findPath(scene, walker, { x: 10, y: 3 });
+    expect(path.at(-1)).toEqual({ x: 10, y: 3 });
+    expect(path).toContainEqual({ x: 4, y: 3 });
+    expect(path.slice(4).every((point) => point.y === 3)).toBe(true);
+  });
 });

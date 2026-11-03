@@ -90,6 +90,11 @@
   border: 1px solid var(--line);
   padding: 8px 10px;
 }
+.character-app .search-select input[aria-invalid="true"] {
+  border: 2px solid #f87171;
+  outline: 2px solid #f87171;
+  outline-offset: 2px;
+}
 .character-folder-fill {
   display: flex;
   align-items: end;

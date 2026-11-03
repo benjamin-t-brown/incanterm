@@ -21,6 +21,8 @@ export class Character extends Prop {
   private visualKey = '';
   private walkPath: Point[] = [];
   private walkElapsed = 0;
+  private busy = false;
+  private conversationBusy = false;
   readonly bottomOffset: number;
 
   constructor(
@@ -36,6 +38,7 @@ export class Character extends Prop {
     public speed = 150,
     readonly clips: ReadonlyMap<string, CharacterClip> = new Map(),
     readonly talkScript?: string,
+    readonly scriptName?: string,
   ) {
     super(id, x, y, 0, z, sprite);
     this.bottomOffset = sprite.height - 1 - sprite.originY;
@@ -61,6 +64,31 @@ export class Character extends Prop {
 
   isWalking(): boolean {
     return this.walkPath.length > 0;
+  }
+
+  isBusy(): boolean {
+    return this.busy || this.conversationBusy;
+  }
+
+  setBusy(busy: boolean): void {
+    this.busy = busy;
+  }
+
+  setConversationBusy(busy: boolean): void {
+    this.conversationBusy = busy;
+  }
+
+  hasAnimationState(state: string): boolean {
+    return state === 'idle' || state === 'walk' || state === 'talking'
+      ? this.clips.has(`${state}-${this.facing}`)
+      : this.clips.has(state);
+  }
+
+  setAnimationState(state: string): void {
+    this.stopWalking();
+    this.state = state;
+    this.elapsed = 0;
+    this.animate(0);
   }
 
   getActivity(): CharacterActivity {
@@ -113,7 +141,7 @@ export class Character extends Prop {
   }
 
   clone(): Character {
-    return new Character(
+    const character = new Character(
       this.id,
       this.x,
       this.y,
@@ -126,11 +154,15 @@ export class Character extends Prop {
       this.speed,
       this.clips,
       this.talkScript,
+      this.scriptName,
     );
+    character.setBusy(this.busy);
+    return character;
   }
 
   animate(deltaMs: number): void {
-    const key = `${this.state}-${this.facing}`;
+    const key = this.state === 'idle' || this.state === 'walk' || this.state === 'talking'
+      ? `${this.state}-${this.facing}` : this.state;
     if (key !== this.visualKey) {
       this.visualKey = key;
       this.elapsed = 0;
@@ -138,7 +170,8 @@ export class Character extends Prop {
   }
 
   override draw(buffer: CellBuffer, originX: number, originY: number): void {
-    const clip = this.clips.get(`${this.state}-${this.facing}`) ?? this.clips.get(this.state);
+    const clip = this.clips.get(this.state === 'idle' || this.state === 'walk' || this.state === 'talking'
+      ? `${this.state}-${this.facing}` : this.state);
     if (!clip) {
       super.draw(buffer, originX, originY);
       return;

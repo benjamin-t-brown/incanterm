@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "4532c59d-7b7a-44be-8afd-50d7184d507a",
+  "label": "otis3x3 idle up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 6,
+      "durationMs": 135
+    }
+  ]
+}

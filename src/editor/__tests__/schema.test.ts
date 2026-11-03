@@ -6,6 +6,7 @@ import { PALETTE_IDS, getDefaultPalette } from '../palette.js';
 import {
   getAnimationFrameFlips,
   createAnimation,
+  createCharacter,
   createSprite,
   DEFAULT_ANIMATION_DURATION_MS,
   exportAscii,
@@ -14,11 +15,24 @@ import {
   importEdAscii,
   MAX_FRAMES,
   parseAnimation,
+  parseCharacter,
   parsePalette,
   parseSprite,
 } from '../schema.js';
 
 describe('editor schema', () => {
+  it('accepts spaces in RPGScript character actor names', () => {
+    const character = createCharacter('mr-ralgo', 'idle');
+    expect(parseCharacter({ ...character, scriptName: 'Mr Ralgo' })).toMatchObject({
+      ok: true,
+      value: { scriptName: 'Mr Ralgo' },
+    });
+    expect(parseCharacter({ ...character, scriptName: 'Mr:Ralgo' })).toMatchObject({
+      ok: false,
+      error: 'Character scriptName must be an RPGScript actor name',
+    });
+  });
+
   it('keeps the sixteen ed-ascii colors and rejects palette changes to the set', () => {
     const palette = getDefaultPalette();
     expect(palette.colors.map((color) => color.id)).toEqual(PALETTE_IDS);

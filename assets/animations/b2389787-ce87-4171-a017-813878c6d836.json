@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "b2389787-ce87-4171-a017-813878c6d836",
+  "label": "ralgo3x3 talking up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 6,
+      "durationMs": 500
+    },
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 7,
+      "durationMs": 500
+    }
+  ]
+}

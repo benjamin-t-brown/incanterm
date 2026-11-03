@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "107ebe3e-6499-415a-ab23-f415a9ef055a",
+  "label": "eva3x3 sit left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "0681c7b4-062a-4fc3-9045-6a814da4b08c",
+      "index": 21,
+      "durationMs": 135
+    }
+  ]
+}

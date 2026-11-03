@@ -1,0 +1,25 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "782c9198-45df-4c37-ab66-4ae821ac225c",
+  "label": "ralgo3x3",
+  "scriptName": "Mr Ralgo",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "6d3c313d-be1e-433e-aefb-109c2dccd286",
+    "idle-down": "1359222d-caf0-4a7b-82f0-04b5bee17cdc",
+    "idle-left": "3c7f7aac-505e-4b00-bf2c-8dacbbd36af7",
+    "idle-right": "3568f0e1-f626-4062-9f3c-822234a873c3",
+    "walk-up": "fb964296-ce36-4a3c-b45a-74b696d3382b",
+    "walk-down": "87293489-033b-4ac5-b9cf-2e6b8af9335c",
+    "walk-left": "6b31bc1f-dda4-4836-bb32-efc2ea30e4ad",
+    "walk-right": "4a4b7956-4086-425a-9524-87d17be83ed0",
+    "talking-up": "b2389787-ce87-4171-a017-813878c6d836",
+    "talking-down": "9fb92267-c486-4514-8bbb-d3f7e43a661f",
+    "talking-left": "2030ecfb-90c3-468a-a298-4ceab5a6ed2a",
+    "talking-right": "3366a38b-ae48-4c0f-83b3-5cf678b39281"
+  },
+  "customAnimations": {
+    "write-left": "87caf97a-ac25-4834-8e9d-fdadd7b8f561"
+  }
+}

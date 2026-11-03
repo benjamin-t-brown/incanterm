@@ -364,6 +364,32 @@ describe('player walking', () => {
     expect(() => control.setPlayerWalkCh('missing')).toThrow('no character missing');
   });
 
+  it('lets a clicked action trigger finish a scripted walk to a marker', () => {
+    const player = createHero();
+    const scene = new Scene('room', 7, 7, 'bottom-up', ink, [player], [], new Set(), [
+      { id: 'poster', trigger: 'poster', x: 5, y: 1, width: 1, height: 1 },
+    ], [], [{ id: 'examine', name: 'examine1', x: 4, y: 1 }]);
+    const control = new PlayerControl(scene);
+    control.setPlayerWalkCh('hero');
+    const errors: string[] = [];
+    const runner = new ScriptRunner(parseRpgScript(
+      '#poster\naction,look\n@look\n+setConv()\n+walkToMarker(player, examine1)\n+setFacing(player, up)\n+setStorage(arrived, true)',
+      'poster.rpgscript',
+    ), {
+      commands, context: { scene, playerControl: control },
+      onCommandError: (error) => errors.push(String(error)),
+    });
+    control.click(5, 1, (name, id) => runner.dispatchTrigger(name, TriggerType.ACTION, id));
+    expect(player.isWalking()).toBe(true);
+    expect(runner.getStorage('arrived')).toBeUndefined();
+    scene.update(150);
+    control.update();
+    runner.update();
+    expect(player).toMatchObject({ x: 4, y: 1, facing: 'up' });
+    expect(runner.getStorage('arrived')).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
   it('maps terminal clicks after resizing, isolates sessions and cleans up timers', () => {
     vi.useFakeTimers();
     const player = createHero();

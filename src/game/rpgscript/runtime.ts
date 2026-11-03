@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { evaluateNumericExpression, ScriptExpressionError } from './expression.js';
 import {
   ScriptParser,
   TriggerType,
@@ -27,10 +28,13 @@ export type ScriptBlock = Readonly<{
 export type ScriptDefinition = Readonly<{
   name: string;
   parameters: readonly string[];
+  locals: readonly string[];
   file: string;
   blocks: readonly ScriptBlock[];
 }>;
 export type TriggerCall = Readonly<{
+  character?: string;
+  intervalMs?: number;
   type: TriggerType;
   condition: Condition;
   target: string;
@@ -67,18 +71,24 @@ export function parseRpgScript(
   const scripts = new Map<string, ScriptDefinition>();
   const triggers = new Map<string, TriggerDefinition>();
   for (const script of Object.values(parsed.scripts)) {
+    const locals = [...new Set([
+      ...script.parameters,
+      ...script.blocks.flatMap((block) => block.commands.flatMap((command) =>
+        (command.type === 'setLocal' || (command.type === 'callScriptResult' && command.args[1] === true)) && typeof command.args[0] === 'string' &&
+        /^[A-Za-z_][\w-]*$/.test(command.args[0]) ? [command.args[0]] : [])),
+    ])];
     // Preserve empty branch headers: an else may refer to their evaluated result.
     const blocks = script.blocks.map((block) => {
       const line = block.commands[0]?.i ?? script.lineNum;
-      validateLocals(block.conditional, script.parameters, file, line);
+      validateLocals(block.conditional, locals, file, line);
       for (const command of block.commands) {
-        validateLocals(command.args, script.parameters, file, command.i);
+        validateLocals(command.args, locals, file, command.i);
       }
       return Object.freeze({
         condition: convertToCondition(block.conditional, file, line),
         steps: Object.freeze(
           block.commands.map((command) =>
-            Object.freeze(toStep(command, file, catalog, script.parameters)),
+            Object.freeze(toStep(command, file, catalog, locals)),
           ),
         ),
       });
@@ -88,6 +98,7 @@ export function parseRpgScript(
       Object.freeze({
         name: script.name,
         parameters: Object.freeze([...script.parameters]),
+        locals: Object.freeze(locals),
         file,
         blocks: Object.freeze(blocks),
       }),
@@ -111,6 +122,8 @@ export function parseRpgScript(
         condition: convertToCondition(call.condition, file, call.line),
         target: call.scriptName,
         line: call.line,
+        ...(call.intervalMs === undefined ? {} : { intervalMs: call.intervalMs }),
+        ...(call.character === undefined ? {} : { character: call.character }),
       });
     });
     triggers.set(
@@ -138,6 +151,7 @@ const conditionTypes = new Set([
   'branch',
   'once',
   'oncePerInstance',
+  'func',
 ]);
 function convertToCondition(value: Conditional | boolean, file: string, line: number): Condition {
   if (typeof value === 'boolean') return value;
@@ -146,7 +160,7 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
   const args = value.args.map((arg) => {
     if (typeof arg === 'object' && arg !== null && 'type' in arg)
       return convertToCondition(arg as Conditional, file, line);
-    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg))
+    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg || 'expression' in arg))
       return Object.freeze({ ...(arg as StorageReference | LocalReference) });
     if (typeof arg === 'string') {
       return arg;
@@ -157,6 +171,9 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
   const arity =
     value.type === 'any' || value.type === 'all'
       ? args.length > 0
+      : value.type === 'func'
+        ? args.length === 2 && args[0] === 'hasItem' &&
+          !(typeof args[1] === 'object' && 'type' in args[1])
       : value.type === 'else' || value.type === 'branch'
         ? args.length === 1 && Number.isInteger(args[0]) && (args[0] as number) >= 0
         : value.type === 'once' || value.type === 'oncePerInstance'
@@ -275,7 +292,7 @@ export async function loadRpgScripts(root: string, options: ScriptOptions): Prom
       const definition = scripts.get(call.target);
       if (!definition)
         throw new Error(`${trigger.file}:${call.line}: Unknown script ${call.target}`);
-      checkArgumentCount(definition, 0, `${trigger.file}:${call.line}`);
+      checkArgumentCount(definition, call.character === undefined ? 0 : 1, `${trigger.file}:${call.line}`);
     }
   return libraryWithTriggers(scripts, triggers);
 }
@@ -288,6 +305,7 @@ export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string 
 export type ChoicePrompt = Readonly<{ options: readonly string[] }>;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
 type Frame = {
+  onReturn?: (value: RuntimeValue) => void;
   script: ScriptDefinition;
   locals: Map<string, RuntimeValue>;
   block: number;
@@ -298,28 +316,36 @@ type Frame = {
 };
 
 export type RunnerOptions<Host> = {
+  isCharacterBusy?: (ownerId: string) => boolean;
+  getCharacterId?: (reference: string) => string;
   commands: CommandRegistry<Host>;
   context: Host;
   writeLog?: (message: string) => void;
+  onCommandError?: (error: unknown, location: string) => void;
+  background?: boolean;
 };
 
 export class ScriptRunner<Host> {
   private stack: Frame[] = [];
-  private readonly storage = new Map<string, string | number | boolean | undefined>();
-  private readonly usedOnce = new Set<string>();
+  private storage = new Map<string, RuntimeValue>();
+  private usedOnce = new Set<string>();
+  private subscripts = new Map<string, ScriptRunner<Host>>();
   dialogue: Dialogue | undefined;
   choice: ChoicePrompt | undefined;
   private onChoose: ((index: number) => void) | undefined;
+  private isWaitComplete: (() => boolean) | undefined;
+  private waitLocation: string | undefined;
+  private timers: { trigger: TriggerDefinition; index: number; elapsed: number }[] = [];
 
   constructor(
     private readonly library: ScriptLibrary,
     private readonly options: RunnerOptions<Host>,
   ) {}
 
-  getStorage(key: string): string | number | boolean | undefined {
+  getStorage(key: string): RuntimeValue {
     return this.storage.get(key);
   }
-  setStorage(key: string, value: string | number | boolean | undefined): void {
+  setStorage(key: string, value: RuntimeValue): void {
     this.storage.set(key, value);
   }
 
@@ -331,20 +357,100 @@ export class ScriptRunner<Host> {
     this.stack = [this.createFrame(name, args)];
     this.dialogue = this.choice = undefined;
     this.onChoose = undefined;
+    this.isWaitComplete = undefined;
+    this.waitLocation = undefined;
     this.run();
   }
 
-  // Explicit RPGScript event names. A caller must supply the scene-to-event mapping.
-  dispatchTrigger(name: string, event: TriggerType, instanceId?: string): boolean {
-    if (this.stack.length || this.dialogue || this.choice) return false;
+  update(): void {
+    if (!this.options.background) {
+      for (const [ownerId, child] of [...this.subscripts]) {
+        child.update();
+        if (child.isIdle()) this.subscripts.delete(ownerId);
+      }
+    }
+    if (!this.isWaitComplete) return;
+    try {
+      if (!this.isWaitComplete()) return;
+    } catch (error) {
+      const location = this.waitLocation ?? '<waiting command>';
+      this.isWaitComplete = undefined;
+      this.waitLocation = undefined;
+      if (!this.options.onCommandError) throw error;
+      this.options.onCommandError(error, location);
+      this.run();
+      return;
+    }
+    this.isWaitComplete = undefined;
+    this.waitLocation = undefined;
+    this.run();
+  }
+
+  clearSubscripts(): void {
+    this.subscripts.clear();
+  }
+
+  private callSubscript(ownerId: string, target: string, location: string): void {
+    if (this.subscripts.has(ownerId) || this.options.isCharacterBusy?.(ownerId)) return;
+    const child = new ScriptRunner(this.library, { ...this.options, background: true });
+    child.storage = this.storage;
+    child.usedOnce = this.usedOnce;
+    child.subscripts = this.subscripts;
+    child.stack = [child.createFrame(target, [ownerId], ownerId, location)];
+    this.subscripts.set(ownerId, child);
+    try {
+      child.run();
+    } catch (error) {
+      this.subscripts.delete(ownerId);
+      throw error;
+    } finally {
+      if (child.isIdle()) this.subscripts.delete(ownerId);
+    }
+  }
+
+  restartTimers(names: readonly string[]): void {
+    this.timers = [];
+    for (const name of new Set(names)) {
+      const trigger = this.library.triggers.get(name);
+      trigger?.calls.forEach((call, index) => {
+        if (call.type === TriggerType.TIMER) this.timers.push({ trigger, index, elapsed: 0 });
+      });
+    }
+  }
+
+  updateTimers(elapsedMs: number): void {
+    for (const timer of this.timers) {
+      const call = timer.trigger.calls[timer.index];
+      const interval = call.intervalMs ?? 1000;
+      timer.elapsed += elapsedMs;
+      if (timer.elapsed < interval || (call.character === undefined && !this.isIdle())) continue;
+      // Coalesce missed ticks instead of flooding the runner after a delay.
+      timer.elapsed %= interval;
+      this.dispatchTrigger(timer.trigger.name, TriggerType.TIMER, undefined, timer.index);
+    }
+  }
+
+  dispatchTrigger(name: string, event: TriggerType, instanceId?: string, callIndex?: number): boolean {
     const trigger = this.library.triggers.get(name);
     if (!trigger) return false;
     for (let index = 0; index < trigger.calls.length; index++) {
       const call = trigger.calls[index];
+      if (callIndex !== undefined && index !== callIndex) continue;
       if (call.type !== event) continue;
-      const pending = new Set<string>();
-      if (!this.evaluate(call.condition, `${trigger.name}:${event}:${index}`, pending, instanceId))
+      if (call.character !== undefined && event === TriggerType.TIMER) {
+        if (this.dispatchCharacterTimer(trigger, index)) return true;
         continue;
+      }
+      if (!this.isIdle()) continue;
+      const pending = new Set<string>();
+      try {
+        if (!this.evaluate(call.condition, `${trigger.name}:${event}:${index}`, pending, instanceId))
+          continue;
+      } catch (error) {
+        if (!(error instanceof ScriptExpressionError)) throw error;
+        this.stopForExpressionError(error, `${trigger.file}:${call.line} (trigger condition)`);
+        return false;
+      }
       const frame = this.createFrame(call.target, [], instanceId, `${trigger.file}:${call.line}`);
       for (const key of pending) this.usedOnce.add(key);
       this.stack = [frame];
@@ -352,6 +458,27 @@ export class ScriptRunner<Host> {
       return true;
     }
     return false;
+  }
+
+  private dispatchCharacterTimer(trigger: TriggerDefinition, index: number): boolean {
+    const call = trigger.calls[index];
+    const location = `${trigger.file}:${call.line} (character timer)`;
+    try {
+      if (!this.options.getCharacterId || call.character === undefined)
+        throw new Error('Character timers require a character resolver');
+      const ownerId = this.options.getCharacterId(call.character);
+      if (this.subscripts.has(ownerId) || this.options.isCharacterBusy?.(ownerId)) return false;
+      const pending = new Set<string>();
+      if (!this.evaluate(call.condition, `${trigger.name}:${TriggerType.TIMER}:${index}`, pending, ownerId)) return false;
+      checkArgumentCount(this.requireScript(call.target), 1, location);
+      for (const key of pending) this.usedOnce.add(key);
+      this.callSubscript(ownerId, call.target, location);
+      return true;
+    } catch (error) {
+      if (!this.options.onCommandError) throw error;
+      this.options.onCommandError(error, location);
+      return false;
+    }
   }
 
   advance(): void {
@@ -396,7 +523,10 @@ export class ScriptRunner<Host> {
       block: 0,
       next: 0,
       instanceId,
-      locals: new Map(script.parameters.map((parameter, index) => [parameter, args[index]])),
+      locals: new Map([
+        ...script.locals.map((name) => [name, undefined] as const),
+        ...script.parameters.map((parameter, index) => [parameter, args[index]] as const),
+      ]),
     };
   }
 
@@ -408,6 +538,8 @@ export class ScriptRunner<Host> {
 
   private getScriptValue(value: ScriptValue): RuntimeValue {
     if (typeof value === 'object') {
+      if ('expression' in value) return evaluateNumericExpression(value.expression,
+        (name, local) => local ? this.getLocalValue(name) : this.storage.get(name));
       return 'storageKey' in value
         ? this.storage.get(value.storageKey)
         : this.getLocalValue(value.localName);
@@ -425,7 +557,7 @@ export class ScriptRunner<Host> {
     );
   }
 
-  private resolve(value: Condition | ScriptValue): string | number | boolean | undefined {
+  private resolve(value: Condition | ScriptValue): RuntimeValue {
     if (typeof value === 'string') {
       const text = this.interpolate(value);
       return this.storage.has(text)
@@ -437,6 +569,7 @@ export class ScriptRunner<Host> {
             : text;
     }
     if (typeof value === 'object') {
+      if ('expression' in value) return this.getScriptValue(value);
       if ('storageKey' in value) return this.storage.get(value.storageKey);
       if ('localName' in value) return this.getLocalValue(value.localName);
       throw new Error('Nested condition is not a value');
@@ -486,12 +619,19 @@ export class ScriptRunner<Host> {
       pending.add(key);
       return true;
     }
+    if (type === 'func') {
+      const item = this.getScriptValue(args[1] as ScriptValue);
+      const inventory = this.storage.get('vars.inventory');
+      return typeof item === 'string' && Array.isArray(inventory) && inventory.includes(item);
+    }
     const first = args[0];
     if (type === 'is' || type === 'isnot') {
       const result =
         typeof first === 'object'
           ? 'storageKey' in first
             ? Boolean(this.storage.get(first.storageKey))
+            : 'expression' in first
+              ? Boolean(this.getScriptValue(first))
             : 'localName' in first
               ? Boolean(this.getLocalValue(first.localName))
               : this.evaluate(first as Condition, scope, pending, instanceId, results)
@@ -524,17 +664,24 @@ export class ScriptRunner<Host> {
       const block = frame.script.blocks[frame.block];
       if (!block) {
         this.stack.pop();
+        frame.onReturn?.(undefined);
         continue;
       }
       if (frame.passed === undefined) {
         const pending = new Set<string>();
-        frame.passed = this.evaluate(
-          block.condition,
-          `${frame.script.name}:${frame.block}`,
-          pending,
-          frame.instanceId,
-          frame.results,
-        );
+        try {
+          frame.passed = this.evaluate(
+            block.condition,
+            `${frame.script.name}:${frame.block}`,
+            pending,
+            frame.instanceId,
+            frame.results,
+          );
+        } catch (error) {
+          if (!(error instanceof ScriptExpressionError)) throw error;
+          this.stopForExpressionError(error, `${frame.script.file}:${block.steps[0]?.line ?? 1} (condition)`);
+          return;
+        }
         if (!frame.results) frame.results = new Map();
         frame.results.set(frame.block, frame.passed);
         if (frame.passed) for (const key of pending) this.usedOnce.add(key);
@@ -548,35 +695,77 @@ export class ScriptRunner<Host> {
       }
       if (!Object.hasOwn(this.options.commands, step.command))
         throw new Error(`${frame.script.file}:${step.line}: Unknown command ${step.command}`);
-      this.options.commands[step.command].run(
-        step,
-        this.getCommandContext(frame, step.line),
-        this.options.context,
-      );
-      if (this.dialogue || this.choice) return;
+      try {
+        this.options.commands[step.command].run(
+          step,
+          this.getCommandContext(frame, step.line, step.command),
+          this.options.context,
+        );
+      } catch (error) {
+        if (error instanceof ScriptExpressionError) {
+          this.stopForExpressionError(error, `${frame.script.file}:${step.line} (+${step.command})`);
+          return;
+        }
+        if (!this.options.onCommandError) throw error;
+        this.isWaitComplete = undefined;
+        this.waitLocation = undefined;
+        this.options.onCommandError(error, `${frame.script.file}:${step.line} (+${step.command})`);
+      }
+      if (this.dialogue || this.choice || this.isWaitComplete) return;
     }
   }
 
-  private getCommandContext(frame: Frame, line: number): CommandContext {
+  private stopForExpressionError(error: ScriptExpressionError, location: string): void {
+    this.stack = [];
+    this.isWaitComplete = undefined;
+    this.waitLocation = undefined;
+    if (!this.options.onCommandError) throw error;
+    this.options.onCommandError(error, location);
+  }
+
+  private getCommandContext(frame: Frame, line: number, command: string): CommandContext {
     const location = `${frame.script.file}:${line}`;
     return {
       location,
       value: (value) => this.getScriptValue(value),
       interpolate: (text) => this.interpolate(text),
       setStorage: (key, value) => this.storage.set(key, value),
+      getStorage: (key) => this.storage.get(key),
       setLocal: (name, value) => {
-        requireLocal(name, frame.script.parameters, frame.script.file, line);
+        requireLocal(name, frame.script.locals, frame.script.file, line);
         frame.locals.set(name, value);
       },
       call: (target, args) => {
         this.stack.push(this.createFrame(target, args, frame.instanceId, location));
       },
+      callWithResult: (target, args, destination, local) => {
+        if (local) requireLocal(destination, frame.script.locals, frame.script.file, line);
+        const child = this.createFrame(target, args, frame.instanceId, location);
+        child.onReturn = (value) => {
+          if (local) frame.locals.set(destination, value);
+          else this.storage.set(destination, value);
+        };
+        this.stack.push(child);
+      },
+      returnValue: (value) => {
+        this.stack.pop();
+        frame.onReturn?.(value);
+      },
+      callSubscript: (ownerId, target) => this.callSubscript(ownerId, target, location),
       showDialogue: (actor, text, emotion) => {
+        if (this.options.background) throw new Error(`${location}: Character subscripts cannot show dialogue`);
         this.dialogue = emotion ? { actor, text, emotion } : { actor, text };
       },
       showChoices: (options, onChoose) => {
+        if (this.options.background) throw new Error(`${location}: Character subscripts cannot show choices`);
         this.choice = { options };
         this.onChoose = onChoose;
+      },
+      waitUntil: (isComplete) => {
+        if (!isComplete()) {
+          this.isWaitComplete = isComplete;
+          this.waitLocation = `${location} (+${command})`;
+        }
       },
       writeLog: (message) => (this.options.writeLog ?? console.log)(message),
     };

@@ -12,6 +12,7 @@ import {
 } from '../../editor/schema.js';
 import { loadScene } from '../load-scene.js';
 import { Character } from '../character.js';
+import { findCharacter } from '../character-movement.js';
 import { CellBuffer } from '../cell-buffer.js';
 
 it('loads movement metadata, prop blocking, trigger instances and directional animation frames', async () => {
@@ -43,7 +44,7 @@ it('loads movement metadata, prop blocking, trigger instances and directional an
       flipH: true,
       frames: [...animation.frames, { invisible: true, durationMs: 50 }],
     });
-    const character = { ...createCharacter('actor', 'idle'), speed: 90 };
+    const character = { ...createCharacter('actor', 'idle'), speed: 90, scriptName: 'SceneActor' };
     character.animations['walk-right'] = 'walking';
     await write('characters', 'actor', character);
     const prop = createProp('wall', { type: 'sprite', id: 'body', index: 0 });
@@ -70,6 +71,7 @@ it('loads movement metadata, prop blocking, trigger instances and directional an
     ];
     scene.triggers = [
       'entry',
+      { id: 'clock', trigger: 'classroom1Updater', event: 'timer', x: 0, y: 0, width: 1, height: 1 },
       { id: 'door-1', trigger: 'door', event: 'action', x: 1, y: 1, width: 1, height: 1 },
       { id: 'door-2', trigger: 'door', event: 'action', x: 4, y: 1, width: 1, height: 1 },
       {
@@ -87,13 +89,17 @@ it('loads movement metadata, prop blocking, trigger instances and directional an
     await write('scenes', 'room', scene);
     const loaded = await loadScene(root, 'room');
     expect(loaded.blockedCells).toEqual(new Set([0, 3 * 8 + 4]));
-    expect(loaded.triggers).toEqual(['entry']);
+    expect(loaded.triggers).toEqual(['entry', 'classroom1Updater']);
     expect(loaded.actionTriggers.map((trigger) => trigger.id)).toEqual(['door-1', 'door-2']);
     expect(loaded.stepTriggers.map((trigger) => trigger.id)).toEqual(['step']);
     const hero = loaded.entities[0];
     expect(hero).toBeInstanceOf(Character);
     if (!(hero instanceof Character)) throw new Error('Missing character');
-    expect(hero).toMatchObject({ speed: 120, instanceName: 'Player', characterId: 'actor', talkScript: 'classroom1_EvaTalk' });
+    expect(hero).toMatchObject({ speed: 120, instanceName: 'Player', characterId: 'actor', scriptName: 'SceneActor', talkScript: 'classroom1_EvaTalk' });
+    for (const reference of ['hero', 'Player', 'actor', 'SceneActor']) {
+      expect(findCharacter(loaded, reference)).toBe(hero);
+    }
+    expect(hero.clone().scriptName).toBe('SceneActor');
     hero.state = 'walk';
     hero.facing = 'right';
     hero.animate(0);

@@ -32,6 +32,7 @@ import { createSearchSelect } from '../search-select.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { characterListEntries } from './character-list.js';
 import { getPortraitAssetLabel } from '../../characters/portrait-label.js';
+import { getMissingAnimationStates } from '../../characters/missing-animation.js';
 
 export function mountCharacters(root: HTMLElement): () => void {
   root.innerHTML = createPageShell(
@@ -94,7 +95,7 @@ export function mountCharacters(root: HTMLElement): () => void {
         <div class="character-from-folder-actions"><button id="cancel-character-from-folder" type="button">CANCEL</button><button type="submit">CREATE CHARACTER</button></div>
       </form>
     </dialog>
-  </section>`,
+   </section><div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
   const get$ = <T extends Element>(selector: string): T => {
@@ -156,6 +157,40 @@ export function mountCharacters(root: HTMLElement): () => void {
   };
   const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Character request failed';
+  function toast(message: string, error = false): void {
+    const item = document.createElement('div');
+    item.className = error ? 'save-toast error' : 'save-toast';
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.textContent = error ? '!' : '✓';
+    const label = document.createElement('span');
+    label.className = 'toast-message';
+    label.textContent = message;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'close-toast';
+    close.textContent = '×';
+    close.addEventListener('click', () => item.remove());
+    item.append(icon, label, close);
+    get$<HTMLElement>('#toast-stack').append(item);
+    setTimeout(() => item.remove(), 4000);
+  }
+  function highlightMissingAnimation(animationId: string, message: string): void {
+    if (!current) return;
+    let first: HTMLInputElement | null = null;
+    for (const { name, extra } of getMissingAnimationStates(current, animationId)) {
+      const host = extra ? custom : states;
+      const row = [...host.querySelectorAll<HTMLElement>('.character-state-row')]
+        .find((item) => item.dataset.state === name);
+      const input = row?.querySelector<HTMLInputElement>('.search-select input');
+      if (!input) continue;
+      input.setAttribute('aria-invalid', 'true');
+      input.title = message;
+      first ??= input;
+    }
+    first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    first?.focus();
+  }
   setDirtyGuard(
     async () =>
       !openTabs.some(isTabDirty) || confirmModal('Discard unsaved character changes?', 'DISCARD'),
@@ -277,6 +312,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   function getStateRow(name: string, animation: string, extra: boolean): HTMLElement {
     const row = document.createElement('div');
     row.className = 'character-state-row';
+    row.dataset.state = name;
     const label = document.createElement('label');
     label.textContent = name.toUpperCase();
     const display = (id: string) =>
@@ -303,6 +339,8 @@ export function mountCharacters(root: HTMLElement): () => void {
         }
         if (extra) current.customAnimations[name] = id;
         else current.animations[name as (typeof CHARACTER_STATES)[number]] = id;
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('title');
         renderTabs();
         scheduleTabs();
         restartPreview();
@@ -753,9 +791,13 @@ export function mountCharacters(root: HTMLElement): () => void {
       }
     } catch (error) {
       if (alive) {
-        status.textContent = showMessage(error);
+        const message = showMessage(error);
+        status.textContent = message;
+        toast(message, true);
+        const missing = /^Character references missing animation "(.+)"$/.exec(message);
+        if (missing && current?.id === sent.id) highlightMissingAnimation(missing[1], message);
         if (error instanceof ApiError && error.status === 409)
-          await alertModal(`${showMessage(error)}. Your unsaved character is still open.`);
+          await alertModal(`${message}. Your unsaved character is still open.`);
       }
     } finally {
       saving = false;

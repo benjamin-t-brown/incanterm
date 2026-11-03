@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "3366a38b-ae48-4c0f-83b3-5cf678b39281",
+  "label": "ralgo3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 4,
+      "durationMs": 500
+    },
+    {
+      "sprite": "256de50b-67ec-46ae-bc5e-3b2f58fedc3a",
+      "index": 5,
+      "durationMs": 500
+    }
+  ]
+}

@@ -31,6 +31,10 @@ export async function dispatchAssetRequest(
       return await handleSpritesRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'animation-folders' && parts.length === 2)
       return await handleAnimationFoldersRequest(store, method, rawBody);
+    if (parts[1] === 'scene-folders' && parts.length === 2)
+      return await handleSceneFoldersRequest(store, method, rawBody, 'scenes');
+    if (parts[1] === 'sprite-folders' && parts.length === 2)
+      return await handleSceneFoldersRequest(store, method, rawBody, 'sprites');
     if (parts[1] === 'animations')
       return await handleAnimationsRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'props')
@@ -207,6 +211,37 @@ async function handleAnimationFoldersRequest(
     return getJson(400, { error: 'Invalid folder operation' });
   }
   return getJson(405, { error: 'Method not allowed' });
+}
+
+async function handleSceneFoldersRequest(
+  store: AssetStore,
+  method: string,
+  rawBody: string | Buffer,
+  kind: 'scenes' | 'sprites',
+): Promise<AssetResponse> {
+  const getFolders = () => kind === 'scenes' ? store.getSceneFolders() : store.getSpriteFolders();
+  const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) =>
+    kind === 'scenes' ? store.changeSceneFolders(change) : store.changeSpriteFolders(change);
+  if (method === 'GET') return getJson(200, await getFolders());
+  if (method !== 'POST') return getJson(405, { error: 'Method not allowed' });
+  const body = getRecord(parseJson(rawBody));
+  if (body.action === 'move' && typeof body.id === 'string' && typeof body.folder === 'string')
+    return getJson(200, await changeFolders({ action: 'move', id: body.id, folder: body.folder }));
+  if (
+    (body.action === 'create' || body.action === 'rename') &&
+    typeof body.folder === 'string' && typeof body.name === 'string'
+  )
+    return getJson(200, await changeFolders({ action: body.action, folder: body.folder, name: body.name }));
+  if (
+    body.action === 'delete' && typeof body.folder === 'string' &&
+    Array.isArray(body.expectedIds) && body.expectedIds.every((id) => typeof id === 'string') &&
+    Array.isArray(body.expectedFolders) && body.expectedFolders.every((folder) => typeof folder === 'string')
+  )
+    return getJson(200, await changeFolders({
+      action: 'delete', folder: body.folder,
+      expectedIds: body.expectedIds, expectedFolders: body.expectedFolders,
+    }));
+  return getJson(400, { error: 'Invalid folder operation' });
 }
 
 async function handleScriptsRequest(

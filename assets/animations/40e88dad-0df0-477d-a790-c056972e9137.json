@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "40e88dad-0df0-477d-a790-c056972e9137",
+  "label": "johnathan3x3 idle down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ae12a341-1474-4dda-8c1e-27b006279c79",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

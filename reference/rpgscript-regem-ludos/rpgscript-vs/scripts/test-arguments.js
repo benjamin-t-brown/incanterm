@@ -26,8 +26,8 @@ try {
   assert.deepEqual(result.parser.getScripts().test_args.blocks[0].commands[0].args, ['test_args_2', 'a, b', '42']);
   assert.deepEqual(lint('@start()\n+:empty()\n@empty()').diagnostics, []);
   assert.deepEqual(lint(source.replace('[arg1] [arg2]', '{arg1} {arg2}')).diagnostics.map(d => d.code), ['local-global-confusion', 'local-global-confusion']);
-  assert.deepEqual(lint('@a(value)\n@b\n+log("[value]")\n+[missing]=1').diagnostics.map(d => d.code), ['unknown-local', 'unknown-local']);
-  assert.deepEqual(lint('@a\n+setLocal(missing, 1)').diagnostics.map(d => d.code), ['unknown-local']);
+  assert.deepEqual(lint('@a(value)\n@b\n+log("[value]")\n+[missing]=1').diagnostics.map(d => d.code), ['unknown-local']);
+  assert.deepEqual(lint('@a\n+setLocal(missing, 1)').diagnostics, []);
   assert.deepEqual(lint('@a\n+log("{unknown_global}")').diagnostics, []);
   for (const header of ['@bad(a, a)', '@bad(a,)', '@bad(1)', '@bad(a']) {
     assert(lint(header).diagnostics.some(d => d.severity === 1), header);

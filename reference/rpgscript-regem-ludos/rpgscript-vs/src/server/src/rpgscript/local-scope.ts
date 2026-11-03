@@ -3,10 +3,37 @@ import * as path from 'path';
 import { sourceLinesWithoutComments } from './source';
 import { parseScriptSignature } from './script-signature';
 
+function getBodyLocalScopes(lines: string[]): Map<number, Set<string>> {
+  const scopes = new Map<number, Set<string>>();
+  let locals: Set<string> | undefined;
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('@') || trimmed.startsWith('#')) {
+      locals = trimmed.startsWith('@') || trimmed.startsWith('#@') ? new Set<string>() : undefined;
+      if (locals) scopes.set(index, locals);
+      return;
+    }
+    if (!locals || !trimmed.startsWith('+')) return;
+    const unquoted = line.replace(/"(?:\\.|[^"\\])*(?:"|$)|'(?:\\.|[^'\\])*(?:'|$)/g,
+      text => ' '.repeat(text.length));
+    const assignment = /(?:^\s*\+|:\s*\+?)\s*\[([A-Za-z_][\w-]*)\]\s*(?:=|<\s*\+:)/.exec(unquoted);
+    if (assignment) locals.add(assignment[1]);
+    const call = /(?:^\s*\+|:\s*\+?)\s*setLocal\s*\(/.exec(unquoted);
+    if (call) {
+      const argument = line.slice(call.index + call[0].length).split(',')[0].trim();
+      const name = argument.replace(/^(["'])(.*)\1$/, '$2');
+      if (/^[A-Za-z_][\w-]*$/.test(name)) locals.add(name);
+    }
+  });
+  return scopes;
+}
+
 export const localScopeDiagnostics = (file: string, source: string): Diagnostic[] => {
   const diagnostics: Diagnostic[] = [];
   let parameters = new Set<string>();
-  sourceLinesWithoutComments(source).forEach((line, lineNumber) => {
+  const lines = sourceLinesWithoutComments(source);
+  const bodyScopes = getBodyLocalScopes(lines);
+  lines.forEach((line, lineNumber) => {
     const warn = (character: number, length: number, message: string, code = 'local-global-confusion') => {
       diagnostics.push({
         severity: DiagnosticSeverity.Warning,
@@ -35,6 +62,7 @@ export const localScopeDiagnostics = (file: string, source: string): Diagnostic[
           }
         }
       }
+      for (const name of bodyScopes.get(lineNumber) ?? []) parameters.add(name);
       return;
     }
     for (const reference of line.matchAll(/\{([A-Za-z_][\w-]*)\}|\[([A-Za-z_][\w-]*)\]/g)) {
@@ -91,7 +119,7 @@ export const localScopeDiagnostics = (file: string, source: string): Diagnostic[
         `Assignment to ${name} writes global storage, but "${name}" is a local parameter. Did you mean +[${name}]=...?`);
     }
 
-    const call = /^\s*\+?\s*(setStorage|callScript|:[\w-]+)\s*\(/.exec(body);
+    const call = /^\s*\+?\s*([A-Za-z_][\w-]*|:[\w-]+)\s*\(/.exec(body);
     if (!call) return;
     const argsStart = bodyStart + call[0].length;
     // Split on top-level commas only. Strings have been masked above, so commas
@@ -118,13 +146,14 @@ export const localScopeDiagnostics = (file: string, source: string): Diagnostic[
         warn(destination.start + (quoted ? 1 : 0), name.length,
           `setStorage(${destination.text}, ...) writes global storage, but "${name}" is a local parameter. Did you mean setLocal(${name}, ...)?`);
       }
-    } else {
-      for (const argument of args.slice(call[1] === 'callScript' ? 1 : 0)) {
-        const name = argument.text;
-        if (!parameters.has(name)) continue;
-        warn(argument.start, name.length,
-          `Bare ${name} passes a literal, but "${name}" is a local parameter. Did you mean [${name}]?`);
-      }
+    }
+    const valueArgs = call[1] === 'callScript' || call[1] === 'setLocal' || call[1] === 'setStorage'
+      ? args.slice(1) : args;
+    for (const argument of valueArgs) {
+      const name = argument.text;
+      if (!parameters.has(name)) continue;
+      warn(argument.start, name.length,
+        `Bare ${name} passes a literal, but "${name}" is a local parameter. Did you mean [${name}]?`);
     }
   });
   return diagnostics;

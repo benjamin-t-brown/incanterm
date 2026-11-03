@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "dd7198b5-239b-49f0-8846-5cd2a19fbab6",
+  "label": "otis3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 4,
+      "durationMs": 500
+    },
+    {
+      "sprite": "5c20afe2-cf9e-477c-9ccf-63bd0b470a54",
+      "index": 5,
+      "durationMs": 500
+    }
+  ]
+}

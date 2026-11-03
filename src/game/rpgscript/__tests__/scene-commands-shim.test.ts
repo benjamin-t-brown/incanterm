@@ -91,6 +91,30 @@ describe('scene-free RPGScript shim', () => {
     await expect(runRpgScriptSnippet(scripts, '+log()', io)).rejects.toThrow('<terminal>:2:');
   });
 
+  it('accepts setFacing without a scene and validates its direction', async () => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    await expect(runRpgScriptSnippet(scripts, '+setFacing(SceneHero, left)', io)).resolves.toBeDefined();
+    await expect(runRpgScriptSnippet(scripts, '+setFacing(SceneHero, sideways)', io))
+      .rejects.toThrow('direction must be up, down, left, or right');
+  });
+
+  it('validates setAnimState arguments without a scene', async () => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    await expect(runRpgScriptSnippet(scripts, '+setAnimState(SceneHero, dance)', io)).resolves.toBeDefined();
+    await expect(runRpgScriptSnippet(scripts, '+setAnimState(SceneHero, 3)', io))
+      .rejects.toThrow('setAnimState requires an animation state name');
+  });
+
+  it('validates changeScene arguments without loading a scene in the terminal shim', async () => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    await expect(runRpgScriptSnippet(scripts, '+changeScene(room, doorway)', io)).resolves.toBeDefined();
+    await expect(runRpgScriptSnippet(scripts, '+changeScene(room, "")', io))
+      .rejects.toThrow('changeScene requires a marker name');
+  });
+
   it('prints the speaking character portrait for each dialogue line', async () => {
     const scripts = await loadRpgScripts(await createFixture(), { shim: true });
     const ink = { fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };

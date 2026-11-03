@@ -62,6 +62,7 @@ export type ActionTrigger = {
   height: number;
 };
 export type StepTrigger = ActionTrigger;
+export type SceneMarker = { id: string; name: string; x: number; y: number };
 
 export class Scene {
   constructor(
@@ -75,7 +76,12 @@ export class Scene {
     readonly blockedCells: ReadonlySet<number> = new Set(),
     readonly actionTriggers: readonly ActionTrigger[] = [],
     readonly stepTriggers: readonly StepTrigger[] = [],
+    readonly markers: readonly SceneMarker[] = [],
   ) {}
+
+  getMarker(name: string): SceneMarker | undefined {
+    return this.markers.find((marker) => marker.name === name);
+  }
 
   update(deltaMs: number): void {
     for (const entity of this.entities) entity.update(deltaMs, this);

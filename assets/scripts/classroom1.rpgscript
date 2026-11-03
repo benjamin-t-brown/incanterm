@@ -1,10 +1,53 @@
 #classroom1Load
   load,classroom1Load
 @classroom1Load
-  +log("Scene setup!")
   +setPlayerWalkCh(test3x3)
+  +tmp.ralgoMoveVar=0
+  // +^tmp.evaTalk=0
 
-  //noop for now
+#classroom1Updater
+// this syntax means to run the timer as a subscript on the character Ralgo so he
+// moves around even if the main thread is blocked
+  timer,classroom1Updater,Ralgo,2000
+@classroom1Updater(ch)
+  +[shouldRalgoMove]<+:rand()
+  +?lt([shouldRalgoMove], 100):{
+    +?is(tmp.ralgoMoveVar):{
+      +:classroom1_RalgoMoveToBlackboard([ch])
+    }
+    +?else:{
+      +:classroom1_RalgoMoveToPodium([ch])
+    }
+  }
+
+@classroom1_RalgoMoveToBlackboard(ch)
+  +walkToMarker([ch], ralgo1)
+  +:ld([ch], left)
+  +setAnimState([ch], write-left)
+  +tmp.ralgoMoveVar=0
+
+@classroom1_RalgoMoveToPodium(ch)
+  +walkToMarker([ch], ralgo2)
+  +:ld([ch], right)
+  +tmp.ralgoMoveVar=1
+
+#@classroom1_toHallway1
+  +?isnot(func(hasItem, OfficeEnvelop)):{
+    +?eq(vars.hasEnvelopeQuest, 0):{
+      +setConv()
+      Johnathan: "Mr. Ralgo said he wanted to see me. I'd better go see what he wants."
+      +endConv()
+    }
+    +?else:{
+      +setConv()
+      Johnathan: "I need to get that envelope from the podium before I leave."
+      +endConv()
+    }
+  }
+  +?else:{
+    +walkToMarker(player, fromHallway1)
+    +changeScene(hallway1, fromClassroom1)
+  }
 
 @classroom1_firstCutscene
   Bell: "Ring! Ring!"
@@ -13,15 +56,62 @@
   Ralgo: "Hand in your worksheets before you head to next period."
   +endConv()
 
+#@classroom1_smileyPoster
+  +setConv()
+  +walkToMarker(player, examine1)
+  +:ld(player, up)
+  Johnathan: "The poster says: 'Smile Every Day!'"
+  Johnathan: "Sure, why not?"
+  +endConv()
+
+#@classroom1_bookshelf
+  +setConv()
+  +walkToMarker(player, examineShelf)
+  +:ld(player, up)
+  +?once(classroom1_bookshelf1):{
+    Johnathan: "That shelf is so high, I'd need get a ladder or move a chair over to see those books."
+  }
+  +?else:{
+    Johnathan: "Nah, I don't need those books.  I'll let Mr. Ralgo figure out how to get up there."
+  }
+  +endConv()
+
+#@classroom1_podium
+  +?isnot(vars.hasEnvelopeQuest):{
+    +walkToMarker(player, podium1)
+    +:ld(player, left)
+    +setConv()
+    Johnathan: "It's the classroom podium with Mr. Ralgo's class notes on it."
+  }
+  +?else:{
+    +?func(hasItem, OfficeEnvelope):{
+      +walkToMarker(player, podium1)
+      +:ld(player, left)
+      +setConv()
+      Johnathan: "I already got the envelope from here."
+    }
+    +?else:{
+      +walkToMarker(player, podium2)
+      +:ld(player, right)
+      +setConv()
+      Johnathan: "Is this the envelope Mr Ralgo was talking about?"
+      +acquireItem(OfficeEnvelope)
+      Narrator: "(Got item Office Envelope.)"
+      Johnathan: "I wonder what's so important that it needs to go to the office now..."
+      Johnathan: "Probably just some dumb attendance records or something."
+    }
+  }
+  +endConv()
 
 @classroom1_EvaTalk
-  +?is(vars.a):{
-    +setConv()
+  +^tmp.evaTalk=0
+  +?eq(tmp.evaTalk, 0):{
+    +setConv2(Eva, Johnathan)
     Johnathan: "Hey Eva! Where you headed?"
-    Eva: "Oh hey...  I'm just headed to my locker, you know.  Like I always do."
-    Johnathan: "Great!  You do that!"
+    Eva: "To my locker...  You know...  Like everybody else."
+    Johnathan: "Oh yeah.  Right, right."
     Eva: "Ugh."
-    +vars.a=0
+    +tmp.evaTalk=1
   }
   +?else:{
     +setConv2(Eva, Johnathan)
@@ -29,9 +119,41 @@
     Eva: "Um no?  I don't have your locker code."
     Johnathan: "I could give it to you..."
     Eva: "No way.  I don't want to get in trouble for something like that."
-    Pilgrim: "Hey! I'm speaking now!"
-    +endConv()
-    +vars.a=1
   }
   +endConv()
 
+@classroom1_RalgoTalk
+  +^vars.hasEnvelopeQuest=0
+
+  +?eq(vars.hasEnvelopeQuest, 0):{
+    +setAnimState(Mr Ralgo, idle)
+    +setConv2(Mr Ralgo, Johnathan)
+    Johnathan: "You said you wanted to see me, Mr. Ralgo?"
+    Mr Ralgo: "You are the current class liaison, right?"
+    Johnathan: "Yes..."
+    Mr Ralgo: "Then it's your job to take important documents to the office."
+    Mr Ralgo: "It just so happens that over there on my podium I have an envelope that fits that description."
+    Mr Ralgo: "That needs to go to the office, pronto."
+    Johnathan: "Oh man, I didn't know I'd actually have to do something for that!"
+    Johnathan: "Can't you find somebody else to do it?  I wanted to get out earlier to get to a job interview today."
+    Mr Ralgo: "A job interview, eh?  Where at?"
+    Johnathan: "Pizza delivery.  I heard it makes good money."
+    Mr Ralgo: "Huh.  Well good luck with that."
+    Mr Ralgo: "But I still need you to take that to the office."
+    Johnathan: "But...!"
+    Mr Ralgo: "It won't take you five minutes.  Then you can go make your bag or whatever."
+    Johnathan: "Okay, okay, fine."
+    Mr Ralgo: "Hop to it, then!"
+  }
+  +?eq(vars.hasEnvelopeQuest,1):{
+    +?func(hasItem, OfficeEnvelope):{
+      +setConv()
+      Mr Ralgo: "Still dilly-dallying around here?  Remember, you need to take that envelope to the office."
+    }
+    +?else:{
+      +setConv()
+      Mr Ralgo: "The envelope is on my podium.  Aren't you supposed to be in a hurry?"
+    }
+  }
+  +endConv()
+  +vars.hasEnvelopeQuest=1

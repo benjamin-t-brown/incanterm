@@ -6,10 +6,18 @@ export class PlayerControl {
   playerWalkCh: Character | undefined;
   private pendingTalk?: { target: Character; destination: Point; run: (script: string, target: Character) => void };
   private conversation?: { target: Character; activity: CharacterActivity };
-  constructor(readonly scene: Scene) {}
+  private scriptedWalker?: Character;
+  constructor(public scene: Scene) {}
+
+  changeScene(scene: Scene, player: Character): void {
+    this.stop();
+    this.endConversation(false);
+    this.scene = scene;
+    this.playerWalkCh = player;
+  }
 
   setPlayerWalkCh(idOrInstanceName: string): void {
-    const character = findCharacter(this.scene, idOrInstanceName);
+    const character = findCharacter(this.scene, idOrInstanceName, this.playerWalkCh);
     this.stop();
     this.playerWalkCh = character;
   }
@@ -17,6 +25,15 @@ export class PlayerControl {
   stop(): void {
     this.pendingTalk = undefined;
     this.playerWalkCh?.stopWalking();
+    this.scriptedWalker = undefined;
+  }
+
+  walkScripted(character: Character, destination: Point): void {
+    if (character === this.playerWalkCh) {
+      this.pendingTalk = undefined;
+      this.scriptedWalker = character;
+    }
+    character.walkTo(this.scene, destination);
   }
 
   cancelTalk(): void {
@@ -24,6 +41,7 @@ export class PlayerControl {
   }
 
   update(): void {
+    if (this.scriptedWalker && !this.scriptedWalker.isWalking()) this.scriptedWalker = undefined;
     const pending = this.pendingTalk;
     const player = this.playerWalkCh;
     if (!pending || !player || player.isWalking()) return;
@@ -37,6 +55,7 @@ export class PlayerControl {
   startConversation(target: Character): void {
     this.endConversation(false);
     this.conversation = { target, activity: target.getActivity() };
+    target.setConversationBusy(true);
     target.stopWalking();
     const player = this.playerWalkCh;
     if (!player || player === target) return;
@@ -55,7 +74,15 @@ export class PlayerControl {
   endConversation(restore: boolean): void {
     const conversation = this.conversation;
     this.conversation = undefined;
+    conversation?.target.setConversationBusy(false);
     if (restore && conversation) conversation.target.restoreActivity(conversation.activity, this.scene);
+  }
+
+  isWalkPausedForConversation(character: Character, destination: Point): boolean {
+    const conversation = this.conversation;
+    return conversation?.target === character &&
+      conversation.activity.destination?.x === destination.x &&
+      conversation.activity.destination.y === destination.y;
   }
 
   private isAdjacent(player: Character, target: Character): boolean {
@@ -86,6 +113,7 @@ export class PlayerControl {
 
   click(x: number, y: number, activate: (name: string, instanceId: string) => boolean,
     runTalk?: (script: string, target: Character) => void): void {
+    if (this.scriptedWalker?.isWalking()) return;
     if (x < 0 || y < 0 || x >= this.scene.width || y >= this.scene.height) return;
     this.pendingTalk = undefined;
     for (const trigger of this.scene.actionTriggers) {
@@ -96,7 +124,10 @@ export class PlayerControl {
         y < trigger.y + trigger.height &&
         activate(trigger.trigger, trigger.id)
       ) {
-        this.stop();
+        // The trigger runs synchronously and may have started a scripted walk.
+        // Do not stop the new walk while cancelling the click's previous intent.
+        if (this.scriptedWalker?.isWalking()) this.pendingTalk = undefined;
+        else this.stop();
         return;
       }
     }

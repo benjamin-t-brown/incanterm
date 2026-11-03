@@ -29,6 +29,12 @@
       <key>patterns</key>
       <array> 
         <dict>
+          <key>begin</key><string>^\s*(&lt;)</string>
+          <key>beginCaptures</key><dict><key>1</key><dict><key>name</key><string>keyword.control.return.rpgscript</string></dict></dict>
+          <key>end</key><string>$</string>
+          <key>patterns</key><array><dict><key>include</key><string>#in_parens</string></dict></array>
+        </dict>
+        <dict>
           <key>begin</key>
           <string>(^(\s)*(\+setStorage))</string>
           <key>beginCaptures</key>
@@ -88,9 +94,12 @@
         </dict>
         <dict>
           <key>begin</key>
-          <string>(^(\s)*@[^\s()]+)</string>
+          <string>^\s*(#)?(@[^\s()]+)</string>
           <key>beginCaptures</key>
-          <dict><key>1</key><dict><key>name</key><string>storage.type.function.rpgscript</string></dict></dict>
+          <dict>
+            <key>1</key><dict><key>name</key><string>entity.name.function.rpgscript</string></dict>
+            <key>2</key><dict><key>name</key><string>storage.type.function.rpgscript</string></dict>
+          </dict>
           <key>end</key>
           <string>$</string>
           <key>patterns</key>
@@ -113,7 +122,7 @@
         </dict>
         <dict>
           <key>begin</key>
-          <string>(^(\s)*(action|step|item|step-first|step-off|load),)</string>
+          <string>(^(\s)*(action|step|item|step-first|step-off|load|timer),)</string>
           <key>beginCaptures</key>
           <dict>
             <key>1</key>
@@ -824,6 +833,7 @@
     <dict>
       <key>patterns</key>
       <array>
+        <dict><key>match</key><string>(&lt;)</string><key>name</key><string>keyword.control.return.rpgscript</string></dict>
         <dict>
           <key>include</key>
           <string>#storage_assignment</string>
@@ -1044,15 +1054,7 @@
       <array>
         <dict>
           <key>begin</key>
-          <string>(([A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=)</string>
-          <key>beginCaptures</key>
-          <dict>
-            <key>1</key>
-            <dict>
-              <key>name</key>
-              <string>keyword.operator.assignment.rpgscript</string>
-            </dict>
-          </dict>
+          <string>(?=\^?(?:[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*(?:=|&lt;(?=\s*\+:)))</string>
           <key>patterns</key>
           <array>
             <dict>
@@ -1077,6 +1079,16 @@
     <dict>
       <key>patterns</key>
       <array>
+        <dict>
+          <key>match</key><string>(\^|=|&lt;)</string>
+          <key>name</key><string>keyword.operator.assignment.rpgscript</string>
+        </dict>
+        <dict>
+          <key>begin</key><string>(\+:[\w-]+)</string>
+          <key>beginCaptures</key><dict><key>1</key><dict><key>name</key><string>entity.name.function.rpgscript</string></dict></dict>
+          <key>end</key><string>$</string>
+          <key>patterns</key><array><dict><key>include</key><string>#main__2</string></dict></array>
+        </dict>
         <dict>
           <key>include</key>
           <string>#in_parens</string>

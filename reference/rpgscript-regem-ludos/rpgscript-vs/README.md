@@ -7,6 +7,10 @@ This is a simple language server for RPGSCRIPT. It includes:
 - code completion
 - go to definition
 
+Timers support `timer,script,intervalMs` for the main runner and
+`timer,script,characterNameOrId,intervalMs` for an independent character subscript.
+Character-timer scripts take one parameter containing the character's instance ID.
+
 Duplicate `@script` and `#trigger` names are warned on each declaration across
 the configured `rpgscript.scriptsRoot`, including subfolders and unsaved open
 files. Warnings link to the other definitions and refresh as files are edited,
@@ -40,11 +44,28 @@ intentional global writes and literal arguments remain valid.
 Script signatures such as `@test(arg1, arg2)` and calls such as
 `+:test("a", "b")` support call-local parameters. Read locals with `[arg1]` and
 update them with `+[arg1]=value`. `{arg1}` still refers to global storage.
-Undeclared locals and mismatched argument counts are errors, including calls
+Assignments `+[name]=value` and `+setLocal(name, value)` also declare body-local
+variables without adding parameters. They are scoped to the whole invocation,
+start undefined until assigned, and reset on every call. Reads of undeclared
+locals and mismatched argument counts are errors, including calls
 across files and unsaved buffers. Run `npm run test:arguments` for coverage of
 signatures, call arguments, scopes, and assignment hovers.
 
 ## Storage assignment shorthand
+
+`<value` returns immediately from the current script. Capture a result with
+`+[local]<+:script(args);` (declaring a local) or `+global<+:script(args);`.
+Calls wait for the callee, including its dialogue and movement waits. A bare `<`
+or reaching the script's end returns undefined; ordinary calls discard results.
+
+Numeric expressions such as `+a={a}+1` and `+[b]=([a]+2)*3` use JavaScript
+arithmetic precedence (`+`, `-`, `*`, `/`, `%`, `**`, unary signs, parentheses).
+References must resolve to finite numbers; nonnumeric operands log a runtime
+script error and stop that runner. Quoted values remain strings.
+
+`+^a=1` sets global `a` only if undefined, preserving existing values including
+`0`, `false`, and empty strings. It supports dotted and indirect global keys,
+but rejects local targets (`+^[a]=1`). Hover shows `setStorageIfUndefined(a, 1)`.
 
 Else branches can use `+?else:{ ... }` or inline `+?else:+command(...)`.
 The older `+?else():` spelling remains supported.

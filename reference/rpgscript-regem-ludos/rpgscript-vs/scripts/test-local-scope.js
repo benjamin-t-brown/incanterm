@@ -98,10 +98,35 @@ assert.deepEqual(localScopeDiagnostics(file, '@test(truely, false_value)'), []);
 assert.equal(localScopeDiagnostics(file, '@test(arg1)\n+setStorage({arg1}, 1)').length, 1);
 assert.equal(localScopeDiagnostics(file, '@test(arg1)\n+:other({arg1})').length, 1);
 
+const sceneCall = '@ld(ch, dir)\n  +setFacing(ch, dir)';
+const sceneWarnings = localScopeDiagnostics(file, sceneCall);
+assert.equal(sceneWarnings.length, 2);
+assert(sceneWarnings.every(d => d.code === 'local-global-confusion' && d.severity === 2));
+assert.deepEqual(sceneWarnings.map(d => d.message), [
+  'Bare ch passes a literal, but "ch" is a local parameter. Did you mean [ch]?',
+  'Bare dir passes a literal, but "dir" is a local parameter. Did you mean [dir]?',
+]);
+assert.deepEqual(sceneWarnings.map(d => d.range), [
+  { start: { line: 1, character: 13 }, end: { line: 1, character: 15 } },
+  { start: { line: 1, character: 17 }, end: { line: 1, character: 20 } },
+]);
+for (const body of [
+  '+setFacing([ch], [dir])', '+setFacing("ch", \'dir\')',
+  '+setFacing(player, up)', '+setLocal(ch, [dir])',
+  '+callScript(ch, [dir])', '+setStorage(ch, [dir])',
+]) assert.deepEqual(localScopeDiagnostics(file, '@ld(ch, dir)\n  ' + body)
+  .filter(d => d.message.includes('passes a literal')), [], body);
+assert.deepEqual(localScopeDiagnostics(file, '@ld(ch, dir)\n+setLocal(ch, dir)')
+  .map(d => d.range.start.character), [14]);
+assert.deepEqual(localScopeDiagnostics(file, '@ld(ch, dir)\n+setStorage(ch, dir)')
+  .map(d => d.range.start.character), [12, 16]);
+assert.deepEqual(localScopeDiagnostics(file, '@ld(ch, dir)\n+?is(flag):+setFacing(ch, "dir")')
+  .map(d => d.range.start.character), [22]);
+
 // Include warnings in normal linter output, even during incomplete edits and
 // when the file has no on-disk copy yet.
 disableConsole();
-setCommands(['log', 'setStorage', 'setLocal', 'callScript']);
+setCommands(['log', 'setStorage', 'setLocal', 'callScript', 'setFacing']);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rpgscript-local-scope-'));
 try {
   const localFile = path.join(root, file);
@@ -114,6 +139,8 @@ try {
   assert.equal(lint(bare.replace('is(arg1)', 'is([arg1])')).length, 0);
   assert.equal(lint('@test(arg1)\n+arg1=1\n+setStorage(arg1, 2)\n+:test(arg1)').length, 3);
   assert.equal(lint('@test(arg1)\n+[arg1]=1\n+setLocal(arg1, 2)\n+:test([arg1])').length, 0);
+  assert.equal(lint(sceneCall).length, 2);
+  assert.equal(lint('@ld(ch, dir)\n  +setFacing("ch", \'dir\')').length, 0);
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }

@@ -18,7 +18,7 @@ export function addSceneProp(
   const entry: PropEntry = {
     id: `${base}-${number}`,
     type: 'Prop',
-    name: `${base}-${number}`,
+    name: `${base}_${number}`,
     prop: propId,
     x: Math.max(0, Math.min(scene.width - 1, x)),
     y: Math.max(0, Math.min(scene.height - 1, y)),

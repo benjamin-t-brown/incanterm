@@ -103,6 +103,11 @@ function connect(): void {
       status.textContent = `Connected · ${message.sessionId}`;
       return;
     }
+    if (message.type === 'session-error') {
+      status.textContent = 'Game session failed';
+      console.error(message.details);
+      return;
+    }
     const verb = message.type === 'play-sound' ? 'Playing' : 'Stopped';
     audio.textContent = `${verb} ${message.assetId}`;
   });

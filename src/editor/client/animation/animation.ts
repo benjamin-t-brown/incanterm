@@ -109,7 +109,7 @@ export function mountAnimation(root: HTMLElement): () => void {
           <label class="character-animation-field">BASE SPRITE SHEET
             <input id="character-animation-search" class="text-input" type="search" placeholder="SEARCH SPRITE SHEETS" autocomplete="off" spellcheck="false">
           </label>
-          <p class="page-copy">Use a 3×3 sheet with at least 16 frames in the ada3x3 order.</p>
+           <p class="page-copy">Use a 3×3 sheet with at least 16 frames in the test3x3 order.</p>
           <div id="character-animation-sheets" class="character-animation-sheets" role="group" aria-label="Base sprite sheet"></div>
           <p id="character-animation-error" class="character-animation-error" role="alert" hidden></p>
           <div class="character-animation-actions">

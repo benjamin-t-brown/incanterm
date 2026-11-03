@@ -3,7 +3,46 @@ import type { Scene } from './scene.js';
 
 export type Point = { x: number; y: number };
 
-// Eight-way shortest-cell paths. Character timing accounts for narrower horizontal cells.
+// Horizontal cells are narrower than vertical cells; diagonals are deliberately
+// costlier than either straight step so a walk does not weave through open gaps.
+const HORIZONTAL_COST = 2;
+const VERTICAL_COST = 4;
+const DIAGONAL_COST = 5;
+
+type PathEntry = { cell: number; cost: number; order: number };
+
+function pushPathEntry(heap: PathEntry[], entry: PathEntry): void {
+  let index = heap.length;
+  heap.push(entry);
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (heap[parent].cost < entry.cost ||
+      (heap[parent].cost === entry.cost && heap[parent].order < entry.order)) break;
+    heap[index] = heap[parent];
+    index = parent;
+  }
+  heap[index] = entry;
+}
+
+function removePathEntry(heap: PathEntry[]): PathEntry | undefined {
+  const first = heap[0];
+  const last = heap.pop();
+  if (!first || !last || !heap.length) return first;
+  let index = 0;
+  while (index * 2 + 1 < heap.length) {
+    let child = index * 2 + 1;
+    if (child + 1 < heap.length &&
+      (heap[child + 1].cost < heap[child].cost ||
+        (heap[child + 1].cost === heap[child].cost && heap[child + 1].order < heap[child].order))) child++;
+    if (last.cost < heap[child].cost ||
+      (last.cost === heap[child].cost && last.order < heap[child].order)) break;
+    heap[index] = heap[child];
+    index = child;
+  }
+  heap[index] = last;
+  return first;
+}
+
 export function findPath(scene: Scene, character: Character, target: Point): Point[] {
   const blocked = new Set(scene.blockedCells);
   for (const entity of scene.entities) {
@@ -40,15 +79,19 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
   const start = character.bottomY * scene.width + character.x;
   const goal = target.y * scene.width + target.x;
   const parents = new Map<number, number>([[start, start]]);
-  const queue = [start];
+  const costs = new Map<number, number>([[start, 0]]);
+  const queue: PathEntry[] = [{ cell: start, cost: 0, order: 0 }];
+  let order = 0;
   let closest = start;
   let closestDistance = Infinity;
-  for (let head = 0; head < queue.length; head++) {
-    const cell = queue[head];
+  while (queue.length) {
+    const entry = removePathEntry(queue);
+    if (!entry || entry.cost !== costs.get(entry.cell)) continue;
+    const { cell } = entry;
     const x = cell % scene.width,
       y = Math.floor(cell / scene.width);
     const distance = (target.x - x) ** 2 + (target.y - y) ** 2;
-    // BFS visits shorter paths first, so equal-distance candidates keep that tie-break.
+    // Dijkstra visits cheaper paths first, so equal-distance candidates keep that tie-break.
     if (distance < closestDistance) {
       closest = cell;
       closestDistance = distance;
@@ -67,10 +110,11 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
       if (!isValid(x + dx, y + dy)) continue;
       if (dx && dy && (!isValid(x + dx, y) || !isValid(x, y + dy))) continue;
       const next = (y + dy) * scene.width + x + dx;
-      if (!parents.has(next)) {
-        parents.set(next, cell);
-        queue.push(next);
-      }
+      const cost = entry.cost + (dx && dy ? DIAGONAL_COST : dx ? HORIZONTAL_COST : VERTICAL_COST);
+      if (cost >= (costs.get(next) ?? Infinity)) continue;
+      costs.set(next, cost);
+      parents.set(next, cell);
+      pushPathEntry(queue, { cell: next, cost, order: ++order });
     }
   }
   const result: Point[] = [];
@@ -79,14 +123,16 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
   return result.reverse();
 }
 
-export function findCharacter(scene: Scene, idOrInstanceName: string): Character {
+export function findCharacter(scene: Scene, reference: string, controlled?: Character): Character {
+  if (reference === 'player' && controlled && scene.entities.includes(controlled)) return controlled;
   const characters = scene.entities.filter(
     (entity): entity is Character => entity instanceof Character,
   );
   const character =
-    characters.find((entity) => entity.id === idOrInstanceName) ??
-    characters.find((entity) => entity.instanceName === idOrInstanceName) ??
-    characters.find((entity) => entity.characterId === idOrInstanceName);
-  if (!character) throw new Error(`Scene ${scene.id} has no character ${idOrInstanceName}`);
+    characters.find((entity) => entity.id === reference) ??
+    characters.find((entity) => entity.instanceName === reference) ??
+    characters.find((entity) => entity.characterId === reference) ??
+    characters.find((entity) => entity.scriptName === reference);
+  if (!character) throw new Error(`Scene ${scene.id} has no character ${reference}`);
   return character;
 }

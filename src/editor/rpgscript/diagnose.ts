@@ -38,7 +38,9 @@ export function diagnoseScript(
         if (!parsed.target) {
           diagnostics.push(reportError(lineNumber, 'callScript needs a script name'));
         } else if (!known.has(parsed.target)) {
-          diagnostics.push(reportError(lineNumber, `No script exists with name "${parsed.target}".`));
+          diagnostics.push(
+            reportError(lineNumber, `No script exists with name "${parsed.target}".`),
+          );
         }
         return;
       }
@@ -59,7 +61,7 @@ export function diagnoseScript(
 export function getScriptNames(source: string): string[] {
   const names: string[] = [];
   for (const raw of source.split(/\r?\n/)) {
-    const line = raw.trim();
+    const line = raw.trim().replace(/^#@/, '@');
     if (!line.startsWith('@')) continue;
     const name = line.slice(1).trim().split(/\s+/)[0] ?? '';
     if (name && name !== 'this') names.push(name);

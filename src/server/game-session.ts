@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../game/scene.js';
 import { Character } from '../game/character.js';
+import { findCharacter } from '../game/character-movement.js';
 import { PlayerControl } from '../game/player-control.js';
-import { commands } from '../game/scene-commands.js';
+import { commands, type GameScriptContext } from '../game/scene-commands.js';
 import { encodeTerminal, encodeTerminalDiff } from '../game/terminal.js';
 import { ScriptRunner, TriggerType, type ScriptLibrary } from '../game/rpgscript/index.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-standard-scene.js';
@@ -29,6 +30,8 @@ export function createGameSession(
   portraits?: PortraitAssets,
   canSend: () => boolean = () => true,
   reloadPortraits?: () => Promise<PortraitAssets>,
+  onError?: (error: unknown) => void,
+  loadSceneById?: (sceneId: string) => Promise<Scene>,
 ): GameSession {
   // Each connection owns its character positions, animation clocks and walking path.
   scene = new Scene(
@@ -42,6 +45,7 @@ export function createGameSession(
     scene.blockedCells,
     scene.actionTriggers,
     scene.stepTriggers,
+    scene.markers,
   );
   const control = new PlayerControl(scene);
   let lastUpdate = Date.now();
@@ -55,32 +59,69 @@ export function createGameSession(
   let portraitStart = 0;
   let animationTimer: ReturnType<typeof setTimeout> | undefined;
   const layout = new LayoutStandardScene(scene);
+  const gameContext: GameScriptContext = { scene, playerControl: control, changeScene };
   const runner =
     scripts &&
     new ScriptRunner(scripts, {
       commands,
-      context: { scene, playerControl: control },
+      context: gameContext,
+      getCharacterId: (reference) => findCharacter(scene, reference, control.playerWalkCh).id,
+      isCharacterBusy: (ownerId) => findCharacter(scene, ownerId, control.playerWalkCh).isBusy(),
       writeLog: (message) => layout.appendLog(message),
+      onCommandError: (error, location) => {
+        layout.appendLog(`[RPGSCRIPT ERROR] ${location}: ${getSafeErrorMessage(error)}`, true);
+      },
     });
-  for (const entity of scene.entities) {
-    if (!(entity instanceof Character)) continue;
-    entity.handleStep = (character) => {
-      if (control.playerWalkCh !== character) return;
-      for (const trigger of scene.stepTriggers) {
-        if (
-          character.x >= trigger.x &&
-          character.bottomY >= trigger.y &&
-          character.x < trigger.x + trigger.width &&
-          character.bottomY < trigger.y + trigger.height &&
-          runner?.dispatchTrigger(trigger.trigger, TriggerType.STEP, trigger.id)
-        ) {
-          character.stopWalking();
-          break;
+  function attachStepTriggers(): void {
+    for (const entity of scene.entities) {
+      if (!(entity instanceof Character)) continue;
+      entity.handleStep = (character) => {
+        if (control.playerWalkCh !== character) return;
+        for (const trigger of scene.stepTriggers) {
+          if (
+            character.x >= trigger.x &&
+            character.bottomY >= trigger.y &&
+            character.x < trigger.x + trigger.width &&
+            character.bottomY < trigger.y + trigger.height &&
+            runner?.dispatchTrigger(trigger.trigger, TriggerType.STEP, trigger.id)
+          ) {
+            character.stopWalking();
+            break;
+          }
         }
-      }
-    };
+      };
+    }
   }
-  const pendingLoadTriggers = [...scene.triggers];
+  attachStepTriggers();
+  let pendingLoadTriggers = [...scene.triggers];
+
+  async function changeScene(sceneId: string, markerName: string | undefined, location: string): Promise<void> {
+    if (!loadSceneById) throw new Error(`${location}: changeScene requires a scene loader`);
+    const controlled = control.playerWalkCh;
+    if (!controlled) throw new Error(`${location}: changeScene requires a player-controlled walker`);
+    const loaded = await loadSceneById(sceneId);
+    if (!opened) return;
+    const marker = loaded.getMarker(markerName ?? 'mPlayer');
+    if (!marker)
+      layout.appendLog(`[RPGSCRIPT ERROR] ${location}: Scene ${sceneId} has no marker ${markerName ?? 'mPlayer'}; placing player at 0,0`, true);
+    control.stop();
+    runner?.clearSubscripts();
+    const player = controlled.clone();
+    player.stopWalking();
+    player.x = marker?.x ?? 0;
+    player.y = (marker?.y ?? 0) - player.bottomOffset;
+    scene = new Scene(loaded.id, loaded.width, loaded.height, loaded.depthMode, loaded.clear,
+      [...loaded.entities.filter((entity) => entity.id !== player.id).map((entity) =>
+        entity instanceof Character ? entity.clone() : entity), player],
+      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers);
+    control.changeScene(scene, player);
+    gameContext.scene = scene;
+    layout.scene = scene;
+    pendingLoadTriggers = [...scene.triggers];
+    runner?.restartTimers(scene.triggers);
+    previousFrame = undefined;
+    attachStepTriggers();
+  }
   const session: GameSession = {
     id: randomUUID(),
     cols: 80,
@@ -89,6 +130,7 @@ export function createGameSession(
       opened = true;
       previousFrame = undefined;
       lastUpdate = Date.now();
+      runner?.restartTimers(scene.triggers);
       dispatchLoadTriggers();
       scene.update(0);
       paint();
@@ -119,8 +161,9 @@ export function createGameSession(
             const y = Number(match[3]) - 1;
             if (runner?.dialogue) {
               runner.advance();
+              finishConversationIfIdle();
               dispatchLoadTriggers();
-            } else if (runner?.getStorage('dialogue.active') !== true && !runner?.dialogue) {
+            } else if (runner?.isIdle() && runner.getStorage('dialogue.active') !== true) {
               const point = layout.getScenePoint(x, y);
               if (point)
                 control.click(
@@ -131,6 +174,7 @@ export function createGameSession(
                     if (runner?.isIdle() && scripts?.get(script)?.parameters.length === 0) {
                       control.startConversation(target);
                       runner.start(script);
+                      finishConversationIfIdle();
                       refreshPortraits();
                     }
                   },
@@ -165,6 +209,7 @@ export function createGameSession(
       } else if (runner.dialogue) {
         runner.advance();
       } else return;
+      finishConversationIfIdle();
       dispatchLoadTriggers();
       paint();
     },
@@ -178,10 +223,12 @@ export function createGameSession(
     },
     close() {
       opened = false;
+      runner?.clearSubscripts();
       if (animationTimer) clearTimeout(animationTimer);
       animationTimer = undefined;
       control.stop();
       ++portraitRefresh;
+      control.endConversation(false);
       mouseInput = '';
     },
   };
@@ -193,14 +240,28 @@ export function createGameSession(
     }
   }
 
+  function finishConversationIfIdle(): void {
+    if (runner?.isIdle()) control.endConversation(true);
+  }
+
   function updateSimulation(): void {
     if (!opened) return;
-    const now = Date.now();
-    scene.update(now - lastUpdate);
-    control.update();
-    lastUpdate = now;
-    paint();
-    animationTimer = setTimeout(updateSimulation, FRAME_INTERVAL_MS);
+    try {
+      const now = Date.now();
+      scene.update(now - lastUpdate);
+      control.update();
+      runner?.update();
+      finishConversationIfIdle();
+      dispatchLoadTriggers();
+      runner?.updateTimers(now - lastUpdate);
+      lastUpdate = now;
+      paint();
+      animationTimer = setTimeout(updateSimulation, FRAME_INTERVAL_MS);
+    } catch (error) {
+      session.close();
+      if (onError) onError(error);
+      else throw error;
+    }
   }
 
   function refreshPortraits(): void {
@@ -213,7 +274,7 @@ export function createGameSession(
       paint();
     }).catch((error: unknown) => {
       if (opened && token === portraitRefresh)
-        layout.appendLog(`Could not reload portraits: ${error instanceof Error ? error.message : String(error)}`);
+        layout.appendLog(`Could not reload portraits: ${getSafeErrorMessage(error)}`, true);
     });
   }
 
@@ -272,4 +333,12 @@ export function createGameSession(
   }
 
   return session;
+}
+
+function getSafeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return [...message].map((character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code < 32 || (code >= 127 && code <= 159) ? ' ' : character;
+  }).join('');
 }

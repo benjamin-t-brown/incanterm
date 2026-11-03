@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "f2d9967c-9690-4239-95fe-269251f7e121",
+  "label": "conscience3x3 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "2addb14b-a85a-4094-9842-e1a535f636ca",
+      "index": 9,
+      "durationMs": 135
+    }
+  ]
+}

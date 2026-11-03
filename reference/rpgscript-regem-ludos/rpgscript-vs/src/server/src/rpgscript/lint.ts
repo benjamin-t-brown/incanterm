@@ -6,6 +6,7 @@ import { getSceneCommands } from './commands';
 import { logger } from '../logger';
 import { declaredScriptSignatures, duplicateNameDiagnostics } from './duplicates';
 import { localScopeDiagnostics } from './local-scope';
+import { getOnceIdDiagnostics } from './once-id';
 
 const createErrorDiagnostic = (
   fileName: string,
@@ -123,6 +124,7 @@ export const lintFile = (
   const diagnostics = [
     ...duplicateNameDiagnostics(filePath, folderPath, sources),
     ...localScopeDiagnostics(filePath, fileSrc),
+    ...getOnceIdDiagnostics(filePath, fileSrc),
   ];
   for (const [localFileName, source] of sources) {
     if (localFileName === filePath) continue;
@@ -167,20 +169,6 @@ export const lintFile = (
   }
 
   checkCallScriptCommands(filePath, fileSrc, declaredScriptSignatures(sources), parser, diagnostics);
-  for (const script of Object.values(parser.getScripts())) {
-    if (canonicalPath(script.filename) !== filePath) continue;
-    for (const block of script.blocks) {
-      for (const command of block.commands) {
-        if (command.type !== 'setLocal' || script.parameters.includes(String(command.args[0]))) continue;
-        const message = `Unknown local [${command.args[0]}].`;
-        if (diagnostics.some(d => d.code === 'unknown-local' && d.range.start.line === command.i - 1 && d.message === message)) continue;
-        diagnostics.push({
-          ...createErrorDiagnostic(fileName, command.i, 'error', message),
-          code: 'unknown-local',
-        });
-      }
-    }
-  }
 
   // logger.log('Linting done!');
 

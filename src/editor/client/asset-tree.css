@@ -94,6 +94,15 @@
 .asset-tree-folder-row.drop-target {
   background: var(--surface);
 }
+.asset-tree-contents:not(.asset-tree-root-contents) {
+  min-height: 18px;
+  padding-bottom: 6px;
+}
+.asset-tree-contents.drop-target {
+  outline: 1px dashed var(--highlight);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--highlight) 12%, transparent);
+}
 .asset-tree-file.active {
   background: var(--highlight);
   color: var(--accent-text);
@@ -116,4 +125,10 @@
   color: var(--muted);
   cursor: pointer;
   padding: 3px;
+}
+.asset-tree-actions button svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
