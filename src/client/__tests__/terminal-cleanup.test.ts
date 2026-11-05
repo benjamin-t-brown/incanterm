@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
 import { formatTerminalError, TERMINAL_RESTORE } from '../terminal-cleanup.js';
 
-it('ends synchronized output and resets mouse, styling, cursor, wrapping and alternate screen', () => {
+it('ends synchronized output and resets mouse, styling, cursor, wrapping, pointer shape and alternate screen', () => {
   expect(TERMINAL_RESTORE).toBe(
-    '\x1b[?2026l\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l',
+    '\x1b[?2026l\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b]22;\x07\x1b[?1049l',
   );
 });
 

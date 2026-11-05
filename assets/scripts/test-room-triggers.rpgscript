@@ -66,12 +66,33 @@
 @testFalse
   +a=false
   +b=1
+  +c=false
   +?is(a):{
     +log("A is true")
+  }
+  +?elseif is(c):{
+    +log("C is true (elseif)")
+  }
+  +?elseif any(is(b), is(c)): {
+    +log("B and C are true (elseif)")
   }
   +?else:{
     +log("A is false")
   }
+
+@testWhile
+  +[a]=0
+  +?while lt([a], 10):{
+    +log("a is [a]")
+    +[a]=[a]+1
+    +?eq([a], 5):{
+      +!continue
+    }
+    +?eq([a], 9):{
+      +!break
+    }
+  }
+  +!returnempty
 
 @testPort
   +setConv()

@@ -1,3 +1,4 @@
+import { FOLDER_ICON } from './asset-tree-icons.js';
 import { getFolderAncestors, getParentFolder, type AssetFolders } from '../asset-folders.js';
 
 export type TreeChange =
@@ -135,6 +136,7 @@ export function createAssetTree(options: TreeOptions) {
   });
 
   function render(): void {
+    syncToggleAll();
     list.replaceChildren();
     const query = search.value.trim().toLowerCase();
     const matching = files.filter(
@@ -206,8 +208,7 @@ export function createAssetTree(options: TreeOptions) {
           return button;
         };
         const newFolderButton = createActionButton('', `New folder in ${folder}`, () => void createFolder(folder));
-        // Open folder icon by Delapouite, CC BY 3.0: https://game-icons.net/1x1/delapouite/open-folder.html
-        newFolderButton.innerHTML = '<svg viewBox="0 0 512 512" aria-hidden="true"><path d="M41 73v304.563L88.697 151H423v-30H185.514l-16-48H41zm62.303 96L43.092 455h381.605l60.211-286H103.303z"/></svg>';
+        newFolderButton.innerHTML = FOLDER_ICON;
         const createAsset = options.onCreateAsset;
         if (createAsset)
           createActionButton('+', `New ${options.assetName ?? 'animation'} in ${folder}`, () => createAsset(folder));
@@ -335,6 +336,25 @@ export function createAssetTree(options: TreeOptions) {
       await change({ action: 'delete', folder, expectedIds, expectedFolders });
   }
   search.addEventListener('input', render);
+  const toggleAll = document.createElement('button');
+  toggleAll.type = 'button';
+  toggleAll.className = 'asset-tree-toggle-all';
+  function syncToggleAll(): void {
+    const hasOpen = tree.folders.some((folder) => expanded.has(folder));
+    toggleAll.textContent = hasOpen ? '⊟' : '⊞';
+    toggleAll.title = hasOpen ? 'Collapse all folders' : 'Expand all folders';
+    toggleAll.setAttribute('aria-label', toggleAll.title);
+    toggleAll.disabled = tree.folders.length === 0;
+  }
+  toggleAll.addEventListener('click', () => {
+    if (tree.folders.some((folder) => expanded.has(folder))) expanded.clear();
+    else expanded = new Set(tree.folders);
+    persist();
+    render();
+  });
+  list.previousElementSibling
+    ?.querySelector('.asset-tree-toolbar-actions')
+    ?.prepend(toggleAll);
   function expand(folder: string): void {
     for (const path of getFolderAncestors(folder)) expanded.add(path);
     persist();

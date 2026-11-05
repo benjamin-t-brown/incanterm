@@ -92,7 +92,7 @@ export function getArtCursorCss(kind: ArtCursorKind | 'blocked', pressed: boolea
   const scale = getCursorScale();
   const url = getCursorUrl(kind, pressed, scale);
   if (url.length === 0) return 'crosshair';
-  const x = Math.round(CURSOR_HOT.x * scale);
-  const y = Math.round(CURSOR_HOT.y * scale);
-  return `url("${url}") ${x} ${y}, crosshair`;
+  // image-set tells the browser the PNG is `scale`x density, so it is drawn at CURSOR_UNIT CSS
+  // pixels instead of `scale` times that. The hotspot is in CSS pixels, so it is not scaled.
+  return `image-set(url("${url}") ${scale}x) ${CURSOR_HOT.x} ${CURSOR_HOT.y}, crosshair`;
 }

@@ -5,7 +5,7 @@ import { routeLoopbackInput } from './input.js';
 import { startLoopback, type Loopback } from './start.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
 import { encodeTerminal } from '../game/terminal.js';
-import { formatTerminalError, installTerminalCleanup } from '../client/terminal-cleanup.js';
+import { formatTerminalError, installTerminalCleanup, TERMINAL_POINTER } from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
 
 function parseOptionsFromArgs(args: string[]): {
@@ -149,7 +149,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
     });
     if (closing) throw new Error('Game session closed during startup');
     started = true;
-    process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
+    process.stdout.write(`\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);
     process.stdin.setRawMode(true);
     process.stdin.on('data', onInput);
     process.stdin.resume();

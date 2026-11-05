@@ -24,6 +24,8 @@ export type Condition =
 export type ScriptBlock = Readonly<{
   condition: Condition;
   steps: readonly ScriptStep[];
+  loopTo?: number;
+  loopLine?: number;
 }>;
 export type ScriptDefinition = Readonly<{
   name: string;
@@ -86,6 +88,8 @@ export function parseRpgScript(
       }
       return Object.freeze({
         condition: convertToCondition(block.conditional, file, line),
+        loopTo: block.loopTo,
+        loopLine: block.loopLine,
         steps: Object.freeze(
           block.commands.map((command) =>
             Object.freeze(toStep(command, file, catalog, locals)),
@@ -175,7 +179,9 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
         ? args.length === 2 && args[0] === 'hasItem' &&
           !(typeof args[1] === 'object' && 'type' in args[1])
       : value.type === 'else' || value.type === 'branch'
-        ? args.length === 1 && Number.isInteger(args[0]) && (args[0] as number) >= 0
+        ? args.length >= (1) &&
+          (value.type === 'else' || args.length === 1) &&
+          args.every((arg) => Number.isInteger(arg) && (arg as number) >= 0)
         : value.type === 'once' || value.type === 'oncePerInstance'
           ? args.length <= 1
           : value.type === 'eq' || value.type === 'gt' || value.type === 'lt'
@@ -303,6 +309,7 @@ function isMissingDirectory(error: unknown): boolean {
 
 export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string }>;
 export type ChoicePrompt = Readonly<{ options: readonly string[] }>;
+const maxLoopPasses = 1000;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
 type Frame = {
   onReturn?: (value: RuntimeValue) => void;
@@ -313,6 +320,8 @@ type Frame = {
   passed?: boolean;
   instanceId?: string;
   results?: Map<number, boolean>;
+  /** Completed passes of each active `while`, keyed by its header block. */
+  loopPasses?: Map<number, number>;
 };
 
 export type RunnerOptions<Host> = {
@@ -600,9 +609,11 @@ export class ScriptRunner<Host> {
       return previous;
     }
     if (type === 'else') {
-      const previous = results?.get(args[0] as number);
-      if (previous === undefined) throw new Error('else() has no evaluated preceding branch');
-      return !previous;
+      return args.every((arg) => {
+        const previous = results?.get(arg as number);
+        if (previous === undefined) throw new Error('else() has no evaluated preceding branch');
+        return !previous;
+      });
     }
     if (type === 'all')
       return args.every((arg) =>
@@ -667,9 +678,16 @@ export class ScriptRunner<Host> {
     // Bound immediate work even if scripts recursively call each other.
     let budget = 1000;
     while (this.stack.length) {
-      if (--budget < 0) throw new Error('RPGScript exceeded immediate work budget');
       const frame = this.stack[this.stack.length - 1];
       const block = frame.script.blocks[frame.block];
+      if (--budget < 0) {
+        const line = block?.steps[0]?.line ?? block?.loopLine ?? 1;
+        this.stopForExpressionError(
+          new ScriptExpressionError('RPGScript exceeded immediate work budget'),
+          `${frame.script.file}:${line}`,
+        );
+        return;
+      }
       if (!block) {
         this.stack.pop();
         frame.onReturn?.(undefined);
@@ -693,9 +711,22 @@ export class ScriptRunner<Host> {
         if (!frame.results) frame.results = new Map();
         frame.results.set(frame.block, frame.passed);
         if (frame.passed) for (const key of pending) this.usedOnce.add(key);
+        // A failed header ends its loop; a later re-entry starts counting again.
+        else frame.loopPasses?.delete(frame.block);
       }
       const step = frame.passed ? block.steps[frame.next++] : undefined;
       if (!step) {
+        if (frame.passed && block.loopTo !== undefined) {
+          if (!this.advanceLoopPass(frame, block.loopTo)) {
+            this.stopForExpressionError(
+              new ScriptExpressionError(`while loop exceeded ${maxLoopPasses} iterations`),
+              `${frame.script.file}:${block.loopLine ?? 1} (while)`,
+            );
+            return;
+          }
+          this.jumpToBlock(frame, block.loopTo, block.loopTo);
+          continue;
+        }
         frame.block++;
         frame.next = 0;
         frame.passed = undefined;
@@ -721,6 +752,23 @@ export class ScriptRunner<Host> {
       }
       if (this.dialogue || this.choice || this.centerToast !== undefined || this.isWaitComplete) return;
     }
+  }
+
+  /** Counts one more pass of a loop; false once it has run too many times. */
+  private advanceLoopPass(frame: Frame, header: number): boolean {
+    if (!frame.loopPasses) frame.loopPasses = new Map();
+    const passes = (frame.loopPasses.get(header) ?? 0) + 1;
+    frame.loopPasses.set(header, passes);
+    return passes < maxLoopPasses;
+  }
+
+  /** Moves to a block, discarding branch results from `fromBlock` on so they re-evaluate. */
+  private jumpToBlock(frame: Frame, target: number, fromBlock: number): void {
+    for (const index of frame.results?.keys() ?? [])
+      if (index >= fromBlock) frame.results?.delete(index);
+    frame.block = target;
+    frame.next = 0;
+    frame.passed = undefined;
   }
 
   private stopForExpressionError(error: ScriptExpressionError, location: string): void {
@@ -758,6 +806,15 @@ export class ScriptRunner<Host> {
       returnValue: (value) => {
         this.stack.pop();
         frame.onReturn?.(value);
+      },
+      breakLoop: (target, header) => {
+        frame.loopPasses?.delete(header);
+        this.jumpToBlock(frame, target, header);
+      },
+      continueLoop: (header) => {
+        if (!this.advanceLoopPass(frame, header))
+          throw new ScriptExpressionError(`while loop exceeded ${maxLoopPasses} iterations`);
+        this.jumpToBlock(frame, header, header);
       },
       callSubscript: (ownerId, target) => this.callSubscript(ownerId, target, location),
       showDialogue: (actor, text, emotion) => {

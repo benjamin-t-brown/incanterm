@@ -1,7 +1,11 @@
 import { writeSync } from 'node:fs';
 
+// OSC 22 sets the mouse pointer shape in terminals that support it (kitty, Ghostty, WezTerm);
+// others, including Terminal.app, ignore it. An empty name restores the default pointer.
+export const TERMINAL_POINTER = '\x1b]22;pointer\x07';
+
 // End synchronized output before restoring the cursor and leaving the alternate screen.
-export const TERMINAL_RESTORE = '\x1b[?2026l\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l';
+export const TERMINAL_RESTORE = '\x1b[?2026l\x1b[?1000l\x1b[?1006l\x1b[0m\x1b[?25h\x1b[?7h\x1b]22;\x07\x1b[?1049l';
 
 export function formatTerminalError(message: string): string {
   return `\x1b[91m${message}\x1b[0m`;

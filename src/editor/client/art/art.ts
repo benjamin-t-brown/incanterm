@@ -86,6 +86,7 @@ import {
 import { mergeSprite, rebaseSpriteSaveAs } from '../../art/sprite-merge.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON } from '../asset-tree-icons.js';
 import { mergeJson } from '../../safe-save.js';
 import { saveDraft } from '../save.js';
 import { getArtCursorCss } from './cursors.js';
@@ -105,6 +106,7 @@ import {
   setEditorAssetUrl,
   setupThemeToggle,
 } from '../shell.js';
+import { createPanelResizer } from '../panel-resizer.js';
 
 type Stamp = { width: number; height: number; cells: (SpriteCell | null)[] };
 type Point = { x: number; y: number; sx: number; sy: number };
@@ -217,6 +219,20 @@ function readAnimationSpeed(): number {
 
 export function mountArt(root: HTMLElement): () => void {
   root.innerHTML = getArtMarkup();
+  const editorElement = root.querySelector<HTMLElement>('.editor');
+  const libraryElement = root.querySelector<HTMLElement>('.art-library');
+  const libraryResizer = root.querySelector<HTMLElement>('#art-library-resizer');
+  if (!editorElement || !libraryElement || !libraryResizer)
+    throw new Error('Missing art library layout');
+  const disposeResizer = createPanelResizer({
+    container: editorElement,
+    panel: libraryElement,
+    handle: libraryResizer,
+    storageKey: 'incanterm-art-library-width',
+    defaultWidth: 190,
+    reserve: 700,
+    applyWidth: (width) => editorElement.style.setProperty('--art-library-width', `${width}px`),
+  });
   void preloadSpriteFonts().then(() => {
     if (!alive) return;
     if (autoFit) fit();
@@ -3480,7 +3496,13 @@ export function mountArt(root: HTMLElement): () => void {
   });
   listen(canvas, 'pointermove', (event) => {
     const p = getPoint(event as PointerEvent);
+    const previous = hover;
     hover = p;
+    if (spaceHeld && previous && !gesture) {
+      autoFit = false;
+      ox += p.sx - previous.sx;
+      oy += p.sy - previous.sy;
+    }
     get$<HTMLElement>('#cursor-status').textContent = isInside(p.x, p.y)
       ? `X: ${String(p.x + 1).padStart(2, '0')}   Y: ${String(p.y + 1).padStart(2, '0')}`
       : 'X: --   Y: --';
@@ -3795,8 +3817,8 @@ export function mountArt(root: HTMLElement): () => void {
         keyEvent.preventDefault();
       }
       if (keyEvent.key === 'Delete' || keyEvent.key === 'Backspace') actions.clear();
-      if (key === '+' || key === '=') stepZoom(1);
-      if (key === '-') stepZoom(-1);
+      if (key === '+' || key === '=') stepZoom(1, hover?.sx, hover?.sy);
+      if (key === '-') stepZoom(-1, hover?.sx, hover?.sy);
       if (keyEvent.key === 'Escape') {
         pasteMode = false;
         if (referenceEdit) referenceEdit = false;
@@ -3895,6 +3917,7 @@ export function mountArt(root: HTMLElement): () => void {
 
   return () => {
     alive = false;
+    disposeResizer();
     if (discardOnLeave) discardDrafts();
     else flushPersist();
     stopPlayback();
@@ -3951,8 +3974,9 @@ function getArtMarkup(): string {
     <main class="editor">
       <aside class="art-library" aria-label="Sprites">
         <input id="sprite-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search sprites" autocomplete="off" spellcheck="false">
-        <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-sprite-folder" type="button" aria-label="New folder">+ FOLDER</button></div></div>
+        <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-sprite-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
         <div id="sprite-list" class="art-library-list"></div>
+        <div id="art-library-resizer" class="panel-resizer art-library-resizer" role="separator" aria-label="Resize sprite folders" aria-orientation="vertical" aria-controls="sprite-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
       </aside>
       <aside class="sidebar">
         <div class="sidebar-heading"><span>CONTROL PANEL</span><span class="tiny-box">ART</span></div>

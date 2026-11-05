@@ -9,6 +9,8 @@ import {
   ScriptRunner,
   TriggerType,
 } from './test-support.js';
+import { ScriptRunner as RawScriptRunner } from '../runtime.js';
+import { sceneCommandsShim } from '../../scene-commands-shim.js';
 import { Scene } from '../../scene.js';
 import { getPlainText } from '../../terminal.js';
 import { TerminalScreen } from '../../../client/terminal-screen.js';
@@ -224,6 +226,174 @@ describe('RPGScript execution', () => {
         'else.rpgscript',
       ),
     ).toThrow('requires a preceding conditional');
+  });
+
+  it('supports elseif chains with cached results', () => {
+    const source = `@start
++?is(a):+log("a")
++?elseif is(b):{
+  +log("b")
+}
++?elseif is(c):+log("c")
++?else:+log("none")`;
+    const run = (values: Record<string, boolean>) => {
+      const messages: string[] = [];
+      const runner = new ScriptRunner(parseRpgScript(source, 'elseif.rpgscript'), (m) =>
+        messages.push(m),
+      );
+      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      runner.start('start');
+      return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
+    };
+    expect(run({ a: true, b: true, c: true })).toEqual(['a']);
+    expect(run({ b: true, c: true })).toEqual(['b']);
+    expect(run({ c: true })).toEqual(['c']);
+    expect(run({})).toEqual(['none']);
+    expect(() => parseRpgScript('@start\n+?elseif is(a):+log("x")', 'e.rpgscript')).toThrow(
+      'requires a preceding conditional',
+    );
+  });
+
+  it('runs while loops, re-testing the condition each pass', () => {
+    const run = (source: string, values: Record<string, number> = {}) => {
+      const messages: string[] = [];
+      const runner = new ScriptRunner(parseRpgScript(source, 'while.rpgscript'), (m) =>
+        messages.push(m),
+      );
+      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      runner.start('start');
+      return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
+    };
+    const count = `@start
++?while lt(n, 3):{
+  +log("tick")
+  +n={n}+1
+}
++log("done")`;
+    expect(run(count, { n: 0 })).toEqual(['tick', 'tick', 'tick', 'done']);
+    expect(run(count, { n: 5 })).toEqual(['done']);
+    expect(
+      run(`@start
++?while lt(i, 2):{
+  +?while lt(j, 2):{
+    +log("inner")
+    +j={j}+1
+  }
+  +j=0
+  +i={i}+1
+}`, { i: 0, j: 0 }),
+    ).toEqual(['inner', 'inner', 'inner', 'inner']);
+    expect(
+      run(`@start
++?while lt(n, 4):{
+  +?is(flag):+log("flag")
+  +?else:+log("plain")
+  +n={n}+1
+  +flag=true
+}`, { n: 0 }),
+    ).toEqual(['plain', 'flag', 'flag', 'flag']);
+    expect(() => parseRpgScript('@start\n+?while is(a):+log("x")', 'w.rpgscript')).toThrow(
+      'braced block',
+    );
+    expect(() => parseRpgScript('@start\n+?while once():{\n  +log("x")\n}', 'w.rpgscript')).toThrow(
+      'once',
+    );
+    expect(() =>
+      parseRpgScript('@start\n+?while is(a):{\n  +log("x")\n}\n+?else:+log("y")', 'w.rpgscript'),
+    ).toThrow('requires a preceding conditional');
+  });
+
+  it('supports !break, !continue and !returnempty', () => {
+    const run = (source: string, values: Record<string, number> = {}) => {
+      const messages: string[] = [];
+      const runner = new ScriptRunner(parseRpgScript(source, 'flow.rpgscript'), (m) =>
+        messages.push(m),
+      );
+      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      runner.start('start');
+      return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
+    };
+    expect(
+      run(`@start
++?while lt(n, 10):{
+  +n={n}+1
+  +?gt(n, 3):!break
+  +log("n {n}")
+}
++log("after {n}")`, { n: 0 }),
+    ).toEqual(['n 1', 'n 2', 'n 3', 'after 4']);
+    expect(
+      run(`@start
++?while lt(n, 5):{
+  +n={n}+1
+  +?eq(n, 3):!continue
+  +log("n {n}")
+}`, { n: 0 }),
+    ).toEqual(['n 1', 'n 2', 'n 4', 'n 5']);
+    expect(
+      run(`@start
++?while lt(i, 2):{
+  +i={i}+1
+  +?while lt(j, 5):{
+    +j={j}+1
+    !break
+    +log("unreachable")
+  }
+  +log("i {i} j {j}")
+  +j=0
+}`, { i: 0, j: 0 }),
+    ).toEqual(['i 1 j 1', 'i 2 j 1']);
+    expect(
+      run(`@start
++?while lt(n, 3):{
+  +n={n}+1
+  +?is(flag):+log("flag")
+  +?else:+log("plain")
+  !continue
+  +log("unreachable")
+}`, { n: 0 }),
+    ).toEqual(['plain', 'plain', 'plain']);
+    expect(run('@start\n+log("a")\n!returnempty\n+log("b")')).toEqual(['a']);
+    expect(() => parseRpgScript('@start\n!break', 'f.rpgscript')).toThrow('inside a while loop');
+    expect(() => parseRpgScript('@start\n+?is(a):!continue', 'f.rpgscript')).toThrow(
+      'inside a while loop',
+    );
+    expect(() => parseRpgScript('@start\n!nope', 'f.rpgscript')).toThrow('Unknown control keyword');
+  });
+
+  it('stops runaway while loops with a located error instead of throwing', () => {
+    const createRunner = (source: string) => {
+      const errors: string[] = [];
+      const runner = new RawScriptRunner(
+        parseRpgScript(source, 'loop.rpgscript', { shim: true }),
+        {
+          commands: sceneCommandsShim,
+          context: { writeLine: () => {}, promptChoice: async () => 0 },
+          onCommandError: (error, location) => errors.push(`${location}: ${String(error)}`),
+        },
+      );
+      runner.setStorage('go', true);
+      return { runner, errors };
+    };
+
+    // Pausing every pass never trips the immediate-work budget, so the loop cap stops it.
+    const paused = createRunner('@start\n+?while is(go):{\n  A: "again"\n}');
+    paused.runner.start('start');
+    for (let i = 0; i < 2000 && !paused.errors.length; i++) paused.runner.advance();
+    expect(paused.errors).toHaveLength(1);
+    expect(paused.errors[0]).toContain('loop.rpgscript:2 (while)');
+    expect(paused.errors[0]).toContain('while loop exceeded 1000 iterations');
+    expect(paused.runner.isIdle()).toBe(true);
+
+    // A loop that never pauses hits the budget, reports a location and leaves the runner usable.
+    const spinning = createRunner('@start\n+?while is(go):{\n  +x=1\n}\n@other\n+y=2');
+    spinning.runner.start('start');
+    expect(spinning.errors).toHaveLength(1);
+    expect(spinning.errors[0]).toContain('loop.rpgscript:');
+    expect(spinning.errors[0]).toContain('work budget');
+    expect(spinning.runner.isIdle()).toBe(true);
+    spinning.runner.start('other');
+    expect(spinning.runner.getStorage('y')).toBe(2);
   });
 
   it('uses the saved if result for else even when the if body changes storage', () => {

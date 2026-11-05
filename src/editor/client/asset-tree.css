@@ -24,6 +24,24 @@
   padding: 4px 5px;
   font: inherit;
 }
+.asset-tree-toolbar button svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.asset-tree-toolbar .asset-tree-toggle-all {
+  width: 14px;
+  height: 14px;
+  box-sizing: content-box;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+.asset-tree-toolbar .asset-tree-toggle-all:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .asset-tree-toolbar button:hover,
 .asset-tree-actions button:hover {
   color: var(--highlight);
@@ -131,4 +149,34 @@
   width: 14px;
   height: 14px;
   fill: currentColor;
+}
+
+.panel-resizer {
+  flex: 0 0 10px;
+  margin: 0 -5px;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+}
+.panel-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: var(--line);
+}
+.panel-resizer:hover::after,
+.panel-resizer:focus-visible::after,
+.panel-resizer.dragging::after {
+  background: var(--highlight);
+}
+.panel-resizer:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: -2px;
+}
+.panel-resizer.dragging {
+  user-select: none;
 }

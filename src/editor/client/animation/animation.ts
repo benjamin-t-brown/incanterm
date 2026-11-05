@@ -26,8 +26,10 @@ import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { saveDraft } from '../save.js';
 import { mergeJson } from '../../safe-save.js';
 import { alertModal, askAssetMeta, askFrameDuration, confirmModal, isModalOpen } from '../modal.js';
+import { createPanelResizer } from '../panel-resizer.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON, PERSON_ICON } from '../asset-tree-icons.js';
 import type { AssetFolders } from '../../asset-folders.js';
 
 const MIN_ZOOM = 0.35;
@@ -47,10 +49,10 @@ export function mountAnimation(root: HTMLElement): () => void {
     'Animation',
     `<aside class="anim-library" aria-label="Animations">
         <input id="anim-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search animations" autocomplete="off" spellcheck="false">
-        <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-animation-folder" type="button" title="New folder" aria-label="New folder">+ FOLDER</button><button id="new-character-animations" type="button" title="Create character animations" aria-label="Create character animations">+ CHAR</button></div></div>
+        <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-animation-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button><button id="new-character-animations" type="button" title="Create character animations" aria-label="Create character animations">${PERSON_ICON}</button></div></div>
         <div id="anim-list" class="anim-library-list"></div>
       </aside>
-      <div id="animation-library-resizer" class="animation-library-resizer" role="separator" aria-label="Resize animation folders" aria-orientation="vertical" aria-controls="anim-list" tabindex="0" title="Drag to resize folders; double-click to reset"></div>
+      <div id="animation-library-resizer" class="panel-resizer" role="separator" aria-label="Resize animation folders" aria-orientation="vertical" aria-controls="anim-list" tabindex="0" title="Drag to resize folders; double-click to reset"></div>
       <div class="anim-app">
         <div class="toolbar-row">
           <button type="button" id="new-animation">NEW</button>
@@ -126,64 +128,13 @@ export function mountAnimation(root: HTMLElement): () => void {
   const library = root.querySelector<HTMLElement>('.anim-library');
   const resizer = root.querySelector<HTMLElement>('#animation-library-resizer');
   if (!main || !library || !resizer) throw new Error('Missing animation library layout');
-  const widthKey = 'incanterm-animation-library-width';
-  const defaultWidth = 200;
-  const minimumWidth = 160;
-  const clampWidth = (width: number) =>
-    Math.max(minimumWidth, Math.min(width, Math.max(minimumWidth, main.clientWidth - 330)));
-  const setLibraryWidth = (width: number, persist = true) => {
-    const next = clampWidth(width);
-    library.style.width = `${next}px`;
-    resizer.setAttribute('aria-valuenow', String(next));
-    if (persist) localStorage.setItem(widthKey, String(next));
-  };
-  resizer.setAttribute('aria-valuemin', String(minimumWidth));
-  resizer.setAttribute('aria-valuemax', String(clampWidth(Number.MAX_SAFE_INTEGER)));
-  const storedWidth = Number(localStorage.getItem(widthKey));
-  setLibraryWidth(
-    Number.isFinite(storedWidth) && storedWidth > 0 ? storedWidth : defaultWidth,
-    false,
-  );
-  let drag: { pointerId: number; startX: number; startWidth: number } | null = null;
-  resizer.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    drag = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startWidth: library.getBoundingClientRect().width,
-    };
-    resizer.setPointerCapture(event.pointerId);
-    resizer.classList.add('dragging');
+  const disposeResizer = createPanelResizer({
+    container: main,
+    panel: library,
+    handle: resizer,
+    storageKey: 'incanterm-animation-library-width',
+    defaultWidth: 200,
   });
-  resizer.addEventListener('pointermove', (event) => {
-    if (drag?.pointerId === event.pointerId)
-      setLibraryWidth(drag.startWidth + event.clientX - drag.startX, false);
-  });
-  const endResize = (event: PointerEvent) => {
-    if (drag?.pointerId !== event.pointerId) return;
-    drag = null;
-    resizer.classList.remove('dragging');
-    setLibraryWidth(library.getBoundingClientRect().width);
-  };
-  resizer.addEventListener('pointerup', endResize);
-  resizer.addEventListener('pointercancel', endResize);
-  resizer.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home') return;
-    event.preventDefault();
-    const step = event.shiftKey ? 40 : 10;
-    setLibraryWidth(
-      event.key === 'Home'
-        ? defaultWidth
-        : library.getBoundingClientRect().width + (event.key === 'ArrowRight' ? step : -step),
-    );
-  });
-  resizer.addEventListener('dblclick', () => setLibraryWidth(defaultWidth));
-  const resizeObserver = new ResizeObserver(() => {
-    resizer.setAttribute('aria-valuemax', String(clampWidth(Number.MAX_SAFE_INTEGER)));
-    setLibraryWidth(library.getBoundingClientRect().width, false);
-  });
-  resizeObserver.observe(main);
 
   const get$ = <T extends Element>(selector: string) => {
     const element = root.querySelector(selector);
@@ -1419,7 +1370,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     });
 
   return () => {
-    resizeObserver.disconnect();
+    disposeResizer();
     alive = false;
     ++openToken;
     stop();

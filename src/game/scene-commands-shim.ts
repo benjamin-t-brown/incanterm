@@ -1,4 +1,4 @@
-import { commands, getAnimationStateName, getBusyState, getFacingDirection, getPlayerCharacterName, getSkipWait, getWalkDestination } from './scene-commands.js';
+import { commands, getAnimationStateName, getBark, getBusyState, getFacingDirection, getPlayerCharacterName, getSkipWait, getWalkDestination } from './scene-commands.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -43,6 +43,13 @@ export const sceneCommandsShim = {
     execute: (step, script) => {
       getPlayerCharacterName(step.character, script, 'setFacing');
       getFacingDirection(step.direction, script);
+    },
+  }),
+  bark: defineCommand({
+    parse: commands.bark.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'bark');
+      getBark(step, script);
     },
   }),
   setAnimState: defineCommand({

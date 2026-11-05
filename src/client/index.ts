@@ -1,6 +1,6 @@
 import { connectGameClient } from './connection.js';
 import { matchesViewport, type TerminalViewport } from './viewport.js';
-import { formatTerminalError, installTerminalCleanup } from './terminal-cleanup.js';
+import { formatTerminalError, installTerminalCleanup, TERMINAL_POINTER } from './terminal-cleanup.js';
 import { writeSync } from 'node:fs';
 import { getSessionErrorText } from '../protocol/session-error.js';
 
@@ -32,7 +32,7 @@ const client = connectGameClient(url, {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
     if (process.stdout.isTTY) {
       alternateScreen = true;
-      process.stdout.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h');
+      process.stdout.write(`\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);
     }
     process.stderr.write('Incanterm client. Ctrl-C exits.\n');
     sendResize();

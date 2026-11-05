@@ -29,6 +29,10 @@
       <key>patterns</key>
       <array> 
         <dict>
+          <key>match</key><string>(?:^\s*|(?&lt;=:)\s*)(\+?)(!(?:break|continue|returnempty)\b)</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
+        </dict>
+        <dict>
           <key>begin</key><string>^\s*(&lt;)</string>
           <key>beginCaptures</key><dict><key>1</key><dict><key>name</key><string>keyword.control.return.rpgscript</string></dict></dict>
           <key>end</key><string>$</string>
@@ -666,6 +670,12 @@
           <string>keyword.operator.assignment.rpgscript</string>
         </dict>
         <dict>
+          <key>match</key>
+          <string>(\b(?:elseif|while)\b(?=\s))</string>
+          <key>name</key>
+          <string>keyword.operator.assignment.rpgscript</string>
+        </dict>
+        <dict>
           <key>begin</key>
           <string>(\b(isnot|gt|lt|is|all|any|else|oncePerInstance|one|as|once|eq|this|with|func)\b)</string>
           <key>beginCaptures</key>
@@ -1102,6 +1112,18 @@
         <dict>
           <key>include</key>
           <string>#logic_prefix</string>
+        </dict>
+        <dict>
+          <key>match</key>
+          <string>([\w\x{0020}]+(?=,\s*-?[0-9]+\s*$))</string>
+          <key>name</key>
+          <string>storage.type.function.rpgscript</string>
+        </dict>
+        <dict>
+          <key>match</key>
+          <string>((?&lt;=,)\s*-?[0-9]+(?=\s*(?:,|$)))</string>
+          <key>name</key>
+          <string>variable.other.constant.rpgscript</string>
         </dict>
         <dict>
           <key>match</key>

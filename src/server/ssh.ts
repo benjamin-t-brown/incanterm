@@ -5,7 +5,7 @@ import type { PortraitAssets } from '../game/portrait-assets.js';
 import { Server } from './ssh2.js';
 import { createGameSession, type GameSession } from './game-session.js';
 import { closeServer, listen } from './listen.js';
-import { formatTerminalError, TERMINAL_RESTORE } from '../client/terminal-cleanup.js';
+import { formatTerminalError, TERMINAL_POINTER, TERMINAL_RESTORE } from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
 
 export type SshListener = {
@@ -117,7 +117,7 @@ function bindSession(
     loadSceneById,
   );
   game.resize(cols, rows);
-  stream.write('\x1b[?1000h\x1b[?1006h');
+  stream.write(`\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);
   try {
     game.open();
   } catch (error) {

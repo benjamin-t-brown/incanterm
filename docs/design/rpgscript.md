@@ -241,6 +241,10 @@ The equivalent explicit command is `+playDialogue(Eva, "Hello", happy)`; the emo
 
 Walking is non-blocking: subsequent script commands run immediately. Each character owns its path and movement timing, and the scene updates all characters, including NPCs without player control. Movement uses the existing collision-aware pathfinding and approaches the nearest reachable cell when a destination is blocked. The terminal shim validates arguments without moving a character. Marker destinations are not implemented because scenes do not yet define markers.
 
+### Barks
+
+`bark(ch, text, ?ms, ?skipWait)` shows `text` above a character's head as a UI overlay. The script waits until the bark ends unless `skipWait` is `true`. `ms` defaults to 2000. Text is center-aligned and wrapped to 20 columns, stacked upward so it stays above the character. A new bark replaces the character's current one; barks clear on scene change.
+
 ### Command groups
 
 Replace game-specific command implementations with an Incanterm library. Candidate groups, not finalized signatures:
@@ -276,6 +280,18 @@ The workspace config points the existing language extension at `src/game/scene-c
 Use `+?else:{ ... }` for an else block or `+?else:+command(...)` for an inline
 else branch. Parentheses are optional for `else`; the older `+?else():` spelling
 has identical behavior and remains supported.
+
+Chain further branches with `+?elseif cond:{ ... }` (or an inline `+?elseif cond:+command(...)`). An `elseif` runs only when every earlier branch in its chain failed and its own condition passes; a trailing `else` runs only when none ran. Like `else`, it uses the earlier branches' cached results and is an error without a preceding conditional at the same block depth.
+
+Loop with `+?while cond:{ ... }`. The condition is re-tested before every pass (unlike `if`, whose result is cached), and branch results inside the body reset each pass. The body must be a braced block, `once` and `oncePerInstance` are rejected as loop conditions, and an `else` cannot follow a loop. Dialogue and waits work inside the body. Runaway loops are bounded two ways, and both stop the script with a file/line error through the normal command-error path instead of throwing: a single `while` stops after 1000 passes (even if it pauses for dialogue or waits each pass), and a run of more than 1000 steps without pausing hits the runner's immediate-work budget.
+
+Control keywords are line prefixes written with `!`, like `<` for return, and work on their own line or after a condition (`+?gt(n, 5):!break`):
+
+- `!break` leaves the innermost `while` and continues after it.
+- `!continue` skips to the next pass of the innermost `while`, re-testing its condition. It counts toward the 1000-pass cap.
+- `!returnempty` exits the current script and returns undefined, the same as a bare `<`.
+
+`!break` and `!continue` outside a `while` are errors, in both the runtime and the editor. A called script's loops are independent, so neither keyword can leave the caller's loop. `<value` and `!returnempty` leave the whole script, not just the loop.
 
 ## Adaptation outline
 

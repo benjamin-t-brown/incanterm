@@ -60,7 +60,12 @@ export function createGameSession(
   let portraitStart = 0;
   let animationTimer: ReturnType<typeof setTimeout> | undefined;
   const layout = new LayoutStandardScene(scene);
-  const gameContext: GameScriptContext = { scene, playerControl: control, changeScene };
+  const gameContext: GameScriptContext = {
+    scene,
+    playerControl: control,
+    changeScene,
+    bark: (character, text, ms) => layout.addBark(character, text, ms),
+  };
   const runner =
     scripts &&
     new ScriptRunner(scripts, {
@@ -118,6 +123,7 @@ export function createGameSession(
     control.changeScene(scene, player);
     gameContext.scene = scene;
     layout.scene = scene;
+    layout.clearBarks();
     pendingLoadTriggers = [...scene.triggers];
     runner?.restartTimers(scene.triggers);
     previousFrame = undefined;
@@ -259,6 +265,7 @@ export function createGameSession(
     try {
       const now = Date.now();
       scene.update(now - lastUpdate);
+      layout.updateBarks(now - lastUpdate);
       control.update();
       runner?.update();
       finishConversationIfIdle();

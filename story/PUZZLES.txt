@@ -1,14 +1,74 @@
 Rooms
 
 - School + School Hallway
+  - Johnathan has to take the Office Envelope to the office from classroom1, which is inconvenient to get to.
 
-- Science closet 
+  - Goals
+    - Setup characters and relationships
+    - Establish setting
+    - Not too difficult of puzzle, thought something to set tone
 
-  - Johnathan and Vivi get teleported into the Science Closet.  It's locked from the outside by a thin metal door.  Inside the closet is a bunch of old machines/crates and storage from years past.  To get out of the room they must use the massive focus magnet on a cart to pull it towards the door at high speed to knock it down.  To activate the magnet, it needs power: two batteries that can be found elsewhere in the room.  Battery 1 can be found powering an old terminal that seems to connect to a database of school stuff.  To get the battery, terminal must be put in maintenance mode, which unlocks its internals.  Maintenance mode requires a password (user has to type this in), the password is written on the last page an old text book, by a forgetful teacher.  One of these books is on a shelf in the room, but it's last page is ripped so the password is incomplete.  Johnathan can look up what other books are assigned to that teacher, then use another machine to fetch books from the Book Vault.
+  - Quest item give chain
+    - The automatic door to the office is broken, Johanthan can talk to the PA who says they called maintenance but they haven't showed up yet.  They ask Johnathan to go to maintenance to see.
+    - Maintenance is not at their post, so Johnathan calls the office, and he is asked to fix it himself.  To do so he needs an access card to reset the system.  The office checks and says that these are given out upon request, all the maintenance people have it, but also one was given to Otis.
+    - Otis is cagey about the pass, but agrees to give it if he asks his sister Vivi out.  Johanthan goes and asks Vivi out, who tells him no, initially.  Otis is mad so he goes off to tell Vivi off. He tells Johanthan that he gave the pass to Skye.  
+    - Skye is talking with Ada at her locker.  She remembers Otis giving her the pass and says that she wants him to get her a soda from the vending machine, then she'll give him the pass.  Johnathan doesn't have any money though, and she suggests asking the the cafeteria for any loose change.
+    - Skye got the pass to get her out of detention, but she forgot where she put it.  She thinks she maybe left it in classroom 8 where her last class was.
+    - In classroom 8 Iroha tells Johnathan that anything left in the classroom after class is taken to the lost and found in the office.
+    - Johnathan goes back to the PA and has the office person find the pass and reset the system from her end.
 
-  - Storage Escape-the-room 
-    - Move boxes
-    - Find batteries
-    - Activate magnet
-    - Old terminal that requires a combination to open
-    - Get Vivi to stand on Johnathan's shoulders
+  - Items
+    - Office Envelope
+    - Spare Change
+    - Can of Soda
+
+- Office
+  - The office worker directs Johanthan to hand the envelope directly to the Overseer in his office.  While in the office, the Overseer is having a meeting with Dedrick who says he was supposed to get help from maintenance to assist him in his work in finishing up the school's Revirtualis install, and he hasn't received it, so he won't be finished by his contract time today.  The Overseer tells him he needs to finish as his company said it would be done, he needs to take it up with them.  He leaves in a huff.  Johnathan hands the envelope to the Overseer and asks what's so important that he hand it over himself.  The Overseer says its need to know, and Johnathan leaves.
+  - Outside the office Dedrick is muttering to himself when he sees Johnathan and has an idea.  He asks Johnathan if he can help him out.  Johanthan is resistant says he needs to go to his job interview, but Dedrick offers him a bunch of money for a "small job".  This entices Johnathan into following him.
+  - Dedrick takes Johnathan to an area that was previously marked off as Do Not Enter. Inside is a big machine that Dedrick explains takes him to a Revirtualis: a virtual world that the school wants to use to augment learning.  He tells Johnathan that while he operates the machine he needs Johnathan to go in there and find the bug that is causing some issue with the system.  He warns Johanthan he mind end up someplace a little odd, but he should just find his wait to the main halloway to diagnose.  Once he identifies the bug just go ahead and leave the Revirutalis from there and Dedrick can take care of the bug.  He sends Johanthan to the Revirtualis.
+
+  - Goals
+    - No puzzles, advance story
+
+- Science closet
+
+  - Johnathan and Vivi get teleported into the Science Closet. It is locked from the outside by a thin metal door. Inside is old machines, crates, and storage from years past. A massive focus magnet sits on a cart. Sent at the door at high speed, it knocks the door down. The magnet needs two batteries before it will run.
+
+  - Goals
+    - Build rapport with Vivi and Johnathan
+    - Solve a more difficult puzzle
+    - Build tension with setting
+    - More item-based puzzle
+
+  - Steps
+    - Find the old textbook on the shelf. A forgetful teacher wrote the terminal password on the last page, but that page is ripped, so the password is incomplete.
+    - On the old terminal, which is still running and connected to a database of school stuff, look up the other books assigned to that teacher.
+    - Use the other machine to fetch those books from the Book Vault.
+    - Read the complete password on the last page of a fetched book.
+    - Type the password into the terminal. That puts it in maintenance mode and unlocks its internals.
+    - Take battery 1 out of the terminal.
+    - Find battery 2 elsewhere in the room.
+    - Install both batteries in the focus magnet, send the cart into the door, and knock it down.
+
+
+- Main Hall
+
+  - Goals
+    - Hub for seperation of puzzles
+    - Meta progression of story
+
+- Pool/Gym
+  - Perform acts/feats of strength without hurting yourself
+  - Vivi
+
+- Library/Complab
+  - Isolation/maze complexity without getting lost
+  - Conscience
+
+- Cafeteria/Cooking lab
+  - Cook things and burn them without deailing with cost
+  - Everybody
+
+- Historical Battle Simulator
+  - Show historical scenes how it would have actually looked in the past
+  - Otis

@@ -23,6 +23,32 @@ const findLineNum = (lines: string[], str: string) => {
   return -1;
 };
 
+/**
+ * Reads argument names from a `const name = defineCommand({ parse: ... })` block. Names come from
+ * the object keys that `parse` builds from `args[N]`; a key whose line also checks `args.length`
+ * (e.g. `ms: args.length >= 3 ? ... args[2] ...`) is optional and shown as `?name`.
+ */
+export const getDefineCommandArgs = (
+  lines: string[],
+  lineNum: number
+): string[] => {
+  const names: string[] = [];
+  for (let i = lineNum + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*(?:export\s+)?(?:const|function)\s/.test(line) || /^\}\);?\s*$/.test(line)) {
+      break;
+    }
+    if (/^\s*execute\s*:/.test(line)) {
+      break;
+    }
+    for (const m of line.matchAll(/(\w+)\s*:\s*([^,]*?)\bargs\[(\d+)\]/g)) {
+      const optional = m[2].includes('args.length') || /args\.length\s*[>=]/.test(line);
+      names[Number(m[3])] = (optional ? '?' : '') + m[1];
+    }
+  }
+  return Array.from(names, (name, i) => name ?? `arg${i}`);
+};
+
 export const getSceneCommands = (fetchAnyway?: boolean) => {
   if (!fetchAnyway) {
     const savedCommands = getCommands();
@@ -78,7 +104,9 @@ export const getSceneCommands = (fetchAnyway?: boolean) => {
   const commandsMetadata: SceneCommandMetadata[] = commands.map((name) => {
     const lineNum = findLineNum(lines, `const ${name} = `);
     let args: string[] = [];
-    if (lineNum > -1) {
+    if (lineNum > -1 && /=\s*defineCommand\s*\(/.test(lines[lineNum])) {
+      args = getDefineCommandArgs(lines, lineNum);
+    } else if (lineNum > -1) {
       let offset = 9;
       if (lines[lineNum].includes('export')) {
         offset += 6;

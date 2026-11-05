@@ -69,6 +69,12 @@ export type AudioFile = {
 
 const AUDIO_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(wav|ogg|mp3)$/i;
 
+type AssetFolderKind = 'animations' | 'scenes' | 'sprites' | 'props' | 'characters';
+type AssetFolderChange =
+  | { action: 'create' | 'rename'; folder: string; name: string }
+  | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
+  | { action: 'move'; id: string; folder: string };
+
 export class AssetStore {
   private readonly saves = new SaveCoordinator();
 
@@ -210,13 +216,13 @@ export class AssetStore {
   async deleteSprite(id: string): Promise<void> {
     const file = this.getFile('sprites', id, '.json');
     await this.saves.run(file, () =>
-      this.saves.run(this.getSpriteFoldersPath(), async () => {
+      this.saves.run(this.getAssetFoldersPath('sprites'), async () => {
         await this.remove(file);
         await this.deleteReference(id, true);
         const tree = await this.getSpriteFolders();
         if (tree.placements[id]) {
           delete tree.placements[id];
-          await this.writeAtomic(this.getSpriteFoldersPath(), getJson(tree));
+          await this.writeAtomic(this.getAssetFoldersPath('sprites'), getJson(tree));
         }
       }),
     );
@@ -330,18 +336,6 @@ export class AssetStore {
     return labels;
   }
 
-  private getAnimationFoldersPath(): string {
-    return path.join(this.root, 'animation-folders.json');
-  }
-
-  private getSceneFoldersPath(): string {
-    return path.join(this.root, 'scene-folders.json');
-  }
-
-  private getSpriteFoldersPath(): string {
-    return path.join(this.root, 'sprite-folders.json');
-  }
-
   async getAnimationFolders(): Promise<AssetFolders> {
     return this.getAssetFolders('animations');
   }
@@ -354,7 +348,15 @@ export class AssetStore {
     return this.getAssetFolders('sprites');
   }
 
-  private async getAssetFolders(kind: 'animations' | 'scenes' | 'sprites'): Promise<AssetFolders> {
+  async getPropFolders(): Promise<AssetFolders> {
+    return this.getAssetFolders('props');
+  }
+
+  async getCharacterFolders(): Promise<AssetFolders> {
+    return this.getAssetFolders('characters');
+  }
+
+  private async getAssetFolders(kind: AssetFolderKind): Promise<AssetFolders> {
     let value: unknown;
     try {
       value = await this.readJson(this.getAssetFoldersPath(kind));
@@ -368,9 +370,8 @@ export class AssetStore {
     return parsed;
   }
 
-  private getAssetFoldersPath(kind: 'animations' | 'scenes' | 'sprites'): string {
-    if (kind === 'animations') return this.getAnimationFoldersPath();
-    return kind === 'scenes' ? this.getSceneFoldersPath() : this.getSpriteFoldersPath();
+  private getAssetFoldersPath(kind: AssetFolderKind): string {
+    return path.join(this.root, `${kind.slice(0, -1)}-folders.json`);
   }
 
   async changeAnimationFolders(
@@ -400,8 +401,23 @@ export class AssetStore {
     return this.changeAssetFolders('sprites', change);
   }
 
+  async changePropFolders(change: AssetFolderChange): Promise<AssetFolders> {
+    return this.changeAssetFolders('props', change);
+  }
+
+  async changeCharacterFolders(change: AssetFolderChange): Promise<AssetFolders> {
+    return this.changeAssetFolders('characters', change);
+  }
+
+  private async clearPlacement(kind: AssetFolderKind, id: string): Promise<void> {
+    const tree = await this.getAssetFolders(kind);
+    if (!tree.placements[id]) return;
+    delete tree.placements[id];
+    await this.writeAtomic(this.getAssetFoldersPath(kind), getJson(tree));
+  }
+
   private async changeAssetFolders(
-    kind: 'animations' | 'scenes' | 'sprites',
+    kind: AssetFolderKind,
     change:
       | { action: 'create' | 'rename'; folder: string; name: string }
       | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
@@ -464,6 +480,8 @@ export class AssetStore {
           throw new AssetError('Folder not found', 404);
         if (kind === 'animations') await this.readAnimation(change.id);
         else if (kind === 'scenes') await this.readScene(change.id);
+        else if (kind === 'props') await this.readProp(change.id);
+        else if (kind === 'characters') await this.readCharacter(change.id);
         else await this.readSprite(change.id);
         if (change.folder) tree.placements[change.id] = change.folder;
         else delete tree.placements[change.id];
@@ -521,7 +539,7 @@ export class AssetStore {
         ? operation()
         : this.saves.run(files[index], () => withLocks(index + 1, operation));
     return withLocks(0, () =>
-      this.saves.run(this.getAnimationFoldersPath(), async () => {
+      this.saves.run(this.getAssetFoldersPath('animations'), async () => {
         const tree = await this.getAnimationFolders();
         if (parent && !tree.folders.includes(parent)) throw new AssetError('Folder not found', 404);
         if (tree.folders.includes(folder)) throw new AssetError('Folder already exists', 409);
@@ -540,7 +558,7 @@ export class AssetStore {
           }
           tree.folders.push(folder);
           for (const id of ids) tree.placements[id] = folder;
-          await this.writeAtomic(this.getAnimationFoldersPath(), getJson(tree));
+          await this.writeAtomic(this.getAssetFoldersPath('animations'), getJson(tree));
         } catch (error) {
           for (const file of created) await this.removeIfExists(file);
           throw error;
@@ -596,11 +614,11 @@ export class AssetStore {
     const file = this.getFile('animations', id, '.json');
     await this.saves.run(file, async () => {
       await this.remove(file);
-      await this.saves.run(this.getAnimationFoldersPath(), async () => {
+      await this.saves.run(this.getAssetFoldersPath('animations'), async () => {
         const tree = await this.getAnimationFolders();
         if (tree.placements[id]) {
           delete tree.placements[id];
-          await this.writeAtomic(this.getAnimationFoldersPath(), getJson(tree));
+          await this.writeAtomic(this.getAssetFoldersPath('animations'), getJson(tree));
         }
       });
     });
@@ -614,12 +632,12 @@ export class AssetStore {
     return this.saves.run(source, async () => {
       await this.readAnimation(from);
       const copy = await this.saveAnimationDraft(id, draft, null);
-      await this.saves.run(this.getAnimationFoldersPath(), async () => {
+      await this.saves.run(this.getAssetFoldersPath('animations'), async () => {
         const tree = await this.getAnimationFolders();
         const folder = tree.placements[from];
         if (folder) {
           tree.placements[id] = folder;
-          await this.writeAtomic(this.getAnimationFoldersPath(), getJson(tree));
+          await this.writeAtomic(this.getAssetFoldersPath('animations'), getJson(tree));
         }
       });
       return copy;
@@ -642,12 +660,12 @@ export class AssetStore {
         const renamed = { ...animation, id };
         await this.writeAtomic(destination, getJson(renamed));
         await this.remove(original);
-        await this.saves.run(this.getAnimationFoldersPath(), async () => {
+        await this.saves.run(this.getAssetFoldersPath('animations'), async () => {
           const tree = await this.getAnimationFolders();
           if (tree.placements[from]) {
             tree.placements[id] = tree.placements[from];
             delete tree.placements[from];
-            await this.writeAtomic(this.getAnimationFoldersPath(), getJson(tree));
+            await this.writeAtomic(this.getAssetFoldersPath('animations'), getJson(tree));
           }
         });
         return renamed;
@@ -700,7 +718,12 @@ export class AssetStore {
 
   async deleteProp(id: string): Promise<void> {
     const file = this.getFile('props', id, '.json');
-    await this.saves.run(file, () => this.remove(file));
+    await this.saves.run(file, () =>
+      this.saves.run(this.getAssetFoldersPath('props'), async () => {
+        await this.remove(file);
+        await this.clearPlacement('props', id);
+      }),
+    );
   }
 
   async listCharacters(): Promise<string[]> {
@@ -752,7 +775,12 @@ export class AssetStore {
 
   async deleteCharacter(id: string): Promise<void> {
     const file = this.getFile('characters', id, '.json');
-    await this.saves.run(file, () => this.remove(file));
+    await this.saves.run(file, () =>
+      this.saves.run(this.getAssetFoldersPath('characters'), async () => {
+        await this.remove(file);
+        await this.clearPlacement('characters', id);
+      }),
+    );
     for (const sceneId of await this.listScenes()) await this.readScene(sceneId);
   }
 
@@ -869,12 +897,12 @@ export class AssetStore {
   async deleteScene(id: string): Promise<void> {
     const file = this.getFile('scenes', id, '.json');
     await this.saves.run(file, () =>
-      this.saves.run(this.getSceneFoldersPath(), async () => {
+      this.saves.run(this.getAssetFoldersPath('scenes'), async () => {
         await this.remove(file);
         const tree = await this.getSceneFolders();
         if (tree.placements[id]) {
           delete tree.placements[id];
-          await this.writeAtomic(this.getSceneFoldersPath(), getJson(tree));
+          await this.writeAtomic(this.getAssetFoldersPath('scenes'), getJson(tree));
         }
       }),
     );

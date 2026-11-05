@@ -35,6 +35,10 @@ export async function dispatchAssetRequest(
       return await handleSceneFoldersRequest(store, method, rawBody, 'scenes');
     if (parts[1] === 'sprite-folders' && parts.length === 2)
       return await handleSceneFoldersRequest(store, method, rawBody, 'sprites');
+    if (parts[1] === 'prop-folders' && parts.length === 2)
+      return await handleSceneFoldersRequest(store, method, rawBody, 'props');
+    if (parts[1] === 'character-folders' && parts.length === 2)
+      return await handleSceneFoldersRequest(store, method, rawBody, 'characters');
     if (parts[1] === 'animations')
       return await handleAnimationsRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'props')
@@ -217,11 +221,20 @@ async function handleSceneFoldersRequest(
   store: AssetStore,
   method: string,
   rawBody: string | Buffer,
-  kind: 'scenes' | 'sprites',
+  kind: 'scenes' | 'sprites' | 'props' | 'characters',
 ): Promise<AssetResponse> {
-  const getFolders = () => kind === 'scenes' ? store.getSceneFolders() : store.getSpriteFolders();
-  const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) =>
-    kind === 'scenes' ? store.changeSceneFolders(change) : store.changeSpriteFolders(change);
+  const getFolders = () => ({
+    scenes: () => store.getSceneFolders(),
+    sprites: () => store.getSpriteFolders(),
+    props: () => store.getPropFolders(),
+    characters: () => store.getCharacterFolders(),
+  })[kind]();
+  const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) => ({
+    scenes: () => store.changeSceneFolders(change),
+    sprites: () => store.changeSpriteFolders(change),
+    props: () => store.changePropFolders(change),
+    characters: () => store.changeCharacterFolders(change),
+  })[kind]();
   if (method === 'GET') return getJson(200, await getFolders());
   if (method !== 'POST') return getJson(405, { error: 'Method not allowed' });
   const body = getRecord(parseJson(rawBody));

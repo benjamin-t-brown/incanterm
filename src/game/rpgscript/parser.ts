@@ -117,6 +117,10 @@ export interface Command {
 export interface CommandBlock {
   conditional: Conditional | boolean;
   commands: Command[];
+  /** Marks a loop's closing block: when it runs, execution jumps back to this block index. */
+  loopTo?: number;
+  /** Source line of the `while` that this closing block belongs to. */
+  loopLine?: number;
 }
 
 export interface Trigger {
@@ -142,6 +146,18 @@ function addCommandBlock(script: ParsedScript): CommandBlock {
   return block;
 }
 
+function hasOnceCondition(condition: Conditional | boolean): boolean {
+  if (typeof condition !== 'object') return false;
+  return (
+    condition.type === 'once' ||
+    condition.type === 'oncePerInstance' ||
+    condition.args.some(
+      (arg) =>
+        typeof arg === 'object' && arg !== null && 'type' in arg && hasOnceCondition(arg as Conditional),
+    )
+  );
+}
+
 export class ScriptParser {
   constructor(readonly name: string) {}
 
@@ -151,6 +167,14 @@ export class ScriptParser {
 
   parseCommand(commandSrc: string, lineNum: number, script?: ParsedScript): Command {
     commandSrc = commandSrc.trim();
+    if (commandSrc.startsWith('!')) {
+      const keyword = commandSrc.slice(1).replace(/;$/, '').trim();
+      if (keyword === 'returnempty') return this.parseCommand('returnValue()', lineNum, script);
+      // Loop targets are block indexes, filled in when the enclosing `while` closes.
+      if (keyword === 'break') return { i: lineNum, type: 'breakLoop', args: [] };
+      if (keyword === 'continue') return { i: lineNum, type: 'continueLoop', args: [] };
+      this.throwParsingError(`Unknown control keyword "!${keyword}"`, lineNum, commandSrc);
+    }
     if (commandSrc.startsWith('<')) {
       const value = commandSrc.slice(1).replace(/;$/, '').trim();
       return this.parseCommand(`returnValue(${value})`, lineNum, script);
@@ -310,6 +334,22 @@ export class ScriptParser {
     script?: ParsedScript,
   ): Conditional | boolean {
     if (conditionalSrc.trim() === 'else') conditionalSrc = 'else()';
+    const whileLoop = /^while\s+(.+)$/s.exec(conditionalSrc.trim());
+    if (whileLoop) {
+      const condition = this.parseConditional(whileLoop[1], lineNum, script);
+      if (hasOnceCondition(condition)) {
+        this.throwParsingError(
+          'while cannot use once or oncePerInstance, which would stop the loop after one pass',
+          lineNum,
+          conditionalSrc,
+        );
+      }
+      return { type: 'while', args: [condition] };
+    }
+    const elseIf = /^elseif\s+(.+)$/s.exec(conditionalSrc.trim());
+    if (elseIf) {
+      return { type: 'elseif', args: [this.parseConditional(elseIf[1], lineNum, script)] };
+    }
     const { type, args } = this.parseCommand(conditionalSrc, lineNum, script);
     const validTypes = [
       'is',
@@ -320,6 +360,8 @@ export class ScriptParser {
       'any',
       'all',
       'else',
+      'elseif',
+      'while',
       'as',
       'once',
       'oncePerInstance',
@@ -452,7 +494,22 @@ export class ScriptParser {
     let conditionalStack: (Conditional | boolean)[] = [];
     // The most recent unmatched conditional at each brace depth. `else()` refers
     // to its block index so its result cannot change when its body mutates storage.
-    const previousBranch = new Map<number, number>();
+    const previousBranch = new Map<number, number[]>();
+    // Header block index of each open `while` body, keyed by the brace depth it opened at.
+    const loopHeaders = new Map<number, { block: number; line: number; jumps: Command[] }>();
+    const parseLineCommand = (src: string, lineNum: number, script: ParsedScript): Command => {
+      const command = this.parseCommand(src, lineNum, script);
+      if (command.type === 'breakLoop' || command.type === 'continueLoop') {
+        const innermost = Math.max(-1, ...loopHeaders.keys());
+        const loop = loopHeaders.get(innermost);
+        if (loop) loop.jumps.push(command);
+        else {
+          const keyword = command.type === 'breakLoop' ? '!break' : '!continue';
+          this.throwParsingError(`${keyword} must be inside a while loop`, lineNum, src);
+        }
+      }
+      return command;
+    };
     const lines = src.split('\n');
 
     lines.forEach((line: string, lineNum: number) => {
@@ -474,6 +531,21 @@ export class ScriptParser {
           this.throwParsingError('Unexpected closing brace', lineNum, line);
         }
         conditionalStack.pop();
+        const loopHeader = loopHeaders.get(conditionalStack.length);
+        if (loopHeader && currentScript) {
+          loopHeaders.delete(conditionalStack.length);
+          const loopEnd = addCommandBlock(currentScript);
+          loopEnd.conditional = { type: 'branch', args: [loopHeader.block] };
+          loopEnd.loopTo = loopHeader.block;
+          loopEnd.loopLine = loopHeader.line;
+          const afterLoop = currentScript.blocks.length;
+          for (const jump of loopHeader.jumps) {
+            jump.args =
+              jump.type === 'breakLoop'
+                ? [afterLoop, loopHeader.block]
+                : [loopHeader.block];
+          }
+        }
         for (const depth of previousBranch.keys()) {
           if (depth > conditionalStack.length) previousBranch.delete(depth);
         }
@@ -533,6 +605,7 @@ export class ScriptParser {
         isChoice = false;
         conditionalStack = [];
         previousBranch.clear();
+        loopHeaders.clear();
       } else if (firstCh === '$') {
         previousBranch.clear();
         isChoice = true;
@@ -563,9 +636,9 @@ export class ScriptParser {
           y: 0,
         };
         addTrigger(line.substr(1), currentTrigger);
-      } else if (firstCh === '+' || firstCh === '<' || isCodeBlock) {
+      } else if (firstCh === '+' || firstCh === '<' || firstCh === '!' || isCodeBlock) {
         isChoice = false;
-        const commandContents = line.substr(isCodeBlock || firstCh === '<' ? 0 : 1);
+        const commandContents = line.substr(isCodeBlock || firstCh === '<' || firstCh === '!' ? 0 : 1);
         if (currentScript) {
           let { conditional, endIndex } = this.getConditionalFromLine(
             commandContents,
@@ -573,25 +646,63 @@ export class ScriptParser {
             currentScript,
           );
           const depth = conditionalStack.length;
-          const isElse = typeof conditional === 'object' && conditional.type === 'else';
-          if (isElse && typeof conditional === 'object') {
-            const preceding = previousBranch.get(depth);
-            if (conditional.args.length !== 0 || preceding === undefined) {
+          const isWhile = typeof conditional === 'object' && conditional.type === 'while';
+          if (isWhile && typeof conditional === 'object') {
+            if (commandContents.slice(endIndex).trim() !== '{') {
+              this.throwParsingError('while requires a braced block', lineNum, line);
+            }
+            previousBranch.delete(conditionalStack.length);
+            const block = addCommandBlock(currentScript);
+            block.conditional = this.createAllConditional(
+              conditional.args[0] as Conditional,
+              ...conditionalStack,
+            );
+            loopHeaders.set(conditionalStack.length, {
+              block: currentScript.blocks.length - 1,
+              line: lineNum,
+              jumps: [],
+            });
+            conditionalStack.push({ type: 'branch', args: [currentScript.blocks.length - 1] });
+            isCodeBlock = true;
+            currentBlock = block;
+            return;
+          }
+          const isElseIf = typeof conditional === 'object' && conditional.type === 'elseif';
+          const isElse = isElseIf || (typeof conditional === 'object' && conditional.type === 'else');
+          let chain: number[] = [];
+          if (typeof conditional === 'object' && isElse) {
+            const preceding = previousBranch.get(depth) ?? [];
+            if ((!isElseIf && conditional.args.length !== 0) || preceding.length === 0) {
               this.throwParsingError(
-                'else() requires a preceding conditional at the same level',
+                `${isElseIf ? 'elseif' : 'else()'} requires a preceding conditional at the same level`,
                 lineNum,
                 line,
               );
             }
-            conditional = { type: 'else', args: [preceding] };
-            previousBranch.delete(depth);
+            const elseCondition: Conditional = { type: 'else', args: [...preceding] };
+            if (isElseIf) {
+              chain = preceding;
+              conditional = this.createAllConditional(
+                elseCondition,
+                conditional.args[0] as Conditional,
+              ) as Conditional;
+            } else {
+              conditional = elseCondition;
+              previousBranch.delete(depth);
+            }
           } else if (conditional === true) {
             previousBranch.delete(depth);
           }
+          const script = currentScript;
+          const setPreviousBranch = () => {
+            if (isElseIf || !isElse) {
+              previousBranch.set(depth, [...chain, script.blocks.length - 1]);
+            }
+          };
           if (typeof conditional === 'object') {
             if (commandContents.slice(endIndex).trim() === '{') {
               const block = addCommandBlock(currentScript);
-              if (!isElse) previousBranch.set(depth, currentScript.blocks.length - 1);
+              setPreviousBranch();
               block.conditional = this.createAllConditional(conditional, ...conditionalStack);
               conditionalStack.push({
                 type: 'branch',
@@ -602,7 +713,7 @@ export class ScriptParser {
               return;
             } else if (endIndex === commandContents.length) {
               currentBlock = addCommandBlock(currentScript);
-              if (!isElse) previousBranch.set(depth, currentScript.blocks.length - 1);
+              setPreviousBranch();
               currentBlock.conditional = this.createAllConditional(
                 conditional,
                 ...conditionalStack,
@@ -611,7 +722,7 @@ export class ScriptParser {
             }
             // An inline conditional is a separate block even inside a braced parent.
             const block = addCommandBlock(currentScript);
-            if (!isElse) previousBranch.set(depth, currentScript.blocks.length - 1);
+            setPreviousBranch();
             block.conditional = this.createAllConditional(conditional, ...conditionalStack);
             let commandSrc = commandContents.slice(endIndex);
             if (commandSrc[0] === '+') commandSrc = commandSrc.slice(1);
@@ -619,7 +730,7 @@ export class ScriptParser {
             block.commands.push(
               isDialog
                 ? this.createDialogCommand(commandSrc, lineNum)
-                : this.parseCommand(commandSrc, lineNum, currentScript),
+                : parseLineCommand(commandSrc, lineNum, currentScript),
             );
             currentBlock = null;
             return;
@@ -661,7 +772,7 @@ export class ScriptParser {
             return;
           }
 
-          block.commands.push(this.parseCommand(commandSrc, lineNum, currentScript));
+          block.commands.push(parseLineCommand(commandSrc, lineNum, currentScript));
         }
       } else if (isChoice) {
         const colonIndex = line.indexOf(':');

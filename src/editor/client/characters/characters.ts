@@ -25,12 +25,14 @@ import {
 } from '../../schema.js';
 import { preloadSpriteFonts, terminalCellAtZoom } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
-import { ApiError, requestJson } from '../api.js';
+import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { alertModal, askAssetMeta, confirmModal } from '../modal.js';
+import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON } from '../asset-tree-icons.js';
+import { createPanelResizer } from '../panel-resizer.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
-import { characterListEntries } from './character-list.js';
 import { getPortraitAssetLabel } from '../../characters/portrait-label.js';
 import { getMissingAnimationStates } from '../../characters/missing-animation.js';
 import { getAnimationChoiceLabels } from '../../characters/animation-choice-labels.js';
@@ -40,8 +42,9 @@ export function mountCharacters(root: HTMLElement): () => void {
     'Characters',
     `<aside class="anim-library character-library" aria-label="Characters">
     <input id="character-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search characters">
-    <div id="character-list" class="asset-list anim-library-list"></div>
-  </aside><section class="character-app" aria-label="Character editor">
+    <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-character-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
+    <div id="character-list" class="anim-library-list"></div>
+  </aside><div id="character-library-resizer" class="panel-resizer" role="separator" aria-label="Resize character folders" aria-orientation="vertical" aria-controls="character-list" tabindex="0" title="Drag to resize; double-click to reset"></div><section class="character-app" aria-label="Character editor">
     <div id="character-tabs" class="prop-tabs" role="tablist" aria-label="Open characters"></div>
     <div class="toolbar-row"><button id="new-character" type="button">NEW</button>
       <button id="new-character-from-folder" type="button">NEW FROM ANIMATION FOLDER</button>
@@ -104,6 +107,14 @@ export function mountCharacters(root: HTMLElement): () => void {
     if (!node) throw new Error(`Missing ${selector}`);
     return node;
   };
+  const disposeResizer = createPanelResizer({
+    container: get$<HTMLElement>('.prop-main'),
+    panel: get$<HTMLElement>('.character-library'),
+    handle: get$<HTMLElement>('#character-library-resizer'),
+    storageKey: 'incanterm-character-library-width',
+    defaultWidth: 200,
+    minWidth: 190,
+  });
   const list = get$<HTMLElement>('#character-list');
   const search = get$<HTMLInputElement>('#character-search');
   const status = get$<HTMLElement>('#character-status');
@@ -158,6 +169,64 @@ export function mountCharacters(root: HTMLElement): () => void {
   };
   const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Character request failed';
+  let newCharacterFolder = '';
+  const pendingCharacterFolders = new Map<string, string>();
+  const assetTree = createAssetTree({
+    list,
+    search,
+    label: 'CHARACTERS',
+    assetName: 'character',
+    storageKey: 'incanterm-character-folders-expanded',
+    onSelect: (id) => void open(id),
+    onCreateAsset: (folder) => {
+      newCharacterFolder = folder;
+      get$<HTMLButtonElement>('#new-character').click();
+    },
+    onChange: async (change) => {
+      if (
+        change.action === 'delete' &&
+        (change.expectedIds.some(isTabDirty) ||
+          [...pendingCharacterFolders.values()].some(
+            (folder) => folder === change.folder || folder.startsWith(`${change.folder}/`),
+          ))
+      )
+        throw new Error('Save or close unsaved character drafts before deleting this folder');
+      const folders = await requestJson<AssetFolders>(
+        '/api/character-folders',
+        jsonRequest('POST', change),
+      );
+      if (change.action === 'delete') {
+        for (const id of change.expectedIds) sessions.delete(id);
+        openTabs = openTabs.filter((id) => !change.expectedIds.includes(id));
+        if (current && change.expectedIds.includes(current.id)) {
+          ++loading;
+          current = null;
+          saved = null;
+          setEditorAssetUrl(null);
+        }
+        await refresh();
+        const next = openTabs[openTabs.length - 1];
+        if (!current && next) await open(next);
+      }
+      return folders;
+    },
+    askName: askId,
+    confirmDelete: (folder, characters, subfolders) =>
+      confirmModal(
+        characters.length || subfolders.length
+          ? `Delete folder ${folder} and everything inside it?${subfolders.length ? `\nSubfolders: ${subfolders.join(', ')}` : ''}${characters.length ? `\nCharacters to delete:\n${characters.map(({ label, id }) => `• ${label} (${id})`).join('\n')}` : ''}\nThis cannot be undone.`
+          : `Delete empty folder ${folder}?`,
+        'DELETE',
+      ),
+    onError: (message) => {
+      status.textContent = message;
+      toast(message, true);
+    },
+  });
+  get$<HTMLButtonElement>('#new-character-folder').addEventListener(
+    'click',
+    () => void assetTree.createFolder(),
+  );
   function toast(message: string, error = false): void {
     const item = document.createElement('div');
     item.className = error ? 'save-toast error' : 'save-toast';
@@ -296,18 +365,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
 
   function renderList(): void {
-    list.replaceChildren();
-    const matches = characterListEntries(files, characterLabels, current, search.value);
-    if (!matches.length)
-      list.textContent = files.length || current ? 'No matches.' : 'No characters.';
-    for (const { id, label } of matches) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-      button.classList.toggle('active', id === current?.id);
-      button.addEventListener('click', () => void open(id));
-      list.append(button);
-    }
+    assetTree.select(current?.id ?? null);
   }
 
   function getStateRow(name: string, animation: string, extra: boolean): HTMLElement {
@@ -728,15 +786,17 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
 
   async function refresh(): Promise<void> {
-    const [characters, animations, sprites, colors, folders] = await Promise.all([
+    const [characters, animations, sprites, colors, folders, characterFolders] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/characters'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
       requestJson<AssetFolders>('/api/animation-folders'),
+      requestJson<AssetFolders>('/api/character-folders'),
     ]);
     if (!alive) return;
     files = characters.files;
+    assetTree.setData(files, characterFolders, characters.labels);
     openTabs = openTabs.filter(
       (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
@@ -788,6 +848,20 @@ export function mountCharacters(root: HTMLElement): () => void {
         setEditorAssetUrl(sent.id);
         renderTabs();
         scheduleTabs();
+        const pendingFolder = pendingCharacterFolders.get(sent.id);
+        if (pendingFolder) {
+          try {
+            await requestJson<AssetFolders>(
+              '/api/character-folders',
+              jsonRequest('POST', { action: 'move', id: sent.id, folder: pendingFolder }),
+            );
+          } catch (error) {
+            const message = `Saved ${sent.id}, but could not place it in ${pendingFolder}: ${showMessage(error)}`;
+            status.textContent = message;
+            toast(message, true);
+          }
+          pendingCharacterFolders.delete(sent.id);
+        }
         await refresh();
       }
     } catch (error) {
@@ -805,7 +879,6 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
   }
 
-  search.addEventListener('input', renderList);
   const folderPicker = get$<HTMLElement>('#character-folder-picker');
   function renderFolderPicker(): void {
     const previous = folderPicker.querySelector<HTMLInputElement>('input')?.value ?? '';
@@ -983,6 +1056,8 @@ export function mountCharacters(root: HTMLElement): () => void {
   });
   get$<HTMLButtonElement>('#new-character').addEventListener('click', () => {
     void (async () => {
+      const folder = newCharacterFolder;
+      newCharacterFolder = '';
       const entered = await askId('New character label');
       if (entered === null) return;
       const labelError = getCharacterLabelError(entered);
@@ -992,6 +1067,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       const id = crypto.randomUUID();
       ++loading;
       activateCharacter(createCharacter(id, clips[0], entered), null);
+      if (folder) pendingCharacterFolders.set(id, folder);
       status.textContent = `New character ${entered}`;
     })();
   });
@@ -1019,6 +1095,7 @@ export function mountCharacters(root: HTMLElement): () => void {
         ++loading;
         openTabs = openTabs.filter((tab) => tab !== id);
         sessions.delete(id);
+        pendingCharacterFolders.delete(id);
         current = null;
         saved = null;
         setEditorAssetUrl(null);
@@ -1061,6 +1138,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    disposeResizer();
     persistTabs();
     ++loading;
     ++previewToken;

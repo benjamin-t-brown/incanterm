@@ -79,6 +79,8 @@ import {
 import { ApiError, jsonRequest, requestJson } from '../api.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON } from '../asset-tree-icons.js';
+import { createPanelResizer } from '../panel-resizer.js';
 import { alertModal, confirmModal, isModalOpen, promptModal } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
@@ -91,8 +93,9 @@ export function mountScenes(root: HTMLElement): () => void {
     'Scene',
     `<aside class="scene-library" aria-label="Scenes">
     <input id="scene-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search scenes" autocomplete="off">
-    <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-scene-folder" type="button" aria-label="New folder">+ FOLDER</button></div></div>
+    <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-scene-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
     <div id="scene-list" class="scene-library-list"></div></aside>
+    <div id="scene-library-resizer" class="panel-resizer" role="separator" aria-label="Resize scene folders" aria-orientation="vertical" aria-controls="scene-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
     <section class="scene-app" aria-label="Scene editor">
       <div class="toolbar-row"><strong id="scene-title">NO SCENE</strong></div>
       <div id="scene-workspace" class="scene-workspace" hidden>
@@ -176,6 +179,13 @@ export function mountScenes(root: HTMLElement): () => void {
     if (!node) throw new Error(`Missing ${selector}`);
     return node;
   };
+  const disposeResizer = createPanelResizer({
+    container: get$<HTMLElement>('.scene-main'),
+    panel: get$<HTMLElement>('.scene-library'),
+    handle: get$<HTMLElement>('#scene-library-resizer'),
+    storageKey: 'incanterm-scene-library-width',
+    defaultWidth: 190,
+  });
   const list = get$<HTMLElement>('#scene-list');
   const inspector = get$<HTMLElement>('#scene-inspector');
   const status = get$<HTMLElement>('#scene-status');
@@ -2391,8 +2401,19 @@ export function mountScenes(root: HTMLElement): () => void {
       render();
   }
   canvas.addEventListener('pointermove', (event) => {
+    const previousMouse = canvasMouse;
     canvasMouse = { clientX: event.clientX, clientY: event.clientY };
     if (pan) return;
+    if (spaceHeld && previousMouse) {
+      autoFit = false;
+      view = {
+        ...view,
+        x: view.x + event.clientX - previousMouse.clientX,
+        y: view.y + event.clientY - previousMouse.clientY,
+      };
+      applyView();
+      return;
+    }
     if (blockStroke?.pointerId === event.pointerId && current) {
       const point = getCanvasPoint(event);
       if (point) {
@@ -2929,6 +2950,25 @@ export function mountScenes(root: HTMLElement): () => void {
       syncCursor();
       event.preventDefault();
     }
+    if (
+      (event.key === '=' || event.key === '+' || event.key === '-') &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      current &&
+      !backgroundPicker.open &&
+      !propPicker.open &&
+      !characterPicker.open &&
+      !isModalOpen() &&
+      !(event.target instanceof HTMLInputElement) &&
+      !(event.target instanceof HTMLTextAreaElement) &&
+      !(event.target instanceof HTMLSelectElement) &&
+      !(event.target instanceof HTMLElement && event.target.isContentEditable)
+    ) {
+      event.preventDefault();
+      const pixel = canvasMouse ? getViewportPixel(canvasMouse) : undefined;
+      stepZoom(event.key === '-' ? -1 : 1, pixel?.x, pixel?.y);
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
       void save();
@@ -2987,6 +3027,7 @@ export function mountScenes(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    disposeResizer();
     persistTabs();
     ++token;
     ++pickerToken;

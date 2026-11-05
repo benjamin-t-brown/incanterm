@@ -81,6 +81,7 @@
     "test:locals": "node scripts/test-local-scope.js",
     "test:arguments": "node scripts/test-arguments.js",
     "test:action-headers": "node src/server/src/rpgscript/__tests__/action-header.test.cjs",
+    "test:define-command-args": "node src/server/src/rpgscript/__tests__/define-command-args.test.cjs",
     "test:once-ids": "node src/server/src/rpgscript/__tests__/once-id.test.cjs",
     "package": "webpack --mode production --devtool hidden-source-map && npm run build:server"
   },

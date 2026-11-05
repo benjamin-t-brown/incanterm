@@ -3,6 +3,7 @@
 import type { Command, ScriptValue } from './rpgscript/parser.js';
 import type { PlayerControl } from './player-control.js';
 import type { Scene } from './scene.js';
+import type { Character } from './character.js';
 import { findCharacter, findPath } from './character-movement.js';
 import { CHARACTER_DIRECTIONS, type CharacterDirection } from '../editor/schema.js';
 import { defineCommand, type CommandContext } from './rpgscript/command.js';
@@ -10,6 +11,7 @@ import { defineCommand, type CommandContext } from './rpgscript/command.js';
 export type GameScriptContext = {
   scene: Scene;
   playerControl: PlayerControl;
+  bark?: (character: Character, text: string, ms: number) => () => boolean;
   changeScene?: (sceneId: string, markerName: string | undefined, location: string) => Promise<void>;
 };
 
@@ -45,6 +47,22 @@ const returnValue = defineCommand({
     return { value: args.length ? getScriptValue(args[0], location) : undefined };
   },
   execute: (step, context) => context.returnValue(step.value === undefined ? undefined : context.value(step.value)),
+});
+
+const breakLoop = defineCommand({
+  parse: (args) => {
+    if (args.length !== 2 || typeof args[0] !== 'number' || typeof args[1] !== 'number') return;
+    return { target: args[0], header: args[1] };
+  },
+  execute: (step, context) => context.breakLoop(step.target, step.header),
+});
+
+const continueLoop = defineCommand({
+  parse: (args) => {
+    if (args.length !== 1 || typeof args[0] !== 'number') return;
+    return { header: args[0] };
+  },
+  execute: (step, context) => context.continueLoop(step.header),
 });
 
 const callScriptResult = defineCommand({
@@ -332,6 +350,24 @@ const setFacing = defineCommand({
   },
 });
 
+const bark = defineCommand({
+  parse: (args, location) => {
+    if (args.length < 2 || args.length > 4) return;
+    return {
+      character: getScriptValue(args[0], location),
+      text: getScriptValue(args[1], location),
+      ms: args.length >= 3 ? getScriptValue(args[2], location) : undefined,
+      skipWait: args.length === 4 ? getScriptValue(args[3], location) : undefined,
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'bark');
+    const { text, ms, skipWait } = getBark(step, script);
+    const isDone = game.bark?.(findCharacter(game.scene, name, game.playerControl.playerWalkCh), text, ms);
+    if (isDone && !skipWait) script.waitUntil(isDone);
+  },
+});
+
 const setAnimState = defineCommand({
   parse: (args, location) => {
     if (args.length !== 2) return;
@@ -429,6 +465,8 @@ export const commands = {
   callScript,
   callScriptResult,
   returnValue,
+  breakLoop,
+  continueLoop,
   callChSubscript,
   setBusy,
   playDialogue,
@@ -448,6 +486,7 @@ export const commands = {
   chWalkToCoord,
   walkToMarker,
   setFacing,
+  bark,
   setAnimState,
   changeScene,
   awaitChoice,
@@ -508,4 +547,20 @@ export function getAnimationStateName(value: ScriptValue, script: CommandContext
   if (typeof state !== 'string' || !state.trim())
     throw new Error(`${script.location}: setAnimState requires an animation state name`);
   return state;
+}
+
+export const DEFAULT_BARK_MS = 2000;
+
+export function getBark(
+  step: { text: ScriptValue; ms?: ScriptValue; skipWait?: ScriptValue },
+  script: CommandContext,
+): { text: string; ms: number; skipWait: boolean } {
+  const text = script.value(step.text);
+  if (typeof text !== 'string' && typeof text !== 'number' && typeof text !== 'boolean')
+    throw new Error(`${script.location}: bark text must be a string`);
+  const ms = step.ms === undefined ? DEFAULT_BARK_MS : Number(script.value(step.ms));
+  if (!Number.isFinite(ms) || ms <= 0)
+    throw new Error(`${script.location}: bark ms must be a positive number`);
+  const skipWait = step.skipWait === undefined ? false : getSkipWait(step.skipWait, script);
+  return { text: String(text), ms, skipWait };
 }

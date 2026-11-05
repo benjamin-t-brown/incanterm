@@ -308,6 +308,17 @@ export class Script {
   }
 }
 
+function hasOnceCondition(condition: Conditional | boolean): boolean {
+  if (typeof condition !== 'object') return false;
+  return (
+    condition.type === 'once' ||
+    condition.type === 'oncePerInstance' ||
+    condition.args.some(
+      arg => typeof arg === 'object' && arg !== null && 'type' in arg && hasOnceCondition(arg as Conditional)
+    )
+  );
+}
+
 export class ScriptParser {
   name: string;
   soundsToLoad: any[];
@@ -328,6 +339,13 @@ export class ScriptParser {
 
   parseCommand(commandSrc: string, lineNum: number, script?: Script): Command {
     commandSrc = commandSrc.trim();
+    if (commandSrc.startsWith('!')) {
+      const keyword = commandSrc.slice(1).replace(/;$/, '').trim();
+      if (keyword === 'returnempty') return this.parseCommand('returnValue()', lineNum, script);
+      if (keyword === 'break') return { i: lineNum, type: 'breakLoop', args: [] };
+      if (keyword === 'continue') return { i: lineNum, type: 'continueLoop', args: [] };
+      this.throwParsingError(`Unknown control keyword "!${keyword}"`, lineNum, commandSrc);
+    }
     if (commandSrc.startsWith('<')) {
       const value = commandSrc.slice(1).replace(/;$/, '').trim();
       return this.parseCommand(`returnValue(${value})`, lineNum, script);
@@ -509,6 +527,25 @@ export class ScriptParser {
     script?: Script
   ): Conditional | boolean {
     if (conditionalSrc.trim() === 'else') conditionalSrc = 'else()';
+    const whileLoop = /^while\s+(.+)$/s.exec(conditionalSrc.trim());
+    if (whileLoop) {
+      const condition = this.parseConditional(whileLoop[1], lineNum, script);
+      if (hasOnceCondition(condition)) {
+        this.throwParsingError(
+          'while cannot use once or oncePerInstance, which would stop the loop after one pass',
+          lineNum,
+          conditionalSrc
+        );
+      }
+      return { type: 'while', args: [condition] };
+    }
+    const elseIf = /^elseif\s+(.+)$/s.exec(conditionalSrc.trim());
+    if (elseIf) {
+      return {
+        type: 'elseif',
+        args: [this.parseConditional(elseIf[1], lineNum, script)]
+      };
+    }
     const { type, args } = this.parseCommand(conditionalSrc, lineNum, script);
     const validTypes = [
       'is',
@@ -519,6 +556,8 @@ export class ScriptParser {
       'any',
       'all',
       'else',
+      'elseif',
+      'while',
       'as',
       'once',
       'oncePerInstance',
@@ -683,6 +722,8 @@ export class ScriptParser {
     let currentTriggerName: string | null = null;
     const conditionalStack: (Conditional | boolean)[] = [];
     const previousBranches = new Set<number>();
+    // Brace depth each open `while` body started at; `!break`/`!continue` need one.
+    const loopDepths: number[] = [];
     const lines = src.split('\n');
 
     let lastValidLine = 0;
@@ -708,6 +749,7 @@ export class ScriptParser {
         }
         currentBlock = null;
         conditionalStack.pop();
+        if (loopDepths[loopDepths.length - 1] === conditionalStack.length) loopDepths.pop();
         for (const depth of previousBranches) {
           if (depth > conditionalStack.length) previousBranches.delete(depth);
         }
@@ -715,6 +757,7 @@ export class ScriptParser {
       } else if ((firstCh === '@' || line.startsWith('#@')) && !isCodeBlock) {
         const isActionHeader = line.startsWith('#@');
         previousBranches.clear();
+        loopDepths.length = 0;
         let signature: ReturnType<typeof parseScriptSignature>;
         try {
           signature = parseScriptSignature(line.slice(isActionHeader ? 2 : 1));
@@ -771,8 +814,8 @@ export class ScriptParser {
         currentTriggerName = line.substr(1);
         currentTrigger = new Trigger(line.substr(1), this.name, lineNum);
         addTrigger(line.substr(1), currentTrigger);
-      } else if (firstCh === '+' || firstCh === '<' || isCodeBlock) {
-        const commandContents = line.substr(isCodeBlock || firstCh === '<' ? 0 : 1);
+      } else if (firstCh === '+' || firstCh === '<' || firstCh === '!' || isCodeBlock) {
+        const commandContents = line.substr(isCodeBlock || firstCh === '<' || firstCh === '!' ? 0 : 1);
         if (currentScript) {
           const { conditional, endIndex } = this.getConditionalFromLine(
             commandContents,
@@ -785,6 +828,16 @@ export class ScriptParser {
               this.throwParsingError('else() requires a preceding conditional at the same level', lineNum, line);
             }
             previousBranches.delete(depth);
+          } else if (typeof conditional === 'object' && conditional.type === 'while') {
+            if (commandContents.slice(endIndex).trim() !== '{') {
+              this.throwParsingError('while requires a braced block', lineNum, line);
+            }
+            previousBranches.delete(depth);
+            loopDepths.push(depth);
+          } else if (typeof conditional === 'object' && conditional.type === 'elseif') {
+            if (!previousBranches.has(depth)) {
+              this.throwParsingError('elseif requires a preceding conditional at the same level', lineNum, line);
+            }
           } else if (typeof conditional === 'object') {
             previousBranches.add(depth);
           } else {
@@ -823,6 +876,13 @@ export class ScriptParser {
 
           let commandSrc = commandContents.substr(endIndex);
           const isDialog = /(.*): "(.*)"/.test(commandSrc);
+          if (/^!(break|continue)\b/.test(commandSrc.trim()) && loopDepths.length === 0) {
+            this.throwParsingError(
+              `${commandSrc.trim().replace(/;$/, '')} must be inside a while loop`,
+              lineNum,
+              line
+            );
+          }
           if (commandSrc[0] === '?') {
             this.throwParsingError(
               `Invalid conditional, did you forget '+' at the start?`,

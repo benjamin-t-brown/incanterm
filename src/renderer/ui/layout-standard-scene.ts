@@ -1,4 +1,5 @@
 import type { CellBuffer, Cell } from '../../game/cell-buffer.js';
+import type { Character } from '../../game/character.js';
 import { renderView, type Scene } from '../../game/scene.js';
 import { UIElement, DrawContext } from './element.js';
 import { ParagraphWrapped, wrapParagraph } from './paragraph-wrapped.js';
@@ -26,6 +27,8 @@ export const STANDARD_BACKGROUND: Cell = {
   bg: { r: 12, g: 14, b: 13 },
 };
 const MAX_LOG_ENTRIES = 100;
+export const BARK_MAX_WIDTH = 20;
+type Bark = { character: Character; lines: string[]; remainingMs: number };
 export const ERROR_LOG_FG = { r: 255, g: 64, b: 64 };
 
 export class LayoutStandardScene extends UIElement {
@@ -41,6 +44,52 @@ export class LayoutStandardScene extends UIElement {
   private viewportWidth = 0;
   private viewportHeight = 0;
   private canClick = false;
+  private barks: Bark[] = [];
+
+  /** Returns a predicate that is true once the bark has expired, been replaced, or been cleared. */
+  addBark(character: Character, text: string, ms: number): () => boolean {
+    this.barks = this.barks.filter((bark) => bark.character !== character);
+    const bark = { character, lines: wrapParagraph(text, BARK_MAX_WIDTH), remainingMs: ms };
+    this.barks.push(bark);
+    return () => !this.barks.includes(bark);
+  }
+
+  updateBarks(deltaMs: number): void {
+    for (const bark of this.barks) bark.remainingMs -= deltaMs;
+    this.barks = this.barks.filter((bark) => bark.remainingMs > 0);
+  }
+
+  clearBarks(): void {
+    this.barks = [];
+  }
+
+  private renderBarks(buffer: CellBuffer): void {
+    const originX = this.x + Math.floor((STANDARD_WIDTH - this.scene.width) / 2);
+    const originY = this.y + Math.floor((STANDARD_WORLD_HEIGHT - this.scene.height) / 2);
+    const minY = Math.max(0, this.y);
+    const maxY = Math.min(buffer.height, this.y + STANDARD_WORLD_HEIGHT);
+    for (const bark of this.barks) {
+      const { sprite } = bark.character;
+      const width = Math.max(...bark.lines.map((line) => line.length));
+      const centerX = originX + bark.character.x - sprite.originX + Math.floor(sprite.width / 2);
+      const left = Math.min(
+        Math.max(this.x, centerX - Math.floor(width / 2)),
+        this.x + STANDARD_WIDTH - width,
+      );
+      const bottom = originY + bark.character.y - sprite.originY - 1;
+      const top = Math.max(minY, bottom - bark.lines.length + 1);
+      bark.lines.forEach((line, index) => {
+        const y = top + index;
+        if (y >= maxY || y < minY) return;
+        const pad = Math.floor((width - line.length) / 2);
+        for (let i = 0; i < line.length; i++) {
+          const x = left + pad + i;
+          if (x < 0 || x >= buffer.width || line[i] === ' ') continue;
+          buffer.set(x, y, { ...UI_INK, ch: line[i] });
+        }
+      });
+    }
+  }
 
   getScenePoint(x: number, y: number): { x: number; y: number } | undefined {
     const portrait = this.dialoguePanel.portraitBox;
@@ -187,6 +236,7 @@ export class LayoutStandardScene extends UIElement {
       Math.min(buffer.height - 1, this.y + this.ui.y + this.ui.height - 1),
       'right',
     );
+    this.renderBarks(buffer);
     if (this.centerToast.visible) this.centerToast.render(buffer);
   }
 

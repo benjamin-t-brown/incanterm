@@ -38,8 +38,12 @@ import {
   propVisualEditHref,
   getPropVisualSize,
 } from '../../props/prop-picker.js';
-import { ApiError, requestJson } from '../api.js';
+import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { alertModal, confirmModal } from '../modal.js';
+import type { AssetFolders } from '../../asset-folders.js';
+import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON } from '../asset-tree-icons.js';
+import { createPanelResizer } from '../panel-resizer.js';
 import { saveDraft } from '../save.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 
@@ -48,8 +52,10 @@ export function mountProps(root: HTMLElement): () => void {
     'Props',
     `<aside class="anim-library prop-library" aria-label="Props">
       <input id="prop-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search props" autocomplete="off" spellcheck="false">
-      <div id="prop-list" class="asset-list anim-library-list"></div>
+      <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-prop-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
+      <div id="prop-list" class="anim-library-list"></div>
     </aside>
+    <div id="prop-library-resizer" class="panel-resizer" role="separator" aria-label="Resize prop folders" aria-orientation="vertical" aria-controls="prop-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
     <section class="prop-app" aria-label="Prop editor">
       <div id="prop-tabs" class="prop-tabs" role="tablist" aria-label="Open props"></div>
       <div class="toolbar-row">
@@ -93,6 +99,13 @@ export function mountProps(root: HTMLElement): () => void {
     if (!element) throw new Error(`Missing ${selector}`);
     return element;
   };
+  const disposeResizer = createPanelResizer({
+    container: get$<HTMLElement>('.prop-main'),
+    panel: get$<HTMLElement>('.prop-library'),
+    handle: get$<HTMLElement>('#prop-library-resizer'),
+    storageKey: 'incanterm-prop-library-width',
+    defaultWidth: 200,
+  });
   const search = get$<HTMLInputElement>('#prop-search');
   const list = get$<HTMLElement>('#prop-list');
   const status = get$<HTMLElement>('#prop-status');
@@ -153,6 +166,61 @@ export function mountProps(root: HTMLElement): () => void {
   );
   const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Prop request failed';
+  let newPropFolder = '';
+  const pendingPropFolders = new Map<string, string>();
+  const assetTree = createAssetTree({
+    list,
+    search,
+    label: 'PROPS',
+    assetName: 'prop',
+    storageKey: 'incanterm-prop-folders-expanded',
+    onSelect: (id) => void open(id),
+    onCreateAsset: (folder) => {
+      newPropFolder = folder;
+      get$<HTMLButtonElement>('#new-prop').click();
+    },
+    onChange: async (change) => {
+      if (
+        change.action === 'delete' &&
+        (change.expectedIds.some(isTabDirty) ||
+          [...pendingPropFolders.values()].some(
+            (folder) => folder === change.folder || folder.startsWith(`${change.folder}/`),
+          ))
+      )
+        throw new Error('Save or close unsaved prop drafts before deleting this folder');
+      const folders = await requestJson<AssetFolders>('/api/prop-folders', jsonRequest('POST', change));
+      if (change.action === 'delete') {
+        for (const id of change.expectedIds) sessions.delete(id);
+        openTabs = openTabs.filter((id) => !change.expectedIds.includes(id));
+        if (current && change.expectedIds.includes(current.id)) {
+          ++loading;
+          current = null;
+          saved = null;
+          setEditorAssetUrl(null);
+        }
+        await refresh();
+        const next = openTabs[openTabs.length - 1];
+        if (!current && next) await open(next);
+      }
+      return folders;
+    },
+    askName: askId,
+    confirmDelete: (folder, props, subfolders) =>
+      confirmModal(
+        props.length || subfolders.length
+          ? `Delete folder ${folder} and everything inside it?${subfolders.length ? `\nSubfolders: ${subfolders.join(', ')}` : ''}${props.length ? `\nProps to delete:\n${props.map(({ label, id }) => `• ${label} (${id})`).join('\n')}` : ''}\nThis cannot be undone.`
+          : `Delete empty folder ${folder}?`,
+        'DELETE',
+      ),
+    onError: (message) => {
+      status.textContent = message;
+      toast(message, true);
+    },
+  });
+  get$<HTMLButtonElement>('#new-prop-folder').addEventListener(
+    'click',
+    () => void assetTree.createFolder(),
+  );
 
   function toast(text: string, error = false): void {
     const item = document.createElement('div');
@@ -267,23 +335,7 @@ export function mountProps(root: HTMLElement): () => void {
   }
 
   function renderList(): void {
-    list.replaceChildren();
-    const query = search.value.trim().toLowerCase();
-    const matches = files.filter((id) => id.toLowerCase().includes(query));
-    if (matches.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'anim-picker-empty';
-      empty.textContent = files.length === 0 ? 'No props.' : 'No matches.';
-      list.append(empty);
-    }
-    for (const id of matches) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = id;
-      button.classList.toggle('active', current?.id === id);
-      button.addEventListener('click', () => void open(id));
-      list.append(button);
-    }
+    assetTree.select(current?.id ?? null);
   }
 
   function loadSheet(id: string): Promise<SpriteDocument> {
@@ -660,14 +712,16 @@ export function mountProps(root: HTMLElement): () => void {
   }
 
   async function refresh(): Promise<void> {
-    const [props, sheets, clips, colors] = await Promise.all([
+    const [props, sheets, clips, colors, folders] = await Promise.all([
       requestJson<{ files: string[] }>('/api/props'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
       requestJson<PaletteDocument>('/api/palette'),
+      requestJson<AssetFolders>('/api/prop-folders'),
     ]);
     if (!alive) return;
     files = props.files;
+    assetTree.setData(files, folders);
     openTabs = openTabs.filter(
       (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
@@ -718,6 +772,19 @@ export function mountProps(root: HTMLElement): () => void {
         toast(status.textContent, !merged.ok);
         renderTabs();
         scheduleTabs();
+      }
+      const pendingFolder = pendingPropFolders.get(sent.id);
+      if (pendingFolder) {
+        try {
+          await requestJson<AssetFolders>('/api/prop-folders', jsonRequest('POST', {
+            action: 'move', id: sent.id, folder: pendingFolder,
+          }));
+        } catch (error) {
+          const message = `Saved ${sent.id}, but could not place it in ${pendingFolder}: ${showMessage(error)}`;
+          status.textContent = message;
+          toast(message, true);
+        }
+        pendingPropFolders.delete(sent.id);
       }
       if (alive) await refresh();
     } catch (error) {
@@ -917,10 +984,11 @@ export function mountProps(root: HTMLElement): () => void {
       }
     });
   }
-  search.addEventListener('input', renderList);
   get$<HTMLButtonElement>('#save-prop').addEventListener('click', () => void save());
   get$<HTMLButtonElement>('#new-prop').addEventListener('click', () => {
     void (async () => {
+      const folder = newPropFolder;
+      newPropFolder = '';
       const id = await askId('New prop id');
       if (!id) return;
       if (!isAssetId(id)) return void alertModal('Use a short lowercase id');
@@ -942,6 +1010,7 @@ export function mountProps(root: HTMLElement): () => void {
       }
       if (!alive || token !== loading) return;
       activateProp({ ...createProp(id, visual), ...(size ?? {}) }, null);
+      if (folder) pendingPropFolders.set(id, folder);
       status.textContent = `New prop ${id}`;
     })();
   });
@@ -958,6 +1027,7 @@ export function mountProps(root: HTMLElement): () => void {
         ++loading;
         openTabs = openTabs.filter((tab) => tab !== id);
         sessions.delete(id);
+        pendingPropFolders.delete(id);
         current = null;
         saved = null;
         status.textContent = 'Prop deleted';
@@ -1006,6 +1076,7 @@ export function mountProps(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    disposeResizer();
     persistTabs();
     ++loading;
     ++pickerToken;

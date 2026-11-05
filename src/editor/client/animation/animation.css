@@ -151,35 +151,6 @@
   border: 1px solid var(--line);
   background: var(--inset);
 }
-.animation-library-resizer {
-  flex: 0 0 10px;
-  margin: 0 -5px;
-  z-index: 1;
-  cursor: col-resize;
-  touch-action: none;
-  position: relative;
-}
-.animation-library-resizer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 4px;
-  width: 2px;
-  background: var(--line);
-}
-.animation-library-resizer:hover::after,
-.animation-library-resizer:focus-visible::after,
-.animation-library-resizer.dragging::after {
-  background: var(--highlight);
-}
-.animation-library-resizer:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: -2px;
-}
-.animation-library-resizer.dragging {
-  user-select: none;
-}
 .anim-library-list {
   overflow: auto;
   flex: 1 1 auto;

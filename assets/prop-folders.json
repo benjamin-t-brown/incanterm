@@ -1,0 +1,11 @@
+{
+  "folders": [
+    "school"
+  ],
+  "placements": {
+    "clock_static": "school",
+    "desk1": "school",
+    "podium": "school",
+    "poster_smiley": "school"
+  }
+}

@@ -147,6 +147,10 @@ contexts [] {
 ##############################################
 
 main : context {
+   : pattern {
+      regex          \= (?:^\s*|(?<=:)\s*)(\+?)(!(?:break|continue|returnempty)\b)
+      styles []       = .control, .control;
+   }
    : inline_push {
       regex          \= (^\s*<)
       styles []       = .control;
@@ -349,6 +353,10 @@ logic : context {
       regex          \= (\belse\b(?=\s*:))
       styles []       = .control;
    }
+   : pattern {
+      regex          \= (\b(?:elseif|while)\b(?=\s))
+      styles []       = .control;
+   }
    : inline_push {
       regex          \= $${__LOGIC}
       styles []       = .control;
@@ -368,7 +376,15 @@ logic : context {
 trigger : context {
    : eol_pop {}
    : include "logic_prefix" ;
-      : pattern {
+   : pattern {
+      regex \= ([\w ]+(?=,\s*-?[0-9]+\s*$))
+      styles [] = .function;
+   }
+   : pattern {
+      regex \= ((?<=,)\s*-?[0-9]+(?=\s*(?:,|$)))
+      styles [] = .number;
+   }
+   : pattern {
       regex \= ([\w ]*,)
       styles [] = .parameter;
    }
