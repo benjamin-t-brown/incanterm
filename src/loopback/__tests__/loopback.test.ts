@@ -8,6 +8,7 @@ import type { ServerMessage } from '../../protocol/messages.js';
 import { createSprite, createCharacter } from '../../editor/schema.js';
 import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
 import { startLoopback, type Loopback } from '../start.js';
+import { loadSessionConfig } from '../../project/session-config.js';
 
 describe('isolated loopback game', () => {
   let assetsRoot: string | undefined;
@@ -29,6 +30,7 @@ describe('isolated loopback game', () => {
         format: 'incanterm-scene',
         version: 1,
         id: 'e2e-room',
+        label: 'Fixture Room',
         width: 5,
         height: 3,
         depthMode: 'regular-z',
@@ -81,6 +83,14 @@ describe('isolated loopback game', () => {
     };
   }
 
+  async function getFrameContaining(messages: ReturnType<typeof getMessages>, text: string): Promise<ServerMessage> {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const frame = await messages.next();
+      if (frame.type === 'terminal-data' && frame.data.includes(text)) return frame;
+    }
+    throw new Error(`No game frame contained ${text}`);
+  }
+
   it('boots a selected scene and script through the real WebSocket client', async () => {
     const root = await createFixture();
     const first = getMessages();
@@ -103,7 +113,7 @@ describe('isolated loopback game', () => {
     expect((await first.next()).type).toBe('session-status');
     expect((await second.next()).type).toBe('session-status');
     expect((await first.next()).type).toBe('terminal-data');
-    const opening = await second.next();
+    const opening = await getFrameContaining(second, 'First');
     expect(opening.type).toBe('terminal-data');
     if (opening.type === 'terminal-data') {
       expect(opening.data).toContain('Guide');
@@ -113,12 +123,12 @@ describe('isolated loopback game', () => {
     }
 
     game.sendInput(' ');
-    const advanced = await first.next();
+    const advanced = await getFrameContaining(first, 'Second');
     expect(advanced.type).toBe('terminal-data');
     if (advanced.type === 'terminal-data') expect(advanced.data).toContain('Second');
 
     other.resize(40, 16);
-    const unchanged = await second.next();
+    const unchanged = await getFrameContaining(second, 'First');
     expect(unchanged.type).toBe('terminal-data');
     if (unchanged.type === 'terminal-data') {
       expect([unchanged.cols, unchanged.rows]).toEqual([40, 16]);
@@ -134,7 +144,7 @@ describe('isolated loopback game', () => {
       expect(tooSmall.data).toContain('Terminal needs at least');
     }
     other.resize(120, 40);
-    const restored = await second.next();
+    const restored = await getFrameContaining(second, 'First');
     expect(restored.type).toBe('terminal-data');
     if (restored.type === 'terminal-data') {
       expect([restored.cols, restored.rows]).toEqual([120, 40]);
@@ -143,6 +153,21 @@ describe('isolated loopback game', () => {
       expect(restored.data).toContain('First');
     }
     expect((await fetch(`http://127.0.0.1:${game.httpPort}/health`)).status).toBe(200);
+  });
+
+  it('boots a scene selected by its label through the real WebSocket client', async () => {
+    const root = await createFixture();
+    const received = getMessages();
+    const game = await startLoopback({
+      assetsRoot: root,
+      sceneId: 'Fixture Room',
+      onMessage: received.onMessage,
+    });
+    running.push(game);
+    expect((await received.next()).type).toBe('session-status');
+    const frame = await getFrameContaining(received, 'First');
+    expect(frame.type).toBe('terminal-data');
+    if (frame.type === 'terminal-data') expect(frame.data).toContain('Guide');
   });
 
   it('fails before listening if the scene references a missing trigger', async () => {
@@ -174,6 +199,56 @@ describe('isolated loopback game', () => {
     }
   });
 
+  it('reads dialogue animation settings from the selected assets folder', async () => {
+    const root = await createFixture();
+    await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({
+      dialogueAnimation: { enabled: false, stepDurationMs: 12, wordDelayMs: 5 },
+    }));
+    const received = getMessages();
+    const game = await startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage });
+    running.push(game);
+    await received.next(); // session status
+    const opening = await received.next();
+    expect(opening.type).toBe('terminal-data');
+    if (opening.type === 'terminal-data') expect(opening.data).toContain('First');
+    game.sendInput(' ');
+    const next = await received.next();
+    if (next.type === 'terminal-data') expect(next.data).toContain('Second');
+  });
+
+  it('rejects invalid dialogue settings before starting the server', async () => {
+    const root = await createFixture();
+    await fs.writeFile(path.join(root, 'session-config.json'), '{"dialogueAnimation":{"stepDurationMs":0}}');
+    await expect(startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage() {} }))
+      .rejects.toThrow('stepDurationMs must be a positive number');
+    await fs.writeFile(path.join(root, 'session-config.json'), '{"dialogueAnimation":{"shortGrowthSequences":["abc"]}}');
+    await expect(startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage() {} }))
+      .rejects.toThrow('shortGrowthSequences must contain four-character strings');
+  });
+
+  it('reads portrait timing independently and rejects invalid row delays', async () => {
+    const root = await createFixture();
+    const portraitAnimation = { enabled: true, stepDurationMs: 33, rowDelayMs: 8.25 };
+    await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({ portraitAnimation }));
+    expect(await loadSessionConfig(root)).toEqual({ portraitAnimation });
+    await fs.writeFile(path.join(root, 'session-config.json'), '{"portraitAnimation":{"rowDelayMs":-1}}');
+    await expect(startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage() {} }))
+      .rejects.toThrow('portraitAnimation.rowDelayMs must be a nonnegative number');
+  });
+
+  it('reads custom character growth sequences from the session config', async () => {
+    const root = await createFixture();
+    await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({
+      dialogueAnimation: { growthSequences: ['ABCD'], shortGrowthSequences: ['wxyz'] },
+    }));
+    const received = getMessages();
+    const game = await startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage });
+    running.push(game);
+    await received.next(); // session status
+    const opening = await received.next();
+    if (opening.type === 'terminal-data') expect(opening.data).toContain('AAwwA');
+  });
+
   it('dispatches later scene-load triggers after an earlier dialogue finishes', async () => {
     const root = await createFixture();
     const sceneFile = path.join(root, 'scenes', 'e2e-room.json');
@@ -192,12 +267,12 @@ describe('isolated loopback game', () => {
     });
     running.push(game);
     await received.next(); // session status
-    await received.next(); // First
+    await getFrameContaining(received, 'First');
     game.sendInput(' ');
-    const second = await received.next();
+    const second = await getFrameContaining(received, 'Second');
     if (second.type === 'terminal-data') expect(second.data).toContain('Second');
     game.sendInput(' ');
-    const third = await received.next();
+    const third = await getFrameContaining(received, 'Third');
     expect(third.type).toBe('terminal-data');
     if (third.type === 'terminal-data') expect(third.data).toContain('Third');
   });
@@ -212,7 +287,7 @@ describe('isolated loopback game', () => {
     });
     running.push(game);
     await received.next(); // session status
-    const opening = await received.next();
+    const opening = await getFrameContaining(received, 'First');
     if (opening.type === 'terminal-data') {
       expect(opening.data).toContain('╔═══════╗');
       expect(opening.data).toContain('Guide');
@@ -222,26 +297,26 @@ describe('isolated loopback game', () => {
 
     game.sendInput('\t');
     game.resize(80, 24); // Request a snapshot: changing a hidden tab emits no delta.
-    const hiddenTab = await received.next();
+    const hiddenTab = await getFrameContaining(received, 'First');
     if (hiddenTab.type === 'terminal-data') {
       expect(hiddenTab.data).not.toContain('Inventory');
       expect(hiddenTab.data).toContain('First');
     }
     game.resize(40, 16);
-    const small = await received.next();
+    const small = await getFrameContaining(received, 'First');
     if (small.type === 'terminal-data') {
       expect(small.data).toContain('First');
       expect(small.data).not.toContain('Inventory');
     }
     game.sendInput('\x1b[Z');
     game.resize(40, 16);
-    const log = await received.next();
+    const log = await getFrameContaining(received, 'First');
     if (log.type === 'terminal-data') expect(log.data).toContain('First');
     game.sendInput(' ');
-    const advanced = await received.next();
+    const advanced = await getFrameContaining(received, 'Second');
     if (advanced.type === 'terminal-data') expect(advanced.data).toContain('Second');
     game.sendInput(' ');
-    const finished = await received.next();
+    const finished = await getFrameContaining(received, 'Inventory');
     if (finished.type === 'terminal-data') expect(finished.data).toContain('Inventory');
   });
 
@@ -268,7 +343,7 @@ describe('isolated loopback game', () => {
     });
     running.push(game);
     await received.next();
-    const opening = await received.next();
+    const opening = await getFrameContaining(received, 'Hello');
     expect(opening.type).toBe('terminal-data');
     if (opening.type === 'terminal-data') {
       expect(opening.data).toContain('╭───╮');
@@ -277,7 +352,7 @@ describe('isolated loopback game', () => {
       expect(opening.data).toContain('Hello');
     }
     game.resize(40, 16);
-    const small = await received.next();
+    const small = await getFrameContaining(received, 'Hello');
     if (small.type === 'terminal-data') {
       expect(small.data).toContain('P');
       expect(small.data).toContain('Hello');

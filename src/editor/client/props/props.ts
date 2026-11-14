@@ -1,16 +1,20 @@
+import { projectStorage } from '../project.js';
 import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import {
   createProp,
   flattenSprite,
   isAssetId,
+  isCharacterStateName,
   isInvisibleFrame,
   getAnimationFrameFlips,
+  PROP_DEFAULT_STATE,
   type AnimationDocument,
   type PropDocument,
   type PropVisual,
   type SpriteDocument,
   type VisibleAnimationFrame,
 } from '../../schema.js';
+import { createSearchSelect } from '../search-select.js';
 import {
   preloadSpriteFonts,
   getSpriteFontFamily,
@@ -57,9 +61,9 @@ export function mountProps(root: HTMLElement): () => void {
     </aside>
     <div id="prop-library-resizer" class="panel-resizer" role="separator" aria-label="Resize prop folders" aria-orientation="vertical" aria-controls="prop-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
     <section class="prop-app" aria-label="Prop editor">
+      <div class="toolbar-row asset-create-header"><button id="new-prop" type="button">NEW</button></div>
       <div id="prop-tabs" class="prop-tabs" role="tablist" aria-label="Open props"></div>
       <div class="toolbar-row">
-        <button id="new-prop" type="button">NEW</button>
         <button id="save-prop" type="button" disabled>SAVE</button>
         <button id="delete-prop" type="button" disabled>DELETE</button>
         <strong id="prop-id">NO PROP</strong>
@@ -79,10 +83,23 @@ export function mountProps(root: HTMLElement): () => void {
           <div class="prop-block-field"><span>BLOCKED CELLS</span><span id="prop-block-count"></span></div>
           <label>GROUND OFFSET Y <input id="prop-ground" class="text-input" type="number" min="-1024" max="1024"></label>
           <label>DEPTH OFFSET <input id="prop-depth" class="text-input" type="number" min="-1024" max="1024"></label>
+          <h2>OTHER STATES</h2>
+          <p class="page-copy">The appearance above is the <code>default</code> state. Add named states for <code>+setPropAnimState</code>.</p>
+          <div id="prop-custom" class="character-state-list"></div>
+          <button id="add-prop-state" type="button">+ CUSTOM STATE</button>
         </div>
-        <div class="prop-preview"><h2>PREVIEW</h2><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Show blocked cells, then click or drag on the preview to block or unblock them. Focus the preview and press Tab to toggle the overlay. Shift+Tab moves focus away.</p><p>Scene position and ordering are set in the Scene editor.</p></div>
+        <div class="prop-preview"><h2>PREVIEW</h2><button id="play-prop-animation" type="button" aria-pressed="false" hidden>PLAY ANIMATION</button><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Show blocked cells, then click or drag on the preview to block or unblock them. Focus the preview and press Tab to toggle the overlay. Shift+Tab moves focus away.</p><p>Scene position and ordering are set in the Scene editor.</p></div>
       </div>
     </section>
+    <dialog id="prop-custom-state-dialog" aria-labelledby="prop-custom-state-title">
+      <form id="prop-custom-state-form">
+        <h2 id="prop-custom-state-title">NEW CUSTOM STATE</h2>
+        <label class="character-label">STATE NAME<input id="prop-custom-state-name" class="text-input" type="text" autocomplete="off" spellcheck="false" required></label>
+        <label class="character-label">ANIMATION<span id="prop-custom-state-picker"></span></label>
+        <p id="prop-custom-state-error" class="page-copy" role="alert" hidden></p>
+        <div class="character-from-folder-actions"><button type="submit">ADD STATE</button><button id="cancel-prop-custom-state" type="button">CANCEL</button></div>
+      </form>
+    </dialog>
     <dialog id="prop-asset-dialog" class="prop-asset-dialog" aria-labelledby="prop-picker-title">
       <div class="dialog-heading"><span id="prop-picker-title">CHOOSE SPRITE</span><button id="prop-picker-close" type="button" aria-label="Close">×</button></div>
       <div class="prop-picker-body">
@@ -111,6 +128,7 @@ export function mountProps(root: HTMLElement): () => void {
   const status = get$<HTMLElement>('#prop-status');
   const fields = get$<HTMLElement>('#prop-fields');
   const visualType = get$<HTMLSelectElement>('#prop-visual-type');
+  const playButton = get$<HTMLButtonElement>('#play-prop-animation');
   const picker = get$<HTMLDialogElement>('#prop-asset-dialog');
   const pickerSearch = get$<HTMLInputElement>('#prop-picker-search');
   const pickerSheets = get$<HTMLElement>('#prop-picker-sheets');
@@ -133,11 +151,17 @@ export function mountProps(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: PropDocument | null = null;
   let saved: PropDocument | null = null;
-  const storedTabs = readPropTabs(localStorage);
+  const storedTabs = readPropTabs(projectStorage);
   let openTabs = storedTabs.tabs;
   const sessions = new Map<string, PropTabSession>(Object.entries(storedTabs.drafts));
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let previewToken = 0;
+  let playbackToken = 0;
+  let playbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let playbackAnimation: AnimationDocument | null = null;
+  let playbackPropId: string | null = null;
+  let playbackVisualId: string | null = null;
+  let playbackIndex = 0;
   let defaultSizeToken = 0;
   let pickerToken = 0;
   let pickerType: PropVisual['type'] = 'sprite';
@@ -251,7 +275,7 @@ export function mountProps(root: HTMLElement): () => void {
         drafts[id] = session;
     }
     try {
-      localStorage.setItem(
+      projectStorage.setItem(
         OPEN_PROPS_KEY,
         JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
       );
@@ -265,6 +289,7 @@ export function mountProps(root: HTMLElement): () => void {
   }
   function renderTabs(): void {
     const host = get$<HTMLElement>('#prop-tabs');
+    renderTabCloseActions(host, { tabs: openTabs, active: current?.id ?? null, closeTab });
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -307,6 +332,8 @@ export function mountProps(root: HTMLElement): () => void {
   function activateProp(prop: PropDocument, baseline: PropDocument | null): void {
     if (current) sessions.set(current.id, { doc: current, saved });
     sessions.delete(prop.id);
+    if (!prop.customAnimations) prop.customAnimations = {};
+    if (baseline && !baseline.customAnimations) baseline.customAnimations = {};
     current = prop;
     saved = baseline;
     if (!openTabs.includes(prop.id)) openTabs.push(prop.id);
@@ -431,17 +458,23 @@ export function mountProps(root: HTMLElement): () => void {
     }
   }
 
-  async function loadVisualFrame(visual: PropVisual): Promise<{
+  async function loadVisualFrame(
+    visual: PropVisual,
+    clip?: AnimationDocument,
+    frameIndex?: number,
+  ): Promise<{
     sprite: SpriteDocument;
     index: number;
     flips?: { flipH: boolean; flipV: boolean };
   } | null> {
     if (visual.type === 'sprite')
       return { sprite: await loadSheet(visual.id), index: visual.index };
-    const animation = await requestJson<AnimationDocument>(
+    const animation = clip ?? await requestJson<AnimationDocument>(
       `/api/animations/${encodeURIComponent(visual.id)}`,
     );
-    const first = animation.frames.find((frame) => !isInvisibleFrame(frame));
+    const first = frameIndex === undefined
+      ? animation.frames.find((frame) => !isInvisibleFrame(frame))
+      : animation.frames[frameIndex];
     if (!first || isInvisibleFrame(first)) return null;
     return {
       sprite: await loadSheet(first.sprite),
@@ -616,6 +649,66 @@ export function mountProps(root: HTMLElement): () => void {
     }
   }
 
+  function stopPreviewPlayback(): void {
+    ++playbackToken;
+    if (playbackTimer !== null) clearTimeout(playbackTimer);
+    playbackTimer = null;
+    playbackAnimation = null;
+    playbackPropId = null;
+    playbackVisualId = null;
+    playButton.textContent = 'PLAY ANIMATION';
+    playButton.setAttribute('aria-pressed', 'false');
+  }
+
+  async function playPreviewAnimation(): Promise<void> {
+    if (current?.visual.type !== 'animation') return;
+    const propId = current.id;
+    const animationId = current.visual.id;
+    const token = ++playbackToken;
+    playbackPropId = propId;
+    playbackVisualId = animationId;
+    playButton.textContent = 'STOP ANIMATION';
+    playButton.setAttribute('aria-pressed', 'true');
+    try {
+      const clip = await requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(animationId)}`);
+      if (!alive || token !== playbackToken) return;
+      if (!clip.frames.length) {
+        stopPreviewPlayback();
+        status.textContent = 'Animation has no frames to preview';
+        return;
+      }
+      playbackAnimation = clip;
+      playbackIndex = 0;
+      const advancePreviewFrame = async (): Promise<void> => {
+        await drawPreview();
+        if (!alive || token !== playbackToken) return;
+        const duration = clip.frames[playbackIndex]?.durationMs ?? clip.defaultDurationMs;
+        playbackTimer = setTimeout(() => {
+          if (!alive || token !== playbackToken) return;
+          if (playbackIndex + 1 === clip.frames.length && !clip.loop) {
+            stopPreviewPlayback();
+            void drawPreview();
+            return;
+          }
+          playbackIndex = (playbackIndex + 1) % clip.frames.length;
+          void advancePreviewFrame();
+        }, duration);
+      };
+      await advancePreviewFrame();
+    } catch (error) {
+      if (!alive || token !== playbackToken) return;
+      stopPreviewPlayback();
+      status.textContent = showMessage(error);
+    }
+  }
+
+  playButton.addEventListener('click', () => {
+    if (playbackPropId !== null) {
+      stopPreviewPlayback();
+      void drawPreview();
+    } else void playPreviewAnimation();
+  });
+
   async function drawPreview(): Promise<void> {
     const token = ++previewToken;
     if (!current || !palette) {
@@ -624,9 +717,16 @@ export function mountProps(root: HTMLElement): () => void {
       return;
     }
     try {
-      const key = `${current.id}:${JSON.stringify(current.visual)}`;
+      const key = `${current.id}:${JSON.stringify(current.visual)}:${playbackAnimation ? playbackIndex : 'still'}`;
       if (previewFrame?.key !== key)
-        previewFrame = { key, pending: loadVisualFrame(current.visual) };
+        previewFrame = {
+          key,
+          pending: loadVisualFrame(
+            current.visual,
+            playbackAnimation ?? undefined,
+            playbackAnimation ? playbackIndex : undefined,
+          ),
+        };
       const frame = await previewFrame.pending;
       if (!alive || token !== previewToken) return;
       context.fillStyle = '#000';
@@ -674,6 +774,14 @@ export function mountProps(root: HTMLElement): () => void {
   }
 
   function render(): void {
+    if (
+      playbackPropId !== null &&
+      (current?.id !== playbackPropId ||
+        current?.visual.type !== 'animation' ||
+        current.visual.id !== playbackVisualId)
+    )
+      stopPreviewPlayback();
+    playButton.hidden = current?.visual.type !== 'animation';
     blockStroke = null;
     previewGrid = null;
     if (previewProp !== current) previewFrame = null;
@@ -707,6 +815,45 @@ export function mountProps(root: HTMLElement): () => void {
     showBlocksButton.setAttribute('aria-pressed', String(showBlocked));
     get$<HTMLInputElement>('#prop-ground').value = String(current.groundOffsetY);
     get$<HTMLInputElement>('#prop-depth').value = String(current.depthOffset);
+    if (!current.customAnimations) current.customAnimations = {};
+    const custom = get$<HTMLElement>('#prop-custom');
+    custom.replaceChildren();
+    for (const [name, id] of Object.entries(current.customAnimations)) {
+      const row = document.createElement('div');
+      row.className = 'character-state-row';
+      const label = document.createElement('label');
+      label.textContent = `${name} · `;
+      const pickerHost = document.createElement('span');
+      label.append(pickerHost);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'REMOVE';
+      remove.addEventListener('click', () => {
+        if (!current) return;
+        delete current.customAnimations[name];
+        render();
+        void save();
+      });
+      const choices = new Map(animations.map((animation) => [animationLabels[animation] ?? animation, animation]));
+      pickerHost.replaceChildren(
+        createSearchSelect({
+          value: animationLabels[id] ?? id,
+          choices: [...choices.keys()],
+          placeholder: 'Search animations…',
+          ariaLabel: `${name} animation`,
+          onCommit: (value) => {
+            if (!current) return;
+            const animation = choices.get(value.trim());
+            if (!animation) return;
+            current.customAnimations[name] = animation;
+            render();
+            void save();
+          },
+        }),
+      );
+      row.append(label, remove);
+      custom.append(row);
+    }
     void renderDefaultSize();
     void drawPreview();
   }
@@ -1012,6 +1159,7 @@ export function mountProps(root: HTMLElement): () => void {
       activateProp({ ...createProp(id, visual), ...(size ?? {}) }, null);
       if (folder) pendingPropFolders.set(id, folder);
       status.textContent = `New prop ${id}`;
+      await save();
     })();
   });
   get$<HTMLButtonElement>('#delete-prop').addEventListener('click', () => {
@@ -1041,10 +1189,70 @@ export function mountProps(root: HTMLElement): () => void {
       }
     })();
   });
+  const customStateDialog = get$<HTMLDialogElement>('#prop-custom-state-dialog');
+  const customStateName = get$<HTMLInputElement>('#prop-custom-state-name');
+  const customStatePicker = get$<HTMLElement>('#prop-custom-state-picker');
+  const customStateError = get$<HTMLElement>('#prop-custom-state-error');
+  let customStateChoices = new Map<string, string>();
+  get$<HTMLButtonElement>('#add-prop-state').addEventListener('click', () => {
+    if (!current || saving) return;
+    customStateError.hidden = true;
+    customStateName.value = '';
+    customStateChoices = new Map(
+      animations.map((animation) => [animationLabels[animation] ?? animation, animation]),
+    );
+    customStatePicker.replaceChildren(
+      createSearchSelect({
+        value: current.id,
+        choices: [...customStateChoices.keys()],
+        placeholder: 'Search animations…',
+        ariaLabel: 'Custom state animation',
+        onInput: () => {},
+      }),
+    );
+    customStateDialog.showModal();
+    customStateName.focus();
+  });
+  get$<HTMLButtonElement>('#cancel-prop-custom-state').addEventListener('click', () =>
+    customStateDialog.close(),
+  );
+  get$<HTMLFormElement>('#prop-custom-state-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!current || saving) return;
+    const id = customStateName.value.trim();
+    if (
+      !isCharacterStateName(id) ||
+      id === PROP_DEFAULT_STATE ||
+      id in current.customAnimations
+    ) {
+      customStateError.textContent = 'Use a unique lowercase state name (spaces allowed)';
+      customStateError.hidden = false;
+      customStateName.focus();
+      return;
+    }
+    if (Object.keys(current.customAnimations).length >= 64) {
+      customStateError.textContent = 'Maximum 64 custom states';
+      customStateError.hidden = false;
+      return;
+    }
+    const input = customStatePicker.querySelector<HTMLInputElement>('input');
+    const animation = customStateChoices.get(input?.value.trim() ?? '');
+    if (!animation) {
+      customStateError.textContent = 'Select an animation for this state.';
+      customStateError.hidden = false;
+      input?.focus();
+      return;
+    }
+    current.customAnimations[id] = animation;
+    customStateDialog.close();
+    render();
+    void save();
+  });
   const onKeyDown = (event: KeyboardEvent) => {
     if (
       !root.isConnected ||
       picker.open ||
+      customStateDialog.open ||
       !(event.ctrlKey || event.metaKey) ||
       event.key.toLowerCase() !== 's'
     )
@@ -1076,6 +1284,7 @@ export function mountProps(root: HTMLElement): () => void {
     });
   return () => {
     alive = false;
+    stopPreviewPlayback();
     disposeResizer();
     persistTabs();
     ++loading;
@@ -1088,3 +1297,4 @@ export function mountProps(root: HTMLElement): () => void {
     setDirtyGuard(null);
   };
 }
+import { renderTabCloseActions } from '../tab-close-actions.js';

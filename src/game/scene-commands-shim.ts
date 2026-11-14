@@ -1,4 +1,4 @@
-import { commands, getAnimationStateName, getBark, getBusyState, getFacingDirection, getPlayerCharacterName, getSkipWait, getWalkDestination } from './scene-commands.js';
+import { commands, getAnimationStateName, getBark, getBusyState, getFacingDirection, getPlayerCharacterName, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -38,11 +38,48 @@ export const sceneCommandsShim = {
         throw new Error(`${script.location}: walkToMarker requires a marker name`);
     },
   }),
+  walkToOffset: defineCommand({
+    parse: commands.walkToOffset.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'walkToOffset');
+      getWalkOffset(step, script);
+      getSkipWait(step.skipWait, script, 'walkToOffset');
+    },
+  }),
+  stopCh: defineCommand({
+    parse: commands.stopCh.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'stopCh');
+    },
+  }),
+  setSpeedMult: defineCommand({
+    parse: commands.setSpeedMult.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setSpeedMult');
+      getSpeedMultiplier(step.mult, script);
+    },
+  }),
   setFacing: defineCommand({
     parse: commands.setFacing.parse,
     execute: (step, script) => {
       getPlayerCharacterName(step.character, script, 'setFacing');
       getFacingDirection(step.direction, script);
+    },
+  }),
+  lookAtCh: defineCommand({
+    parse: commands.lookAtCh.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'lookAtCh');
+      getPlayerCharacterName(step.target, script, 'lookAtCh');
+    },
+  }),
+  lookAtMarker: defineCommand({
+    parse: commands.lookAtMarker.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'lookAtMarker');
+      const marker = script.value(step.marker);
+      if (typeof marker !== 'string' || !marker.trim())
+        throw new Error(`${script.location}: lookAtMarker requires a marker name`);
     },
   }),
   bark: defineCommand({
@@ -57,6 +94,25 @@ export const sceneCommandsShim = {
     execute: (step, script) => {
       getPlayerCharacterName(step.character, script, 'setAnimState');
       getAnimationStateName(step.state, script);
+    },
+  }),
+  setPropAnimState: defineCommand({
+    parse: commands.setPropAnimState.parse,
+    execute: (step, script) => {
+      getPropInstanceName(step.prop, script);
+      getAnimationStateName(step.state, script, 'setPropAnimState');
+    },
+  }),
+  despawnCh: defineCommand({
+    parse: commands.despawnCh.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'despawnCh');
+    },
+  }),
+  waitMs: defineCommand({
+    parse: commands.waitMs.parse,
+    execute: (step, script) => {
+      getWaitMilliseconds(step.ms, script);
     },
   }),
   changeScene: defineCommand({

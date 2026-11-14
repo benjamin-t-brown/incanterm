@@ -1,0 +1,147 @@
+#hallwayGymLoad
+  load,hallwayGymLoad
+@hallwayGymLoad
+  +setPlayerWalkCh(johnathan)
+
+#hallwayGymUpdate
+  timer,hallwayGymUpdater,2000
+@hallwayGymUpdater
+  // move stuff skip wait
+
+#hallwayGym_toHallway1
+  step,hallwayGym_toHallway1
+@hallwayGym_toHallway1
+  +changeScene(hallway1, FromGym)
+
+#@hallwayGym_vendEnergy
+  +setConv()
+  +^tmp.hallwayGymEnergyTalk=0
+  +walkToMarker(player, EnergyMarker)
+  +:ld(player, up)
+  +?switch(tmp.hallwayGymEnergyTalk):{
+    0: {
+      Johnathan: "The energy drinks in this machine are so gross. They have flavors like salty bubblegum or lightly-spiced water. Even if I had money I wouldn't spend it here."
+      +tmp.hallwayGymEnergyTalk=1
+    }
+    1: {
+      Johnathan: "Just looking at the energy drink machine makes me tired."
+      +tmp.hallwayGymEnergyTalk=2
+    }
+    *: {
+      Johnathan: "Yeah, I'm not putting any money in that thing."
+    }
+  }
+  +endConv()
+
+#@hallwayGym_vendLime
+  +setConv()
+  +^tmp.hallwayGymLimeTalk=0
+  +walkToMarker(player, LimeMarker)
+  +:ld(player, up)
+  +?switch(tmp.hallwayGymLimeTalk):{
+    0: {
+      Johnathan: "Lime soda. It was a fad last year but I don't think this machine has been touched since then. Not worth the cash."
+      +tmp.hallwayGymLimeTalk=1
+    }
+    1: {
+      Johnathan: "The cans are probably more carbonated dust than drink by now."
+      +tmp.hallwayGymLimeTalk=2
+    }
+    *: {
+      Johnathan: "I'll pass."
+    }
+  }
+  +endConv()
+
+#@hallwayGym_trash
+  +setConv()
+  +walkToMarker(player, TrashMarker)
+  +:ld(player, up)
+  Johnathan: "Just a trash can. Nothing useful in there, not even any spare change today."
+  +endConv()
+
+#@hallwayGym_trianglePoster
+  +^tmp.hallwayGymTriangleTalk=0
+  +setConv()
+  +walkToMarker(player, MarkerPoster)
+  +:ld(Johnathan, up)
+  +?switch(tmp.hallwayGymTriangleTalk):{
+    0: {
+      Johnathan: "A poster of a triangle. Geometry pride, I guess?"
+      +tmp.hallwayGymTriangleTalk=1
+    }
+    1: {
+      Johnathan: "It says something about 'finding your angle.' Cute."
+      +tmp.hallwayGymTriangleTalk=2
+    }
+    *: {
+      Johnathan: "Still just a triangle."
+    }
+  }
+  +endConv()
+
+#@hallwayGym_blueBanners
+  +setConv()
+  +:ld(Johnathan, up)
+  Johnathan: "The blue banners salute basketball excellence from the past years. I used to be able to dunk but my knees went out on me."
+  +endConv()
+
+#@hallwayGym_redBanner
+  +setConv()
+  +:ld(Johnathan, up)
+  Johnathan: "The red banner is for some kind of virtual game called GDL. Not really sure what it is, honestly, but apparently Erran Valley High School has some sort of award for it."
+  +endConv()
+
+#@hallwayGym_gymDoor
+  +setConv()
+  +^tmp.hallwayGymGymDoorTalk=0
+  +walkToMarker(John, MarkerGym)
+  +:ld(John, right)
+  +?switch(tmp.hallwayGymGymDoorTalk):{
+    0: {
+      Johnathan: "This leads to the gym. Basketball practice should be starting soon."
+      +tmp.hallwayGymGymDoorTalk=1
+    }
+    1: {
+      Johnathan: "This is the wrong way if I'm supposed to be taking this envelope to the office."
+      +tmp.hallwayGymGymDoorTalk=2
+    }
+    *: {
+      Johnathan: "I don't need to go in the gym right now."
+    }
+  }
+  +endConv()
+
+#@hallwayGym_outsideDoor
+  +setConv()
+  +^tmp.hallwayGymOutsideTalk=0
+  +walkToMarker(John, MarkerOutside)
+  +:ld(John, up)
+  +?switch(tmp.hallwayGymOutsideTalk):{
+    0: {
+      Johnathan: "That leads outside. I'm not leaving yet, I need to get this envelope to the office!"
+      +tmp.hallwayGymOutsideTalk=1
+    }
+    1: {
+      Johnathan: "Fresh air can wait. Envelope first."
+      +tmp.hallwayGymOutsideTalk=2
+    }
+    *: {
+      Johnathan: "As much as I'd like to get to my job interview, I'm not heading out yet."
+    }
+  }
+  +endConv()
+
+#@hallwayGym_bathroomDoor
+  +^tmp.hallwayGymBathroomTalk=0
+  +setConv()
+  +?switch(tmp.hallwayGymBathroomTalk):{
+    0: {
+      Johnathan: "The bathroom. I don't need to go."
+      +tmp.hallwayGymBathroomTalk=1
+    }
+    *: {
+      Johnathan: "I don't need to go."
+    }
+  }
+  +endConv()

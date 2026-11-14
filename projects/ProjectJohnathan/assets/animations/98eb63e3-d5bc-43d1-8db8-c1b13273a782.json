@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "98eb63e3-d5bc-43d1-8db8-c1b13273a782",
+  "label": "fabian3x3 walk left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 10,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 11,
+      "durationMs": 135
+    }
+  ]
+}

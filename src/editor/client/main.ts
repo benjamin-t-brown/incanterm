@@ -1,4 +1,4 @@
-import faviconUrl from '../../../assets/editor-favicon.png';
+import faviconUrl from '../resources/editor-favicon.png';
 import { mountAnimation } from './animation/animation.js';
 import { mountArt } from './art/art.js';
 import { mountGame } from './game/game.js';
@@ -7,7 +7,14 @@ import { mountScenes } from './scenes/scenes.js';
 import { mountProps } from './props/props.js';
 import { mountCharacters } from './characters/characters.js';
 import { mountScripts } from './scripts/scripts.js';
-import { allowLeave, setupThemeToggle } from './shell.js';
+import { allowLeave, setDirtyGuard, setupThemeToggle } from './shell.js';
+import { requestJson, jsonRequest } from './api.js';
+import {
+  getOpenedProject,
+  setOpenedProject,
+  OPEN_PROJECT_KEY,
+  type EditorProject,
+} from './project.js';
 import { mountSoundboard } from './soundboard/soundboard.js';
 
 const icon = document.createElement('link');
@@ -54,14 +61,15 @@ function getCurrentPath(): string {
 function render(): void {
   cleanup?.();
   cleanup = undefined;
+  setDirtyGuard(null);
   app.replaceChildren();
-  const mount = routes[getCurrentPath()] ?? mountIndex;
+  const mount = getOpenedProject() ? (routes[getCurrentPath()] ?? mountIndex) : mountIndex;
   const result = mount(app);
   if (typeof result === 'function') cleanup = result;
   const active = getCurrentPath();
   // Art binds its own toggle so it can redraw the canvas when the theme changes.
-  if (active !== '/art') setupThemeToggle(app);
-  document.title = titles[active] ?? 'Incanterm Editor';
+  if (active !== '/art' || !getOpenedProject()) setupThemeToggle(app);
+  document.title = `${getOpenedProject()?.name ?? 'Projects'} — ${titles[active] ?? 'Incanterm Editor'}`;
   for (const link of app.querySelectorAll<HTMLAnchorElement>('a[href]')) {
     if (link.getAttribute('href') === active) link.setAttribute('aria-current', 'page');
   }
@@ -95,6 +103,30 @@ document.addEventListener('click', (event) => {
   void navigate(url);
 });
 
-window.addEventListener('popstate', render);
+window.addEventListener('popstate', () => {
+  void navigateBack();
+});
 
-render();
+async function navigateBack(): Promise<void> {
+  if (await allowLeave()) render();
+}
+
+async function startEditor(): Promise<void> {
+  const selected = sessionStorage.getItem(OPEN_PROJECT_KEY);
+  if (selected) {
+    try {
+      setOpenedProject(
+        await requestJson<EditorProject>(
+          '/api/projects/open',
+          jsonRequest('POST', { path: selected }),
+        ),
+      );
+    } catch (error) {
+      console.error('Could not reopen project:', error);
+      sessionStorage.removeItem(OPEN_PROJECT_KEY);
+    }
+  }
+  render();
+}
+
+void startEditor();

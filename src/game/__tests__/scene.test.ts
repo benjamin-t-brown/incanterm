@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CellBuffer, type Cell } from '../cell-buffer.js';
-import { TEST_SCENE_ID, getDefaultAssetsRoot, loadScene } from '../load-scene.js';
+import { loadScene } from '../load-scene.js';
+import { createSceneFixtureAssets } from './scene-fixture.js';
 import { Prop, Scene, renderView } from '../scene.js';
 import { Sprite } from '../sprite.js';
 import { encodeTerminal, getPlainText } from '../terminal.js';
@@ -14,18 +15,22 @@ const ink: Cell = {
   bg: { r: 0, g: 0, b: 0 },
 };
 
-describe('test room', () => {
-  it('loads the scene and draws its crate', async () => {
-    const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
-    expect(scene).toMatchObject({ id: 'test-room', width: 32, height: 10, depthMode: 'bottom-up' });
+describe('scene loading', () => {
+  let assetsRoot: string;
+  beforeEach(async () => { assetsRoot = await createSceneFixtureAssets(); });
+  afterEach(async () => { await fs.rm(assetsRoot, { recursive: true, force: true }); });
+
+  it('loads a scene and draws its sprite-backed prop', async () => {
+    const scene = await loadScene(assetsRoot, 'fixture-room');
+    expect(scene).toMatchObject({ id: 'fixture-room', width: 32, height: 10, depthMode: 'bottom-up' });
     expect(scene.entities).toHaveLength(1);
     const [prop] = scene.entities;
     expect(prop).toBeInstanceOf(Prop);
     if (!(prop instanceof Prop)) throw new Error('expected a prop');
-    expect(prop.id).toBe('crate');
+    expect(prop.id).toBe('target');
     expect(prop.x).toBe(16);
     expect(prop.y).toBe(6);
-    expect(prop.sprite.id).toBe('crate');
+    expect(prop.sprite.id).toBe('target');
 
     const room = getPlainText(renderView(scene, scene.width, scene.height));
     expect(room).toBe(
@@ -50,8 +55,8 @@ describe('test room', () => {
     });
     expect(buffer.get(16, 5)).toMatchObject({
       ch: '#',
-      fg: { r: 0xe6, g: 0xc9, b: 0x8a },
-      bg: { r: 0x4a, g: 0x34, b: 0x1c },
+      fg: { r: 200, g: 20, b: 30 },
+      bg: { r: 20, g: 30, b: 200 },
     });
     expect(buffer.get(16, 6).ch).toBe('-');
 
@@ -62,7 +67,7 @@ describe('test room', () => {
   });
 
   it('clips the room to a smaller terminal', async () => {
-    const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
+    const scene = await loadScene(assetsRoot, 'fixture-room');
     expect(getPlainText(renderView(scene, 10, 5)).split('\n')).toEqual([
       '          ',
       '   +---+  ',
@@ -231,9 +236,9 @@ describe('scene drawing', () => {
       bg: { r: 4, g: 5, b: 6 },
     });
     const text = encodeTerminal(buffer);
-    expect(text.startsWith('\x1b[?7l\x1b[2J\x1b[H')).toBe(true);
+    expect(text.startsWith('\x1b[?2026h\x1b[?7l\x1b[2J\x1b[H')).toBe(true);
     expect(text).toContain('\x1b[38;2;1;2;3;48;2;4;5;6m#');
-    expect(text.endsWith('\x1b[?7h')).toBe(true);
+    expect(text.endsWith('\x1b[?7h\x1b[?2026l')).toBe(true);
   });
 });
 

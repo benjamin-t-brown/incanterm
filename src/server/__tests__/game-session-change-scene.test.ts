@@ -12,7 +12,8 @@ const clear = { ...ink, ch: ' ' };
 
 function createTransitionScenes(markers: SceneMarker[]) {
   const sprite = new Sprite('hero', 1, 1, 0, 0, [ink]);
-  const hero = new Character('hero', 1, 1, 0, sprite, 'actor', 'Hero', 'idle', 'down', 100);
+  const hero = new Character('hero', 1, 1, 0, sprite, 'actor', 'Hero', 'idle', 'down', 100,
+    new Map(), undefined, 'Actor/AlternateActor');
   return {
     first: new Scene('first', 7, 7, 'bottom-up', clear, [hero], ['entry']),
     next: new Scene('next', 7, 7, 'bottom-up', clear, [], ['arrival'], new Set(), [], [], markers),
@@ -20,6 +21,32 @@ function createTransitionScenes(markers: SceneMarker[]) {
 }
 
 afterEach(() => vi.useRealTimers());
+
+it('resolves actor aliases after carrying the player into another scene', async () => {
+  const { first, next } = createTransitionScenes([{ id: 'door', name: 'doorway', x: 4, y: 3 }]);
+  const scripts = parseRpgScript(
+    '#entry\nload,start\n#arrival\nload,arrived\n@start\n+setPlayerWalkCh(hero)\n+changeScene(next, doorway)\n@arrived\n+setPlayerWalkCh(Actor)\n+:face(Actor, up)\n+:face(AlternateActor, left)\n+log("Scene ready")\n@face(ch, direction)\n+setFacing([ch], [direction])',
+    'transition.rpgscript',
+  );
+  const screen = new TerminalScreen();
+  const errors = vi.fn();
+  const facing = vi.spyOn(Character.prototype, 'animate');
+  vi.useFakeTimers();
+  const session = createGameSession(first, (text, cols, rows) => screen.apply(text, cols, rows),
+    scripts, undefined, undefined, undefined, errors, async () => next);
+  try {
+    session.open();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(errors).not.toHaveBeenCalled();
+    expect(getPlainText(screen.buffer)).toContain('Scene ready');
+    expect(getPlainText(screen.buffer)).not.toContain('[RPGSCRIPT ERROR]');
+    expect(facing.mock.contexts.some((character) =>
+      character instanceof Character && character.id === 'hero' && character.facing === 'left')).toBe(true);
+  } finally {
+    session.close();
+    facing.mockRestore();
+  }
+});
 
 it.each([
   { reference: 'next', argument: '', markers: [{ id: 'default', name: 'mPlayer', x: 4, y: 3 }], x: 4, y: 3, missing: false },

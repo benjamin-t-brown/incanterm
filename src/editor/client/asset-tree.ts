@@ -1,3 +1,4 @@
+import { projectStorage } from './project.js';
 import { FOLDER_ICON } from './asset-tree-icons.js';
 import { getFolderAncestors, getParentFolder, type AssetFolders } from '../asset-folders.js';
 
@@ -29,7 +30,7 @@ export function createAssetTree(options: TreeOptions) {
   let busy = false;
   let expanded: Set<string>;
   try {
-    const stored = JSON.parse(localStorage.getItem(options.storageKey) ?? '[]') as unknown;
+    const stored = JSON.parse(projectStorage.getItem(options.storageKey) ?? '[]') as unknown;
     expanded = new Set(
       Array.isArray(stored)
         ? stored.filter((item): item is string => typeof item === 'string')
@@ -41,7 +42,7 @@ export function createAssetTree(options: TreeOptions) {
 
   function persist(): void {
     try {
-      localStorage.setItem(options.storageKey, JSON.stringify([...expanded]));
+      projectStorage.setItem(options.storageKey, JSON.stringify([...expanded]));
     } catch {
       /* storage unavailable */
     }

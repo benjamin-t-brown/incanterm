@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "72508ea1-3820-420c-99a7-5d0094176c53",
+  "label": "tessa3x3 sit left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 21,
+      "durationMs": 135
+    }
+  ]
+}

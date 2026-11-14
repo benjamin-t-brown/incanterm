@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "142e8f6c-af47-4bf9-9d0b-9910996d4a05",
+  "label": "hadassah3x3 walk right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 12,
+      "durationMs": 135
+    },
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 13,
+      "durationMs": 135
+    }
+  ]
+}

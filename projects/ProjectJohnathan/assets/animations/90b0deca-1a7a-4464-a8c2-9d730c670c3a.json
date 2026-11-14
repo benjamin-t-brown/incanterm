@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "90b0deca-1a7a-4464-a8c2-9d730c670c3a",
+  "label": "johnathan5x5 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

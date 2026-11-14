@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "24f47dc9-5b18-4ae3-8815-bd604f8b9b4b",
+  "label": "johnathan5x5 idle up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 6,
+      "durationMs": 135
+    }
+  ]
+}

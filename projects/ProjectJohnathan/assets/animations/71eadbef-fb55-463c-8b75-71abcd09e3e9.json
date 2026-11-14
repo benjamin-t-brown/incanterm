@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "71eadbef-fb55-463c-8b75-71abcd09e3e9",
+  "label": "tessa3x3 idle down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

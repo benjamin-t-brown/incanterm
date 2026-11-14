@@ -111,12 +111,12 @@ export function mountAnimation(root: HTMLElement): () => void {
           <label class="character-animation-field">BASE SPRITE SHEET
             <input id="character-animation-search" class="text-input" type="search" placeholder="SEARCH SPRITE SHEETS" autocomplete="off" spellcheck="false">
           </label>
-           <p class="page-copy">Use a 3×3 sheet with at least 16 frames in the test3x3 order.</p>
+           <p class="page-copy">Use a 3×3 or 5×5 sheet with at least 16 frames in the standard character template order.</p>
           <div id="character-animation-sheets" class="character-animation-sheets" role="group" aria-label="Base sprite sheet"></div>
           <p id="character-animation-error" class="character-animation-error" role="alert" hidden></p>
           <div class="character-animation-actions">
-            <button id="character-animation-cancel" type="button">CANCEL</button>
             <button id="character-animation-create" type="submit">CREATE 12 ANIMATIONS</button>
+            <button id="character-animation-cancel" type="button">CANCEL</button>
           </div>
         </form>
       </dialog>
@@ -569,6 +569,16 @@ export function mountAnimation(root: HTMLElement): () => void {
     inspect = null;
     playIndex = index;
     markPlayhead();
+    const frame = current.frames[index];
+    if (frame && !isInvisibleFrame(frame) && sprites.includes(frame.sprite)) {
+      selectedSheet = frame.sprite;
+      if (!sheetMatches(selectedSheet)) sheetSearch.value = '';
+      renderSheets();
+      sheetList.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
+      void renderIcons(true);
+    } else {
+      markSelectedIcon();
+    }
     reel
       .querySelectorAll('.anim-reel-cell')
       [index]?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
@@ -790,7 +800,18 @@ export function mountAnimation(root: HTMLElement): () => void {
     for (const id of rest) appendSheet(id, false);
   }
 
-  async function renderIcons(): Promise<void> {
+  function markSelectedIcon(scroll = false): void {
+    const viewed = getViewedFrame();
+    const frame = viewed ? isVisibleSprite(viewed) : null;
+    iconList.querySelectorAll<HTMLButtonElement>('.anim-sprite-icon').forEach((button, index) => {
+      const selected = frame?.sprite === selectedSheet && frame.index === index;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+      if (selected && scroll) button.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    });
+  }
+
+  async function renderIcons(scroll = false): Promise<void> {
     const token = ++iconToken;
     iconList.replaceChildren();
     if (!selectedSheet) {
@@ -822,6 +843,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       button.append(thumb, label);
       button.addEventListener('click', () => {
         inspect = { sprite: sprite.id, index };
+        markSelectedIcon();
         void drawPreview();
       });
       button.addEventListener('dragstart', (event) => {
@@ -834,6 +856,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       iconList.append(button);
       void paintThumb(thumb, sprite.id, index);
     });
+    markSelectedIcon(scroll);
   }
 
   function readPayload(event: DragEvent): DragPayload | null {
@@ -1131,7 +1154,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     if (assetOperation || saving || creatingAnimation) return;
     creatingAnimation = true;
     try {
-      const entered = await askId('New animation label');
+      const entered = await askId('New animation label', folder.split('/').at(-1) ?? '');
       if (entered === null || !alive) return;
       const label = entered.trim();
       const labelError = getAnimationLabelError(label);
@@ -1287,6 +1310,7 @@ export function mountAnimation(root: HTMLElement): () => void {
       for (const frame of current.frames) frame.durationMs = next;
       renderReel();
       void drawPreview();
+      autoSave();
     })();
   });
   root.querySelector('#add-invisible')?.addEventListener('click', () => {

@@ -5,7 +5,13 @@ import { parseRpgScript } from '../../game/rpgscript/__tests__/test-support.js';
 import { Scene } from '../../game/scene.js';
 import { Sprite } from '../../game/sprite.js';
 import { getPlainText } from '../../game/terminal.js';
-import { createGameSession } from '../game-session.js';
+import { createGameSession as createAnimatedGameSession } from '../game-session.js';
+
+function createGameSession(...args: Parameters<typeof createAnimatedGameSession>): ReturnType<typeof createAnimatedGameSession> {
+  args[8] = { enabled: false };
+  args[9] = { enabled: false };
+  return createAnimatedGameSession(...args);
+}
 
 it('shows the first script alias for dialogue and two-speaker conversations', () => {
   const clear = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };

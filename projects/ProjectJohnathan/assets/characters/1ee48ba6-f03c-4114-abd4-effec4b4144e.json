@@ -1,0 +1,25 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "1ee48ba6-f03c-4114-abd4-effec4b4144e",
+  "label": "tessa3x3",
+  "scriptName": "Tess,tess,tessa",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "7c2370c6-4115-4963-951c-a773644a407e",
+    "idle-down": "71eadbef-fb55-463c-8b75-71abcd09e3e9",
+    "idle-left": "32542eeb-751c-47ca-a26c-1fd7d510d4b1",
+    "idle-right": "fcf2214b-3d83-42af-bb02-a1848a083750",
+    "walk-up": "e780db87-6aef-4392-a0b7-d99b99174ee5",
+    "walk-down": "58f50f46-d700-4605-85cf-2d61dc022c52",
+    "walk-left": "5f30953b-f0ef-4ed9-81a9-b43dda346066",
+    "walk-right": "e0edcf02-d153-4ec6-9a33-1b8937e62336",
+    "talking-up": "6f9b8c6b-9a2b-4d2e-a797-684fd28d6b9b",
+    "talking-down": "1f1c9fe5-4d8a-470f-82c3-5d55c8583e93",
+    "talking-left": "25322137-0036-4cfa-aa03-25dcd6b91fdb",
+    "talking-right": "ba44d448-8dfd-45a8-b3a8-9dc544054e87"
+  },
+  "customAnimations": {
+    "sit left": "72508ea1-3820-420c-99a7-5d0094176c53"
+  }
+}

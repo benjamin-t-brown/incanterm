@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "banner_green",
+  "visual": {
+    "type": "sprite",
+    "id": "f6eccc4b-2af5-44b2-8d28-792a4de7036a",
+    "index": 2
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

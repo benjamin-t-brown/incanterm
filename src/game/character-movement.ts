@@ -12,6 +12,14 @@ const DIAGONAL_COST = 5;
 
 type PathEntry = { cell: number; cost: number; order: number };
 
+/** Convert a scene walk target to the origin-column/bottom-row coordinates used by paths. */
+export function getWalkAnchor(scene: Scene, character: Character, target: Point): Point {
+  const centerOffset = scene.depthMode === 'bottom-up'
+    ? Math.floor(character.sprite.width / 2) - character.sprite.originX
+    : 0;
+  return { x: target.x - centerOffset, y: target.y };
+}
+
 function pushPathEntry(heap: PathEntry[], entry: PathEntry): void {
   let index = heap.length;
   heap.push(entry);
@@ -125,15 +133,17 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
 }
 
 export function findCharacter(scene: Scene, reference: string, controlled?: Character): Character {
-  if (reference === 'player' && controlled && scene.entities.includes(controlled)) return controlled;
+  const normalizedReference = reference.toLowerCase();
+  if (normalizedReference === 'player' && controlled && scene.entities.includes(controlled)) return controlled;
   const characters = scene.entities.filter(
     (entity): entity is Character => entity instanceof Character,
   );
   const character =
-    characters.find((entity) => entity.id === reference) ??
-    characters.find((entity) => entity.instanceName === reference) ??
-    characters.find((entity) => entity.characterId === reference) ??
-    characters.find((entity) => getCharacterScriptNames(entity.scriptName).includes(reference));
+    characters.find((entity) => entity.id.toLowerCase() === normalizedReference) ??
+    characters.find((entity) => entity.instanceName?.toLowerCase() === normalizedReference) ??
+    characters.find((entity) => entity.characterId.toLowerCase() === normalizedReference) ??
+    characters.find((entity) => getCharacterScriptNames(entity.scriptName)
+      .some((name) => name.toLowerCase() === normalizedReference));
   if (!character) throw new Error(`Scene ${scene.id} has no character ${reference}`);
   return character;
 }

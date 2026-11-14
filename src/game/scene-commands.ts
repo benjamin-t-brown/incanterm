@@ -4,14 +4,18 @@ import type { Command, ScriptValue } from './rpgscript/parser.js';
 import type { PlayerControl } from './player-control.js';
 import type { Scene } from './scene.js';
 import type { Character } from './character.js';
-import { findCharacter, findPath } from './character-movement.js';
-import { CHARACTER_DIRECTIONS, type CharacterDirection } from '../editor/schema.js';
+import { findCharacter, findPath, getWalkAnchor, type Point } from './character-movement.js';
+import { findAnimatedProps } from './prop-lookup.js';
+import { CHARACTER_DIRECTIONS, PROP_DEFAULT_STATE, type CharacterDirection } from '../editor/schema.js';
 import { defineCommand, type CommandContext } from './rpgscript/command.js';
 
 export type GameScriptContext = {
   scene: Scene;
   playerControl: PlayerControl;
   bark?: (character: Character, text: string, ms: number) => () => boolean;
+  clearBark?: (character: Character) => void;
+  clearCharacterSubscript?: (ownerId: string) => void;
+  resetConversationPortraits?: () => void;
   changeScene?: (sceneId: string, markerName: string | undefined, location: string) => Promise<void>;
 };
 
@@ -20,7 +24,7 @@ export type Choice = Readonly<{ text: string; target: string }>;
 function getScriptValue(value: Command['args'][number], location: string): ScriptValue {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
     return value;
-  if ('storageKey' in value || 'localName' in value || 'expression' in value) return Object.freeze({ ...value });
+  if ('storageKey' in value || 'localName' in value || 'expression' in value || 'list' in value || 'indexed' in value) return Object.freeze({ ...value });
   throw new Error(`${location}: Expected a scalar script argument`);
 }
 
@@ -224,7 +228,8 @@ const log = defineCommand({
 
 const setConv = defineCommand({
   parse: (args) => args.length === 0 ? { type: 'setConv' as const } : undefined,
-  execute: (_step, context) => {
+  execute: (_step, context, game?: GameScriptContext) => {
+    game?.resetConversationPortraits?.();
     context.setStorage('dialogue.active', true);
     context.setStorage('dialogue.leftActor', undefined);
     context.setStorage('dialogue.rightActor', undefined);
@@ -236,7 +241,8 @@ const setConv2 = defineCommand({
     typeof args[1] === 'string' && args[1].length > 0
     ? { type: 'setConv2' as const, left: args[0], right: args[1] }
     : undefined,
-  execute: (step, context) => {
+  execute: (step, context, game?: GameScriptContext) => {
+    game?.resetConversationPortraits?.();
     context.setStorage('dialogue.active', true);
     context.setStorage('dialogue.leftActor', context.interpolate(step.left));
     context.setStorage('dialogue.rightActor', context.interpolate(step.right));
@@ -269,7 +275,19 @@ const setPlayerWalkCh = defineCommand({
       return { type: 'setPlayerWalkCh' as const, idOrInstanceName: getScriptValue(args[0], location) };
   },
   execute: (step, script, game: GameScriptContext) => {
-    game.playerControl.setPlayerWalkCh(getPlayerCharacterName(step.idOrInstanceName, script));
+    const pending = game.playerControl.setPlayerWalkCh(getPlayerCharacterName(step.idOrInstanceName, script));
+    if (!pending) return;
+    let complete = false;
+    let failure: unknown;
+    void pending.then(
+      () => { complete = true; },
+      (error: unknown) => { failure = error; complete = true; },
+    );
+    script.waitUntil(() => {
+      if (!complete) return false;
+      if (failure) throw failure;
+      return true;
+    });
   },
 });
 
@@ -281,6 +299,23 @@ const setLocal = defineCommand({
       return { type: 'setLocal' as const, name: args[0], value: getScriptValue(args[1], location) };
   },
   execute: (step, context) => context.setLocal(step.name, context.value(step.value)),
+});
+
+const setIndex = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 3 || typeof args[0] !== 'object' || !('storageKey' in args[0] || 'localName' in args[0])) return;
+    return { target: args[0], index: getScriptValue(args[1], location), value: getScriptValue(args[2], location) };
+  },
+  execute: (step, context) => {
+    const list = 'storageKey' in step.target ? context.getStorage(step.target.storageKey) : context.getLocal(step.target.localName);
+    const index = context.value(step.index);
+    if (!Array.isArray(list) || !Number.isInteger(index) || typeof index !== 'number' || index < 0 || index >= list.length)
+      throw new Error(`${context.location}: Indexed assignment requires a list and an existing integer index`);
+    const updated = [...list];
+    updated[index] = context.value(step.value);
+    if ('storageKey' in step.target) context.setStorage(step.target.storageKey, updated);
+    else context.setLocal(step.target.localName, updated);
+  },
 });
 
 const chWalkToCoord = defineCommand({
@@ -296,7 +331,8 @@ const chWalkToCoord = defineCommand({
     const { name, x, y } = getWalkDestination(step, script);
     if (x < 0 || y < 0 || x >= game.scene.width || y >= game.scene.height)
       throw new Error(`${script.location}: chWalkToCoord destination is outside the scene`);
-    findCharacter(game.scene, name, game.playerControl.playerWalkCh).walkTo(game.scene, { x, y });
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    character.walkTo(game.scene, getWalkAnchor(game.scene, character, { x, y }));
   },
 });
 
@@ -318,18 +354,88 @@ const walkToMarker = defineCommand({
     const marker = game.scene.getMarker(markerName);
     if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
     const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
-    const destination = { x: marker.x, y: marker.y };
-    if (character.x === destination.x && character.bottomY === destination.y) return;
+    const destination = getWalkAnchor(game.scene, character, marker);
+    walkScriptedToDestination(name, destination, skipWait, script, game);
+  },
+});
+
+const walkToOffset = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 3 && args.length !== 4) return;
+    return {
+      character: getScriptValue(args[0], location),
+      x: getScriptValue(args[1], location),
+      y: getScriptValue(args[2], location),
+      skipWait: args.length === 4 ? getScriptValue(args[3], location) : false,
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'walkToOffset');
+    const { x, y } = getWalkOffset(step, script);
+    const skipWait = getSkipWait(step.skipWait, script, 'walkToOffset');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    const destination = { x: character.x + x, y: character.bottomY + y };
+    if (destination.x < 0 || destination.y < 0 || destination.x >= game.scene.width || destination.y >= game.scene.height)
+      throw new Error(`${script.location}: walkToOffset destination is outside the scene`);
+    walkScriptedToDestination(name, destination, skipWait, script, game);
+  },
+});
+
+function walkScriptedToDestination(
+  name: string, destination: Point, skipWait: boolean,
+  script: CommandContext, game: GameScriptContext,
+): void {
+  const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+  if (character.x === destination.x && character.bottomY === destination.y) return;
+  const maxAttempts = 4;
+  const retryIntervalMs = 100;
+  let attempts = 0;
+  let retryAtMs = 0;
+  const startAttempt = (): void => {
+    attempts++;
     const path = findPath(game.scene, character, destination);
-    if (!path.length || path.at(-1)?.x !== destination.x || path.at(-1)?.y !== destination.y)
-      throw new Error(`${script.location}: walkToMarker ${markerName} is unreachable for ${name}`);
-    game.playerControl.walkScripted(character, destination);
-    if (!skipWait) script.waitUntil(() => {
-      if (game.playerControl.isWalkPausedForConversation(character, destination)) return false;
-      if (!character.isWalking() && (character.x !== destination.x || character.bottomY !== destination.y))
-        throw new Error(`${script.location}: walkToMarker ${markerName} was interrupted before arrival`);
-      return character.x === destination.x && character.bottomY === destination.y;
-    });
+    const closest = path.at(-1);
+    if (closest) game.playerControl.walkScripted(character, closest);
+    retryAtMs = Date.now() + retryIntervalMs;
+  };
+  startAttempt();
+  if (skipWait) return;
+  script.waitUntil(() => {
+    if (character.x === destination.x && character.bottomY === destination.y) return true;
+    if (game.playerControl.wasWalkCancelled(character)) return true;
+    if (game.playerControl.isWalkPausedForConversation(character, destination)) return false;
+    if (character.isWalking()) return false;
+    if (attempts >= maxAttempts) return true;
+    if (Date.now() < retryAtMs) return false;
+    startAttempt();
+    return character.x === destination.x && character.bottomY === destination.y;
+  });
+}
+
+const stopCh = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 1) return;
+    return { character: getScriptValue(args[0], location) };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'stopCh');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    game.playerControl.stopCharacter(character);
+  },
+});
+
+const setSpeedMult = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return {
+      character: getScriptValue(args[0], location),
+      mult: getScriptValue(args[1], location),
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'setSpeedMult');
+    const mult = getSpeedMultiplier(step.mult, script);
+    findCharacter(game.scene, name, game.playerControl.playerWalkCh).speedMult = mult;
   },
 });
 
@@ -349,6 +455,50 @@ const setFacing = defineCommand({
     character.animate(0);
   },
 });
+
+const lookAtCh = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return {
+      character: getScriptValue(args[0], location),
+      target: getScriptValue(args[1], location),
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'lookAtCh');
+    const targetName = getPlayerCharacterName(step.target, script, 'lookAtCh');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    const target = findCharacter(game.scene, targetName, game.playerControl.playerWalkCh);
+    faceToward(character, target.x, target.bottomY);
+  },
+});
+
+const lookAtMarker = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return {
+      character: getScriptValue(args[0], location),
+      marker: getScriptValue(args[1], location),
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'lookAtMarker');
+    const markerName = script.value(step.marker);
+    if (typeof markerName !== 'string' || !markerName.trim())
+      throw new Error(`${script.location}: lookAtMarker requires a marker name`);
+    const marker = game.scene.getMarker(markerName);
+    if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    faceToward(character, marker.x, marker.y);
+  },
+});
+
+function faceToward(character: Character, x: number, y: number): void {
+  const direction = getFacingToward(character.x, character.bottomY, x, y);
+  if (!direction) return;
+  character.facing = direction;
+  character.animate(0);
+}
 
 const bark = defineCommand({
   parse: (args, location) => {
@@ -386,6 +536,57 @@ const setAnimState = defineCommand({
       return;
     }
     character.setAnimationState(state);
+  },
+});
+
+const setPropAnimState = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return {
+      prop: getScriptValue(args[0], location),
+      state: getScriptValue(args[1], location),
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPropInstanceName(step.prop, script);
+    const state = getAnimationStateName(step.state, script, 'setPropAnimState');
+    for (const prop of findAnimatedProps(game.scene, name)) {
+      if (!prop.hasAnimationState(state)) {
+        script.writeLog(
+          `[RPGSCRIPT] setPropAnimState: prop ${name} has no animation state ${state}; using default (${script.location})`,
+        );
+        prop.setAnimationState(PROP_DEFAULT_STATE);
+        continue;
+      }
+      prop.setAnimationState(state);
+    }
+  },
+});
+
+const despawnCh = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 1) return;
+    return { character: getScriptValue(args[0], location) };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'despawnCh');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    game.playerControl.forgetCharacter(character);
+    game.scene.removeEntity(character);
+    game.clearBark?.(character);
+    game.clearCharacterSubscript?.(character.id);
+  },
+});
+
+const waitMs = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 1) return;
+    return { ms: getScriptValue(args[0], location) };
+  },
+  execute: (step, script) => {
+    const ms = getWaitMilliseconds(step.ms, script);
+    const deadline = Date.now() + ms;
+    script.waitUntil(() => Date.now() >= deadline);
   },
 });
 
@@ -477,6 +678,7 @@ export const commands = {
   removeItem,
   setStorageIfUndefined,
   setLocal,
+  setIndex,
   log,
   setConv,
   setConv2,
@@ -485,9 +687,17 @@ export const commands = {
   setPlayerWalkCh,
   chWalkToCoord,
   walkToMarker,
+  walkToOffset,
+  stopCh,
+  setSpeedMult,
   setFacing,
+  lookAtCh,
+  lookAtMarker,
   bark,
   setAnimState,
+  setPropAnimState,
+  despawnCh,
+  waitMs,
   changeScene,
   awaitChoice,
   showChoices,
@@ -521,11 +731,21 @@ export function getWalkDestination(
   return { name, x, y };
 }
 
-export function getSkipWait(value: ScriptValue, script: CommandContext): boolean {
+export function getWalkOffset(
+  step: { x: ScriptValue; y: ScriptValue }, script: CommandContext,
+): Point {
+  const x = script.value(step.x);
+  const y = script.value(step.y);
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y))
+    throw new Error(`${script.location}: walkToOffset requires integer offsets`);
+  return { x, y };
+}
+
+export function getSkipWait(value: ScriptValue, script: CommandContext, command = 'walkToMarker'): boolean {
   const resolved = script.value(value);
   if (resolved === true || resolved === 'true') return true;
   if (resolved === false || resolved === 'false') return false;
-  throw new Error(`${script.location}: walkToMarker skipWait must be a boolean`);
+  throw new Error(`${script.location}: ${command} skipWait must be a boolean`);
 }
 
 export function getBusyState(value: ScriptValue, script: CommandContext): boolean {
@@ -542,11 +762,53 @@ export function getFacingDirection(value: ScriptValue, script: CommandContext): 
   return direction as CharacterDirection;
 }
 
-export function getAnimationStateName(value: ScriptValue, script: CommandContext): string {
+export function getSpeedMultiplier(value: ScriptValue, script: CommandContext): number {
+  const mult = script.value(value);
+  if (typeof mult !== 'number' || !Number.isFinite(mult) || mult <= 0)
+    throw new Error(`${script.location}: setSpeedMult requires a positive number`);
+  return mult;
+}
+
+export function getFacingToward(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): CharacterDirection | undefined {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  if (dx === 0 && dy === 0) return;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+  return dy > 0 ? 'down' : 'up';
+}
+
+export function getPropInstanceName(
+  value: ScriptValue,
+  context: CommandContext,
+  command = 'setPropAnimState',
+): string {
+  const name = context.value(value);
+  if (typeof name !== 'string' || !name.trim())
+    throw new Error(`${context.location}: ${command} requires a prop instance name`);
+  return name;
+}
+
+export function getAnimationStateName(
+  value: ScriptValue,
+  script: CommandContext,
+  command = 'setAnimState',
+): string {
   const state = script.value(value);
   if (typeof state !== 'string' || !state.trim())
-    throw new Error(`${script.location}: setAnimState requires an animation state name`);
+    throw new Error(`${script.location}: ${command} requires an animation state name`);
   return state;
+}
+
+export function getWaitMilliseconds(value: ScriptValue, script: CommandContext): number {
+  const ms = script.value(value);
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0)
+    throw new Error(`${script.location}: waitMs requires a non-negative number of milliseconds`);
+  return ms;
 }
 
 export const DEFAULT_BARK_MS = 2000;

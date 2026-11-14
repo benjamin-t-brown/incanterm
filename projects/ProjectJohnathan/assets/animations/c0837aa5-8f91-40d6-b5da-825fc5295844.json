@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "c0837aa5-8f91-40d6-b5da-825fc5295844",
+  "label": "wyatt3x3 idle up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 6,
+      "durationMs": 135
+    }
+  ]
+}

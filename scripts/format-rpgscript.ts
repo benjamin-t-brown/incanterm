@@ -1,13 +1,19 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { formatRpgScript } from '../src/game/rpgscript/format.js';
+import { loadProjectFromArguments, parseProjectArguments } from '../src/project/cli.js';
 
-const write = process.argv.slice(2).includes('--write');
-if (process.argv.slice(2).some((arg) => arg !== '--write' && arg !== '--check')) {
-  console.error('Usage: tsx scripts/format-rpgscript.ts [--check | --write]');
+const options = parseProjectArguments(process.argv.slice(2));
+const write = options.remaining.includes('--write');
+if (options.remaining.some((arg) => arg !== '--write' && arg !== '--check')) {
+  console.error('Usage: tsx scripts/format-rpgscript.ts --project path [--check | --write]');
   process.exitCode = 2;
 } else {
-  const root = path.join(process.cwd(), 'assets', 'scripts');
+  const project = await loadProjectFromArguments(options);
+  const assetsRoot = project?.assetsRoot ?? options.assetsRoot;
+  if (!assetsRoot)
+    throw new Error('Select a project with --project path (or provide --assets path)');
+  const root = path.resolve(assetsRoot, 'scripts');
   let changed = 0;
 
   async function visit(directory: string): Promise<void> {

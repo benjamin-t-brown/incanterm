@@ -5,12 +5,23 @@ import { describe, expect, it } from 'vitest';
 import { loadRpgScripts, parseRpgScript, ScriptRunner } from './test-support.js';
 
 describe('RPGScript call-local arguments', () => {
-  it('runs the authored example without writing arguments into session storage', async () => {
+  it('passes truthy and empty arguments without writing them into session storage', () => {
     const logs: string[] = [];
-    const runner = new ScriptRunner(await loadRpgScripts('assets'), (text) => logs.push(text));
+    const scripts = parseRpgScript(`@start
++:receive("a")
++:receive("")
+@receive(arg1)
++log("Args [arg1]")
++?is([arg1]):{
+  +log("Arg 1 is good")
+}
++?else:{
+  +log("Arg1 is bad")
+}`, 'arguments.rpgscript');
+    const runner = new ScriptRunner(scripts, (text) => logs.push(text));
     runner.setStorage('arg1', 'global');
-    runner.start('testArgs');
-    expect(logs.map((log) => log.replace(/ \(test-room-triggers\.rpgscript:\d+\)$/, ''))).toEqual([
+    runner.start('start');
+    expect(logs.map((log) => log.replace(/ \(arguments\.rpgscript:\d+\)$/, ''))).toEqual([
       '[RPGSCRIPT] Args a',
       '[RPGSCRIPT] Arg 1 is good',
       '[RPGSCRIPT] Args ',

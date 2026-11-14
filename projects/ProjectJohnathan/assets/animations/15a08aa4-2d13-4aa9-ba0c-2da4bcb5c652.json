@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "15a08aa4-2d13-4aa9-ba0c-2da4bcb5c652",
+  "label": "fabian3x3 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 9,
+      "durationMs": 135
+    }
+  ]
+}

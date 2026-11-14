@@ -1,4 +1,6 @@
-import { TEST_SCENE_ID, getDefaultAssetsRoot, loadScene } from './load-scene.js';
+import { loadSceneByReference } from './load-scene.js';
+import { parseProjectArguments, loadProjectFromArguments } from '../project/cli.js';
+import { getProjectSource } from '../project/project.js';
 import { CellBuffer } from './cell-buffer.js';
 import { encodeTerminal, getPlainText } from './terminal.js';
 import {
@@ -8,8 +10,18 @@ import {
   STANDARD_WIDTH,
 } from '../renderer/ui/layout-standard-scene.js';
 
-const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
+const options = parseProjectArguments(process.argv.slice(2));
+if (options.remaining.some((argument) => argument !== '--plain'))
+  throw new Error(`Unknown arguments: ${options.remaining.join(' ')}`);
+const source = getProjectSource({
+  project: await loadProjectFromArguments(options),
+  assetsRoot: options.assetsRoot,
+  sceneId: options.sceneId,
+});
+const scene = await loadSceneByReference(source.assetsRoot, source.sceneId);
 const plain = process.argv.includes('--plain') || !process.stdout.isTTY;
 const buffer = new CellBuffer(STANDARD_WIDTH, STANDARD_HEIGHT, STANDARD_BACKGROUND);
 new LayoutStandardScene(scene).render(buffer);
-process.stdout.write(plain ? `${getPlainText(buffer)}\n` : encodeTerminal(buffer, { clear: false }));
+process.stdout.write(
+  plain ? `${getPlainText(buffer)}\n` : encodeTerminal(buffer, { clear: false }),
+);

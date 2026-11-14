@@ -1,0 +1,11 @@
+@ld(ch, dir)
+  +setAnimState([ch], idle)
+  +setFacing([ch], [dir])
+
+@leach(ch1, ch2)
+  +lookAtCh([ch1], [ch2])
+  +lookAtCh([ch2], [ch1])
+
+@rand
+  +rand100()
+  <{vars.rand100}

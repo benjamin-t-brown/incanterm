@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CellBuffer } from '../../../game/cell-buffer.js';
 import { Prop, Scene } from '../../../game/scene.js';
 import { Sprite } from '../../../game/sprite.js';
-import { loadScene, getDefaultAssetsRoot, TEST_SCENE_ID } from '../../../game/load-scene.js';
+import { createSceneFixture } from '../../../game/__tests__/scene-fixture.js';
 import { getPlainText } from '../../../game/terminal.js';
 import {
   LayoutStandardScene,
@@ -16,6 +16,34 @@ import {
 import { renderStandardUiPreview } from '../standard-ui.js';
 
 describe('LayoutStandardScene', () => {
+  it('uses black dialogue backgrounds only while no dialogue text is displayed', () => {
+    const layout = new LayoutStandardScene(new Scene('room', 1, 1, 'regular-z', STANDARD_BACKGROUND, []));
+    layout.conversationOpen = true;
+    const getBackground = (): { r: number; g: number; b: number } => {
+      const buffer = new CellBuffer(120, 40, STANDARD_BACKGROUND);
+      layout.render(buffer);
+      return buffer.get(10, 27).bg;
+    };
+    expect(getBackground()).toEqual({ r: 0, g: 0, b: 0 });
+    layout.message.showText('Hello');
+    expect(getBackground()).toEqual({ r: 16, g: 25, b: 20 });
+    layout.message.clearText();
+    expect(getBackground()).toEqual({ r: 0, g: 0, b: 0 });
+  });
+  it('exposes only the visible Log content as a selectable region', () => {
+    const scene = new Scene('room', 3, 3, 'regular-z', STANDARD_BACKGROUND, []);
+    const layout = new LayoutStandardScene(scene);
+    layout.render(new CellBuffer(80, 24, STANDARD_BACKGROUND));
+    expect(layout.getLogSelectionRect()).toEqual({ x: 1, y: 13, width: 78, height: 10 });
+    layout.tabs.select('inventory');
+    layout.render(new CellBuffer(80, 24, STANDARD_BACKGROUND));
+    expect(layout.getLogSelectionRect()).toBeUndefined();
+    layout.tabs.select('log');
+    layout.message.text = 'Hello';
+    layout.render(new CellBuffer(80, 24, STANDARD_BACKGROUND));
+    expect(layout.getLogSelectionRect()).toBeUndefined();
+  });
+
   it('colors error entries and all their wrapped lines red without recoloring normal entries', () => {
     const scene = new Scene('room', 3, 3, 'regular-z', STANDARD_BACKGROUND, []);
     const layout = new LayoutStandardScene(scene);
@@ -27,8 +55,8 @@ describe('LayoutStandardScene', () => {
     expect(layout.scriptLog.lineColors?.slice(1).every((color) => color === ERROR_LOG_FG)).toBe(true);
   });
 
-  async function createFrame(cols: number, rows: number): Promise<string[]> {
-    const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
+  function createFrame(cols: number, rows: number): string[] {
+    const scene = createSceneFixture();
     const layout = new LayoutStandardScene(scene);
     layout.message.text = 'Guide: The crate is waiting for you.';
     const buffer = new CellBuffer(cols, rows, STANDARD_BACKGROUND);
@@ -36,10 +64,10 @@ describe('LayoutStandardScene', () => {
     return getPlainText(buffer).split('\n');
   }
 
-  it('overlays the bottom 16 rows of the 120x40 scene viewport', async () => {
+  it('overlays the bottom 16 rows of the 120x40 scene viewport', () => {
     expect(STANDARD_WORLD_HEIGHT).toBe(40);
     expect(STANDARD_UI_HEIGHT).toBe(16);
-    const lines = await createFrame(STANDARD_WIDTH, STANDARD_HEIGHT);
+    const lines = createFrame(STANDARD_WIDTH, STANDARD_HEIGHT);
     expect(lines).toHaveLength(40);
     expect(lines[23]).not.toContain('=');
     expect(lines[24]).toBe('='.repeat(120));
@@ -75,8 +103,8 @@ describe('LayoutStandardScene', () => {
     expect(layout.getScenePoint(-1, 4)).toBeUndefined();
   });
 
-  it('renders the same default UI for an editor-only preview', async () => {
-    const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
+  it('renders the same default UI for an editor-only preview', () => {
+    const scene = createSceneFixture();
     const layout = new LayoutStandardScene(scene);
     const buffer = new CellBuffer(120, 40, STANDARD_BACKGROUND);
     layout.render(buffer);
@@ -85,20 +113,20 @@ describe('LayoutStandardScene', () => {
     );
   });
 
-  it('centers the full canvas on a larger terminal', async () => {
-    const lines = await createFrame(140, 50);
+  it('centers the full canvas on a larger terminal', () => {
+    const lines = createFrame(140, 50);
     expect(lines[0]).toBe(' '.repeat(140));
     expect(lines[29]).toBe(`${' '.repeat(10)}${'='.repeat(120)}${' '.repeat(10)}`);
     expect(lines.slice(30).join('\n')).toContain('Guide: The crate is waiting for you.');
   });
 
-  it('keeps the UI and center of the world visible on smaller terminals', async () => {
-    const medium = await createFrame(80, 24);
+  it('keeps the UI and center of the world visible on smaller terminals', () => {
+    const medium = createFrame(80, 24);
     expect(medium[8]).toBe('='.repeat(80));
     expect(medium.slice(0, 8).join('\n')).toContain('| # |');
     expect(medium.slice(9).join('\n')).toContain('Guide: The crate is waiting for you.');
 
-    const small = await createFrame(40, 16);
+    const small = createFrame(40, 16);
     expect(small[4]).toBe('='.repeat(40));
     expect(small[5]).toBe(`╔${'═'.repeat(38)}╗`);
     expect(small.slice(0, 4).join('\n')).toContain('#');
@@ -106,13 +134,13 @@ describe('LayoutStandardScene', () => {
     expect(small.slice(5).join('\n')).toContain('you.');
   });
 
-  it('reports when the terminal is below the minimum supported size', async () => {
-    const lines = await createFrame(30, 12);
+  it('reports when the terminal is below the minimum supported size', () => {
+    const lines = createFrame(30, 12);
     expect(lines.join('\n')).toContain('Terminal needs at least');
   });
 
-  it('reflows the same component when shrinking, growing, and recovering from an undersized view', async () => {
-    const scene = await loadScene(getDefaultAssetsRoot(), TEST_SCENE_ID);
+  it('reflows the same component when shrinking, growing, and recovering from an undersized view', () => {
+    const scene = createSceneFixture();
     const layout = new LayoutStandardScene(scene);
     layout.message.text = 'Guide: The crate is waiting for you.';
     const render = (cols: number, rows: number): string[] => {

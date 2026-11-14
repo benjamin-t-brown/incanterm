@@ -1,4 +1,5 @@
-import faviconUrl from '../../../assets/editor-favicon.png';
+import faviconUrl from '../resources/editor-favicon.png';
+import { getOpenedProject } from './project.js';
 import { getEditorAssetUrl } from '../asset-url.js';
 import { promptModal } from './modal.js';
 
@@ -34,9 +35,16 @@ export function createEditorNav(): string {
       </nav>`;
 }
 export function createAssetEditorTopbar(): string {
+  const project = getOpenedProject();
+  const name = (project?.name ?? 'No project open').replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ??
+      character,
+  );
   return `<header class="topbar">
       ${createBrandLink('ASSET EDITOR')}
-      <div class="top-right">${createEditorNav()}<button id="theme-toggle" class="text-button" type="button">☼ LIGHT MODE</button></div>
+      <div class="top-right"><a href="/" title="Open or create a project">${name}</a>${createEditorNav()}<button id="theme-toggle" class="text-button" type="button">☼ LIGHT MODE</button></div>
     </header>`;
 }
 

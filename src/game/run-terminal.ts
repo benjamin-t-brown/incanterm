@@ -4,16 +4,18 @@ import { styleText } from 'node:util';
 import { loadPortraitAssets } from './portrait-assets.js';
 import { loadRpgScripts } from './rpgscript/runtime.js';
 import { runRpgScriptSnippet, sceneCommandsShim, type ShimIO } from './scene-commands-shim.js';
+import { parseProjectArguments, loadProjectFromArguments } from '../project/cli.js';
 
 async function runMain(args: string[]): Promise<void> {
-  let assetsRoot = path.join(process.cwd(), 'assets');
-  if (args[0] === '--assets') {
-    if (!args[1]) throw new Error('Missing path after --assets');
-    assetsRoot = path.resolve(args[1]);
-    args = args.slice(2);
-  }
+  const options = parseProjectArguments(args);
+  const project = await loadProjectFromArguments(options);
+  const assetsRoot =
+    project?.assetsRoot ?? (options.assetsRoot ? path.resolve(options.assetsRoot) : undefined);
+  args = options.remaining;
+  if (!assetsRoot)
+    throw new Error('Select a project with --project path (or provide --assets path)');
   if (!args.length)
-    throw new Error('Usage: npm run run-rpgscript -- [--assets path] "testDialogue()"');
+    throw new Error('Usage: npm run run-rpgscript -- --project path "scriptName()"');
 
   const library = await loadRpgScripts(assetsRoot, { commands: sceneCommandsShim });
   const portraits = await loadPortraitAssets(assetsRoot);

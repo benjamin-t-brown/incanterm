@@ -1,13 +1,19 @@
 {
-  "rpgscript.scriptsRoot": "${workspaceFolder}/assets/scripts",
+  "rpgscript.scriptsRoot": "${workspaceFolder}/projects/ProjectJohnathan/assets/scripts",
   "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/scene-commands.ts",
   "rpgscript.debug": false,
   "cSpell.words": [
     "Conv",
     "Cutscene",
+    "despawn",
+    "hadassah",
     "Incanterm",
     "isnot",
+    "jackwagons",
     "keypress",
-    "Ralgo"
+    "Mult",
+    "Ralgo",
+    "returnempty",
+    "Vivi"
   ]
 }

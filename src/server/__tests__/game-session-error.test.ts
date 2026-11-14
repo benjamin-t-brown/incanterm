@@ -5,12 +5,11 @@ import { Scene } from '../../game/scene.js';
 import { Sprite } from '../../game/sprite.js';
 import { TerminalScreen } from '../../client/terminal-screen.js';
 import { getPlainText } from '../../game/terminal.js';
-import { ERROR_LOG_FG } from '../../renderer/ui/layout-standard-scene.js';
 import { createGameSession } from '../game-session.js';
 
 afterEach(() => vi.useRealTimers());
 
-it('logs an interrupted scene command and keeps the game session running', () => {
+it('quietly retries an interrupted walk and keeps the game session running', () => {
   vi.useFakeTimers();
   const ink = { ch: '@', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
   const sprite = new Sprite('actor', 1, 1, 0, 0, [ink]);
@@ -31,13 +30,8 @@ it('logs an interrupted scene command and keeps the game session running', () =>
   blocked.add(1 * scene.width + 4);
   vi.advanceTimersByTime(500);
   expect(onError).not.toHaveBeenCalled();
-  expect(getPlainText(screen.buffer)).toContain('interrupted before arrival');
-  expect(getPlainText(screen.buffer)).toContain('(+walkToMarker)');
+  expect(getPlainText(screen.buffer)).not.toContain('[RPGSCRIPT ERROR]');
   expect(getPlainText(screen.buffer)).toContain('arrived');
-  const rows = getPlainText(screen.buffer).split('\n');
-  const errorRow = rows.findIndex((row) => row.includes('[RPGSCRIPT ERROR]'));
-  expect(errorRow).toBeGreaterThanOrEqual(0);
-  expect(screen.buffer.get(rows[errorRow].indexOf('['), errorRow).fg).toEqual(ERROR_LOG_FG);
   vi.advanceTimersByTime(500);
   expect(onError).not.toHaveBeenCalled();
   session.close();

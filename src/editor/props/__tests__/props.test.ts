@@ -29,6 +29,17 @@ it('validates the prop visual, footprint and depth fields', () => {
   expect(parseProp({ ...prop, visual: { type: 'animation', id: 'idle' } }).ok).toBe(true);
 });
 
+it('parses prop customAnimations and rejects reserved default', () => {
+  const prop = createProp('machine', { type: 'animation', id: 'idle' });
+  const { customAnimations: _, ...without } = prop;
+  expect(parseProp(without)).toMatchObject({ ok: true, value: { customAnimations: {} } });
+  expect(parseProp({ ...prop, customAnimations: { open: 'open-clip' } })).toMatchObject({
+    ok: true,
+    value: { customAnimations: { open: 'open-clip' } },
+  });
+  expect(parseProp({ ...prop, customAnimations: { default: 'open-clip' } }).ok).toBe(false);
+});
+
 it('migrates legacy movement flags and keeps blocked cells in place when resized', () => {
   const prop = {
     ...createProp('crate', { type: 'sprite', id: 'crate-art', index: 0 }),

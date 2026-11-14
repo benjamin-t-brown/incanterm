@@ -1,6 +1,6 @@
 import type { Command, ScriptValue } from './parser.js';
 
-export type RuntimeValue = string | number | boolean | readonly string[] | undefined;
+export type RuntimeValue = string | number | boolean | readonly RuntimeValue[] | undefined;
 
 // Only interpreter operations belong here. Host state is a separate generic argument.
 export type CommandContext = {
@@ -10,6 +10,7 @@ export type CommandContext = {
   setStorage: (key: string, value: RuntimeValue) => void;
   getStorage: (key: string) => RuntimeValue;
   setLocal: (name: string, value: RuntimeValue) => void;
+  getLocal: (name: string) => RuntimeValue;
   call: (target: string, args: readonly RuntimeValue[]) => void;
   callWithResult: (target: string, args: readonly RuntimeValue[], destination: string, local: boolean) => void;
   returnValue: (value: RuntimeValue) => void;

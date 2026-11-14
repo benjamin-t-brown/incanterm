@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "2e4a56e3-8d7e-4ac4-a9ec-eda4b9f5c1eb",
+  "label": "props_door1_closed",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

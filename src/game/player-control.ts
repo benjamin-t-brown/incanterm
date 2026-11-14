@@ -7,17 +7,39 @@ export class PlayerControl {
   private pendingTalk?: { target: Character; destination: Point; run: (script: string, target: Character) => void };
   private conversation?: { target: Character; activity: CharacterActivity };
   private scriptedWalker?: Character;
-  constructor(public scene: Scene) {}
+  private cancelledWalks = new WeakSet<Character>();
+  constructor(public scene: Scene, private allowPlayerSpawn = false) {}
 
   changeScene(scene: Scene, player: Character): void {
     this.stop();
     this.endConversation(false);
     this.scene = scene;
+    this.allowPlayerSpawn = false;
     this.playerWalkCh = player;
   }
 
-  setPlayerWalkCh(idOrInstanceName: string): void {
-    const character = findCharacter(this.scene, idOrInstanceName, this.playerWalkCh);
+  setPlayerWalkCh(idOrInstanceName: string): void | Promise<void> {
+    let character: Character;
+    try {
+      character = findCharacter(this.scene, idOrInstanceName, this.playerWalkCh);
+    } catch (error) {
+      if (!this.allowPlayerSpawn) throw error;
+      const marker = this.scene.getMarker('MarkerPlayer');
+      if (!marker) throw new Error(`Scene ${this.scene.id} has no character ${idOrInstanceName} and no marker MarkerPlayer`);
+      if (!this.scene.loadCharacter) throw error;
+      return this.createPlayerCharacter(idOrInstanceName, marker, this.scene.loadCharacter);
+    }
+    this.stop();
+    this.playerWalkCh = character;
+  }
+
+  private async createPlayerCharacter(reference: string, marker: Point, loadCharacter: (reference: string) => Promise<Character>): Promise<void> {
+    const scene = this.scene;
+    const character = await loadCharacter(reference);
+    if (this.scene !== scene) return;
+    character.x = marker.x;
+    character.y = marker.y - character.bottomOffset;
+    scene.entities.push(character);
     this.stop();
     this.playerWalkCh = character;
   }
@@ -28,7 +50,19 @@ export class PlayerControl {
     this.scriptedWalker = undefined;
   }
 
+  stopCharacter(character: Character): void {
+    this.cancelledWalks.add(character);
+    if (this.scriptedWalker === character) this.scriptedWalker = undefined;
+    if (this.playerWalkCh === character) this.pendingTalk = undefined;
+    character.stopWalking();
+  }
+
+  wasWalkCancelled(character: Character): boolean {
+    return this.cancelledWalks.has(character);
+  }
+
   walkScripted(character: Character, destination: Point): void {
+    this.cancelledWalks.delete(character);
     if (character === this.playerWalkCh) {
       this.pendingTalk = undefined;
       this.scriptedWalker = character;
@@ -76,6 +110,18 @@ export class PlayerControl {
     this.conversation = undefined;
     conversation?.target.setConversationBusy(false);
     if (restore && conversation) conversation.target.restoreActivity(conversation.activity, this.scene);
+  }
+
+  forgetCharacter(character: Character): void {
+    if (this.pendingTalk?.target === character) this.pendingTalk = undefined;
+    if (this.scriptedWalker === character) this.scriptedWalker = undefined;
+    if (this.conversation?.target === character) this.endConversation(false);
+    if (this.playerWalkCh === character) {
+      this.stop();
+      this.playerWalkCh = undefined;
+      return;
+    }
+    character.stopWalking();
   }
 
   isWalkPausedForConversation(character: Character, destination: Point): boolean {

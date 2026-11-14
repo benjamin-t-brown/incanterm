@@ -15,4 +15,18 @@ describe('RPGScript formatting', () => {
       '@start\r\n  // leave this comment alone;\r\n  \r\n  +log("ok")',
     );
   });
+
+  it('indents multiline list contents and restores the enclosing block after the closing pipe', () => {
+    const source = '@start\n+?is(flag):{\n+[chs]=|\na,\nb,\n|\n+[ch]=[chs]->0\n}\n+other=|one|\n';
+    const expected = '@start\n  +?is(flag):{\n    +[chs]=|\n      a,\n      b,\n    |\n    +[ch]=[chs]->0\n  }\n  +other=|one|\n';
+    expect(formatRpgScript(source)).toBe(expected);
+    expect(formatRpgScript(expected)).toBe(expected);
+  });
+
+  it('collapses repeated spaces inside single and double quotes without changing spaces outside them', () => {
+    const source = '@start\n+log("A  word   here", \'it  works\')\nGuide: "It\'s   fine"\n+value  =  " x   y  "\n';
+    const expected = '@start\n  +log("A word here", \'it works\')\n  Guide: "It\'s fine"\n  +value  =  " x y "\n';
+    expect(formatRpgScript(source)).toBe(expected);
+    expect(formatRpgScript(expected)).toBe(expected);
+  });
 });

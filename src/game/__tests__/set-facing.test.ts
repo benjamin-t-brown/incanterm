@@ -1,5 +1,4 @@
 import { expect, it } from 'vitest';
-import fs from 'node:fs/promises';
 import { Character } from '../character.js';
 import { PlayerControl } from '../player-control.js';
 import { parseRpgScript, ScriptRunner } from '../rpgscript/runtime.js';
@@ -36,8 +35,8 @@ it('resolves character asset, instance name, scene script name and script argume
   expect(hero.facing).toBe('right');
 });
 
-it('passes the player alias and direction through the authored ld utility', async () => {
-  const utility = await fs.readFile('assets/scripts/utils.rpgscript', 'utf8');
+it('passes the player alias and direction through a script call', () => {
+  const utility = '@ld(ch, direction)\n+setFacing([ch], [direction])';
   const { hero, runner } = createFacingRunner(`${utility}\n@start\n+:ld(player, up)`, true);
   runner.start('start');
   expect(hero.facing).toBe('up');

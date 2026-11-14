@@ -743,7 +743,8 @@ input[type='range'] {
 .generate-shirt-field .palette {
   margin-top: 8px;
 }
-#generate-character-form input[type='text'] {
+#generate-character-form input[type='text'],
+#generate-character-form select {
   width: 100%;
   padding: 8px;
   background: var(--inset);
@@ -1456,4 +1457,28 @@ body.light .cel.filled .cel-dot {
 .palette-hex-fields label,
 .palette-hex-fields input {
   min-width: 0;
+}
+.palette-color-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.palette-color-row .palette-rgb {
+  flex: 1;
+  width: 0;
+  margin-top: 0;
+}
+.palette-color-picker {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  cursor: pointer;
+}
+.palette-color-picker:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }

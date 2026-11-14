@@ -7,7 +7,7 @@ import type { ScriptLibrary } from '../game/rpgscript/index.js';
 import type { PortraitAssets } from '../game/portrait-assets.js';
 import { encodeMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
-import { createGameSession } from './game-session.js';
+import { createGameSession, type DialogueAnimationOptions, type PortraitAnimationOptions } from './game-session.js';
 import { closeServer, listen } from './listen.js';
 
 const MIME: Record<string, string> = {
@@ -39,6 +39,9 @@ export async function startHttpServer(options: {
   portraits?: PortraitAssets;
   reloadPortraits?: () => Promise<PortraitAssets>;
   loadSceneById?: (sceneId: string) => Promise<Scene>;
+  dialogueAnimation?: DialogueAnimationOptions;
+  portraitAnimation?: PortraitAnimationOptions;
+  allowPlayerSpawn?: boolean;
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -54,7 +57,8 @@ export async function startHttpServer(options: {
   });
 
   webSocketServer.on('connection', (socket) => {
-    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits, options.loadSceneById);
+    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits,
+      options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -82,13 +86,16 @@ function attachSocket(
   portraits?: PortraitAssets,
   reloadPortraits?: () => Promise<PortraitAssets>,
   loadSceneById?: (sceneId: string) => Promise<Scene>,
+  dialogueAnimation?: DialogueAnimationOptions,
+  portraitAnimation?: PortraitAnimationOptions,
+  allowPlayerSpawn = false,
 ): void {
   let sendingFrame = false;
   const session = createGameSession(
     scene,
-    (text, cols, rows) => {
+    (text, cols, rows, logSelection) => {
       sendingFrame = true;
-      socket.send(encodeMessage({ type: 'terminal-data', data: text, cols, rows }), (error) => {
+      socket.send(encodeMessage({ type: 'terminal-data', data: text, cols, rows, logSelection }), (error) => {
         sendingFrame = false;
         if (error) socket.terminate();
       });
@@ -99,6 +106,9 @@ function attachSocket(
     reloadPortraits,
     handleSessionError,
     loadSceneById,
+    dialogueAnimation,
+    portraitAnimation,
+    allowPlayerSpawn,
   );
   function handleSessionError(error: unknown): void {
     console.error('Game session failed:', error);

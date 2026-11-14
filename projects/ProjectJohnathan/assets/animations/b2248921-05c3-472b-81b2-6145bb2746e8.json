@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "b2248921-05c3-472b-81b2-6145bb2746e8",
+  "label": "props_vendLime",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ef81d361-6170-4c09-af2c-a58366bdc32c",
+      "index": 0,
+      "durationMs": 1000
+    },
+    {
+      "sprite": "ef81d361-6170-4c09-af2c-a58366bdc32c",
+      "index": 1,
+      "durationMs": 1000
+    }
+  ]
+}

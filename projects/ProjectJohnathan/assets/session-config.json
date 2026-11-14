@@ -1,0 +1,14 @@
+{
+  "dialogueAnimation": {
+    "enabled": true,
+    "stepDurationMs": 33,
+    "wordDelayMs": 16,
+    "growthSequences": ["_,n8", "`^d$", "_~6%", ".,bB", "'=\\#"],
+    "shortGrowthSequences": [".,<n", "_.v+", ",-+a", "-+=o"]
+  },
+  "portraitAnimation": {
+    "enabled": true,
+    "stepDurationMs": 33,
+    "rowDelayMs": 8.25
+  }
+}

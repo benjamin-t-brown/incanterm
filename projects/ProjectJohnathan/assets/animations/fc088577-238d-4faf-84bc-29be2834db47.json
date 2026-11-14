@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "fc088577-238d-4faf-84bc-29be2834db47",
+  "label": "hadassah3x3 idle left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 2,
+      "durationMs": 135
+    }
+  ]
+}

@@ -1,104 +1,128 @@
 # Incanterm
 
-A server-run point-and-click terminal adventure with dialogue, puzzles, and cutscenes. The server runs the game and sends terminal output; clients display it and forward input. The Node.js testing client and browser support audio; ordinary SSH play is silent. A small native client is deferred. There is no client scripting layer.
+Incanterm is a terminal-adventure engine and project editor. Its server runs scenes and
+RPGScript; browser, terminal, and SSH clients display the output and forward input.
+Game content belongs to an opened project, not to the engine installation.
 
-The server draws one scene, [`assets/scenes/test-room.json`](assets/scenes/test-room.json): a small room with a single crate prop. An RPGScript dialogue plays on entry; puzzles, inventory, audio, and the SSH menu are not implemented yet. This repository has the development scaffold: a TypeScript server, a Node terminal client, a Vite browser client, and Vitest, ESLint, and Prettier.
+## Open a project
 
-The [asset editor](docs/design/assets-and-scene-editor.md) runs with `npm run editor` on port 7104. The older ed-ascii painter remains in `ed-ascii/` as an import source.
-
-Editor saves send the last loaded/saved version along with the draft. The server rereads disk, merges
-independent changes, and rejects overlapping edits without overwriting the file. This shared path
-covers sprites, animations, scripts, palettes and reference placement; sprite cells and separate
-script lines can merge independently. Reordered/structurally changed lists cannot be safely merged
-without stable identities. Binary reference images use a revision check instead of attempting to
-merge pixels. On conflict, review the still-open draft (or use Save As for sprites).
-
-## Run
-
-```text
+```sh
 npm install
-npm run dev       # server on 7101/7102 and the Vite browser client on 7103
-npm run client    # Node terminal client, in a second terminal
-npm run scene     # print the test scene in this terminal
-npm run test:ui   # interactive BorderBox gallery in this terminal
+npm run editor
 ```
 
-The game server listens on `127.0.0.1:7101` (HTTP and WebSocket) and `127.0.0.1:7102` (SSH). The Vite game client uses port 7103 and proxies `/ws` to the game server. Any SSH login is accepted; there are no accounts yet. Each connection receives the test scene. Only dialogue advancement is handled as gameplay input so far; audio playback and the SSH menu are not implemented.
+Open <http://127.0.0.1:7104>. Choose an available project, **OPEN PROJECT** with a local
+folder or `incanterm.json` path, or **CREATE PROJECT** with a new folder and name.
+The path refers to the computer running the editor server. External project directories
+are supported; projects do not need to live in this repository.
+
+The editor starts with no project selected. The selected project is remembered for that
+browser tab. Tabs, unsaved drafts, selections, and preferences are stored separately for
+each project. Switching projects uses the normal unsaved-work confirmation and reloads
+the editor so in-flight operations cannot write to another project's assets.
+
+Choose **GAME / PLAY** to run the opened project's entry scene. The editor starts its own
+local preview; a separate `npm run dev` or fixed game-client port is not required.
+Leave and return to Play to reload the latest saved content.
+
+### ProjectJohnathan
+
+The current game is now [`projects/ProjectJohnathan`](projects/ProjectJohnathan).
+Its asset files and story notes were moved without changing their contents or asset IDs.
+Its manifest selects `classroom1` as the entry scene.
+
+After upgrading, restart old editor/server processes. Open ProjectJohnathan from the
+project list. To recover browser tabs or drafts saved before projects were introduced,
+use **IMPORT LEGACY TABS / DRAFTS** on the project page. This is explicit: legacy data
+is retained, and existing project-scoped state is not overwritten.
+
+## Project format
 
 ```text
-ssh -p 7102 player@127.0.0.1
-npm test              Vitest watch mode
-npm run test:run      Tests once
-npm run test:ui -- border-box   Interactive UI component gallery (↑/↓ scroll, q quit)
-npm run test:ui -- --list       List available galleries
-npm run test:ui -- border-box --plain   Print a noninteractive, uncolored frame
+my-game/
+  incanterm.json
+  assets/
+    scenes/
+    scripts/
+    sprites/
+    animations/
+    characters/
+    props/
+    audio/
+    references/
+  story/                   Optional game-owned notes
+```
+
+```json
+{
+  "format": "incanterm-project",
+  "version": 1,
+  "id": "my-game",
+  "name": "My Game",
+  "assets": "assets",
+  "entryScene": "start"
+}
+```
+
+Paths are relative to the manifest. `assets` must stay inside the project directory.
+The entry scene must exist. New projects include an empty, playable `start` scene.
+Optional `assets/session-config.json` controls dialogue and portrait animation settings
+for both standalone servers and local previews.
+
+Editor saves merge independent changes against the last loaded version and reject
+conflicts rather than overwriting newer disk content. Binary reference images use
+revision checks instead of merges.
+
+## Command-line play and tools
+
+Run commands from the engine repository, selecting any project folder or manifest:
+
+```sh
+npm run dev -- --project projects/ProjectJohnathan
+npm run server -- --project projects/ProjectJohnathan
+npm run loopback -- --project projects/ProjectJohnathan
+npm run scene -- --project projects/ProjectJohnathan --plain
+npm run run-rpgscript -- --project projects/ProjectJohnathan "testArgs()"
+npm run format:rpgscript:check -- --project projects/ProjectJohnathan
+npm run format:rpgscript -- --project projects/ProjectJohnathan
+```
+
+`--scene <id-or-label>` overrides the manifest's entry scene. Scene IDs take precedence;
+labels must match exactly and be unique. Quote labels containing spaces. For example:
+
+```sh
+./loopback.sh --project projects/ProjectJohnathan --scene hallwayGym
+```
+
+`INCANTERM_PROJECT` can provide
+the selected project when `--project` is omitted. There is no built-in game fallback.
+Low-level tools also accept explicit `--assets <folder>`; scene-based tools additionally
+require `--scene <id-or-label>`.
+
+`dev` starts the game server on ports 7101/7102 and the browser client on 7103.
+`npm run client` or `ssh -p 7102 player@127.0.0.1` connects to the standalone server.
+Loopback uses temporary local ports and combines server and terminal client; press `~`
+to switch between game and server views.
+
+## Engine development
+
+```sh
+npm run test:run
 npm run typecheck
 npm run lint
 npm run format:check
-npm run build         Server, terminal client, and browser
-npm start             Built server; serves dist/browser when it exists
-npm run editor        asset editor on port 7104
+npm run build
+npm start -- --project projects/ProjectJohnathan
+npm run test:ui -- --list
 ```
 
-## RPGScript dialogue smoke test
+Engine formatting does not rewrite game projects. Format RPGScript separately with a
+selected project. Tests use synthetic projects and test-owned fixtures, never the
+bundled game's files. CI runs the engine tests in a checkout without `projects/`,
+legacy `assets/`, or `ed-ascii/data/`.
 
-Run `npm run dev` and connect using `npm run client`, the browser, or SSH. The test room
-plays [`assets/scripts/test-dialogue.rpgscript`](assets/scripts/test-dialogue.rpgscript) on
-entry. Press Space or Enter to advance each line. Restart the server after editing scripts.
-Run `npm run test:run -- src/game/rpgscript/__tests__/index.test.ts src/server/__tests__/server.test.ts` to test
-parsing, independent player state, and game connections.
+Engine code remains in `src/`; the editor's own images live in `src/editor/resources/`.
+The old `ed-ascii/` painter remains an optional import tool, not a runtime dependency.
 
-For a fresh checkout, follow [Install RPGScript support in Cursor](docs/rpgscript-cursor-setup.md)
-to build and install the bundled language extension. The guide includes workspace settings,
-verification, and updates. Configure it to use `assets/scripts` and the command catalog in
-`src/game/scene-commands.ts`. Reload the Cursor window after changing the settings
-or the catalog so the language server refreshes its command cache.
-The server parses scripts with an adaptation of the original RPGScript parser. Its **runner**
-executes dialogue, script calls, state flags, supported conditions, and choices per session.
-Triggers are dispatchable by explicit RPGScript event name but are not yet mapped to scene
-interactions; unsupported game-specific commands fail with a file/line error at startup.
-
-To run a script without a scene, use `npm run run-rpgscript -- "testRoomEntry()"` (or
-`npm run run-rpgscript -- --assets path/to/assets "scriptName()"`). It loads all scripts,
-prints dialogue and logs, prints the selected portrait's ASCII glyphs (animation frame 0 only),
-prompts for numbered choices, and reports unknown commands as errors.
-You can also pass a command snippet, such as `'+log("Hello")'`. The terminal shim does not
-alter how unsupported commands behave in the game server.
-
-## Isolated loopback playtests
-
-Run `npm run loopback -- --scene test-room` in a terminal to start the
-server and terminal client in one process. Both network ports are bound to `127.0.0.1` on
-ephemeral ports, and the SSH key is generated in memory. Press `~` to switch between the game
-
-Automated tests can call `startLoopback` from `src/loopback/start.ts` with `sceneId` and
-`assetsRoot`, then send input and assert on actual WebSocket frames.
-`npm run test:run -- src/loopback` runs the isolated integration and input tests.
-
-## Visual UI tests
-
-Visual UI tests use the same `CellBuffer` and component drawing code as the game. Add a gallery to
-`src/renderer/ui/visual-tests.ts` and register it in `visualTests`; `test:ui` handles terminal input,
-resizing, and cleanup. Run the command in a real terminal for interaction; redirected output uses
-the plain-text frame. These tests complement, rather than replace, automated Vitest assertions.
-
-## Design documents
-
-| Document                                                                    | Contents                                                                         |
-| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Project overview](docs/design/overview.md)                                 | Game direction and implementation outline                                        |
-| [Development and build](docs/design/development-and-build.md)               | Vite, tsx, esbuild, Vitest, ESLint, Prettier, and planned commands               |
-| [Scenes, entities, and scripts](docs/design/scenes-entities-and-scripts.md) | Object-oriented room model, entity types, triggers, and server-side scripts      |
-| [Interaction and navigation](docs/design/interaction-and-navigation.md)     | Scene modes, inventory, eight-way paths, animation facing, and viewport behavior |
-| [RPGScript integration](docs/design/rpgscript.md)                           | Language reuse, server runner/loading rewrite, commands, and editor tooling      |
-| [Assets and scene editor](docs/design/assets-and-scene-editor.md)           | Asset formats, ed-ascii expansion, scene authoring, and rapid preview loop       |
-| [System architecture](docs/design/architecture.md)                          | Server/client responsibilities, architecture diagram, and library candidates     |
-| [Clients and protocol](docs/design/clients-and-protocol.md)                 | Testing and native clients, message types, input, audio, SSH/browser entry       |
-| [Server and sessions](docs/design/server-and-sessions.md)                   | Folder organization, layers, event routing, per-player state, and lifecycle      |
-| [UI system](docs/design/ui.md)                                              | UIElement trees, drawing order, recursive lookup, focus, and mouse capture       |
-| [Local saves](docs/design/saves.md)                                         | JSON schema, defaults, local storage, copyable codes, and loading                |
-| [Rendering and animation](docs/design/rendering-and-animation.md)           | Depth modes, render passes, filters/transitions, debug overlays, and animation   |
-| [Presentation and audio](docs/design/presentation-and-audio.md)             | Event-driven sound, audio controller, shared timing, and client playback         |
-| [Art tools](docs/design/art-tools.md)                                       | Drawing, image conversion, and video conversion candidates                       |
-
-Confirmed decisions and proposals are distinguished in the relevant documents. The planned server uses Node.js/TypeScript; exact wire encoding, reconnect details, and several asset formats remain open. Keep future notes in the document for their subject; keep this README as the entry point.
+See [RPGScript setup in Cursor](docs/rpgscript-cursor-setup.md) and the
+[design overview](docs/design/overview.md) for language tooling and design notes.

@@ -20,6 +20,7 @@ export function addSceneProp(
     type: 'Prop',
     name: `${base}_${number}`,
     prop: propId,
+    state: 'default',
     x: Math.max(0, Math.min(scene.width - 1, x)),
     y: Math.max(0, Math.min(scene.height - 1, y)),
     z: 0,

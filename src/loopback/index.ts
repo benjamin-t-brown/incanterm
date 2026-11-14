@@ -1,26 +1,26 @@
-import path from 'node:path';
+import { parseProjectArguments, loadProjectFromArguments } from '../project/cli.js';
 import { matchesViewport, type TerminalViewport } from '../client/viewport.js';
 import type { ServerMessage } from '../protocol/messages.js';
 import { routeLoopbackInput } from './input.js';
 import { startLoopback, type Loopback } from './start.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
 import { encodeTerminal } from '../game/terminal.js';
-import { formatTerminalError, installTerminalCleanup, TERMINAL_POINTER } from '../client/terminal-cleanup.js';
+import {
+  formatTerminalError,
+  installTerminalCleanup,
+  TERMINAL_POINTER,
+} from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
 
-function parseOptionsFromArgs(args: string[]): {
-  sceneId?: string;
-  assetsRoot?: string;
-} {
-  const options: { sceneId?: string; assetsRoot?: string } = {};
-  for (let i = 0; i < args.length; i += 2) {
-    const value = args[i + 1];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${args[i]}`);
-    if (args[i] === '--scene') options.sceneId = value;
-    else if (args[i] === '--assets') options.assetsRoot = path.resolve(value);
-    else throw new Error(`Unknown option ${args[i]}`);
-  }
-  return options;
+async function loadOptionsFromArgs(args: string[]) {
+  const options = parseProjectArguments(args);
+  if (options.remaining.length)
+    throw new Error(`Unknown arguments: ${options.remaining.join(' ')}`);
+  return {
+    project: await loadProjectFromArguments(options),
+    assetsRoot: options.assetsRoot,
+    sceneId: options.sceneId,
+  };
 }
 
 if (!process.stdin.isTTY || !process.stdout.isTTY) {
@@ -135,7 +135,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   }
 
   try {
-    const options = parseOptionsFromArgs(process.argv.slice(2));
+    const options = await loadOptionsFromArgs(process.argv.slice(2));
     loopback = await startLoopback({
       ...options,
       onMessage,

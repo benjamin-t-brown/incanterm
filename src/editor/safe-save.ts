@@ -57,7 +57,7 @@ export class SaveCoordinator {
 }
 
 // JSON documents: merge independent fields recursively. Arrays without stable
-// identities are atomic; arrays of objects with unchanged ids merge by id.
+// identities are atomic; arrays of objects with stable ids merge by id.
 export function mergeJson<T>(base: T, ours: T, theirs: T): MergeResult<T> {
   return mergeValue(base, ours, theirs, 'document') as MergeResult<T>;
 }
@@ -100,28 +100,70 @@ function mergeValue(
     Array.isArray(base) &&
     Array.isArray(ours) &&
     Array.isArray(theirs) &&
-    getStableIds(base, ours, theirs)
+    hasStableIds(base, ours, theirs)
   ) {
-    const result: unknown[] = [];
-    for (let index = 0; index < base.length; index++) {
-      const part = mergeValue(base[index], ours[index], theirs[index], `${at}[${index}]`);
-      if (!part.ok) return part;
-      result.push(part.value);
-    }
-    return { ok: true, value: result };
+    return mergeIdentifiedValues(base, ours, theirs, at);
   }
   return { ok: false, reason: `Both editors changed ${at}` };
 }
 
-function getStableIds(base: unknown[], ours: unknown[], theirs: unknown[]): boolean {
-  if (base.length !== ours.length || base.length !== theirs.length) return false;
+function hasStableIds(base: unknown[], ours: unknown[], theirs: unknown[]): boolean {
   const getIds = (values: unknown[]) => values.map((value) => (isRecord(value) ? value.id : null));
   const original = getIds(base);
+  const originalIds = new Set(original);
   return (
-    original.every((id) => typeof id === 'string') &&
-    isSame(original, getIds(ours)) &&
-    isSame(original, getIds(theirs))
+    [base, ours, theirs].every((values) => {
+      const ids = getIds(values);
+      return ids.every((id) => typeof id === 'string') && new Set(ids).size === ids.length;
+    }) &&
+    [ours, theirs].every((values) => {
+      const ids = getIds(values).filter((id) => originalIds.has(id));
+      return isSame(
+        ids,
+        original.filter((id) => ids.includes(id)),
+      );
+    })
   );
+}
+
+function mergeIdentifiedValues(
+  base: unknown[],
+  ours: unknown[],
+  theirs: unknown[],
+  at: string,
+): MergeResult<unknown[]> {
+  const getEntries = (values: unknown[]) =>
+    new Map(values.map((value) => [(value as { id: string }).id, value]));
+  const old = getEntries(base);
+  const local = getEntries(ours);
+  const remote = getEntries(theirs);
+  const result: unknown[] = [];
+  // Keep the disk order, then append new local entries. Deletions only win over
+  // unchanged entries; deleting an entry edited elsewhere is a conflict.
+  for (const id of new Set([...remote.keys(), ...local.keys()])) {
+    const before = old.get(id);
+    const left = local.get(id);
+    const right = remote.get(id);
+    if (before === undefined) {
+      if (left !== undefined && right !== undefined && !isSame(left, right))
+        return { ok: false, reason: `Both editors added ${at} id ${id} differently` };
+      result.push(left ?? right);
+    } else if (left === undefined || right === undefined) {
+      if (
+        (left !== undefined && !isSame(left, before)) ||
+        (right !== undefined && !isSame(right, before))
+      )
+        return {
+          ok: false,
+          reason: `One editor deleted ${at} id ${id} while the other changed it`,
+        };
+    } else {
+      const part = mergeValue(before, left, right, `${at}[${id}]`);
+      if (!part.ok) return part;
+      result.push(part.value);
+    }
+  }
+  return { ok: true, value: result };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

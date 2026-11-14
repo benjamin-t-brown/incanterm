@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "6f9b8c6b-9a2b-4d2e-a797-684fd28d6b9b",
+  "label": "tessa3x3 talking up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 6,
+      "durationMs": 500
+    },
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 7,
+      "durationMs": 500
+    }
+  ]
+}

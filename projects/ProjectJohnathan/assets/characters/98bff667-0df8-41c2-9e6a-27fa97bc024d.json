@@ -1,0 +1,26 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "98bff667-0df8-41c2-9e6a-27fa97bc024d",
+  "label": "wyatt3x3",
+  "scriptName": "Wyatt,wyatt",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "c0837aa5-8f91-40d6-b5da-825fc5295844",
+    "idle-down": "9f2e008d-e312-4cd3-8338-784d5cfd2d04",
+    "idle-left": "8aa5e86c-1b8e-4458-b1c2-0cffc3795f6c",
+    "idle-right": "7610a659-0cb3-4a92-ae88-620c08759127",
+    "walk-up": "d2665c0d-535f-4ab9-aae8-5910e162681d",
+    "walk-down": "7b278491-dd15-4f11-94e3-eec543a309c6",
+    "walk-left": "308abe91-38a3-467c-823a-6b4df8d9d205",
+    "walk-right": "b1ccb79a-fc13-47d5-a49c-fb83030e42b2",
+    "talking-up": "1cd3cb00-d589-4a8f-8dec-b3a399fd7c40",
+    "talking-down": "64b81621-b637-432f-88f8-afb612063a70",
+    "talking-left": "c5cb4a0c-4871-4b2a-8bce-cd00e2630207",
+    "talking-right": "06d6cb0b-16c0-452b-851e-ad1e01cc9afc"
+  },
+  "customAnimations": {
+    "sit left": "27d4c800-1c32-40ff-9149-5320f88419f8",
+    "packing locker": "4752e8f7-77dc-463e-af94-d1e6342fa04e"
+  }
+}

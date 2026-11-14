@@ -2,8 +2,10 @@ export type ClientMessage =
   | { type: 'input'; data: string }
   | { type: 'resize'; cols: number; rows: number };
 
+export type SelectionRect = { x: number; y: number; width: number; height: number };
+
 export type ServerMessage =
-  | { type: 'terminal-data'; data: string; cols?: number; rows?: number }
+  | { type: 'terminal-data'; data: string; cols?: number; rows?: number; logSelection?: SelectionRect }
   | { type: 'session-status'; status: 'connected'; sessionId: string }
   | { type: 'session-error'; details: string }
   | { type: 'play-sound'; assetId: string }
@@ -31,10 +33,13 @@ export function parseServerMessage(raw: string): ServerMessage | null {
   const value = decode(raw);
   if (!value) return null;
   if (value.type === 'terminal-data' && isBoundedString(value.data, MAX_TERMINAL_CHARS)) {
+    const logSelection = value.logSelection;
+    if (logSelection !== undefined && !isSelectionRect(logSelection)) return null;
     if (value.cols === undefined && value.rows === undefined)
-      return { type: 'terminal-data', data: value.data };
+      return { type: 'terminal-data', data: value.data, ...(logSelection && { logSelection }) };
     if (!isCellCount(value.cols) || !isCellCount(value.rows)) return null;
-    return { type: 'terminal-data', data: value.data, cols: value.cols, rows: value.rows };
+    return { type: 'terminal-data', data: value.data, cols: value.cols, rows: value.rows,
+      ...(logSelection && { logSelection }) };
   }
   if (
     value.type === 'session-error' &&
@@ -85,4 +90,15 @@ function isCellCount(value: unknown): value is number {
   return (
     typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_AXIS_CELLS
   );
+}
+
+function isSelectionRect(value: unknown): value is SelectionRect {
+  if (typeof value !== 'object' || value === null) return false;
+  const rect = value as Record<string, unknown>;
+  return isNonnegativeCell(rect.x) && isNonnegativeCell(rect.y) &&
+    isCellCount(rect.width) && isCellCount(rect.height);
+}
+
+function isNonnegativeCell(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= MAX_AXIS_CELLS;
 }

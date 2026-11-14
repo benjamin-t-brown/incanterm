@@ -5,13 +5,17 @@ import { parseRpgScript, ScriptRunner } from '../../game/rpgscript/__tests__/tes
 import { Scene } from '../../game/scene.js';
 import { Character } from '../../game/character.js';
 import { Sprite } from '../../game/sprite.js';
-import { getDefaultAssetsRoot } from '../../game/load-scene.js';
-import { getDialoguePortrait, loadPortraitAssets } from '../../game/portrait-assets.js';
 import { getPlainText } from '../../game/terminal.js';
 import { TerminalScreen } from '../../client/terminal-screen.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../../renderer/ui/layout-standard-scene.js';
 import { CellBuffer } from '../../game/cell-buffer.js';
-import { createGameSession } from '../game-session.js';
+import { createGameSession as createAnimatedGameSession } from '../game-session.js';
+
+function createGameSession(...args: Parameters<typeof createAnimatedGameSession>): ReturnType<typeof createAnimatedGameSession> {
+  args[8] = { enabled: false };
+  args[9] = { enabled: false };
+  return createAnimatedGameSession(...args);
+}
 
 const clear: Cell = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
 const createFrame = (ch: string, durationMs: number): PortraitFrame => ({
@@ -36,11 +40,12 @@ function isVisible(text: string): string {
 describe('dialogue portraits', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('shows the assigned Eva portrait in a rounded frame when clicked to talk', async () => {
-    const assets = await loadPortraitAssets(getDefaultAssetsRoot());
-    const evaPortrait = getDialoguePortrait(assets, 'Eva');
-    expect(evaPortrait?.asset.frames[0].cells?.some((cell) => cell.ch !== ' ')).toBe(true);
-    expect(getDialoguePortrait(assets, 'Johnathan')).toBeDefined();
+  it('shows an assigned portrait in a rounded frame when clicked to talk', () => {
+    const assets: PortraitAssets = Object.assign(new Map([['face', {
+      width: 1, height: 1, loop: true, frames: [createFrame('^', 100)],
+    }]]), { characters: new Map([['Eva', { id: 'eva', scriptName: 'Eva', portraits: [
+      { facing: 'right' as const, emotion: '', portrait: 'face' },
+    ] }]]) });
     const sprite = new Sprite('person', 1, 1, 0, 0, [{ ...clear, ch: '@' }]);
     const player = new Character('hero', 1, 2, 0, sprite, 'hero', 'Player', 'idle', 'right');
     const eva = new Character('eva', 3, 2, 0, sprite, 'eva', 'Eva', 'idle', 'left', 100, new Map(), 'talk');
@@ -192,6 +197,9 @@ describe('dialogue portraits', () => {
       expect(screen.buffer.get(rightNameX, firstNames - 1).fg).toEqual({ r: 128, g: 128, b: 128 });
       expect(screen.buffer.get(0, 36).fg).toEqual({ r: 255, g: 255, b: 255 });
       expect(screen.buffer.get(115, 36).fg).toEqual({ r: 128, g: 128, b: 128 });
+      expect(screen.buffer.get(2, 37).fg).toEqual({ r: 255, g: 255, b: 255 });
+      expect(screen.buffer.get(117, 37).fg).toEqual({ r: 128, g: 128, b: 128 });
+      expect(screen.buffer.get(117, 37).bg).toEqual(clear.bg);
       const hintRow = first.split('\n').findIndex((line) => line.includes('[Space/Enter]'));
       const hintX = first.split('\n')[hintRow].indexOf('[Space/Enter]');
       session.input(`\x1b[<0;${hintX + 1};${hintRow + 1}M`);
@@ -200,6 +208,8 @@ describe('dialogue portraits', () => {
       expect(screen.buffer.get(rightNameX, firstNames - 1).fg).toEqual({ r: 255, g: 255, b: 255 });
       expect(screen.buffer.get(0, 36).fg).toEqual({ r: 128, g: 128, b: 128 });
       expect(screen.buffer.get(115, 36).fg).toEqual({ r: 255, g: 255, b: 255 });
+      expect(screen.buffer.get(2, 37).fg).toEqual({ r: 128, g: 128, b: 128 });
+      expect(screen.buffer.get(117, 37).fg).toEqual({ r: 255, g: 255, b: 255 });
       session.input(' ');
       expect(getPlainText(screen.buffer)).toContain('Inventory');
       expect(getPlainText(screen.buffer)).not.toContain('Johnathan');

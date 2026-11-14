@@ -9,6 +9,7 @@ export type CharacterActivity = Readonly<{
   state: string;
   facing: CharacterDirection;
   speed: number;
+  speedMult: number;
   elapsed: number;
   visualKey: string;
   walkElapsed: number;
@@ -24,6 +25,8 @@ export class Character extends Prop {
   private busy = false;
   private conversationBusy = false;
   readonly bottomOffset: number;
+  /** Multiplier on walking pace; higher values move faster. Default 1. */
+  speedMult = 1;
 
   constructor(
     id: string,
@@ -97,6 +100,7 @@ export class Character extends Prop {
       state: this.state,
       facing: this.facing,
       speed: this.speed,
+      speedMult: this.speedMult,
       elapsed: this.elapsed,
       visualKey: this.visualKey,
       walkElapsed: this.walkElapsed,
@@ -110,12 +114,15 @@ export class Character extends Prop {
     this.state = activity.destination && !this.walkPath.length ? 'idle' : activity.state;
     this.facing = activity.facing;
     this.speed = activity.speed;
+    this.speedMult = activity.speedMult;
     this.elapsed = activity.elapsed;
     this.visualKey = activity.visualKey;
   }
 
   override update(deltaMs: number, scene: Scene): void {
-    const speed = Number.isFinite(this.speed) && this.speed > 0 ? this.speed : 150;
+    const base = Number.isFinite(this.speed) && this.speed > 0 ? this.speed : 150;
+    const mult = Number.isFinite(this.speedMult) && this.speedMult > 0 ? this.speedMult : 1;
+    const speed = base / mult;
     if (this.walkPath.length) this.walkElapsed += deltaMs;
     while (this.walkPath.length && this.walkElapsed >= speed / 2) {
       const target = this.walkPath[this.walkPath.length - 1];
@@ -156,6 +163,7 @@ export class Character extends Prop {
       this.talkScript,
       this.scriptName,
     );
+    character.speedMult = this.speedMult;
     character.setBusy(this.busy);
     return character;
   }

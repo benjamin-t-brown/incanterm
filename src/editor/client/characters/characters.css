@@ -12,6 +12,9 @@
 .character-app .toolbar-row {
   margin-bottom: 14px;
 }
+.character-app .prop-tabs {
+  margin-top: 0;
+}
 #character-id {
   margin-left: auto;
 }
@@ -115,6 +118,7 @@
   background: var(--inset);
 }
 .character-state-row button,
+.portrait-entry-actions button,
 #add-character-state,
 #add-character-portrait {
   padding: 7px 10px;
@@ -126,10 +130,45 @@
 #add-character-portrait {
   margin-top: 10px;
 }
+.character-portrait-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+  gap: 12px;
+}
+.character-portrait-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  text-align: center;
+}
+.character-portrait-card canvas {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #000;
+}
+.portrait-entry-name,
 .portrait-entry-description {
-  flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.portrait-entry-description {
+  color: var(--muted);
+}
+.portrait-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: auto;
 }
 #character-portrait-dialog {
   width: min(720px, calc(100vw - 32px));
@@ -165,6 +204,42 @@
   gap: 8px;
   max-height: 210px;
   overflow: auto;
+}
+.portrait-direction {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0 0;
+  border: 0;
+  font-size: 12px;
+  font-weight: bold;
+}
+.portrait-direction label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.portrait-direction input {
+  accent-color: var(--mint);
+}
+.portrait-frame-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 2px;
+}
+#portrait-frames-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+.portrait-asset-card:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 1px;
 }
 .portrait-asset-card {
   min-width: 0;
@@ -218,7 +293,8 @@
 .character-preview a {
   color: var(--highlight);
 }
-#character-from-folder-dialog {
+#character-from-folder-dialog,
+#character-custom-state-dialog {
   width: min(460px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow: visible;
@@ -228,23 +304,30 @@
   color: var(--text);
   box-shadow: 8px 8px 0 #071d1c;
 }
-#character-from-folder-dialog::backdrop {
+#character-from-folder-dialog::backdrop,
+#character-custom-state-dialog::backdrop {
   background: #071d1cd9;
 }
-#character-from-folder-form {
+#character-from-folder-form,
+#character-custom-state-form {
   display: grid;
   gap: 14px;
   padding: 20px;
 }
 #character-from-folder-form h2,
-#character-from-folder-form p {
+#character-from-folder-form p,
+#character-custom-state-form h2,
+#character-custom-state-form p {
   margin: 0;
 }
 #character-from-folder-form .search-select,
-#character-from-folder-form input {
+#character-from-folder-form input,
+#character-custom-state-form .search-select,
+#character-custom-state-form input {
   width: 100%;
 }
-#character-from-folder-form .search-select input {
+#character-from-folder-form .search-select input,
+#character-custom-state-form .search-select input {
   padding: 8px 10px;
   border: 1px solid var(--line);
   background: var(--inset);

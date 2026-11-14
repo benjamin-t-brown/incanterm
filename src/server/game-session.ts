@@ -2,17 +2,23 @@ import { randomUUID } from 'node:crypto';
 import { getCharacterScriptNames } from '../editor/schema.js';
 import { Scene } from '../game/scene.js';
 import { Character } from '../game/character.js';
+import { AnimatedProp } from '../game/animated-prop.js';
 import { findCharacter } from '../game/character-movement.js';
 import { PlayerControl } from '../game/player-control.js';
 import { commands, type GameScriptContext } from '../game/scene-commands.js';
 import { encodeTerminal, encodeTerminalDiff } from '../game/terminal.js';
 import { ScriptRunner, TriggerType, type ScriptLibrary } from '../game/rpgscript/index.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-standard-scene.js';
+import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createTextColorFilter, ScreenFilterPipeline } from '../renderer/screen-filters.js';
+import type { Rect } from '../renderer/ui/element.js';
 import { CellBuffer } from '../game/cell-buffer.js';
-import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type PortraitAssets } from '../game/portrait-assets.js';
+import type { SelectionRect } from '../protocol/messages.js';
+import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type PortraitAsset, type PortraitAssets, type PortraitFrame } from '../game/portrait-assets.js';
 
 const MAX_AXIS = 1000;
 const FRAME_INTERVAL_MS = Math.ceil(1000 / 30);
+const INACTIVE_PORTRAIT_FG = { r: 128, g: 128, b: 128 };
+const PORTRAIT_REVEAL_SEQUENCE = '.,:+';
 
 export type GameSession = {
   id: string;
@@ -22,17 +28,37 @@ export type GameSession = {
   input: (data: string) => void;
   resize: (cols: number, rows: number) => void;
   close: () => void;
+  filters: ScreenFilterPipeline;
+  getPortraitScreenRect: (side?: 'left' | 'right') => Rect | undefined;
+  getSceneScreenRect: (area?: Readonly<Rect>) => Rect | undefined;
+};
+
+export type DialogueAnimationOptions = {
+  enabled?: boolean;
+  stepDurationMs?: number;
+  wordDelayMs?: number;
+  growthSequences?: readonly string[];
+  shortGrowthSequences?: readonly string[];
+};
+
+export type PortraitAnimationOptions = {
+  enabled?: boolean;
+  stepDurationMs?: number;
+  rowDelayMs?: number;
 };
 
 export function createGameSession(
   scene: Scene,
-  send: (text: string, cols: number, rows: number) => void,
+  send: (text: string, cols: number, rows: number, logSelection?: SelectionRect) => void,
   scripts?: ScriptLibrary,
   portraits?: PortraitAssets,
   canSend: () => boolean = () => true,
   reloadPortraits?: () => Promise<PortraitAssets>,
   onError?: (error: unknown) => void,
   loadSceneById?: (sceneId: string) => Promise<Scene>,
+  dialogueAnimation?: DialogueAnimationOptions,
+  portraitAnimation?: PortraitAnimationOptions,
+  allowPlayerSpawn = false,
 ): GameSession {
   // Each connection owns its character positions, animation clocks and walking path.
   scene = new Scene(
@@ -41,14 +67,15 @@ export function createGameSession(
     scene.height,
     scene.depthMode,
     scene.clear,
-    scene.entities.map((entity) => (entity instanceof Character ? entity.clone() : entity)),
+    scene.entities.map((entity) => (entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity)),
     scene.triggers,
     scene.blockedCells,
     scene.actionTriggers,
     scene.stepTriggers,
     scene.markers,
+    scene.loadCharacter,
   );
-  const control = new PlayerControl(scene);
+  const control = new PlayerControl(scene, allowPlayerSpawn);
   let lastUpdate = Date.now();
   let mouseInput = '';
   let opened = false;
@@ -60,11 +87,65 @@ export function createGameSession(
   let portraitStart = 0;
   let animationTimer: ReturnType<typeof setTimeout> | undefined;
   const layout = new LayoutStandardScene(scene);
+  const filters = new ScreenFilterPipeline();
+  const portraitAnimationEnabled = portraitAnimation?.enabled ?? true;
+  const portraitStepDurationMs = portraitAnimation?.stepDurationMs ?? 25;
+  const portraitRowDelayMs = portraitAnimation?.rowDelayMs ?? 6.25;
+  if (!Number.isFinite(portraitStepDurationMs) || portraitStepDurationMs <= 0)
+    throw new Error('Portrait stepDurationMs must be positive');
+  if (!Number.isFinite(portraitRowDelayMs) || portraitRowDelayMs < 0)
+    throw new Error('Portrait rowDelayMs must be nonnegative');
+  let inactiveLeftPortrait = false;
+  let inactiveRightPortrait = false;
+  const shownPortraitAssets: { left?: PortraitAsset; right?: PortraitAsset } = {};
+  const shownPortraitActors: { left?: string; right?: string } = {};
+  const portraitReveals: Partial<Record<'left' | 'right', { startedAtMs: number; durationMs: number; remove: () => void }>> = {};
+  let portraitExit: {
+    startedAtMs: number;
+    durationMs: number;
+    left?: { asset: PortraitAsset; frame: PortraitFrame };
+    right?: { asset: PortraitAsset; frame: PortraitFrame };
+    removeFilters: (() => void)[];
+  } | undefined;
+  const inactivePortraitFilter = createTextColorFilter(INACTIVE_PORTRAIT_FG);
+  filters.addFilter(inactivePortraitFilter,
+    () => inactiveLeftPortrait ? layout.getPortraitScreenRect('left') : undefined);
+  filters.addFilter(inactivePortraitFilter,
+    () => inactiveRightPortrait ? layout.getPortraitScreenRect('right') : undefined);
+  if (dialogueAnimation?.enabled !== undefined) layout.message.animationEnabled = dialogueAnimation.enabled;
+  if (dialogueAnimation?.stepDurationMs !== undefined) {
+    if (!Number.isFinite(dialogueAnimation.stepDurationMs) || dialogueAnimation.stepDurationMs <= 0)
+      throw new Error('Dialogue stepDurationMs must be positive');
+    layout.message.stepDurationMs = dialogueAnimation.stepDurationMs;
+  }
+  if (dialogueAnimation?.wordDelayMs !== undefined) {
+    if (!Number.isFinite(dialogueAnimation.wordDelayMs) || dialogueAnimation.wordDelayMs < 0)
+      throw new Error('Dialogue wordDelayMs must be nonnegative');
+    layout.message.wordDelayMs = dialogueAnimation.wordDelayMs;
+  }
+  if (dialogueAnimation?.growthSequences !== undefined) {
+    if (!Array.isArray(dialogueAnimation.growthSequences) || !dialogueAnimation.growthSequences.length ||
+      dialogueAnimation.growthSequences.some((sequence) => typeof sequence !== 'string' || sequence.length !== 4))
+      throw new Error('Dialogue growthSequences must contain four-character strings');
+    layout.message.growthSequences = dialogueAnimation.growthSequences;
+  }
+  if (dialogueAnimation?.shortGrowthSequences !== undefined) {
+    if (!Array.isArray(dialogueAnimation.shortGrowthSequences) || !dialogueAnimation.shortGrowthSequences.length ||
+      dialogueAnimation.shortGrowthSequences.some((sequence) => typeof sequence !== 'string' || sequence.length !== 4))
+      throw new Error('Dialogue shortGrowthSequences must contain four-character strings');
+    layout.message.shortGrowthSequences = dialogueAnimation.shortGrowthSequences;
+  }
   const gameContext: GameScriptContext = {
     scene,
     playerControl: control,
     changeScene,
     bark: (character, text, ms) => layout.addBark(character, text, ms),
+    clearBark: (character) => layout.clearBark(character),
+    clearCharacterSubscript: (ownerId) => runner?.clearSubscript(ownerId),
+    resetConversationPortraits: () => {
+      finishPortraitReveals();
+      clearPortraitExit();
+    },
   };
   const runner =
     scripts &&
@@ -78,9 +159,88 @@ export function createGameSession(
         layout.appendLog(`[RPGSCRIPT ERROR] ${location}: ${getSafeErrorMessage(error)}`, true);
       },
     });
+  let displayedDialogue: NonNullable<typeof runner>['dialogue'];
+  let dialogueUpdate = Date.now();
+
+  function syncPortraitReveal(side: 'left' | 'right', asset: PortraitAsset | undefined, actor: string | undefined, now: number): void {
+    const isVisibleActor = shownPortraitAssets[side] !== undefined && shownPortraitActors[side] === actor;
+    shownPortraitActors[side] = actor;
+    if (shownPortraitAssets[side] === asset) return;
+    portraitReveals[side]?.remove();
+    delete portraitReveals[side];
+    shownPortraitAssets[side] = asset;
+    if (!asset || !portraitAnimationEnabled || isVisibleActor) return;
+    portraitReveals[side] = {
+      startedAtMs: now,
+      durationMs: PORTRAIT_REVEAL_SEQUENCE.length * portraitStepDurationMs +
+        Math.max(0, asset.height - 1) * portraitRowDelayMs,
+      remove: filters.addFilter(createGlyphGrowthRevealFilter({
+        stepDurationMs: portraitStepDurationMs,
+        rowDelayMs: portraitRowDelayMs,
+        growthSequences: [PORTRAIT_REVEAL_SEQUENCE],
+        shortGrowthSequences: [PORTRAIT_REVEAL_SEQUENCE],
+      }), () => layout.getPortraitScreenRect(side), now),
+    };
+  }
+
+  function hasAnimatingPortrait(now: number): boolean {
+    return Object.values(portraitReveals).some((reveal) => now - reveal.startedAtMs < reveal.durationMs);
+  }
+
+  function finishPortraitReveals(): void {
+    for (const side of ['left', 'right'] as const) {
+      portraitReveals[side]?.remove();
+      delete portraitReveals[side];
+    }
+  }
+
+  function clearPortraitExit(): void {
+    for (const remove of portraitExit?.removeFilters ?? []) remove();
+    portraitExit = undefined;
+    layout.portraitExitVisible = false;
+    delete shownPortraitAssets.left;
+    delete shownPortraitAssets.right;
+  }
+
+  function startPortraitExit(now: number): void {
+    const left = shownPortraitAssets.left;
+    const right = layout.dialoguePanel.twoSpeakers ? shownPortraitAssets.right : undefined;
+    if (!portraitAnimationEnabled || (!left && !right)) return;
+    finishPortraitReveals();
+    const elapsed = now - portraitStart;
+    const durationMs = PORTRAIT_REVEAL_SEQUENCE.length * portraitStepDurationMs +
+      Math.max(0, (left?.height ?? 0) - 1, (right?.height ?? 0) - 1) * portraitRowDelayMs;
+    const removeFilters: (() => void)[] = [];
+    for (const side of ['left', 'right'] as const) {
+      if ((side === 'left' ? left : right))
+        removeFilters.push(filters.addFilter(createGlyphExitFilter({
+          stepDurationMs: portraitStepDurationMs,
+          rowDelayMs: portraitRowDelayMs,
+          glyphs: [...PORTRAIT_REVEAL_SEQUENCE].reverse().join(''),
+        }), () => layout.getPortraitScreenRect(side), now));
+    }
+    portraitExit = {
+      startedAtMs: now, durationMs,
+      left: left ? { asset: left, frame: getPortraitFrameAt(left, elapsed) } : undefined,
+      right: right ? { asset: right, frame: getPortraitFrameAt(right, elapsed) } : undefined,
+      removeFilters,
+    };
+    layout.portraitExitVisible = true;
+  }
+
+  function advanceDialogue(): void {
+    const now = Date.now();
+    layout.message.advanceAnimation(now - dialogueUpdate);
+    dialogueUpdate = now;
+    if (!layout.message.isAnimationComplete() || hasAnimatingPortrait(now)) {
+      layout.message.finishAnimation();
+      finishPortraitReveals();
+    }
+    else runner?.advance();
+  }
   function attachStepTriggers(): void {
     for (const entity of scene.entities) {
-      if (!(entity instanceof Character)) continue;
+      if (!(entity instanceof Character) || entity.handleStep) continue;
       entity.handleStep = (character) => {
         if (control.playerWalkCh !== character) return;
         for (const trigger of scene.stepTriggers) {
@@ -118,8 +278,8 @@ export function createGameSession(
     player.y = (marker?.y ?? 0) - player.bottomOffset;
     scene = new Scene(loaded.id, loaded.width, loaded.height, loaded.depthMode, loaded.clear,
       [...loaded.entities.filter((entity) => entity.id !== player.id).map((entity) =>
-        entity instanceof Character ? entity.clone() : entity), player],
-      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers);
+        entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity), player],
+      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter);
     control.changeScene(scene, player);
     gameContext.scene = scene;
     layout.scene = scene;
@@ -130,6 +290,9 @@ export function createGameSession(
     attachStepTriggers();
   }
   const session: GameSession = {
+    filters,
+    getPortraitScreenRect: (side) => layout.getPortraitScreenRect(side),
+    getSceneScreenRect: (area) => layout.getSceneScreenRect(area),
     id: randomUUID(),
     cols: 80,
     rows: 24,
@@ -171,7 +334,7 @@ export function createGameSession(
               finishConversationIfIdle();
               dispatchLoadTriggers();
             } else if (runner?.dialogue) {
-              runner.advance();
+              advanceDialogue();
               finishConversationIfIdle();
               dispatchLoadTriggers();
             } else if (runner?.isIdle() && runner.getStorage('dialogue.active') !== true) {
@@ -223,7 +386,7 @@ export function createGameSession(
         if (!selected || Number(selected) > runner.choice.options.length) return;
         runner.choose(Number(selected) - 1);
       } else if (runner.dialogue) {
-        runner.advance();
+        advanceDialogue();
       } else return;
       finishConversationIfIdle();
       dispatchLoadTriggers();
@@ -239,6 +402,10 @@ export function createGameSession(
     },
     close() {
       opened = false;
+      finishPortraitReveals();
+      clearPortraitExit();
+      delete shownPortraitAssets.left;
+      delete shownPortraitAssets.right;
       runner?.clearSubscripts();
       if (animationTimer) clearTimeout(animationTimer);
       animationTimer = undefined;
@@ -264,6 +431,7 @@ export function createGameSession(
     if (!opened) return;
     try {
       const now = Date.now();
+      attachStepTriggers();
       scene.update(now - lastUpdate);
       layout.updateBarks(now - lastUpdate);
       control.update();
@@ -298,7 +466,13 @@ export function createGameSession(
   function paint(force = false): void {
     needsFrame ||= force;
     if (!opened) return;
+    const wasConversationOpen = layout.conversationOpen;
     layout.conversationOpen = runner?.getStorage('dialogue.active') === true;
+    const now = Date.now();
+    if (layout.conversationOpen && portraitExit) clearPortraitExit();
+    if (wasConversationOpen && !layout.conversationOpen) startPortraitExit(now);
+    if (portraitExit && now - portraitExit.startedAtMs >= portraitExit.durationMs)
+      clearPortraitExit();
     layout.centerToast.visible = runner?.centerToast !== undefined;
     if (runner?.centerToast !== undefined)
       layout.centerToast.setMessage(runner.centerToast, session.cols, session.rows);
@@ -306,16 +480,29 @@ export function createGameSession(
     const rightActor = runner?.getStorage('dialogue.rightActor');
     const paired = layout.conversationOpen && typeof leftActor === 'string' && typeof rightActor === 'string';
     const dialogue = runner?.dialogue;
+    if (dialogue !== displayedDialogue) {
+      displayedDialogue = dialogue;
+      if (dialogue) layout.message.showText(dialogue.text);
+      else layout.message.clearText();
+      dialogueUpdate = Date.now();
+    } else {
+      const now = Date.now();
+      layout.message.advanceAnimation(now - dialogueUpdate);
+      dialogueUpdate = now;
+    }
     const displayedActor = dialogue && getDisplayedActorName(dialogue.actor);
     const displayedLeft = typeof leftActor === 'string' ? getDisplayedActorName(leftActor) : undefined;
     const displayedRight = typeof rightActor === 'string' ? getDisplayedActorName(rightActor) : undefined;
+    if (!portraitExit) {
+      inactiveLeftPortrait = paired && displayedLeft !== undefined && displayedActor !== displayedLeft;
+      inactiveRightPortrait = paired && displayedRight !== undefined && displayedActor !== displayedRight;
+    }
     layout.dialoguePanel.advanceHint.visible = runner?.dialogue !== undefined;
-    if (paired && displayedLeft && displayedRight)
-      layout.dialoguePanel.setSpeakers(displayedLeft, displayedRight, displayedActor);
-    else layout.dialoguePanel.setSpeaker(displayedActor);
-    layout.message.text = runner?.dialogue
-      ? runner.dialogue.text
-      : '';
+    if (!portraitExit) {
+      if (paired && displayedLeft && displayedRight)
+        layout.dialoguePanel.setSpeakers(displayedLeft, displayedRight, displayedActor);
+      else layout.dialoguePanel.setSpeaker(displayedActor);
+    }
     layout.choiceMessage.text =
       runner?.choice?.options.map((option, index) => `${index + 1}. ${option}`).join('  ') ?? '';
     const selection = paired
@@ -333,23 +520,30 @@ export function createGameSession(
     }
     if (!canSend()) return;
     const buffer = new CellBuffer(session.cols, session.rows, STANDARD_BACKGROUND);
-    const portrait = selection?.asset;
-    const elapsed = Date.now() - portraitStart;
+    const portrait = portraitExit?.left?.asset ?? selection?.asset;
+    const rightPortrait = portraitExit?.right?.asset ?? rightSelection?.asset;
+    if (!portraitExit) {
+      syncPortraitReveal('left', portrait, paired ? displayedLeft : displayedActor, now);
+      syncPortraitReveal('right', rightPortrait, paired ? displayedRight : undefined, now);
+    }
+    const elapsed = now - portraitStart;
     layout.dialoguePanel.setPortrait(
       portrait,
-      portrait ? getPortraitFrameAt(portrait, elapsed) : undefined,
+      portraitExit?.left?.frame ?? (portrait ? getPortraitFrameAt(portrait, elapsed) : undefined),
     );
     layout.dialoguePanel.setRightPortrait(
-      rightSelection?.asset,
-      rightSelection ? getPortraitFrameAt(rightSelection.asset, elapsed) : undefined,
+      rightPortrait,
+      portraitExit?.right?.frame ?? (rightPortrait ? getPortraitFrameAt(rightPortrait, elapsed) : undefined),
     );
     layout.render(buffer);
+    filters.applyFilters(buffer);
     const frame = encodeTerminalDiff(buffer, previousFrame);
     if (frame || needsFrame) {
       send(
         frame || encodeTerminal(buffer, { clear: false, fullScreen: true }),
         session.cols,
         session.rows,
+        layout.getLogSelectionRect(),
       );
       previousFrame = buffer;
       needsFrame = false;

@@ -1,3 +1,5 @@
+import { getProjectApiUrl } from './project.js';
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -8,7 +10,7 @@ export class ApiError extends Error {
 }
 
 export async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+  const response = await fetch(getProjectApiUrl(url), options);
   let value: { error?: string };
   try {
     value = (await response.json()) as { error?: string };
@@ -32,7 +34,7 @@ export async function putBytes<T>(
   body: Blob,
   baseRevision: string | null,
 ): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetch(getProjectApiUrl(url), {
     method: 'PUT',
     headers: {
       'content-type': body.type || 'application/octet-stream',
@@ -55,7 +57,7 @@ export async function getBytes(url: string): Promise<Blob> {
 }
 
 export async function getBytesWithRevision(url: string): Promise<{ blob: Blob; revision: string }> {
-  const response = await fetch(url);
+  const response = await fetch(getProjectApiUrl(url));
   if (!response.ok) {
     let value: { error?: string };
     try {

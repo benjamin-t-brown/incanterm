@@ -2,12 +2,56 @@ import { isAssetId, parseCharacter, type CharacterDocument } from '../schema.js'
 
 export const OPEN_CHARACTERS_KEY = 'incanterm-editor-open-characters';
 export type CharacterTabSession = { doc: CharacterDocument; saved: CharacterDocument | null };
+
+function getComparableCharacterDocument(doc: CharacterDocument): CharacterDocument {
+  const parsed = parseCharacter(doc);
+  if (!parsed.ok) return doc;
+  return {
+    ...parsed.value,
+    customAnimations: Object.fromEntries(Object.entries(parsed.value.customAnimations).sort()),
+  };
+}
+
+export function isCharacterSessionDirty(session: CharacterTabSession): boolean {
+  return (
+    session.saved === null ||
+    JSON.stringify(getComparableCharacterDocument(session.doc)) !==
+      JSON.stringify(getComparableCharacterDocument(session.saved))
+  );
+}
+
+export function getRestoredCharacterSession(
+  session: CharacterTabSession,
+  stored: CharacterDocument,
+): CharacterTabSession {
+  if (!isCharacterSessionDirty({ doc: session.doc, saved: stored }))
+    return { doc: stored, saved: structuredClone(stored) };
+  return session;
+}
+
 export type CharacterTabStore = {
   version: 1;
   tabs: string[];
   active: string | null;
   drafts: Record<string, CharacterTabSession>;
 };
+
+export function buildCharacterTabStore(
+  tabs: string[],
+  active: string | null,
+  sessions: Iterable<[string, CharacterTabSession]>,
+): CharacterTabStore {
+  return {
+    version: 1,
+    tabs,
+    active,
+    drafts: Object.fromEntries(
+      [...sessions].filter(
+        ([id, session]) => tabs.includes(id) && isCharacterSessionDirty(session),
+      ),
+    ),
+  };
+}
 
 export function readCharacterTabs(storage: Pick<Storage, 'getItem'>): CharacterTabStore {
   const empty: CharacterTabStore = { version: 1, tabs: [], active: null, drafts: {} };

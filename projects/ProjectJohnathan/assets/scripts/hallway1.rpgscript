@@ -1,0 +1,141 @@
+#hallway1Load
+  load,hallway1Load
+@hallway1Load
+  +setPlayerWalkCh(johnathan)
+  +^hallway1.enableChMove=false
+  +?is(vars.hallway1RemoveOtis):{
+    +despawnCh(Otis)
+  }
+
+#hallway1Update
+  timer,hallway1Updater,2000
+@hallway1Updater
+  +?is(hallway1.enableChMove):{
+    // move stuff skip wait
+  }
+
+#hallway1_OtisApproach
+  step,+?once(otisTalkJohnAboutVivi):hallway1_OtisApproach
+@hallway1_OtisApproach
+  +vars.hallway1RemoveOtis=true
+  +stopCh(Johnathan)
+  +lookAtCh(Johnathan, Otis)
+  +:ld(Otis, down)
+  +setConv()
+  Otis: "Hey! Johnathan! Wait up a sec!"
+  +walkToMarker(Otis, OtisWalk1, true)
+  +walkToMarker(Johnathan, JohnWalk1, true)
+  +waitMs(300)
+  +:leach(Otis, Johnathan)
+  +setConv2(Otis, Johnathan)
+  Otis: "You going home?"
+  Johnathan: "Nah, I need to take this envelope to the office for Mr. Ralgo. Then I gotta go try to get a job."
+  Otis: "Is it that pizza thing?"
+  Johnathan: "Yeah. But I might be late unless I hurry to the office."
+  Otis: "Hold on a sec. I've been meaning to ask you..."
+  Otis&surprised: "Have you asked my sister out yet?"
+  Johnathan: "Oh... No I haven't yet. Sorry I keep forgetting."
+  Otis&angry: "C'mon man! Time's kinda running out! You gotta do this soon!"
+  Johnathan&upset: "Why do you keep pushing this? Can't she go find some other guy to go dance with?"
+  Otis: "No it's gotta be you! You're perfect for her!"
+  Otis&happy: "Big, tall guy. Athletic enough. Ambitious and... fiscally oriented."
+  Otis: "She's gotta say 'yes' to you!"
+  Johnathan&unhappy: "Fine, I'll do it quick. Do you know where she is?"
+  Otis&happy: "Nice! I'll go get her right now."
+  +walkToOffset(Otis, 0, -1)
+  +walkToOffset(Otis, 5, 0, true)
+  Johnathan: "Bring her here. I'll run to the office with this envelope and be right back."
+  Otis: "You got it!"
+  +callChSubscript(Otis, hallway1_OtisRunOff)
+  +endConv()
+
+@hallway1_OtisRunOff(ch)
+  +setSpeedMult(Otis, 2)
+  +walkToMarker([ch], FromGym)
+  +despawnCh([ch])
+
+#hallway1_toHallwayGym
+  step,hallway1_toHallwayGym
+@hallway1_toHallwayGym
+  +changeScene(hallwayGym, FromHallway1)
+
+#@classroom1_toClassroom1
+  +walkToMarker(player, fromClassroom1)
+  +changeScene(classroom1, fromHallway1)
+
+#@hallway1_toPhysics
+  +^tmp.hallway1PhysTalk=0
+  +walkToMarker(Johnathan, PhysicsDoor)
+  +:ld(johnathan, up)
+  +setConv()
+  +?switch(tmp.hallway1PhysTalk):{
+    0: {
+      Johnathan: "This is the physics classroom. Turning potential into kinetic."
+      +tmp.hallway1PhysTalk=1
+    }
+    1: {
+      Johnathan: "There's a book on anti-gravity in there; I'd read it, but it's impossible to put down."
+      +tmp.hallway1PhysTalk=2
+    }
+    *: {
+      Johnathan: "I don't need to go in there."
+    }
+  }
+  +endConv()
+
+#@hallway1_toChemistry
+  +^tmp.hallway1ChemTalk=0
+  +walkToMarker(Johnathan, ChemistryDoor)
+  +:ld(johnathan, up)
+  +setConv()
+  +?switch(tmp.hallway1ChemTalk):{
+    0: {
+      Johnathan: "This is the chemistry classroom. Bad acid."
+      +tmp.hallway1ChemTalk=1
+    }
+    1: {
+      Johnathan: "A neutron walks into a bar and asks, 'How much for a whiskey?' The bartender replies, 'No charge.'"
+      +tmp.hallway1ChemTalk=2
+    }
+    *: {
+      Johnathan: "I don't need to go in there."
+    }
+  }
+  +endConv()
+
+#@hallway1_toBiology
+  +^tmp.hallway1BioTalk=0
+  +walkToMarker(Johnathan, BiologyDoor)
+  +setConv()
+  +?switch(tmp.hallway1BioTalk):{
+    0: {
+      Johnathan: "This is the biology classroom. It's growing on me."
+      +tmp.hallway1BioTalk=1
+    }
+    1: {
+      Johnathan: "What did one cell say to his sister when she stepped on his toe? Mitosis."
+      +tmp.hallway1BioTalk=2
+    }
+    *: {
+      Johnathan: "I don't need to go in there."
+    }
+  }
+  +endConv()
+
+@hallway1_WyattTalk
+  +^tmp.hallway1WyattTalk=0
+  +?switch(tmp.hallway1WyattTalk):{
+    0: {
+      +setConv2(Wyatt, Johnathan)
+      Johnathan: "Looking for something?"
+      Wyatt: "Buzz off, I'm not giving you any money today, Johnathan."
+      Johnathan&angry: "I wasn't asking for any..."
+      Wyatt: "Yeah, well you were thinking it."
+      +tmp.hallway1WyattTalk=1
+    }
+    *: {
+      +setConv()
+      Johnathan: "He's busy."
+    }
+  }
+  +endConv()

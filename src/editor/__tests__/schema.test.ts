@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isSingleWidthGlyph } from '../glyph.js';
 import { PALETTE_IDS, getDefaultPalette } from '../palette.js';
@@ -29,7 +27,7 @@ describe('editor schema', () => {
     });
     expect(parseCharacter({ ...character, scriptName: 'Mr:Ralgo' })).toMatchObject({
       ok: false,
-      error: 'Character scriptName must be an RPGScript actor name',
+      error: expect.stringContaining('Invalid script name "Mr:Ralgo"'),
     });
   });
 
@@ -264,14 +262,16 @@ describe('editor schema', () => {
     ).toBe(false);
   });
 
-  it('imports the ed-ascii fixture', async () => {
-    const file = path.join(process.cwd(), 'ed-ascii', 'data', 'test1.json');
-    const document = JSON.parse(await fs.readFile(file, 'utf8')) as unknown;
+  it('imports an ed-ascii document and preserves its dimensions and cells', () => {
+    const document = { format: 'ed-ascii', version: 1, width: 3, height: 2,
+      cells: Array.from({ length: 6 }, (_, index) => ({ ch: String(index), fg: 15, bg: 0 })) };
     const imported = importEdAscii('test-art', document);
     expect(imported.ok).toBe(true);
     if (!imported.ok) return;
-    expect(imported.value.width).toBe(64);
-    expect(imported.value.height).toBe(32);
+    expect(imported.value.width).toBe(3);
+    expect(imported.value.height).toBe(2);
+    expect(flattenSprite(imported.value)).toEqual(document.cells.map(({ ch }) =>
+      ({ ch, fg: 'bright-white', bg: 'black' })));
   });
 
   it('describes a flat animation clip', () => {

@@ -7,6 +7,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as path from 'path';
 import { enableConsole, disableConsole, logger } from './logger';
+import { registerRpgScriptFormatter } from './formatter';
 
 let client: LanguageClient;
 
@@ -63,6 +64,7 @@ export function activate(context: ExtensionContext) {
   }
 
   logger.log('calling startclient');
+  context.subscriptions.push(registerRpgScriptFormatter());
   startClient(context);
 }
 

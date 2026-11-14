@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "a8e6d5e4-3518-4cd2-b428-769d88e72475",
+  "label": "props_vendEnergy",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ef81d361-6170-4c09-af2c-a58366bdc32c",
+      "index": 2,
+      "durationMs": 1200
+    },
+    {
+      "sprite": "ef81d361-6170-4c09-af2c-a58366bdc32c",
+      "index": 3,
+      "durationMs": 1200
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "4752e8f7-77dc-463e-af94-d1e6342fa04e",
+  "label": "wyatt3x3 packing locker",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 6,
+      "durationMs": 1000
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 14,
+      "durationMs": 400
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 10,
+      "durationMs": 800
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 6,
+      "durationMs": 4000
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 14,
+      "durationMs": 500
+    }
+  ]
+}

@@ -88,7 +88,7 @@ export const localScopeDiagnostics = (file: string, source: string): Diagnostic[
     const conditional = /^\s*\+?\s*\?/.test(unquoted);
     const colon = unquoted.indexOf(':');
     const condition = conditional ? (colon < 0 ? unquoted : unquoted.slice(0, colon)) : '';
-    for (const call of condition.matchAll(/\b(is|isnot|eq|gt|lt)\s*\(([^()]*)\)/g)) {
+    for (const call of condition.matchAll(/\b(is|isnot|eq|gt|lt|in)\s*\(([^()]*)\)/g)) {
       const argsStart = call.index! + call[0].indexOf('(') + 1;
       for (const argument of call[2].matchAll(/(?:^|,)\s*([A-Za-z_][\w-]*)\s*(?=,|$)/g)) {
         const name = argument[1];

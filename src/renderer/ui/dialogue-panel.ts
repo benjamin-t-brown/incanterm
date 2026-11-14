@@ -1,10 +1,12 @@
 import type { PortraitAsset, PortraitFrame } from '../../game/portrait-assets.js';
 import { BorderBox } from './border-box.js';
+import { DialogueMessage } from './dialogue-message.js';
 import { UIElement, type DrawContext } from './element.js';
 import { ParagraphWrapped } from './paragraph-wrapped.js';
 
 const FG = { r: 205, g: 211, b: 209 };
-const BG = { r: 16, g: 20, b: 25 };
+const BG = { r: 16, g: 25, b: 20 };
+const EMPTY_BG = { r: 0, g: 0, b: 0 };
 const HINT_FG = { r: 128, g: 128, b: 128 };
 const SPEAKER_FG = { r: 64, g: 160, b: 255 };
 const ACTIVE_BORDER = { r: 255, g: 255, b: 255 };
@@ -29,7 +31,7 @@ class PortraitImage extends UIElement {
 }
 
 export class DialoguePanel extends BorderBox {
-  readonly message: ParagraphWrapped;
+  readonly message: DialogueMessage;
   readonly speakerBox: BorderBox;
   readonly rightSpeakerBox: BorderBox;
   readonly advanceHint: ParagraphWrapped;
@@ -38,12 +40,24 @@ export class DialoguePanel extends BorderBox {
   twoSpeakers = false;
   portraitSide: 'left' | 'right' = 'left';
   reservePortraitSpace = false;
+  portraitExitVisible = false;
   private readonly image: PortraitImage;
   private readonly rightImage: PortraitImage;
   private readonly speakerLabel: ParagraphWrapped;
   private readonly rightSpeakerLabel: ParagraphWrapped;
   private portrait: PortraitAsset | undefined;
   private rightPortrait: PortraitAsset | undefined;
+
+  setEmptyBackground(empty: boolean): void {
+    const bg = empty ? EMPTY_BG : BG;
+    this.bg = bg;
+    this.message.bg = bg;
+    this.advanceHint.bg = bg;
+    this.speakerBox.bg = bg;
+    this.rightSpeakerBox.bg = bg;
+    this.speakerLabel.bg = bg;
+    this.rightSpeakerLabel.bg = bg;
+  }
 
   constructor(id: string, x: number, y: number, width: number, height: number) {
     super(id, x, y, width, height, { border: 'double', fg: FG, bg: BG });
@@ -74,7 +88,7 @@ export class DialoguePanel extends BorderBox {
       fg: SPEAKER_FG, bg: BG,
     });
     this.rightSpeakerBox.addChild(this.rightSpeakerLabel);
-    this.message = new ParagraphWrapped(`${id}-message`, 1, 2, width - 4, '', {
+    this.message = new DialogueMessage(`${id}-message`, 1, 2, width - 4, '', {
       fg: FG,
       bg: BG,
     });
@@ -97,6 +111,7 @@ export class DialoguePanel extends BorderBox {
 
   setSpeaker(actor: string | undefined): void {
     this.twoSpeakers = false;
+    this.message.alignRight = false;
     this.rightSpeakerBox.visible = false;
     this.rightPortraitBox.visible = false;
     this.speakerBox.fg = ACTIVE_BORDER;
@@ -112,6 +127,7 @@ export class DialoguePanel extends BorderBox {
 
   setSpeakers(left: string, right: string, active: string | undefined): void {
     this.twoSpeakers = true;
+    this.message.alignRight = active === right;
     this.speakerLabel.fg = SPEAKER_FG;
     this.speakerBox.visible = true;
     this.rightSpeakerBox.visible = true;
@@ -141,7 +157,7 @@ export class DialoguePanel extends BorderBox {
 
   drawPortrait(ctx: DrawContext, x: number, bottomY: number, side: 'left' | 'right' = 'left'): void {
     const box = side === 'left' ? this.portraitBox : this.rightPortraitBox;
-    if (!this.visible || !box.visible) return;
+    if ((!this.visible && !this.portraitExitVisible) || !box.visible) return;
     box.x = x;
     box.y = bottomY - box.height + 1;
     box.draw(ctx);
@@ -172,7 +188,9 @@ export class DialoguePanel extends BorderBox {
       : Math.max(1, this.innerWidth - this.message.x - 1);
     this.speakerBox.x = Math.max(0, this.message.x - 1);
     this.rightSpeakerBox.x = Math.max(0, this.width - this.rightSpeakerBox.width);
-    this.advanceHint.x = this.message.x;
+    this.advanceHint.x = this.message.alignRight
+      ? Math.max(this.message.x, this.message.x + this.message.width - this.advanceHint.width)
+      : this.message.x;
     this.advanceHint.y = this.message.y + this.message.lines.length + 1;
   }
 }

@@ -27,6 +27,7 @@ it('resolves timer characters in the session and preserves main dialogue when an
     expect(log.mock.calls.some(([message]) => message.includes('RPGSCRIPT ERROR') && message.includes('Absent'))).toBe(true);
     expect(log.mock.calls.some(([message]) => message.includes('Main finished'))).toBe(false);
     session.input(' ');
+    session.input(' ');
     expect(log.mock.calls.some(([message]) => message.includes('Main finished'))).toBe(true);
   } finally {
     session.close();

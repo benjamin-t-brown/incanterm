@@ -4,12 +4,16 @@ import { parseHexColor, type Rgb } from './color.js';
 import {
   flattenSprite,
   getCharacterAnimation,
+  getCharacterScriptNames,
   getAnimationFrameFlips,
+  getPropAnimation,
+  isCharacterStateName,
   isInvisibleFrame,
   parseCharacter,
   parseAnimation,
   parsePalette,
   parseProp,
+  PROP_DEFAULT_STATE,
   type PropDocument,
 } from '../editor/schema.js';
 import { parseStoredSprite } from '../editor/art/sprite-storage.js';
@@ -25,12 +29,7 @@ import {
 } from './scene.js';
 import { Character, type CharacterClip } from './character.js';
 import { Sprite } from './sprite.js';
-
-export const TEST_SCENE_ID = 'test-room';
-
-export function getDefaultAssetsRoot(): string {
-  return path.join(process.cwd(), 'assets');
-}
+import { AnimatedProp, type PropClip } from './animated-prop.js';
 
 export async function loadSceneByReference(assetsRoot: string, reference: string): Promise<Scene> {
   const scenesRoot = path.join(assetsRoot, 'scenes');
@@ -150,7 +149,30 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
     actionTriggers,
     stepTriggers,
     markers,
+    (reference) => loadCharacterByReference(assetsRoot, reference),
   );
+}
+
+export async function loadCharacterByReference(assetsRoot: string, reference: string): Promise<Character> {
+  const matches: string[] = [];
+  for (const entry of await fs.readdir(path.join(assetsRoot, 'characters'), { withFileTypes: true })) {
+    if (!entry.isFile() || !/^[a-z0-9_-]+\.json$/.test(entry.name)) continue;
+    const id = entry.name.slice(0, -5);
+    if (id === reference) {
+      matches.splice(0, matches.length, id);
+      break;
+    }
+    const parsed = parseCharacter(await readJson(path.join(assetsRoot, 'characters', entry.name)));
+    if (parsed.ok && getCharacterScriptNames(parsed.value.scriptName).some((name) => name.toLowerCase() === reference.toLowerCase())) matches.push(id);
+  }
+  if (matches.length !== 1)
+    throw new Error(matches.length ? `Character reference ${reference} is ambiguous` : `Character ${reference} was not found by ID or script name`);
+  const character = await readProp(assetsRoot, 'spawn player', {
+    id: matches[0], type: 'Character', character: matches[0], name: reference,
+    state: 'idle', facing: 'down', x: 0, y: 0,
+  }, 0, 256, 128, 'bottom-up', new Map(), new Set(), new Set());
+  if (!(character instanceof Character)) throw new Error(`Cannot load character ${reference}`);
+  return character;
 }
 
 function readTriggers(value: unknown, scenePath: string): readonly string[] {
@@ -227,7 +249,9 @@ async function readProp(
     const facing = record.facing;
     if (facing !== 'up' && facing !== 'down' && facing !== 'left' && facing !== 'right')
       throw new Error(`${label} facing must be up, down, left, or right`);
-    const state = readId(record.state, `${label} state`);
+    const state = record.state;
+    if (typeof state !== 'string' || !isCharacterStateName(state))
+      throw new Error(`${label} state must be a valid state name`);
     const animationId = getCharacterAnimation(parsed.value, state, facing);
     if (!animationId) throw new Error(`${label} has no animation state ${state}`);
     const clipFile = path.join(assetsRoot, 'animations', `${animationId}.json`);
@@ -277,29 +301,49 @@ async function readProp(
   if (record.type !== 'Prop')
     throw new Error(`${label} type must be Prop, Character or Background`);
   let sprite: Sprite;
+  let clips: Map<string, PropClip> | undefined;
   let depthOffset = readInt(record.depthOffset ?? 0, `${label} depthOffset`, -1000, 1000);
+  let instanceName: string | undefined;
+  let propId: string | undefined;
+  let state = PROP_DEFAULT_STATE;
+  if (typeof record.name === 'string' && record.name.trim()) instanceName = record.name.trim();
+  if (typeof record.state === 'string') {
+    if (!isCharacterStateName(record.state))
+      throw new Error(`${label} state must be a valid state name`);
+    state = record.state;
+  }
   if (record.prop !== undefined) {
-    const propId = readId(record.prop, `${label} prop`);
+    propId = readId(record.prop, `${label} prop`);
     const file = path.join(assetsRoot, 'props', `${propId}.json`);
     const parsed = parseProp(await readJson(file));
     if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
     const asset: PropDocument = parsed.value;
     if (asset.id !== propId) throw new Error(`${file} id does not match ${propId}`);
-    let spriteId: string;
-    let frameIndex: number;
+    clips = new Map();
     if (asset.visual.type === 'sprite') {
-      spriteId = asset.visual.id;
-      frameIndex = asset.visual.index;
+      sprite = await loadSprite(assetsRoot, asset.visual.id, sprites, asset.visual.index);
+      clips.set(PROP_DEFAULT_STATE, {
+        frames: [{ sprite, durationMs: 1000 }],
+        loop: true,
+      });
     } else {
-      const clipFile = path.join(assetsRoot, 'animations', `${asset.visual.id}.json`);
-      const clip = parseAnimation(await readJson(clipFile));
-      if (!clip.ok) throw new Error(`${clipFile}: ${clip.error}`);
-      const first = clip.value.frames.find((frame) => !isInvisibleFrame(frame));
-      if (!first || isInvisibleFrame(first)) throw new Error(`${clipFile} has no visible frame`);
-      spriteId = first.sprite;
-      frameIndex = first.index;
+      const defaultClip = await loadPropClip(assetsRoot, asset.visual.id, sprites, label);
+      const first = defaultClip.frames.find((frame) => frame.sprite)?.sprite;
+      if (!first) throw new Error(`${label} default animation has no visible frame`);
+      sprite = first;
+      clips.set(PROP_DEFAULT_STATE, defaultClip);
     }
-    sprite = await loadSprite(assetsRoot, spriteId, sprites, frameIndex);
+    for (const [name, animationId] of Object.entries(asset.customAnimations)) {
+      clips.set(name, await loadPropClip(assetsRoot, animationId, sprites, `${label} state ${name}`));
+    }
+    if (!clips.has(state)) {
+      const animationId = getPropAnimation(asset, state);
+      throw new Error(
+        animationId === undefined
+          ? `${label} has no animation state ${state}`
+          : `${label} animation state ${state} is missing`,
+      );
+    }
     for (const cell of asset.blockedCells) {
       const x = Number(record.x) - sprite.originX + (cell % asset.width);
       const y = Number(record.y) - sprite.originY + Math.floor(cell / asset.width);
@@ -307,14 +351,37 @@ async function readProp(
     }
     depthOffset = asset.depthOffset + (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
   } else sprite = await loadSprite(assetsRoot, readId(record.sprite, `${label} sprite`), sprites);
-  return new Prop(
-    id,
-    readInt(record.x, `${label} x`, 0, width - 1),
-    readInt(record.y, `${label} y`, 0, height - 1),
-    depthOffset,
-    readInt(record.z ?? 0, `${label} z`, -1000, 1000),
-    sprite,
-  );
+  const x = readInt(record.x, `${label} x`, 0, width - 1);
+  const y = readInt(record.y, `${label} y`, 0, height - 1);
+  const z = readInt(record.z ?? 0, `${label} z`, -1000, 1000);
+  if (clips)
+    return new AnimatedProp(id, x, y, depthOffset, z, sprite, clips, state, instanceName, propId);
+  return new Prop(id, x, y, depthOffset, z, sprite);
+}
+
+async function loadPropClip(
+  assetsRoot: string,
+  animationId: string,
+  sprites: Map<string, Sprite>,
+  label: string,
+): Promise<PropClip> {
+  const clipFile = path.join(assetsRoot, 'animations', `${animationId}.json`);
+  const clip = parseAnimation(await readJson(clipFile));
+  if (!clip.ok) throw new Error(`${clipFile}: ${clip.error}`);
+  const frames: PropClip['frames'] = [];
+  for (const frame of clip.value.frames) {
+    if (isInvisibleFrame(frame)) frames.push({ durationMs: frame.durationMs });
+    else {
+      const source = await loadSprite(assetsRoot, frame.sprite, sprites, frame.index);
+      const flips = getAnimationFrameFlips(clip.value, frame);
+      frames.push({
+        sprite: source.getFlipped(flips.flipH, flips.flipV),
+        durationMs: frame.durationMs,
+      });
+    }
+  }
+  if (!frames.length) throw new Error(`${label}: animation ${animationId} has no frames`);
+  return { frames, loop: clip.value.loop };
 }
 
 async function loadSprite(

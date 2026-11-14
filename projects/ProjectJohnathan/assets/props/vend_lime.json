@@ -1,0 +1,29 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "vend_lime",
+  "visual": {
+    "type": "animation",
+    "id": "b2248921-05c3-472b-81b2-6145bb2746e8"
+  },
+  "width": 5,
+  "height": 4,
+  "blockedCells": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    9,
+    10,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

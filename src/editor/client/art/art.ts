@@ -1,3 +1,4 @@
+import { projectStorage } from '../project.js';
 import {
   applyPath,
   extendDrawPath,
@@ -10,7 +11,7 @@ import {
   type PathStyle,
 } from '../../art/ascii-path.js';
 import { getArtCursorKind, type ArtCursorGesture, type ArtTool } from '../../art/art-cursor.js';
-import { generateCharacter3x3 } from '../../art/character-generator.js';
+import { generateCharacter3x3, generateCharacter5x5 } from '../../art/character-generator.js';
 import { getBrushValue } from '../../art/art-brush.js';
 import { applyBlackWhiteInversionToFrame } from '../../art/invert-black-white.js';
 import { applyFrameFlip } from '../../art/flip-frame.js';
@@ -212,7 +213,7 @@ const SPEED_KEY = 'incanterm-editor-animation-ms';
 const GRID_KEY = 'incanterm-editor-show-grid';
 
 function readAnimationSpeed(): number {
-  const raw = Number(localStorage.getItem(SPEED_KEY));
+  const raw = Number(projectStorage.getItem(SPEED_KEY));
   if (Number.isInteger(raw) && raw >= 1 && raw <= MAX_FRAME_DURATION_MS) return raw;
   return DEFAULT_FRAME_DURATION_MS;
 }
@@ -299,7 +300,7 @@ export function mountArt(root: HTMLElement): () => void {
   let celMarked = false;
   let selection: { x: number; y: number; width: number; height: number } | null = null;
   let pasteMode = false;
-  let showGrid = localStorage.getItem(GRID_KEY) !== '0';
+  let showGrid = projectStorage.getItem(GRID_KEY) !== '0';
   let zoom = 1;
   let ox = 30;
   let oy = 30;
@@ -663,6 +664,7 @@ export function mountArt(root: HTMLElement): () => void {
     for (const [target, color] of [['fg', fg], ['bg', bg]] as const) {
       const input = get$<HTMLInputElement>(`#${target}-hex`);
       if (document.activeElement !== input) input.value = getRgb(color);
+      get$<HTMLInputElement>(`#${target}-color-picker`).value = getRgb(color);
     }
     get$<HTMLElement>('#glyph-capture-char').textContent = glyph;
     get$<HTMLButtonElement>('#glyph-capture').setAttribute('aria-pressed', String(keyMode));
@@ -736,6 +738,16 @@ export function mountArt(root: HTMLElement): () => void {
     return terminalCellAtZoom(context, zoom, getSpriteFont());
   }
   function draw(): void {
+    const selectedArea =
+      (gesture?.kind === 'select' || gesture?.kind === 'pick') && gesture.start && gesture.end
+        ? getBounds(gesture.start, gesture.end)
+        : selection;
+    const coordinates = hover && isInside(hover.x, hover.y)
+      ? `X: ${String(hover.x + 1).padStart(2, '0')}   Y: ${String(hover.y + 1).padStart(2, '0')}`
+      : 'X: --   Y: --';
+    get$<HTMLElement>('#cursor-status').textContent = selectedArea
+      ? `${coordinates}   │   W: ${selectedArea.width} × H: ${selectedArea.height}`
+      : coordinates;
     if (!viewW || !viewH) return;
     context.clearRect(0, 0, viewW, viewH);
     context.fillStyle = getComputedStyle(wrap).backgroundColor;
@@ -842,7 +854,7 @@ export function mountArt(root: HTMLElement): () => void {
   }
   function toggleGrid(): void {
     showGrid = !showGrid;
-    localStorage.setItem(GRID_KEY, showGrid ? '1' : '0');
+    projectStorage.setItem(GRID_KEY, showGrid ? '1' : '0');
     refreshControls();
     announce(showGrid ? 'Grid shown' : 'Grid hidden');
   }
@@ -1556,7 +1568,7 @@ export function mountArt(root: HTMLElement): () => void {
   }
   function writeOpenTabs(): void {
     const result = writeArtTabStore(
-      localStorage,
+      projectStorage,
       buildArtTabStore(openTabs, spriteId, persistEntries()),
     );
     if (!result.ok && result.quota) {
@@ -1590,7 +1602,7 @@ export function mountArt(root: HTMLElement): () => void {
       clearTimeout(persistTimer);
       persistTimer = null;
     }
-    writeArtTabStore(localStorage, buildArtTabStore(openTabs, spriteId, []));
+    writeArtTabStore(projectStorage, buildArtTabStore(openTabs, spriteId, []));
   }
   function dropSession(id: string): void {
     const session = sessions.get(id);
@@ -1661,7 +1673,7 @@ export function mountArt(root: HTMLElement): () => void {
     referenceEdit = session.referenceEdit;
     clampSelectedFrame();
     if (!getFrameLayers().some((layer) => layer.id === activeLayerId)) selectTopLayer();
-    localStorage.setItem(LAST_SPRITE_KEY, session.doc.id);
+    projectStorage.setItem(LAST_SPRITE_KEY, session.doc.id);
     if (session.autoFit) fit();
     if (!session.referenceImage) void loadReference(session.doc.id);
     refreshControls();
@@ -1679,7 +1691,7 @@ export function mountArt(root: HTMLElement): () => void {
     doc = null;
     spriteId = null;
     setEditorAssetUrl(null);
-    localStorage.removeItem(LAST_SPRITE_KEY);
+    projectStorage.removeItem(LAST_SPRITE_KEY);
     savedState = '';
     applyChrome(getDefaultArtTabChrome());
     undoStack = [];
@@ -1692,6 +1704,7 @@ export function mountArt(root: HTMLElement): () => void {
   function renderTabs(): void {
     assetTree.select(spriteId);
     const host = get$<HTMLElement>('#document-tabs');
+    renderTabCloseActions(host, { tabs: openTabs, active: spriteId, closeTab });
     host.replaceChildren();
     if (openTabs.length === 0) {
       const empty = document.createElement('span');
@@ -1850,7 +1863,7 @@ export function mountArt(root: HTMLElement): () => void {
     setEditorAssetUrl(next.id);
     savedState = JSON.stringify(next);
     openTabs = addOpenTab(openTabs, next.id);
-    localStorage.setItem(LAST_SPRITE_KEY, next.id);
+    projectStorage.setItem(LAST_SPRITE_KEY, next.id);
     undoStack = [];
     redoStack = [];
     selection = null;
@@ -2008,7 +2021,7 @@ export function mountArt(root: HTMLElement): () => void {
       }
       openTabs = renameOpenTab(openTabs, from, saved.id);
       dropSession(from);
-      localStorage.setItem(LAST_SPRITE_KEY, saved.id);
+      projectStorage.setItem(LAST_SPRITE_KEY, saved.id);
       await copyOpenReference(from, saved.id);
       flushPersist();
       updateTitle();
@@ -2158,6 +2171,12 @@ export function mountArt(root: HTMLElement): () => void {
     }));
     assetTree.setData(spriteFiles, spriteFolders, Object.fromEntries(spriteLabels));
   }
+  function refreshGeneratorTemplate(): void {
+    get$<HTMLElement>('#generate-description').textContent =
+      get$<HTMLSelectElement>('#generate-character-size').value === '5'
+        ? 'Create a 16-frame spritesheet using the standard 5×5 character template.'
+        : 'Create a 22-frame spritesheet using the standard 3×3 character template.';
+  }
   async function generateCharacter(): Promise<void> {
     const form = get$<HTMLFormElement>('#generate-character-form');
     const button = get$<HTMLButtonElement>('#generate-character-submit');
@@ -2165,7 +2184,9 @@ export function mountArt(root: HTMLElement): () => void {
     const id = crypto.randomUUID();
     let sprite: SpriteDocument;
     try {
-      sprite = generateCharacter3x3(
+      const generateSheet = get$<HTMLSelectElement>('#generate-character-size').value === '5'
+        ? generateCharacter5x5 : generateCharacter3x3;
+      sprite = generateSheet(
         id,
         get$<HTMLInputElement>('#generate-character-label').value,
         getGeneratorColorValue('shirt'),
@@ -2231,7 +2252,7 @@ export function mountArt(root: HTMLElement): () => void {
     spriteLabels.set(id, label);
     remember(before);
     renderTabs();
-    void refreshFiles();
+    await save();
   }
   function resizeCanvas(width: number, height: number): void {
     if (!doc) return;
@@ -2525,7 +2546,7 @@ export function mountArt(root: HTMLElement): () => void {
   }
   function setAnimationSpeed(next: number): void {
     animationSpeed = next;
-    localStorage.setItem(SPEED_KEY, String(next));
+    projectStorage.setItem(SPEED_KEY, String(next));
     if (!playing || !doc) return;
     if (playTimer !== null) clearTimeout(playTimer);
     playTimer = setTimeout(advancePlayback, animationSpeed);
@@ -2984,6 +3005,7 @@ export function mountArt(root: HTMLElement): () => void {
       generateColors.shirt = 'yellow';
       generateColors.letter = 'bright-white';
       refreshGenerateColors();
+      refreshGeneratorTemplate();
       get$<HTMLDialogElement>('#generate-character-dialog').showModal();
       get$<HTMLInputElement>('#generate-character-label').focus();
     },
@@ -3196,6 +3218,9 @@ export function mountArt(root: HTMLElement): () => void {
   }
   for (const target of ['fg', 'bg'] as const) {
     const input = get$<HTMLInputElement>(`#${target}-hex`);
+    const picker = get$<HTMLInputElement>(`#${target}-color-picker`);
+    picker.addEventListener('input', () => applyPaintHexColor(target, input, picker.value));
+    picker.addEventListener('change', () => applyPaintHexColor(target, input, picker.value));
     input.addEventListener('change', () => applyPaintHexColor(target, input, input.value));
     input.addEventListener('paste', (event) => {
       const hex = parseHexColor(event.clipboardData?.getData('text') ?? '');
@@ -3240,6 +3265,7 @@ export function mountArt(root: HTMLElement): () => void {
   get$<HTMLButtonElement>('#cancel-generate-character').addEventListener('click', () =>
     get$<HTMLDialogElement>('#generate-character-dialog').close(),
   );
+  get$<HTMLSelectElement>('#generate-character-size').addEventListener('change', refreshGeneratorTemplate);
   get$<HTMLFormElement>('#generate-character-form').addEventListener('submit', (event) => {
     event.preventDefault();
     void generateCharacter();
@@ -3503,9 +3529,6 @@ export function mountArt(root: HTMLElement): () => void {
       ox += p.sx - previous.sx;
       oy += p.sy - previous.sy;
     }
-    get$<HTMLElement>('#cursor-status').textContent = isInside(p.x, p.y)
-      ? `X: ${String(p.x + 1).padStart(2, '0')}   Y: ${String(p.y + 1).padStart(2, '0')}`
-      : 'X: --   Y: --';
     if (
       gesture?.kind === 'pan' &&
       gesture.sx !== undefined &&
@@ -3875,7 +3898,7 @@ export function mountArt(root: HTMLElement): () => void {
 
   void (async () => {
     palette = await requestJson<PaletteDocument>('/api/palette');
-    const stored = readArtTabStore(localStorage);
+    const stored = readArtTabStore(projectStorage);
     // Recover the last saved brush once; tab changes must not replace it.
     stamp = stored.active ? (stored.sessions[stored.active]?.stamp ?? null) : null;
     openTabs = stored.tabs;
@@ -3883,7 +3906,7 @@ export function mountArt(root: HTMLElement): () => void {
       sessions.set(id, createSessionFromPersisted(session));
     }
     const requestedFromUrl = new URLSearchParams(location.search).get('id');
-    const requested = requestedFromUrl ?? stored.active ?? localStorage.getItem(LAST_SPRITE_KEY);
+    const requested = requestedFromUrl ?? stored.active ?? projectStorage.getItem(LAST_SPRITE_KEY);
     // Reconcile persisted ids with disk and load labels before showing tabs.
     await refreshFiles();
     if (!alive) return;
@@ -3905,7 +3928,7 @@ export function mountArt(root: HTMLElement): () => void {
       } catch {
         openTabs = closeOpenTab(openTabs, requested);
         dropSession(requested);
-        localStorage.removeItem(LAST_SPRITE_KEY);
+        projectStorage.removeItem(LAST_SPRITE_KEY);
         setEditorAssetUrl(null);
         flushPersist();
       }
@@ -4046,8 +4069,8 @@ function getArtMarkup(): string {
           <div class="color-targets"><button id="fg-target" class="color-target active" type="button"><span id="fg-chip" class="color-chip"></span><span>FG</span></button><button id="bg-target" class="color-target" type="button"><span id="bg-chip" class="color-chip"></span><span>BG</span></button><button id="swap-colors" type="button">⇄</button></div>
            <div id="palette" class="palette"></div>
            <div class="palette-hex-fields">
-             <label for="fg-hex"><span class="field-head">FG HEX</span><input id="fg-hex" class="palette-rgb" spellcheck="false" value="#ffffff" maxlength="7" title="Foreground paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"></label>
-             <label for="bg-hex"><span class="field-head">BG HEX</span><input id="bg-hex" class="palette-rgb" spellcheck="false" value="#000000" maxlength="7" title="Background paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"></label>
+              <div><label for="fg-hex" class="field-head">FG HEX</label><div class="palette-color-row"><input id="fg-hex" class="palette-rgb" spellcheck="false" value="#ffffff" maxlength="7" title="Foreground paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"><input id="fg-color-picker" class="palette-color-picker" type="color" value="#ffffff" aria-label="Choose foreground color" title="Choose foreground color"></div></div>
+              <div><label for="bg-hex" class="field-head">BG HEX</label><div class="palette-color-row"><input id="bg-hex" class="palette-rgb" spellcheck="false" value="#000000" maxlength="7" title="Background paint color; paste #RGB, #RRGGBB, RGB, or RRGGBB"><input id="bg-color-picker" class="palette-color-picker" type="color" value="#000000" aria-label="Choose background color" title="Choose background color"></div></div>
            </div>
         </section>
         <section class="panel">
@@ -4100,16 +4123,17 @@ function getArtMarkup(): string {
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
     <dialog id="generate-character-dialog">
-      <div class="dialog-heading"><span>GENERATE · 3×3 CHARACTER</span><button id="close-generate-character" type="button">×</button></div>
+      <div class="dialog-heading"><span>GENERATE · CHARACTER</span><button id="close-generate-character" type="button">×</button></div>
       <form id="generate-character-form">
-        <p id="generate-description">Create a 22-frame spritesheet using the test3x3 template.</p>
+        <label>CHARACTER SIZE<select id="generate-character-size"><option value="3">3×3</option><option value="5">5×5</option></select></label>
+        <p id="generate-description">Create a 22-frame spritesheet using the standard 3×3 character template.</p>
         <label>SPRITESHEET LABEL<input id="generate-character-label" type="text" maxlength="80" required></label>
         <div class="generate-shirt-field"><span>SHIRT COLOR · <span id="generate-shirt-color-name">bright-yellow</span></span><div id="generate-shirt-colors" class="palette" role="group" aria-label="Shirt color"></div></div>
         <label>SHIRT HEX<input id="generate-shirt-hex" type="text" spellcheck="false" maxlength="7" value="#aa5500" required></label>
         <label>SHIRT LETTER<input id="generate-shirt-letter" type="text" value="J" required></label>
         <div class="generate-shirt-field"><span>LETTER COLOR · <span id="generate-letter-color-name">bright-black</span></span><div id="generate-letter-colors" class="palette" role="group" aria-label="Shirt letter color"></div></div>
         <label>LETTER HEX<input id="generate-letter-hex" type="text" spellcheck="false" maxlength="7" value="#ffffff" required></label>
-        <label class="generate-hair"><input id="generate-hair" type="checkbox"> HAIR (TOP CORNER MARKS)</label>
+        <label class="generate-hair"><input id="generate-hair" type="checkbox"> HAIR</label>
         <p id="generate-character-error" role="alert"></p>
         <div class="size-dialog-actions"><button id="generate-character-submit" type="submit">GENERATE</button><button id="cancel-generate-character" type="button">CANCEL</button></div>
       </form>
@@ -4119,3 +4143,4 @@ function getArtMarkup(): string {
     <footer class="statusbar"><div><span id="status">READY</span></div><div><span id="tool-status">BRUSH</span><span class="status-separator">│</span><span id="frame-status">NO FRAME</span><span class="status-separator">│</span><span id="layer-status">NO LAYER</span><span class="status-separator">│</span><span id="cursor-status">X: --  Y: --</span></div></footer>
   </div>`;
 }
+import { renderTabCloseActions } from '../tab-close-actions.js';

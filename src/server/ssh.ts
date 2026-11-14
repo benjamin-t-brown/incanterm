@@ -3,7 +3,7 @@ import type { Scene } from '../game/scene.js';
 import type { ScriptLibrary } from '../game/rpgscript/index.js';
 import type { PortraitAssets } from '../game/portrait-assets.js';
 import { Server } from './ssh2.js';
-import { createGameSession, type GameSession } from './game-session.js';
+import { createGameSession, type DialogueAnimationOptions, type GameSession, type PortraitAnimationOptions } from './game-session.js';
 import { closeServer, listen } from './listen.js';
 import { formatTerminalError, TERMINAL_POINTER, TERMINAL_RESTORE } from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
@@ -22,6 +22,9 @@ export async function startSshServer(options: {
   portraits?: PortraitAssets;
   reloadPortraits?: () => Promise<PortraitAssets>;
   loadSceneById?: (sceneId: string) => Promise<Scene>;
+  dialogueAnimation?: DialogueAnimationOptions;
+  portraitAnimation?: PortraitAnimationOptions;
+  allowPlayerSpawn?: boolean;
 }): Promise<SshListener> {
   const clients = new Set<Connection>();
   const server = new Server({ hostKeys: [options.hostKey] }, (client) => {
@@ -35,7 +38,8 @@ export async function startSshServer(options: {
     });
     client.on('ready', () => {
       client.on('session', (acceptSession) => {
-        attachSession(acceptSession(), options.scene, options.scripts, options.portraits, options.reloadPortraits, options.loadSceneById);
+        attachSession(acceptSession(), options.scene, options.scripts, options.portraits,
+          options.reloadPortraits, options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn);
       });
     });
   });
@@ -61,6 +65,9 @@ function attachSession(
   portraits?: PortraitAssets,
   reloadPortraits?: () => Promise<PortraitAssets>,
   loadSceneById?: (sceneId: string) => Promise<Scene>,
+  dialogueAnimation?: DialogueAnimationOptions,
+  portraitAnimation?: PortraitAnimationOptions,
+  allowPlayerSpawn = false,
 ): void {
   let game: GameSession | undefined;
   let cols = 80;
@@ -79,7 +86,8 @@ function attachSession(
   });
   session.on('shell', (accept) => {
     const stream = accept();
-    game = bindSession(stream, scene, scripts, cols, rows, portraits, reloadPortraits, loadSceneById);
+    game = bindSession(stream, scene, scripts, cols, rows, portraits, reloadPortraits,
+      loadSceneById, dialogueAnimation, portraitAnimation, allowPlayerSpawn);
   });
 }
 
@@ -92,6 +100,9 @@ function bindSession(
   portraits?: PortraitAssets,
   reloadPortraits?: () => Promise<PortraitAssets>,
   loadSceneById?: (sceneId: string) => Promise<Scene>,
+  dialogueAnimation?: DialogueAnimationOptions,
+  portraitAnimation?: PortraitAnimationOptions,
+  allowPlayerSpawn = false,
 ): GameSession {
   let writable = true;
   function handleSessionError(error: unknown): void {
@@ -115,6 +126,9 @@ function bindSession(
     reloadPortraits,
     handleSessionError,
     loadSceneById,
+    dialogueAnimation,
+    portraitAnimation,
+    allowPlayerSpawn,
   );
   game.resize(cols, rows);
   stream.write(`\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);

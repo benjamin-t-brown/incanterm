@@ -92,7 +92,17 @@ export type PropDocument = {
   blockedCells: number[];
   groundOffsetY: number;
   depthOffset: number;
+  customAnimations: Record<string, string>;
 };
+
+/** Built-in prop state for the asset `visual` (sprite or animation). */
+export const PROP_DEFAULT_STATE = 'default';
+
+export function getPropAnimation(prop: PropDocument, state: string): string | undefined {
+  if (state === PROP_DEFAULT_STATE)
+    return prop.visual.type === 'animation' ? prop.visual.id : undefined;
+  return prop.customAnimations[state];
+}
 
 export const CHARACTER_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
 export type CharacterDirection = (typeof CHARACTER_DIRECTIONS)[number];
@@ -124,8 +134,18 @@ export type CharacterDocument = {
   customAnimations: Record<string, string>;
 };
 
+export function getPortraitEmotionNames(emotion: string): string[] {
+  return emotion.split(/[,/]/).map((name) => name.trim());
+}
+
+export function isPortraitEmotionValid(emotion: string): boolean {
+  const names = getPortraitEmotionNames(emotion);
+  return emotion.trim() === '' || names.every((name, index) =>
+    /^[\w-]+$/.test(name) && names.indexOf(name) === index);
+}
+
 export function getCharacterScriptNames(scriptName: string | undefined): string[] {
-  return scriptName?.split('/').map((name) => name.trim()) ?? [];
+  return scriptName?.split(/[,/]/).map((name) => name.trim()) ?? [];
 }
 
 export function getCharacterAnimation(
@@ -168,12 +188,16 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
     return fail('Character label must be 1 to 80 characters without control characters');
   if (record.scriptName !== undefined) {
     if (typeof record.scriptName !== 'string')
-      return fail('Character scriptName must be an RPGScript actor name');
+      return fail('Script names must be text, such as Ada,Adalais.');
     const names = getCharacterScriptNames(record.scriptName);
-    if (names.some((name) => !/^[A-Za-z_][\w. -]*$/.test(name)))
-      return fail('Character scriptName must contain RPGScript actor names');
-    if (new Set(names).size !== names.length)
-      return fail('Character scriptName must contain distinct RPGScript actor names');
+    const invalid = names.find((name) => !/^[A-Za-z_][\w. -]*$/.test(name));
+    if (invalid !== undefined)
+      return fail(invalid === ''
+        ? 'Script names cannot be empty. Separate names with a comma or /, without a trailing separator.'
+        : `Invalid script name "${invalid}". Names must start with a letter or underscore and contain only letters, numbers, spaces, dots, hyphens, or underscores. Separate names with a comma or /.`);
+    const duplicate = names.find((name, index) => names.indexOf(name) !== index);
+    if (duplicate !== undefined)
+      return fail(`Script name "${duplicate}" is listed more than once. Use each name only once.`);
   }
   if (record.portraits !== undefined && (!Array.isArray(record.portraits) || record.portraits.length > 128))
     return fail('Character portraits must contain at most 128 entries');
@@ -182,12 +206,14 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
   for (const [index, raw] of ((record.portraits ?? []) as unknown[]).entries()) {
     const entry = getObject(raw);
     if (!entry || (entry.facing !== 'left' && entry.facing !== 'right') ||
-      typeof entry.emotion !== 'string' || !/^[\w-]*$/.test(entry.emotion) ||
+      typeof entry.emotion !== 'string' || !isPortraitEmotionValid(entry.emotion) ||
       typeof entry.portrait !== 'string' || !/^[\w-]+$/.test(entry.portrait))
       return fail(`Character portrait ${index} needs a facing, emotion, and portrait asset`);
-    const key = `${entry.facing}:${entry.emotion}`;
-    if (portraitKeys.has(key)) return fail(`Character repeats portrait ${key}`);
-    portraitKeys.add(key);
+    for (const emotion of getPortraitEmotionNames(entry.emotion)) {
+      const key = `${entry.facing}:${emotion}`;
+      if (portraitKeys.has(key)) return fail(`Character repeats portrait ${key}`);
+      portraitKeys.add(key);
+    }
     portraits.push({ facing: entry.facing, emotion: entry.emotion, portrait: entry.portrait });
   }
   if (portraits.length > 0 && !record.scriptName)
@@ -231,7 +257,7 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
   const customAnimations: Record<string, string> = {};
   for (const [state, value] of Object.entries(extras)) {
     if (state === 'talking') continue;
-    if (!isAssetId(state) || CHARACTER_STATES.includes(state as CharacterState))
+    if (!isCharacterStateName(state) || CHARACTER_STATES.includes(state as CharacterState))
       return fail(`Invalid custom animation state ${state}`);
     const animation = readId(value, `Character ${state} animation`);
     if (!animation.ok) return animation;
@@ -257,7 +283,16 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
 export type SceneEntity =
   | { id: string; type: 'Background'; sprite: string; index: number; x: number; y: number }
   | { id: string; type: 'Marker'; name: string; x: number; y: number }
-  | { id: string; type: 'Prop'; name?: string; prop: string; x: number; y: number; z: number }
+  | {
+      id: string;
+      type: 'Prop';
+      name?: string;
+      prop: string;
+      state?: string;
+      x: number;
+      y: number;
+      z: number;
+    }
   | {
       id: string;
       type: 'Character';
@@ -277,6 +312,7 @@ export type SceneEntity =
       type: 'Prop';
       name?: string;
       sprite: string;
+      state?: string;
       x: number;
       y: number;
       depthOffset: number;
@@ -324,6 +360,10 @@ export type SchemaResult<T> = { ok: true; value: T } | { ok: false; error: strin
 
 export function isAssetId(value: string): boolean {
   return value.length >= 1 && value.length <= MAX_ID_LENGTH && ASSET_ID.test(value);
+}
+
+export function isCharacterStateName(value: string): boolean {
+  return value.length >= 1 && value.length <= MAX_ID_LENGTH && /^[a-z0-9]+(?:[-_ ][a-z0-9]+)*$/.test(value);
 }
 
 export function createBlankCell(): SpriteCell {
@@ -413,6 +453,7 @@ export function createProp(id: string, visual: PropVisual): PropDocument {
     blockedCells: [],
     groundOffsetY: 0,
     depthOffset: 0,
+    customAnimations: {},
   };
 }
 
@@ -548,8 +589,8 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       if (!character.ok) return character;
       if (!CHARACTER_DIRECTIONS.includes(entry.facing as CharacterDirection))
         return fail(`Scene character ${index} facing must be up, down, left, or right`);
-      const state = readId(entry.state, `Scene character ${index} state`);
-      if (!state.ok) return state;
+      if (typeof entry.state !== 'string' || !isCharacterStateName(entry.state))
+        return fail(`Scene character ${index} state must be a valid state name`);
       const z = readInt(entry.z ?? 0, `Scene character ${index} z`, -1000, 1000);
       if (!z.ok) return z;
       entities.push({
@@ -560,7 +601,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         ...(typeof entry.talkScript === 'string' ? { talkScript: entry.talkScript } : {}),
         ...(typeof entry.speed === 'number' ? { speed: entry.speed } : {}),
         facing: entry.facing as CharacterDirection,
-        state: state.value,
+        state: entry.state,
         x: x.value,
         y: y.value,
         z: z.value,
@@ -572,6 +613,12 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       )
         return fail(`Scene prop ${index} name must be 1 to 80 characters`);
       const name = typeof entry.name === 'string' ? entry.name.trim() : undefined;
+      if (
+        entry.state !== undefined &&
+        (typeof entry.state !== 'string' || !isCharacterStateName(entry.state))
+      )
+        return fail(`Scene prop ${index} state must be a valid state name`);
+      const state = typeof entry.state === 'string' ? entry.state : undefined;
       const z = readInt(entry.z ?? 0, `Scene prop ${index} z`, -1000, 1000);
       if (!z.ok) return z;
       if (entry.prop !== undefined) {
@@ -582,6 +629,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           type: 'Prop',
           ...(name !== undefined ? { name } : {}),
           prop: prop.value,
+          ...(state !== undefined ? { state } : {}),
           x: x.value,
           y: y.value,
           z: z.value,
@@ -601,6 +649,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           type: 'Prop',
           ...(name !== undefined ? { name } : {}),
           sprite: sprite.value,
+          ...(state !== undefined ? { state } : {}),
           x: x.value,
           y: y.value,
           z: z.value,
@@ -887,6 +936,17 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
   if (!groundOffsetY.ok) return groundOffsetY;
   const depthOffset = readInt(record.depthOffset, 'Prop depthOffset', -1024, 1024);
   if (!depthOffset.ok) return depthOffset;
+  const extras = getObject(record.customAnimations) ?? {};
+  if (Object.keys(extras).length > 64)
+    return fail('Prop customAnimations must contain at most 64 states');
+  const customAnimations: Record<string, string> = {};
+  for (const [state, value] of Object.entries(extras)) {
+    if (!isCharacterStateName(state) || state === PROP_DEFAULT_STATE)
+      return fail(`Invalid custom animation state ${state}`);
+    const animation = readId(value, `Prop ${state} animation`);
+    if (!animation.ok) return animation;
+    customAnimations[state] = animation.value;
+  }
   return {
     ok: true,
     value: {
@@ -899,6 +959,7 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       blockedCells,
       groundOffsetY: groundOffsetY.value,
       depthOffset: depthOffset.value,
+      customAnimations,
     },
   };
 }

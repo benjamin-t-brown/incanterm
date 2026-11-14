@@ -1,17 +1,21 @@
 import fs from 'node:fs/promises';
 import { TerminalScreen } from '../../client/terminal-screen.js';
 import { encodeTerminal } from '../../game/terminal.js';
+import { createSceneFixtureAssets } from '../../game/__tests__/scene-fixture.js';
 import os from 'node:os';
 import path from 'node:path';
 import type { Client as SshClient, ClientChannel } from 'ssh2';
 import { Client } from '../ssh2.js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { parseServerMessage } from '../../protocol/messages.js';
 import { generateHostKey } from '../host-key.js';
 import { startServer, type StartedServer } from '../start.js';
 
 const hostKey = generateHostKey();
+let assetsRoot: string;
+
+beforeEach(async () => { assetsRoot = await createSceneFixtureAssets(); });
 
 describe('game server', () => {
   let server: StartedServer | undefined;
@@ -19,6 +23,7 @@ describe('game server', () => {
   afterEach(async () => {
     await server?.close();
     server = undefined;
+    await fs.rm(assetsRoot, { recursive: true, force: true });
   });
 
   it('answers health checks', async () => {
@@ -41,27 +46,27 @@ describe('game server', () => {
       if (welcome?.type === 'terminal-data')
         expect(getVisibleText(welcome.data)).toContain('+---+');
       if (welcome?.type === 'terminal-data')
-        expect(getVisibleText(welcome.data)).toContain('Welcome to Incanterm.');
+        expect(getVisibleText(welcome.data)).toContain('First fixture line.');
 
       socket.send(JSON.stringify({ type: 'input', data: 'hi' }));
       socket.send('not-json');
       socket.send(JSON.stringify({ type: 'resize', cols: 40, rows: 16 }));
       const advanced = parseServerMessage(await messages.next());
       if (advanced?.type === 'terminal-data')
-        expect(getVisibleText(advanced.data)).toContain('The crate is waiting for you.');
+        expect(getVisibleText(advanced.data)).toContain('Second fixture line.');
       const resized = parseServerMessage(await messages.next());
       expect(resized?.type).toBe('terminal-data');
       if (resized?.type === 'terminal-data') {
         const text = getVisibleText(resized.data);
         expect(text).toContain('| # |');
         expect(text).not.toContain('hi');
-        expect(text).toContain('The crate is waiting for you.');
+        expect(text).toContain('Second fixture line.');
       }
       socket.send(JSON.stringify({ type: 'input', data: ' ' }));
       const lastLine = parseServerMessage(await messages.next());
       expect(lastLine?.type).toBe('terminal-data');
       if (lastLine?.type === 'terminal-data')
-        expect(getVisibleText(lastLine.data)).not.toContain('The crate is waiting for you.');
+        expect(getVisibleText(lastLine.data)).not.toContain('Second fixture line.');
     } finally {
       socket.close();
     }
@@ -84,13 +89,13 @@ describe('game server', () => {
       const advanced = parseServerMessage(await firstMessages.next());
       expect(advanced?.type).toBe('terminal-data');
       if (advanced?.type === 'terminal-data')
-        expect(getVisibleText(advanced.data)).toContain('The crate is waiting for you.');
+        expect(getVisibleText(advanced.data)).toContain('Second fixture line.');
 
       second.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
       const unchanged = parseServerMessage(await secondMessages.next());
       expect(unchanged?.type).toBe('terminal-data');
       if (unchanged?.type === 'terminal-data')
-        expect(getVisibleText(unchanged.data)).toContain('Welcome to Incanterm.');
+        expect(getVisibleText(unchanged.data)).toContain('First fixture line.');
     } finally {
       first.close();
       second.close();
@@ -131,7 +136,8 @@ function getVisibleText(value: string): string {
 }
 
 function start(staticRoot?: string): Promise<StartedServer> {
-  return startServer({ host: '127.0.0.1', httpPort: 0, sshPort: 0, hostKey, staticRoot });
+  return startServer({ host: '127.0.0.1', httpPort: 0, sshPort: 0, hostKey, staticRoot,
+    assetsRoot, sceneId: 'fixture-room', dialogueAnimation: { enabled: false }, portraitAnimation: { enabled: false } });
 }
 
 function waitForOpen(socket: WebSocket): Promise<void> {

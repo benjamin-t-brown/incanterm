@@ -1,3 +1,4 @@
+import { projectStorage } from '../project.js';
 import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import {
@@ -6,7 +7,10 @@ import {
 } from '../../characters/auto-assign.js';
 import { rebaseJsonDraft } from '../../safe-save.js';
 import {
+  buildCharacterTabStore,
   getNeighborCharacterTab,
+  getRestoredCharacterSession,
+  isCharacterSessionDirty,
   OPEN_CHARACTERS_KEY,
   readCharacterTabs,
   type CharacterTabSession,
@@ -14,9 +18,12 @@ import {
 import {
   CHARACTER_STATES,
   getCharacterLabelError,
+  getPortraitEmotionNames,
+  isPortraitEmotionValid,
   createCharacter,
   flattenSprite,
   isAssetId,
+  isCharacterStateName,
   isInvisibleFrame,
   getAnimationFrameFlips,
   type AnimationDocument,
@@ -33,7 +40,7 @@ import { createPanelResizer } from '../panel-resizer.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
-import { getPortraitAssetLabel } from '../../characters/portrait-label.js';
+import { getDefaultPortraitSpriteChoice, getPortraitAssetChoice } from '../../characters/portrait-choice.js';
 import { getMissingAnimationStates } from '../../characters/missing-animation.js';
 import { getAnimationChoiceLabels } from '../../characters/animation-choice-labels.js';
 
@@ -45,10 +52,12 @@ export function mountCharacters(root: HTMLElement): () => void {
     <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-character-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
     <div id="character-list" class="anim-library-list"></div>
   </aside><div id="character-library-resizer" class="panel-resizer" role="separator" aria-label="Resize character folders" aria-orientation="vertical" aria-controls="character-list" tabindex="0" title="Drag to resize; double-click to reset"></div><section class="character-app" aria-label="Character editor">
-    <div id="character-tabs" class="prop-tabs" role="tablist" aria-label="Open characters"></div>
-    <div class="toolbar-row"><button id="new-character" type="button">NEW</button>
+    <div class="toolbar-row asset-create-header">
+      <button id="new-character" type="button">NEW</button>
       <button id="new-character-from-folder" type="button">NEW FROM ANIMATION FOLDER</button>
-      <button id="rename-character" type="button" disabled>RENAME</button>
+    </div>
+    <div id="character-tabs" class="prop-tabs" role="tablist" aria-label="Open characters"></div>
+    <div class="toolbar-row"><button id="rename-character" type="button" disabled>RENAME</button>
       <button id="save-character" type="button" disabled>SAVE</button>
       <button id="delete-character" type="button" disabled>DELETE</button>
       <strong id="character-id">NO CHARACTER</strong><small id="character-stable-id"></small></div>
@@ -57,9 +66,9 @@ export function mountCharacters(root: HTMLElement): () => void {
       <div class="character-settings"><label class="character-label">DEFAULT FACING <select id="character-facing" class="text-input">
         <option value="up">UP</option><option value="down">DOWN</option>
         <option value="left">LEFT</option><option value="right">RIGHT</option></select></label>
-         <label class="character-label">SCRIPT NAME <input id="character-script-name" class="text-input" placeholder="e.g. Ralgo/Mr Ralgo" spellcheck="false"></label>
-         <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default.</p>
-         <div id="character-portraits" class="character-state-list"></div>
+         <label class="character-label">SCRIPT NAME <input id="character-script-name" class="text-input" placeholder="e.g. Ada,Adalais" title="Separate actor names with a comma or /" spellcheck="false"></label>
+          <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default. Separate emotion aliases with a comma or /.</p>
+          <div id="character-portraits" class="character-portrait-grid"></div>
          <button id="add-character-portrait" type="button">+ PORTRAIT</button>
          <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
         <div class="character-folder-fill"><label class="character-label">ANIMATION FOLDER
@@ -78,28 +87,37 @@ export function mountCharacters(root: HTMLElement): () => void {
      <dialog id="character-portrait-dialog" aria-labelledby="character-portrait-title">
        <form id="character-portrait-form">
          <h2 id="character-portrait-title">ADD PORTRAIT</h2>
-         <label>EMOTION <input id="portrait-emotion" class="text-input" placeholder="Default (blank)" spellcheck="false"></label>
-         <label>DIRECTION <select id="portrait-direction" class="text-input"><option value="right">RIGHT</option><option value="left">LEFT</option></select></label>
+          <label>EMOTION / ALIASES <input id="portrait-emotion" class="text-input" placeholder="Default (blank), or happy,smile/joy" title="Separate emotion aliases with a comma or /" spellcheck="false"></label>
+          <fieldset class="portrait-direction"><legend>DIRECTION</legend><label><input id="portrait-direction-left" type="radio" name="portrait-direction" value="left"> LEFT</label><label><input id="portrait-direction-right" type="radio" name="portrait-direction" value="right" checked> RIGHT</label></fieldset>
          <label>SPRITE / ANIMATION <select id="portrait-kind" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
          <input id="portrait-search" class="text-input" type="search" placeholder="Search sprites…" aria-label="Search portrait assets">
          <div id="portrait-results" class="portrait-results" aria-label="Portrait assets"></div>
-         <label id="portrait-frame-label" hidden>SPRITE FRAME <select id="portrait-frame" class="text-input"></select></label>
+          <div id="portrait-frame-label" hidden><h3 id="portrait-frames-title">SPRITE FRAME</h3><div id="portrait-frame" class="portrait-frame-grid" role="group" aria-labelledby="portrait-frames-title"></div></div>
          <canvas id="portrait-preview" width="320" height="180" aria-label="Selected portrait preview"></canvas>
          <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
          <div class="portrait-actions"><button id="portrait-okay" type="submit" disabled>OK</button><button id="portrait-cancel" type="button">CANCEL</button></div>
        </form>
      </dialog>
-     <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
+      <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
       <form id="character-from-folder-form">
         <h2 id="character-from-folder-title">NEW FROM ANIMATION FOLDER</h2>
         <p class="page-copy">Choose a folder with all 12 idle, walk, and talking animations.</p>
         <label class="character-label">ANIMATION FOLDER<span id="new-character-folder-picker"></span></label>
         <label class="character-label">CHARACTER LABEL<input id="new-character-label" class="text-input" type="text" maxlength="80" autocomplete="off" spellcheck="false" required></label>
         <p id="character-from-folder-error" class="page-copy" role="alert" hidden></p>
-        <div class="character-from-folder-actions"><button id="cancel-character-from-folder" type="button">CANCEL</button><button type="submit">CREATE CHARACTER</button></div>
-      </form>
-    </dialog>
-   </section><div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
+         <div class="character-from-folder-actions"><button type="submit">CREATE CHARACTER</button><button id="cancel-character-from-folder" type="button">CANCEL</button></div>
+       </form>
+     </dialog>
+     <dialog id="character-custom-state-dialog" aria-labelledby="character-custom-state-title">
+       <form id="character-custom-state-form">
+         <h2 id="character-custom-state-title">NEW CUSTOM STATE</h2>
+         <label class="character-label">STATE NAME<input id="character-custom-state-name" class="text-input" type="text" autocomplete="off" spellcheck="false" required></label>
+         <label class="character-label">ANIMATION<span id="character-custom-state-picker"></span></label>
+         <p id="character-custom-state-error" class="page-copy" role="alert" hidden></p>
+         <div class="character-from-folder-actions"><button type="submit">ADD STATE</button><button id="cancel-character-custom-state" type="button">CANCEL</button></div>
+       </form>
+     </dialog>
+    </section><div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
   const get$ = <T extends Element>(selector: string): T => {
@@ -125,11 +143,12 @@ export function mountCharacters(root: HTMLElement): () => void {
   const portraitDialog = get$<HTMLDialogElement>('#character-portrait-dialog');
   const portraitForm = get$<HTMLFormElement>('#character-portrait-form');
   const portraitEmotion = get$<HTMLInputElement>('#portrait-emotion');
-  const portraitDirection = get$<HTMLSelectElement>('#portrait-direction');
+  const portraitDirectionLeft = get$<HTMLInputElement>('#portrait-direction-left');
+  const portraitDirectionRight = get$<HTMLInputElement>('#portrait-direction-right');
   const portraitKind = get$<HTMLSelectElement>('#portrait-kind');
   const portraitSearch = get$<HTMLInputElement>('#portrait-search');
   const portraitResults = get$<HTMLElement>('#portrait-results');
-  const portraitFrame = get$<HTMLSelectElement>('#portrait-frame');
+  const portraitFrame = get$<HTMLElement>('#portrait-frame');
   const portraitFrameLabel = get$<HTMLElement>('#portrait-frame-label');
   const portraitCanvas = get$<HTMLCanvasElement>('#portrait-preview');
   const portraitStatus = get$<HTMLElement>('#portrait-picker-status');
@@ -159,13 +178,16 @@ export function mountCharacters(root: HTMLElement): () => void {
   const portraitAnimations = new Map<string, Promise<AnimationDocument>>();
   let current: CharacterDocument | null = null;
   let saved: CharacterDocument | null = null;
-  const storedTabs = readCharacterTabs(localStorage);
+  let pendingSave: Promise<void> | null = null;
+  let pendingRestore: Promise<void> | null = null;
+  const storedTabs = readCharacterTabs(projectStorage);
   let openTabs = storedTabs.tabs;
   const sessions = new Map<string, CharacterTabSession>(Object.entries(storedTabs.drafts));
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let discardOnLeave = false;
   const isTabDirty = (id: string) => {
     const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
-    return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.saved);
+    return !!session && isCharacterSessionDirty(session);
   };
   const showMessage = (error: unknown) =>
     error instanceof Error ? error.message : 'Character request failed';
@@ -262,24 +284,34 @@ export function mountCharacters(root: HTMLElement): () => void {
     first?.focus();
   }
   setDirtyGuard(
-    async () =>
-      !openTabs.some(isTabDirty) || confirmModal('Discard unsaved character changes?', 'DISCARD'),
+    async () => {
+      await pendingRestore;
+      await pendingSave;
+      const dirtyTabs = openTabs.filter(isTabDirty);
+      if (!dirtyTabs.length) return true;
+      const labels = dirtyTabs.map((id) =>
+        id === current?.id ? current.label : (sessions.get(id)?.doc.label ?? characterLabels[id] ?? id),
+      );
+      const confirmed = await confirmModal(
+        `Discard unsaved character changes?\n${labels.join('\n')}`,
+        'DISCARD',
+      );
+      if (confirmed) {
+        discardOnLeave = true;
+        persistTabs();
+      }
+      return confirmed;
+    },
   );
 
   function persistTabs(): void {
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = null;
-    const drafts: Record<string, CharacterTabSession> = {};
-    for (const id of openTabs) {
-      const session = id === current?.id && current ? { doc: current, saved } : sessions.get(id);
-      if (session && JSON.stringify(session.doc) !== JSON.stringify(session.saved))
-        drafts[id] = session;
-    }
+    const entries = new Map(sessions);
+    if (current) entries.set(current.id, { doc: current, saved });
+    const store = buildCharacterTabStore(openTabs, current?.id ?? null, discardOnLeave ? [] : entries);
     try {
-      localStorage.setItem(
-        OPEN_CHARACTERS_KEY,
-        JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
-      );
+      projectStorage.setItem(OPEN_CHARACTERS_KEY, JSON.stringify(store));
     } catch {
       status.textContent = 'Could not store open character drafts locally';
     }
@@ -290,6 +322,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
   function renderTabs(): void {
     const host = get$<HTMLElement>('#character-tabs');
+    renderTabCloseActions(host, { tabs: openTabs, active: current?.id ?? null, closeTab });
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -446,24 +479,47 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitHost.replaceChildren();
     for (const [index, entry] of (current.portraits ?? []).entries()) {
       const row = document.createElement('div');
-      row.className = 'character-state-row';
+      row.className = 'character-portrait-card';
+      const thumbnail = document.createElement('canvas');
+      thumbnail.width = 160;
+      thumbnail.height = 100;
+      const [emotion, ...aliases] = getPortraitEmotionNames(entry.emotion);
+      const name = `${emotion || 'Default'} · ${entry.facing.toUpperCase()}`;
+      thumbnail.setAttribute('aria-label', `${name} portrait preview`);
+      const title = document.createElement('strong');
+      title.className = 'portrait-entry-name';
+      title.textContent = name;
       const description = document.createElement('span');
       description.className = 'portrait-entry-description';
-      description.textContent = `${entry.emotion || 'Default'} · ${entry.facing.toUpperCase()} · ${getPortraitAssetLabel(entry.portrait, spriteLabels, clipLabels)}`;
+      description.textContent = aliases.length ? `Aliases: ${aliases.join(', ')}` : '';
+      description.hidden = aliases.length === 0;
+      const actions = document.createElement('div');
+      actions.className = 'portrait-entry-actions';
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.textContent = 'EDIT';
+      edit.setAttribute('aria-label', `Edit ${name}`);
       edit.addEventListener('click', () => void openPortraitPicker(index));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'REMOVE';
+      remove.setAttribute('aria-label', `Remove ${name}`);
       remove.addEventListener('click', () => {
         if (!current) return;
         current.portraits = current.portraits?.filter((portrait) => portrait !== entry);
         render();
       });
-      row.append(description, edit, remove);
+      actions.append(edit, remove);
+      row.append(thumbnail, title, description, actions);
       portraitHost.append(row);
+      const choice = getPortraitAssetChoice(entry.portrait, spriteFiles, clips);
+      void drawPortraitAssetThumbnail(thumbnail, choice.kind, choice.id, choice.index).catch(() => {
+        if (!alive || !row.isConnected) return;
+        const error = document.createElement('span');
+        error.className = 'portrait-entry-description';
+        error.textContent = 'Preview unavailable';
+        actions.before(error);
+      });
     }
     const movement = document.createElement('div');
     movement.className = 'character-state-column';
@@ -625,7 +681,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     const drawing = target.getContext('2d');
     if (!drawing) return;
     await document.fonts.ready;
-    if (!alive || !target.isConnected || !portraitDialog.open) return;
+    if (!alive || !target.isConnected) return;
     drawing.fillStyle = '#000';
     drawing.fillRect(0, 0, target.width, target.height);
     const native = terminalCellAtZoom(drawing, 1, sprite.font);
@@ -652,8 +708,9 @@ export function mountCharacters(root: HTMLElement): () => void {
     canvas: HTMLCanvasElement,
     kind: 'sprite' | 'animation',
     id: string,
+    index = 0,
   ): Promise<void> {
-    if (kind === 'sprite') return drawPortraitSprite(canvas, await getPortraitSprite(id), 0);
+    if (kind === 'sprite') return drawPortraitSprite(canvas, await getPortraitSprite(id), index);
     const animation = await getPortraitAnimation(id);
     const frame = animation.frames.find((entry) => !isInvisibleFrame(entry));
     if (!frame || isInvisibleFrame(frame)) return;
@@ -701,7 +758,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     const token = ++portraitToken;
     clearTimeout(portraitTimer);
     portraitOkay.disabled = true;
-    portraitFrameLabel.hidden = true;
+    portraitFrameLabel.hidden = choice.kind !== 'sprite' || portraitFrame.dataset.sprite !== choice.id;
     const drawing = portraitCanvas.getContext('2d');
     if (drawing) {
       drawing.fillStyle = '#000';
@@ -712,12 +769,36 @@ export function mountCharacters(root: HTMLElement): () => void {
       if (choice.kind === 'sprite') {
         const sprite = await getPortraitSprite(choice.id);
         if (!alive || !portraitDialog.open || token !== portraitToken) return;
-        portraitFrame.replaceChildren();
-        for (let index = 0; index < sprite.sprites.length; index++)
-          portraitFrame.append(new Option(`FRAME ${index + 1}`, String(index)));
         if (!sprite.sprites[choice.index]) choice.index = 0;
-        portraitFrame.value = String(choice.index);
-        portraitFrameLabel.hidden = sprite.sprites.length <= 1;
+        if (portraitFrame.dataset.sprite !== choice.id) {
+          portraitFrame.replaceChildren();
+          portraitFrame.dataset.sprite = choice.id;
+          for (let index = 0; index < sprite.sprites.length; index++) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'portrait-asset-card';
+            button.setAttribute('aria-label', `Frame ${index + 1}`);
+            const thumbnail = document.createElement('canvas');
+            thumbnail.width = 96;
+            thumbnail.height = 60;
+            const label = document.createElement('span');
+            label.textContent = `FRAME ${index + 1}`;
+            button.append(thumbnail, label);
+            button.addEventListener('click', () => {
+              void showPortraitChoice({ kind: 'sprite', id: choice.id, index });
+            });
+            portraitFrame.append(button);
+            void drawPortraitSprite(thumbnail, sprite, index).catch(() => {
+              label.textContent = `FRAME ${index + 1} (unavailable)`;
+            });
+          }
+        }
+        portraitFrame.querySelectorAll('button').forEach((button, index) => {
+          const selected = index === choice.index;
+          button.classList.toggle('active', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        portraitFrameLabel.hidden = sprite.sprites.length === 0;
         portraitOkay.disabled = sprite.sprites.length === 0;
         portraitStatus.textContent = `${sprite.label} · frame ${choice.index + 1} / ${sprite.sprites.length}`;
         await drawPortraitSprite(portraitCanvas, sprite, choice.index);
@@ -764,10 +845,12 @@ export function mountCharacters(root: HTMLElement): () => void {
     const entry = index === undefined ? undefined : current.portraits?.[index];
     get$<HTMLElement>('#character-portrait-title').textContent = entry ? 'EDIT PORTRAIT' : 'ADD PORTRAIT';
     portraitEmotion.value = entry?.emotion ?? '';
-    portraitDirection.value = entry?.facing ?? 'right';
-    const spriteMatch = entry && /^(.+)_(\d+)$/.exec(entry.portrait);
-    const isSprite = !!spriteMatch && spriteFiles.includes(spriteMatch[1]) && !clips.includes(entry.portrait);
-    portraitKind.value = entry && !isSprite ? 'animation' : 'sprite';
+    portraitDirectionLeft.checked = entry?.facing === 'left';
+    portraitDirectionRight.checked = entry?.facing !== 'left';
+    const choice = entry
+      ? getPortraitAssetChoice(entry.portrait, spriteFiles, clips)
+      : getDefaultPortraitSpriteChoice(current.portraits ?? [], spriteFiles, clips);
+    portraitKind.value = choice?.kind ?? 'sprite';
     portraitSearch.value = '';
     portraitChoice = undefined;
     portraitOkay.disabled = true;
@@ -775,10 +858,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitStatus.textContent = 'Select a sprite or animation.';
     portraitDialog.showModal();
     renderPortraitResults();
-    if (entry) {
-      const choice = isSprite && spriteMatch
-        ? { kind: 'sprite' as const, id: spriteMatch[1], index: Number(spriteMatch[2]) }
-        : { kind: 'animation' as const, id: entry.portrait, index: 0 };
+    if (choice) {
       void showPortraitChoice(choice);
       renderPortraitResults();
     }
@@ -796,6 +876,19 @@ export function mountCharacters(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = characters.files;
+    await Promise.all(
+      [...sessions].map(async ([id, session]) => {
+        if (!files.includes(id)) return;
+        try {
+          const stored = await requestJson<CharacterDocument>(`/api/characters/${encodeURIComponent(id)}`);
+          if (!alive || sessions.get(id) !== session) return;
+          sessions.set(id, getRestoredCharacterSession(session, stored));
+        } catch {
+          // Keep the local draft and its baseline if the saved file cannot be checked.
+        }
+      }),
+    );
+    if (!alive) return;
     assetTree.setData(files, characterFolders, characters.labels);
     openTabs = openTabs.filter(
       (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
@@ -816,7 +909,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     if (current?.id === id || saving) return;
     const token = ++loading;
     const cached = sessions.get(id);
-    if (cached) {
+    if (cached && !files.includes(id)) {
       activateCharacter(cached.doc, cached.saved);
       status.textContent = `Opened ${id}`;
       return;
@@ -824,14 +917,25 @@ export function mountCharacters(root: HTMLElement): () => void {
     try {
       const doc = await requestJson<CharacterDocument>(`/api/characters/${encodeURIComponent(id)}`);
       if (!alive || token !== loading) return;
-      activateCharacter(doc, structuredClone(doc));
+      const session = cached
+        ? getRestoredCharacterSession(cached, doc)
+        : { doc, saved: structuredClone(doc) };
+      activateCharacter(session.doc, session.saved);
       status.textContent = `Opened ${id}`;
     } catch (error) {
       if (alive && token === loading) status.textContent = showMessage(error);
     }
   }
 
-  async function save(): Promise<void> {
+  function save(): Promise<void> {
+    if (pendingSave) return pendingSave;
+    pendingSave = saveCurrentCharacter().finally(() => {
+      pendingSave = null;
+    });
+    return pendingSave;
+  }
+
+  async function saveCurrentCharacter(): Promise<void> {
     if (!current || saving) return;
     const sent = structuredClone(current);
     const base = saved;
@@ -936,6 +1040,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   get$<HTMLFormElement>('#character-from-folder-form').addEventListener('submit', (event) => {
     event.preventDefault();
     void (async () => {
+      if (saving) return;
       const folder = fromFolderPicker.querySelector<HTMLInputElement>('input')?.value.trim() ?? '';
       const label = newCharacterLabel.value.trim();
       if (!animationFolders.folders.includes(folder))
@@ -958,7 +1063,8 @@ export function mountCharacters(root: HTMLElement): () => void {
       result.character.label = label;
       activateCharacter(result.character, null);
       fromFolderDialog.close();
-      status.textContent = `New character ${label} from ${folder} · save to keep it`;
+      status.textContent = `Creating character ${label} from ${folder}`;
+      await save();
     })();
   });
   get$<HTMLButtonElement>('#character-fill-folder').addEventListener('click', () => {
@@ -1002,22 +1108,20 @@ export function mountCharacters(root: HTMLElement): () => void {
     renderPortraitResults();
   });
   portraitSearch.addEventListener('input', renderPortraitResults);
-  portraitFrame.addEventListener('change', () => {
-    if (portraitChoice?.kind === 'sprite')
-      void showPortraitChoice({ ...portraitChoice, index: Number(portraitFrame.value) });
-  });
   portraitForm.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!current || current.id !== portraitCharacterId || !portraitChoice || portraitOkay.disabled) return;
     const emotion = portraitEmotion.value.trim();
-    const facing = portraitDirection.value as 'left' | 'right';
-    if (!/^[\w-]*$/.test(emotion)) {
-      portraitStatus.textContent = 'Emotion must use letters, numbers, hyphens or underscores.';
+    const facing: 'left' | 'right' = portraitDirectionLeft.checked ? 'left' : 'right';
+    if (!isPortraitEmotionValid(emotion)) {
+      portraitStatus.textContent = 'Use unique emotion names containing letters, numbers, hyphens or underscores, separated by a comma or /. Leave blank for default; do not leave empty aliases.';
       return;
     }
+    const emotions = getPortraitEmotionNames(emotion);
     if (current.portraits?.some((entry, index) =>
-      index !== portraitEditIndex && entry.facing === facing && entry.emotion === emotion)) {
-      portraitStatus.textContent = `A ${facing} portrait for ${emotion || 'the default emotion'} already exists.`;
+      index !== portraitEditIndex && entry.facing === facing &&
+      getPortraitEmotionNames(entry.emotion).some((name) => emotions.includes(name)))) {
+      portraitStatus.textContent = `A ${facing} portrait already uses one of these emotion names (or the default emotion).`;
       return;
     }
     const portrait = portraitChoice.kind === 'sprite'
@@ -1036,23 +1140,64 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitChoice = undefined;
     portraitCharacterId = undefined;
   });
+  const customStateDialog = get$<HTMLDialogElement>('#character-custom-state-dialog');
+  const customStateName = get$<HTMLInputElement>('#character-custom-state-name');
+  const customStatePicker = get$<HTMLElement>('#character-custom-state-picker');
+  const customStateError = get$<HTMLElement>('#character-custom-state-error');
+  let customStateChoices = new Map<string, string>();
   get$<HTMLButtonElement>('#add-character-state').addEventListener('click', () => {
-    void (async () => {
-      if (!current) return;
-      const id = await askId('Custom state name');
-      if (!id) return;
-      if (
-        !isAssetId(id) ||
-        id in current.customAnimations ||
-        id === 'invisible' ||
-        CHARACTER_STATES.includes(id as (typeof CHARACTER_STATES)[number])
-      )
-        return void alertModal('Use a unique lowercase state name');
-      if (Object.keys(current.customAnimations).length >= 64)
-        return void alertModal('Maximum 64 custom states');
-      current.customAnimations[id] = clips[0] ?? current.animations['idle-down'];
-      render();
-    })();
+    if (!current) return;
+    customStateName.value = '';
+    customStateError.hidden = true;
+    const labels = getAnimationChoiceLabels(clips, clipLabels, clips);
+    customStateChoices = new Map(clips.map((id) => [labels.get(id) ?? id, id]));
+    customStatePicker.replaceChildren(
+      createSearchSelect({
+        value: current.label,
+        choices: [...customStateChoices.keys()],
+        ariaLabel: 'Custom state animation',
+        placeholder: 'Search animations…',
+        onInput: () => {},
+      }),
+    );
+    customStateDialog.showModal();
+    customStateName.focus();
+  });
+  get$<HTMLButtonElement>('#cancel-character-custom-state').addEventListener('click', () =>
+    customStateDialog.close(),
+  );
+  get$<HTMLFormElement>('#character-custom-state-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!current || saving) return;
+    const id = customStateName.value.trim();
+    if (
+      !isCharacterStateName(id) ||
+      id in current.customAnimations ||
+      id === 'invisible' ||
+      CHARACTER_STATES.includes(id as (typeof CHARACTER_STATES)[number])
+    ) {
+      customStateError.textContent = 'Use a unique lowercase state name (spaces allowed)';
+      customStateError.hidden = false;
+      customStateName.focus();
+      return;
+    }
+    if (Object.keys(current.customAnimations).length >= 64) {
+      customStateError.textContent = 'Maximum 64 custom states';
+      customStateError.hidden = false;
+      return;
+    }
+    const input = customStatePicker.querySelector<HTMLInputElement>('input');
+    const animation = customStateChoices.get(input?.value.trim() ?? '');
+    if (!animation) {
+      customStateError.textContent = 'Select an animation for this state.';
+      customStateError.hidden = false;
+      input?.focus();
+      return;
+    }
+    current.customAnimations[id] = animation;
+    customStateDialog.close();
+    render();
+    void save();
   });
   get$<HTMLButtonElement>('#new-character').addEventListener('click', () => {
     void (async () => {
@@ -1117,7 +1262,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   };
   document.addEventListener('keydown', onKeyDown);
   window.addEventListener('pagehide', persistTabs);
-  void preloadSpriteFonts()
+  pendingRestore = preloadSpriteFonts()
     .then(async () => {
       await refresh();
       if (!alive) return;
@@ -1151,3 +1296,4 @@ export function mountCharacters(root: HTMLElement): () => void {
     setDirtyGuard(null);
   };
 }
+import { renderTabCloseActions } from '../tab-close-actions.js';

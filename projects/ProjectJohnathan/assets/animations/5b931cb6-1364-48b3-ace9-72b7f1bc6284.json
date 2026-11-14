@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "5b931cb6-1364-48b3-ace9-72b7f1bc6284",
+  "label": "johnathan5x5 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 9,
+      "durationMs": 135
+    }
+  ]
+}

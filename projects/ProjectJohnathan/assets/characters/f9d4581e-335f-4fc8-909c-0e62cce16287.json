@@ -1,0 +1,25 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "f9d4581e-335f-4fc8-909c-0e62cce16287",
+  "label": "fabian3x3_ch",
+  "scriptName": "Fabian,fabian",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "9ba95bcc-268b-47a9-b6a0-2c9bff69c68b",
+    "idle-down": "b1c425e5-cab7-47db-9c86-cbef751f76a3",
+    "idle-left": "428750ac-8022-4a54-969e-85b9769fdfc3",
+    "idle-right": "30e022d4-e119-487f-a595-bdb23127aae7",
+    "walk-up": "eb1128eb-9827-4b80-99bc-669741ae531e",
+    "walk-down": "15a08aa4-2d13-4aa9-ba0c-2da4bcb5c652",
+    "walk-left": "98eb63e3-d5bc-43d1-8db8-c1b13273a782",
+    "walk-right": "1ad3f9d5-5675-4879-aa69-d75e15071e6c",
+    "talking-up": "1b276b29-6acb-4e44-8074-16c1f47aed43",
+    "talking-down": "1cfb9dfe-9b1f-4ae8-8a2d-2ccc2984dece",
+    "talking-left": "fa07f9d9-9a13-4e17-a46d-303c6c93670c",
+    "talking-right": "bf72c2d6-d69c-40e3-9c7e-dbc920941428"
+  },
+  "customAnimations": {
+    "sit left": "154e70a8-5d91-4177-bf4f-db7eca93f69b"
+  }
+}

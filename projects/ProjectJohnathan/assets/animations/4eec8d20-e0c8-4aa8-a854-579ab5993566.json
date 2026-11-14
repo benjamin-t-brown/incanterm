@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "4eec8d20-e0c8-4aa8-a854-579ab5993566",
+  "label": "hadassah3x3 walk up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 14,
+      "durationMs": 135
+    },
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 15,
+      "durationMs": 135
+    }
+  ]
+}

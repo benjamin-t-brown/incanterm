@@ -107,6 +107,14 @@ describe('scene-free RPGScript shim', () => {
       .rejects.toThrow('setAnimState requires an animation state name');
   });
 
+  it('validates setPropAnimState arguments without a scene', async () => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    await expect(runRpgScriptSnippet(scripts, '+setPropAnimState(vend_energy_1, open)', io)).resolves.toBeDefined();
+    await expect(runRpgScriptSnippet(scripts, '+setPropAnimState(vend_energy_1, 3)', io))
+      .rejects.toThrow('setPropAnimState requires an animation state name');
+  });
+
   it('validates changeScene arguments without loading a scene in the terminal shim', async () => {
     const scripts = await loadRpgScripts(await createFixture(), { shim: true });
     const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };

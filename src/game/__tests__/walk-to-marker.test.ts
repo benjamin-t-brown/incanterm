@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { Character } from '../character.js';
 import { PlayerControl } from '../player-control.js';
 import { ScriptRunner, parseRpgScript } from '../rpgscript/runtime.js';
@@ -72,6 +72,17 @@ it('skipWait continues immediately but protects the walk until arrival', () => {
   expect(hero.isWalking()).toBe(true);
 });
 
+it('skipWait still continues immediately when only a partial route is available', () => {
+  const { scene, hero, runner } = createMarkerRunner(
+    '@start\n+walkToMarker(hero, Exit, true)\n+setStorage(continued, true)',
+  );
+  for (let y = 0; y < scene.height; y++) (scene.blockedCells as Set<number>).add(y * scene.width + 2);
+  runner.start('start');
+  expect(runner.getStorage('continued')).toBe(true);
+  scene.update(100);
+  expect(hero.x).toBe(1);
+});
+
 it.each([
   ['walkToMarker(hero, Unknown)', 'has no marker Unknown'],
   ['walkToMarker(missing, Exit)', 'no character missing'],
@@ -81,18 +92,68 @@ it.each([
   expect(() => runner.start('start')).toThrow(error);
 });
 
-it('rejects an unreachable marker instead of waiting forever', () => {
-  const { scene, runner } = createMarkerRunner('@start\n+walkToMarker(hero, Exit)');
-  for (let y = 0; y < scene.height; y++) (scene.blockedCells as Set<number>).add(y * scene.width + 2);
-  expect(() => runner.start('start')).toThrow('unreachable');
+it('walks as close as possible and continues after bounded retries when a marker stays blocked', () => {
+  vi.useFakeTimers();
+  try {
+    const { scene, hero, runner } = createMarkerRunner('@start\n+walkToMarker(hero, Exit)\n+setStorage(continued, true)');
+    for (let y = 0; y < scene.height; y++) (scene.blockedCells as Set<number>).add(y * scene.width + 2);
+    runner.start('start');
+    scene.update(100);
+    runner.update();
+    expect(hero.x).toBe(1);
+    expect(runner.getStorage('continued')).toBeUndefined();
+    for (let attempt = 0; attempt < 4; attempt++) {
+      vi.advanceTimersByTime(100);
+      runner.update();
+    }
+    expect(runner.getStorage('continued')).toBe(true);
+    expect(hero.x).toBe(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
-it('still reports a walk interrupted outside a conversation', () => {
-  const { hero, control, runner } = createMarkerRunner('@start\n+walkToMarker(hero, Exit)');
-  runner.start('start');
-  hero.stopWalking();
-  expect(() => runner.update()).toThrow('interrupted before arrival');
-  expect(control.isWalkPausedForConversation(hero, { x: 4, y: 1 })).toBe(false);
+it('retries an interrupted walk and reaches the marker', () => {
+  vi.useFakeTimers();
+  try {
+    const { hero, scene, control, runner } = createMarkerRunner('@start\n+walkToMarker(hero, Exit)\n+setStorage(arrived, true)');
+    runner.start('start');
+    hero.stopWalking();
+    runner.update();
+    expect(runner.getStorage('arrived')).toBeUndefined();
+    expect(control.isWalkPausedForConversation(hero, { x: 4, y: 1 })).toBe(false);
+    vi.advanceTimersByTime(100);
+    runner.update();
+    expect(hero.isWalking()).toBe(true);
+    scene.update(200);
+    runner.update();
+    expect(hero.x).toBe(4);
+    expect(runner.getStorage('arrived')).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('retries when a blocked destination becomes available', () => {
+  vi.useFakeTimers();
+  try {
+    const { scene, hero, runner } = createMarkerRunner('@start\n+walkToMarker(hero, Exit)\n+setStorage(arrived, true)');
+    (scene.blockedCells as Set<number>).add(1 * scene.width + 4);
+    runner.start('start');
+    scene.update(200);
+    runner.update();
+    expect(hero.x).toBe(3);
+    expect(runner.getStorage('arrived')).toBeUndefined();
+    (scene.blockedCells as Set<number>).clear();
+    vi.advanceTimersByTime(100);
+    runner.update();
+    scene.update(100);
+    runner.update();
+    expect(hero.x).toBe(4);
+    expect(runner.getStorage('arrived')).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it('logs a scene command failure and continues with the next step when recovery is enabled', () => {

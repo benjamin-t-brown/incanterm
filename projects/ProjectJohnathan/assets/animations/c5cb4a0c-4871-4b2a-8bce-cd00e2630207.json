@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "c5cb4a0c-4871-4b2a-8bce-cd00e2630207",
+  "label": "wyatt3x3 talking left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 2,
+      "durationMs": 500
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 3,
+      "durationMs": 500
+    }
+  ]
+}

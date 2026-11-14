@@ -1,0 +1,42 @@
+{
+  "folders": [
+    "props",
+    "3x3",
+    "portraits",
+    "bg",
+    "5x5"
+  ],
+  "placements": {
+    "007ba615-9410-4d38-ab33-65091d4bcca4": "props",
+    "clock": "props",
+    "desk": "props",
+    "0681c7b4-062a-4fc3-9045-6a814da4b08c": "3x3",
+    "54084689-73f9-4d5e-bc82-36ab2511d20f": "3x3",
+    "johnathan1": "portraits",
+    "edfc4869-e750-4c9a-96c1-c33380aac47a": "portraits",
+    "vivi1": "portraits",
+    "9088b556-cc64-4c7d-aff6-66113b702a4a": "props",
+    "bg_classroom1": "bg",
+    "f8f61f8c-4d31-4cdd-bf5e-4c34fa3f3533": "bg",
+    "5c20afe2-cf9e-477c-9ccf-63bd0b470a54": "3x3",
+    "ae12a341-1474-4dda-8c1e-27b006279c79": "3x3",
+    "256de50b-67ec-46ae-bc5e-3b2f58fedc3a": "3x3",
+    "abd6c5d1-90d2-4434-b1b0-6ff7036ede9d": "3x3",
+    "2addb14b-a85a-4094-9842-e1a535f636ca": "3x3",
+    "5f5fb34f-28ea-4fd0-9022-aef542391b57": "3x3",
+    "998e46de-7a12-45ee-b3e5-26507a528081": "3x3",
+    "54cd5e40-459c-412d-b052-e49afc8b9a7c": "3x3",
+    "5cb1dbda-d534-4474-85b5-8484003f4f18": "portraits",
+    "7c5aaf79-dd5c-4394-bcdc-88a3e794455d": "bg",
+    "5ad1fc16-eb10-45c7-9161-06902775f495": "props",
+    "ef81d361-6170-4c09-af2c-a58366bdc32c": "props",
+    "6781ef5c-3c2f-4281-95f7-f12285917662": "bg",
+    "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f": "props",
+    "76780fbc-a1bc-4198-9d52-011e8b17f1de": "3x3",
+    "8dae7313-9414-476d-9131-2fea71c44c32": "5x5",
+    "58e30454-40c7-448f-a3e9-dddbf85b651b": "bg",
+    "ce2525cc-413c-4765-a642-9e1c719357a7": "bg",
+    "b4af80d3-fa05-4847-b7e2-08cfdc851df4": "bg",
+    "4406e150-37f3-49e0-a232-45d96a710610": "bg"
+  }
+}

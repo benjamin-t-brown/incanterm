@@ -115,6 +115,45 @@ Scene changes rebuild the room and cancel room-owned scripts/actions. Session st
 
 ## Incanterm scene commands
 
+`+walkToOffset(character, x, y[, skipWait])` walks from the character's current
+position by integer scene-cell offsets (positive x moves right, positive y
+moves down). Like `walkToMarker`, it waits for arrival by default; pass `true`
+as the fourth argument to continue the script while the character walks.
+For example, `+walkToOffset(player, 2, -1)` moves two cells right and one up.
+
+### Switch blocks
+
+`+?switch(value):{` selects the first matching braced case; cases do not fall
+through. The selector is evaluated once. `*` is an optional default and must
+come last. Quoted `"*"` matches the literal asterisk instead.
+
+```rpgscript
++?switch(tmp.a):{
+  0: {
+    +log("Zero")
+  }
+  "ready": {
+    +log("Ready")
+  }
+  waiting: {
+    +log("Matches the string waiting")
+  }
+  [candidate]: {
+    +log("Matches the local value")
+  }
+  *: {
+    +log("Other")
+  }
+}
+```
+
+Numeric labels match either the number or its string representation (`0`
+matches `0` and `"0"`). Boolean labels match only booleans; quoted strings
+match only strings. Bare names (`waiting`) also match literal strings, not
+storage keys. `[name]` and `{name}` read the local or global value at
+runtime. Other case labels use the existing condition syntax, so
+`+?switch(true):{` can have cases such as `lt({score}, 50): { ... }`.
+
 ### Numeric expressions
 
 Assignments and scalar command arguments accept numeric expressions, for example
@@ -245,6 +284,14 @@ Walking is non-blocking: subsequent script commands run immediately. Each charac
 
 `bark(ch, text, ?ms, ?skipWait)` shows `text` above a character's head as a UI overlay. The script waits until the bark ends unless `skipWait` is `true`. `ms` defaults to 2000. Text is center-aligned and wrapped to 20 columns, stacked upward so it stays above the character. A new bark replaces the character's current one; barks clear on scene change.
 
+### Prop animation states
+
+`+setPropAnimState(vend_energy_1, open)` sets the animation state on every animated
+prop whose instance name matches (case-insensitive). Prop assets define a built-in
+`default` state from their visual, plus optional `customAnimations` in the prop
+editor. Scene instances pick a starting state in the scene inspector. A missing
+state logs a warning and falls back to `default` for each matching prop.
+
 ### Command groups
 
 Replace game-specific command implementations with an Incanterm library. Candidate groups, not finalized signatures:
@@ -284,6 +331,39 @@ has identical behavior and remains supported.
 Chain further branches with `+?elseif cond:{ ... }` (or an inline `+?elseif cond:+command(...)`). An `elseif` runs only when every earlier branch in its chain failed and its own condition passes; a trailing `else` runs only when none ran. Like `else`, it uses the earlier branches' cached results and is an error without a preceding conditional at the same block depth.
 
 Loop with `+?while cond:{ ... }`. The condition is re-tested before every pass (unlike `if`, whose result is cached), and branch results inside the body reset each pass. The body must be a braced block, `once` and `oncePerInstance` are rejected as loop conditions, and an `else` cannot follow a loop. Dialogue and waits work inside the body. Runaway loops are bounded two ways, and both stop the script with a file/line error through the normal command-error path instead of throwing: a single `while` stops after 1000 passes (even if it pauses for dialogue or waits each pass), and a run of more than 1000 steps without pausing hits the runner's immediate-work budget.
+
+### Indexed lists
+
+Pipe-delimited list literals can be assigned to globals or locals, on one line
+or across several lines. Bare names in a list are strings; use `[name]` or
+`{name}` to include a local or global value. `||` is an empty list, `|a|` is a
+one-element list, and `[a]` still reads a local variable. Commas separate
+elements, with an optional trailing comma in a multiline list. `in(index, list)` is true when
+`index` is an integer from zero up to (but excluding) the list length; it checks
+an **index**, not whether a value occurs in the list. `->` reads an element, and
+an indexed assignment replaces an existing element:
+
+```rpgscript
++items=|
+  key,
+  map,
+  coin,
+|
++[i]=0
++?while in([i], {items}):{
+  +[item]={items}->[i]
+  +[i]=[i]+1
+}
++{items}->1="compass"
+```
+
+`[items]->0` works for a local list; `{items}->[i]` reads a global list at a
+local index. Indexed reads and writes require an existing nonnegative integer
+index and a list; invalid reads stop the script and invalid assignments report
+a command error. Assigning to the variable itself replaces its whole value.
+An indexed assignment creates a new list value rather than changing other
+variables that were previously assigned the same list. The existing while-loop
+work and pass limits still apply.
 
 Control keywords are line prefixes written with `!`, like `<` for return, and work on their own line or after a condition (`+?gt(n, 5):!break`):
 

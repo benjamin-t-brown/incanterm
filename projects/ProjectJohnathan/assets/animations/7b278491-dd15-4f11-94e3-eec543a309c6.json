@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "7b278491-dd15-4f11-94e3-eec543a309c6",
+  "label": "wyatt3x3 walk down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 8,
+      "durationMs": 135
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 9,
+      "durationMs": 135
+    }
+  ]
+}

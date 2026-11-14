@@ -1,19 +1,29 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadOrCreateHostKey } from './host-key.js';
+import { fileURLToPath } from 'node:url';
 import { startServer } from './start.js';
+import { parseProjectArguments, loadProjectFromArguments } from '../project/cli.js';
 
 const host = process.env.INCANTERM_HOST || '127.0.0.1';
 const httpPort = readPort('INCANTERM_HTTP_PORT', 7101);
 const sshPort = readPort('INCANTERM_SSH_PORT', 7102);
-const staticRoot = path.join(process.cwd(), 'dist', 'browser');
+const cli = parseProjectArguments(process.argv.slice(2));
+if (cli.remaining.length) throw new Error(`Unknown arguments: ${cli.remaining.join(' ')}`);
+const project = await loadProjectFromArguments(cli);
+const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
+const staticRoot = [
+  path.join(moduleRoot, 'browser'),
+  path.resolve(moduleRoot, '../../dist/browser'),
+].find((directory) => fs.existsSync(path.join(directory, 'index.html')));
 
 const server = await startServer({
   host,
+  project,
+  assetsRoot: cli.assetsRoot,
+  sceneId: cli.sceneId,
   httpPort,
   sshPort,
-  hostKey: loadOrCreateHostKey(path.join(process.cwd(), '.data', 'ssh_host_key')),
-  staticRoot: fs.existsSync(path.join(staticRoot, 'index.html')) ? staticRoot : undefined,
+  staticRoot,
 });
 
 console.log(`Incanterm HTTP/WebSocket  http://${host}:${server.httpPort}`);

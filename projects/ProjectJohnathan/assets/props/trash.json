@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "trash",
+  "visual": {
+    "type": "sprite",
+    "id": "5ad1fc16-eb10-45c7-9161-06902775f495",
+    "index": 0
+  },
+  "width": 2,
+  "height": 3,
+  "blockedCells": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

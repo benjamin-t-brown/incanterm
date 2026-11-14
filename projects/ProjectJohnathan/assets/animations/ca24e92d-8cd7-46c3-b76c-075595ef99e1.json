@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "ca24e92d-8cd7-46c3-b76c-075595ef99e1",
+  "label": "johnathan5x5 walk right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 12,
+      "durationMs": 135
+    },
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 13,
+      "durationMs": 135
+    }
+  ]
+}

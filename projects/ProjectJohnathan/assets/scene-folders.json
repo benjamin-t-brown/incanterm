@@ -1,0 +1,12 @@
+{
+  "folders": [
+    "school"
+  ],
+  "placements": {
+    "classroom1": "school",
+    "de648161-33a7-4106-aae0-255636afab05": "school",
+    "7a22a591-1dad-4cae-a3b8-d4b15a1c99eb": "school",
+    "bcb69851-25ac-4681-ad2d-8ce2627a880d": "school",
+    "test-room": "school"
+  }
+}

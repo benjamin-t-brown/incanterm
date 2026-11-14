@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -41,25 +42,36 @@ describe('RPGScript editor command catalog', () => {
 });
 
 describe('RPGScript dialogue', () => {
-  it('loads the real dialogue asset and advances through a script call', async () => {
-    const scripts = await loadRpgScripts(path.join(process.cwd(), 'assets'));
+  it('advances dialogue through a script call and updates storage', () => {
+    const scripts = parseRpgScript(`@start
+Guide: "First line."
+Guide: "Second line."
++:finish()
+@finish
+Guide: "Last line."
++setStorage(a, true)
++log("A is set")
++?is(a):{
+  +setStorage(a, false)
+  +log("A is set")
+}`, 'dialogue.rpgscript');
     const logged: string[] = [];
     const runner = new ScriptRunner(scripts, (message) => logged.push(message));
-    runner.start('testDialogue1');
+    runner.start('start');
     expect(runner.dialogue).toEqual({
       actor: 'Guide',
-      text: 'Welcome to Incanterm.',
+      text: 'First line.',
     });
     runner.advance();
-    expect(runner.dialogue?.text).toBe('The crate is waiting for you.');
+    expect(runner.dialogue?.text).toBe('Second line.');
     runner.advance();
-    expect(runner.dialogue?.text).toBe('See you soon.');
+    expect(runner.dialogue?.text).toBe('Last line.');
     runner.advance();
     expect(runner.dialogue).toBeUndefined();
     expect(runner.getStorage('a')).toBe(false);
     expect(logged).toEqual([
-      '[RPGSCRIPT] A is set (test-dialogue.rpgscript:10)',
-      '[RPGSCRIPT] A is set (test-dialogue.rpgscript:13)',
+      '[RPGSCRIPT] A is set (dialogue.rpgscript:8)',
+      '[RPGSCRIPT] A is set (dialogue.rpgscript:11)',
     ]);
   });
 
@@ -153,7 +165,7 @@ describe('RPGScript dialogue', () => {
     expect(blocks[1].conditional).toMatchObject({ type: 'all' });
     expect(blocks[1].conditional).toEqual({
       type: 'all',
-      args: [true, { type: 'branch', args: [0] }],
+      args: [{ type: 'branch', args: [0] }, true],
     });
   });
 
@@ -178,7 +190,7 @@ describe('RPGScript dialogue', () => {
   });
 
   it('rejects missing script targets while loading', async () => {
-    const root = await fs.mkdtemp(path.join(process.cwd(), '.data', 'rpgscript-test-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'rpgscript-test-'));
     try {
       await fs.mkdir(path.join(root, 'scripts'));
       await fs.writeFile(
@@ -680,7 +692,7 @@ describe('RPGScript execution', () => {
   });
 
   it('loads trigger targets across files and diagnoses missing ones', async () => {
-    const root = await fs.mkdtemp(path.join(process.cwd(), '.data', 'rpgscript-test-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'rpgscript-test-'));
     try {
       await fs.mkdir(path.join(root, 'scripts'));
       await fs.writeFile(path.join(root, 'scripts', 'one.rpgscript'), '#door\naction,two');
@@ -727,6 +739,7 @@ describe('RPGScript execution', () => {
     a.input('3');
     expect(first).toHaveLength(1);
     a.input('2');
+    a.input(' '); // Finish the newly displayed dialogue without advancing it.
     expect(getPlainText(screen.buffer)).toContain('Selected second');
     expect(second.at(-1)).toContain('2. Second');
   });

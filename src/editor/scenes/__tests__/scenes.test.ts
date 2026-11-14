@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadScene } from '../../../game/load-scene.js';
 import { CellBuffer } from '../../../game/cell-buffer.js';
+import { createSceneFixtureDocuments } from '../../../game/__tests__/scene-fixture.js';
 import { Background } from '../../../game/scene.js';
 import { dispatchAssetRequest } from '../../api.js';
 import {
@@ -442,20 +443,17 @@ describe('scene authoring', () => {
     expect(buffer.get(0, 0).ch).toBe('P');
   });
 
-  it('opens and resaves the legacy test-room sprite without converting it', async () => {
+  it('opens and resaves a legacy sprite-backed scene without converting it', async () => {
     const { root, store } = await createFixture();
-    await fs.copyFile(
-      path.join('assets', 'sprites', 'crate.json'),
-      path.join(root, 'sprites', 'crate.json'),
-    );
+    const { scene, sprite } = createSceneFixtureDocuments();
+    await fs.writeFile(path.join(root, 'sprites', `${sprite.id}.json`), JSON.stringify(sprite));
     await fs.mkdir(path.join(root, 'scenes'), { recursive: true });
-    await fs.copyFile(
-      path.join('assets', 'scenes', 'test-room.json'),
-      path.join(root, 'scenes', 'test-room.json'),
-    );
-    const original = await store.readScene('test-room');
-    expect(original.entities[0]).toMatchObject({ id: 'crate', sprite: 'crate' });
-    await store.saveSceneDraft('test-room', { ...original, width: 33 }, original);
-    expect((await store.readScene('test-room')).width).toBe(33);
+    await fs.writeFile(path.join(root, 'scenes', `${scene.id}.json`), JSON.stringify(scene));
+    const original = await store.readScene(scene.id);
+    expect(original.entities[0]).toMatchObject({ id: 'target', sprite: 'target' });
+    await store.saveSceneDraft(scene.id, { ...original, width: 33 }, original);
+    const saved = await store.readScene(scene.id);
+    expect(saved.width).toBe(33);
+    expect(saved.entities).toEqual(original.entities);
   });
 });

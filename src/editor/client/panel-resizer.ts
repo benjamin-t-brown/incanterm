@@ -1,3 +1,5 @@
+import { projectStorage } from './project.js';
+
 type PanelResizerOptions = {
   container: HTMLElement;
   panel: HTMLElement;
@@ -27,7 +29,7 @@ export function createPanelResizer(options: PanelResizerOptions): () => void {
     handle.setAttribute('aria-valuenow', String(next));
     if (persist) {
       try {
-        localStorage.setItem(storageKey, String(next));
+        projectStorage.setItem(storageKey, String(next));
       } catch {
         /* storage unavailable */
       }
@@ -38,7 +40,7 @@ export function createPanelResizer(options: PanelResizerOptions): () => void {
   handle.setAttribute('aria-valuemax', String(clampWidth(Number.MAX_SAFE_INTEGER)));
   let storedWidth = 0;
   try {
-    storedWidth = Number(localStorage.getItem(storageKey));
+    storedWidth = Number(projectStorage.getItem(storageKey));
   } catch {
     /* storage unavailable */
   }

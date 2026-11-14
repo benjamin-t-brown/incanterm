@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "1f1c9fe5-4d8a-470f-82c3-5d55c8583e93",
+  "label": "tessa3x3 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

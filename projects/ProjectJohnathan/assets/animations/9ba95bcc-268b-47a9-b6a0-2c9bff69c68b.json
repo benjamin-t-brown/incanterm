@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "9ba95bcc-268b-47a9-b6a0-2c9bff69c68b",
+  "label": "fabian3x3 idle up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 6,
+      "durationMs": 135
+    }
+  ]
+}

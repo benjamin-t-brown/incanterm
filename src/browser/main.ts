@@ -1,4 +1,4 @@
-import { parseServerMessage } from '../protocol/messages.js';
+import { parseServerMessage, type SelectionRect } from '../protocol/messages.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
 
 const screen = getRequiredElement('#screen');
@@ -8,10 +8,13 @@ const audio = getRequiredElement('#audio');
 let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | undefined;
 let viewport = { cols: 80, rows: 24 };
+let logSelection: SelectionRect | undefined;
+let selectingLog = false;
+let deferredFrame = false;
 const terminal = new TerminalScreen();
 
 screen.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0 || socket?.readyState !== WebSocket.OPEN) return;
+  if (event.button !== 0) return;
   const bounds = screen.getBoundingClientRect();
   const style = getComputedStyle(screen);
   const probe = document.createElement('span');
@@ -27,13 +30,48 @@ screen.addEventListener('pointerdown', (event) => {
       parseFloat(style.lineHeight),
   );
   if (x < 0 || y < 0 || x >= viewport.cols || y >= viewport.rows) return;
+  if (logSelection && x >= logSelection.x && x < logSelection.x + logSelection.width &&
+    y >= logSelection.y && y < logSelection.y + logSelection.height) {
+    selectingLog = true;
+    return;
+  }
+  window.getSelection()?.removeAllRanges();
+  if (socket?.readyState !== WebSocket.OPEN) return;
   event.preventDefault();
   socket.send(JSON.stringify({ type: 'input', data: `\x1b[<0;${x + 1};${y + 1}M` }));
 });
 
+window.addEventListener('pointerup', () => {
+  selectingLog = false;
+  if (!hasLogSelection()) renderDeferredFrame();
+});
+
+document.addEventListener('selectionchange', () => {
+  if (!selectingLog && !hasLogSelection()) renderDeferredFrame();
+});
+
+function hasLogSelection(): boolean {
+  const selection = window.getSelection();
+  return !!selection && !selection.isCollapsed && screen.contains(selection.anchorNode);
+}
+
+function renderDeferredFrame(): void {
+  if (!deferredFrame) return;
+  deferredFrame = false;
+  renderRows(new Set(Array.from({ length: viewport.rows }, (_, y) => y)));
+}
+
 // Keep the screen between updates; deltas only replace rows containing changed cells.
 function renderFrame(data: string): void {
   const dirty = terminal.apply(data, viewport.cols, viewport.rows);
+  if (selectingLog || hasLogSelection()) {
+    deferredFrame = true;
+    return;
+  }
+  renderRows(dirty);
+}
+
+function renderRows(dirty: Set<number>): void {
   if (screen.children.length !== viewport.rows) {
     screen.replaceChildren(
       ...Array.from({ length: viewport.rows }, () => document.createElement('span')),
@@ -66,6 +104,8 @@ window.addEventListener('keydown', (event) => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   const data = keyToInput(event);
   if (data === null) return;
+  window.getSelection()?.removeAllRanges();
+  renderDeferredFrame();
   event.preventDefault();
   socket.send(JSON.stringify({ type: 'input', data }));
 });
@@ -83,7 +123,8 @@ function getRequiredElement(selector: string): HTMLElement {
 function connect(): void {
   status.textContent = 'Connecting…';
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const next = new WebSocket(`${protocol}//${location.host}/ws`);
+  const previewEndpoint = document.querySelector<HTMLMetaElement>('meta[name="incanterm-websocket"]')?.content;
+  const next = new WebSocket(previewEndpoint || `${protocol}//${location.host}/ws`);
   socket = next;
 
   next.addEventListener('open', () => {
@@ -96,6 +137,7 @@ function connect(): void {
     if (!message) return;
     if (message.type === 'terminal-data') {
       viewport = { cols: message.cols ?? viewport.cols, rows: message.rows ?? viewport.rows };
+      logSelection = message.logSelection;
       renderFrame(message.data);
       return;
     }

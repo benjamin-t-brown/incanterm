@@ -1,3 +1,4 @@
+import { projectStorage } from '../project.js';
 import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import { terminalCellAtZoom } from '../../terminal-cell.js';
 import { drawTerminalGlyph, fillTerminalCell } from '../terminal-renderer.js';
@@ -10,10 +11,12 @@ import {
 import {
   getAnimationFrameFlips,
   getCharacterAnimation,
+  getPropAnimation,
   createScene,
   flattenSprite,
   isAssetId,
   isInvisibleFrame,
+  PROP_DEFAULT_STATE,
   type AnimationDocument,
   type CharacterDocument,
   type PropDocument,
@@ -85,6 +88,7 @@ import { alertModal, confirmModal, isModalOpen, promptModal } from '../modal.js'
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
+import { renderTabCloseActions } from '../tab-close-actions.js';
 
 type ObjectRef = SceneObjectRef;
 
@@ -238,8 +242,8 @@ export function mountScenes(root: HTMLElement): () => void {
   let palette: PaletteDocument | null = null;
   let current: SceneDocument | null = null;
   let saved: SceneDocument | null = null;
-  const storedTabs = readSceneTabs(localStorage);
-  const uiPreferences = readSceneUiPreferences(localStorage);
+  const storedTabs = readSceneTabs(projectStorage);
+  const uiPreferences = readSceneUiPreferences(projectStorage);
   let openTabs = storedTabs.tabs;
   const sessions = new Map<string, SceneTabSession>(Object.entries(storedTabs.drafts));
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -380,7 +384,7 @@ export function mountScenes(root: HTMLElement): () => void {
         drafts[id] = session;
     }
     try {
-      localStorage.setItem(
+      projectStorage.setItem(
         OPEN_SCENES_KEY,
         JSON.stringify({ version: 1, tabs: openTabs, active: current?.id ?? null, drafts }),
       );
@@ -397,6 +401,7 @@ export function mountScenes(root: HTMLElement): () => void {
   }
   function renderTabs(): void {
     const host = get$<HTMLElement>('#scene-tabs');
+    renderTabCloseActions(host, { tabs: openTabs, active: current?.id ?? null, closeTab });
     host.replaceChildren();
     if (!openTabs.length) {
       const empty = document.createElement('span');
@@ -1185,6 +1190,7 @@ export function mountScenes(root: HTMLElement): () => void {
       } else if ('prop' in item) {
         selectField('PROP ASSET', item.prop, props, (v) => {
           item.prop = v;
+          item.state = PROP_DEFAULT_STATE;
         });
         const link = document.createElement('a');
         link.href = `/props?id=${encodeURIComponent(item.prop)}`;
@@ -1192,6 +1198,39 @@ export function mountScenes(root: HTMLElement): () => void {
         link.rel = 'noopener noreferrer';
         link.textContent = 'EDIT PROP ↗';
         inspector.append(link);
+        const propItemId = item.id;
+        const propAssetId = item.prop;
+        const state = item.state ?? PROP_DEFAULT_STATE;
+        item.state = state;
+        const propStateLabel = document.createElement('label');
+        propStateLabel.textContent = 'STARTING ANIMATION STATE';
+        const propStateSelect = document.createElement('select');
+        propStateSelect.disabled = true;
+        propStateSelect.append(new Option(state, state));
+        propStateLabel.append(propStateSelect);
+        inspector.append(propStateLabel);
+        void getProp(propAssetId).then((asset) => {
+          if (
+            !alive ||
+            !propStateLabel.isConnected ||
+            isOnlySelected()?.id !== propItemId ||
+            !('prop' in item) ||
+            item.prop !== propAssetId
+          )
+            return;
+          if (!asset) return;
+          propStateSelect.replaceChildren();
+          for (const choice of [
+            ...new Set([item.state ?? PROP_DEFAULT_STATE, PROP_DEFAULT_STATE, ...Object.keys(asset.customAnimations)]),
+          ])
+            propStateSelect.append(new Option(choice, choice));
+          propStateSelect.value = item.state ?? PROP_DEFAULT_STATE;
+          propStateSelect.disabled = false;
+        });
+        propStateSelect.addEventListener('change', () => {
+          item.state = propStateSelect.value;
+          render();
+        });
       } else {
         const note = document.createElement('p');
         note.textContent = `Legacy sprite: ${spriteLabels[item.sprite] ?? item.sprite}`;
@@ -1379,20 +1418,24 @@ export function mountScenes(root: HTMLElement): () => void {
           };
         const asset = await getProp(entry.prop);
         if (!asset) return { entry, sprite: null, index: 0, depth: entry.y };
+        const state = entry.state ?? PROP_DEFAULT_STATE;
         let spriteId: string;
         let index: number;
         let flips: { flipH: boolean; flipV: boolean } | undefined;
-        if (asset.visual.type === 'sprite') {
-          spriteId = asset.visual.id;
-          index = asset.visual.index;
-        } else {
-          const clip = await getAnimation(asset.visual.id);
+        const animationId = getPropAnimation(asset, state);
+        if (animationId) {
+          const clip = await getAnimation(animationId);
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
             return { entry, sprite: null, index: 0, depth: entry.y, asset };
           spriteId = first.sprite;
           index = first.index;
           flips = getAnimationFrameFlips(clip, first);
+        } else if (asset.visual.type === 'sprite') {
+          spriteId = asset.visual.id;
+          index = asset.visual.index;
+        } else {
+          return { entry, sprite: null, index: 0, depth: entry.y, asset };
         }
         return {
           entry,
@@ -2651,7 +2694,7 @@ export function mountScenes(root: HTMLElement): () => void {
     showUi = showUiInput.checked;
     if (current) {
       try {
-        saveSceneUiPreference(localStorage, uiPreferences, current.id, showUi);
+        saveSceneUiPreference(projectStorage, uiPreferences, current.id, showUi);
       } catch {
         status.textContent = 'Could not store Show UI setting locally';
       }

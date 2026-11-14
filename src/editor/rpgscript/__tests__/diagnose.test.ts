@@ -21,4 +21,11 @@ describe('RPGScript diagnose', () => {
     const source = ['@intro', "+callScript('other')", '+wait(1)'].join('\n');
     expect(diagnoseScript(source, ['intro', 'other'])).toEqual([]);
   });
+
+  it('recognizes switch case blocks without hiding commands within them', () => {
+    const source = ['@intro', '+?switch(true):{', '  eq({a}, 1): {', '    +dance()', '  }', '  *: {', '    +wait(1)', '  }', '}'].join('\n');
+    expect(diagnoseScript(source, ['intro'])).toEqual([
+      { line: 4, severity: 'warning', message: 'No command exists with name "dance"' },
+    ]);
+  });
 });

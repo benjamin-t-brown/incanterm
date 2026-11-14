@@ -1,0 +1,29 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "vend_energy",
+  "visual": {
+    "type": "animation",
+    "id": "a8e6d5e4-3518-4cd2-b428-769d88e72475"
+  },
+  "width": 5,
+  "height": 4,
+  "blockedCells": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    9,
+    10,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0
+}

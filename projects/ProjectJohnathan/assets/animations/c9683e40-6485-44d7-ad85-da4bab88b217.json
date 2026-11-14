@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "c9683e40-6485-44d7-ad85-da4bab88b217",
+  "label": "johnathan5x5 talking up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 6,
+      "durationMs": 500
+    },
+    {
+      "sprite": "8dae7313-9414-476d-9131-2fea71c44c32",
+      "index": 7,
+      "durationMs": 500
+    }
+  ]
+}

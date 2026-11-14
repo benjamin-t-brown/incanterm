@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "5f30953b-f0ef-4ed9-81a9-b43dda346066",
+  "label": "tessa3x3 walk left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 10,
+      "durationMs": 135
+    },
+    {
+      "sprite": "998e46de-7a12-45ee-b3e5-26507a528081",
+      "index": 11,
+      "durationMs": 135
+    }
+  ]
+}

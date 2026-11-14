@@ -1,5 +1,6 @@
 import { CellBuffer, type Cell } from './cell-buffer.js';
 import type { Sprite } from './sprite.js';
+import type { Character } from './character.js';
 import { compareSceneDrawRank, getSceneDepth, type DepthMode } from './scene-order.js';
 
 export type { DepthMode } from './scene-order.js';
@@ -65,22 +66,34 @@ export type StepTrigger = ActionTrigger;
 export type SceneMarker = { id: string; name: string; x: number; y: number };
 
 export class Scene {
+  entities: Entity[];
+
   constructor(
     readonly id: string,
     readonly width: number,
     readonly height: number,
     readonly depthMode: DepthMode,
     readonly clear: Cell,
-    readonly entities: readonly Entity[],
+    entities: readonly Entity[],
     readonly triggers: readonly string[] = [],
     readonly blockedCells: ReadonlySet<number> = new Set(),
     readonly actionTriggers: readonly ActionTrigger[] = [],
     readonly stepTriggers: readonly StepTrigger[] = [],
     readonly markers: readonly SceneMarker[] = [],
-  ) {}
+    readonly loadCharacter?: (reference: string) => Promise<Character>,
+  ) {
+    this.entities = [...entities];
+  }
 
   getMarker(name: string): SceneMarker | undefined {
     return this.markers.find((marker) => marker.name === name);
+  }
+
+  removeEntity(entity: Entity): boolean {
+    const index = this.entities.indexOf(entity);
+    if (index < 0) return false;
+    this.entities.splice(index, 1);
+    return true;
   }
 
   update(deltaMs: number): void {

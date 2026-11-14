@@ -525,12 +525,11 @@ export class AssetStore {
     const ids = CHARACTER_STATES.map(() => randomUUID());
     const sprite = await this.readSprite(spriteId);
     if (
-      sprite.width !== 3 ||
-      sprite.height !== 3 ||
+      !((sprite.width === 3 && sprite.height === 3) || (sprite.width === 5 && sprite.height === 5)) ||
       sprite.sprites.length < CHARACTER_TEMPLATE_FRAMES
     )
       throw new AssetError(
-        `Character animations need a 3×3 sprite sheet with at least ${CHARACTER_TEMPLATE_FRAMES} frames in the test3x3 order`,
+        `Character animations need a 3×3 or 5×5 sprite sheet with at least ${CHARACTER_TEMPLATE_FRAMES} frames in the standard character template order`,
         422,
       );
     const files = ids.map((id) => this.getFile('animations', id, '.json'));
@@ -710,6 +709,11 @@ export class AssetStore {
         } else if (!(await this.listAnimations()).includes(value.visual.id)) {
           throw new AssetError(`Prop references missing animation "${value.visual.id}"`, 422);
         }
+        const available = new Set(await this.listAnimations());
+        for (const animation of Object.values(value.customAnimations)) {
+          if (!available.has(animation))
+            throw new AssetError(`Prop references missing animation "${animation}"`, 422);
+        }
         await this.writeAtomic(file, getJson(value));
       },
       merge: mergeJson,
@@ -879,13 +883,21 @@ export class AssetStore {
             if (!animationId)
               throw new AssetError(`Character ${entity.id} has no state ${entity.state}`, 422);
             await this.readAnimation(animationId);
-          } else if (entity.type === 'Prop') {
+          } else if (entity.type === 'Prop' && 'prop' in entity) {
             const prop = await this.readProp(entity.prop);
-            if (prop.visual.type === 'sprite') {
-              const sprite = await this.readSprite(prop.visual.id);
-              if (prop.visual.index >= sprite.sprites.length)
-                throw new AssetError(`Prop ${entity.id} references missing frame`, 422);
-            } else await this.readAnimation(prop.visual.id);
+            const state = entity.state ?? 'default';
+            if (state === 'default') {
+              if (prop.visual.type === 'sprite') {
+                const sprite = await this.readSprite(prop.visual.id);
+                if (prop.visual.index >= sprite.sprites.length)
+                  throw new AssetError(`Prop ${entity.id} references missing frame`, 422);
+              } else await this.readAnimation(prop.visual.id);
+            } else {
+              const animationId = prop.customAnimations[state];
+              if (!animationId)
+                throw new AssetError(`Prop ${entity.id} has no animation state ${state}`, 422);
+              await this.readAnimation(animationId);
+            }
           }
         }
         await this.writeAtomic(file, getJson(value));

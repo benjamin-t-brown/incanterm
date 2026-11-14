@@ -1,9 +1,10 @@
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig, type Connect, type Plugin } from 'vite';
-import { dispatchAssetRequest } from './src/editor/api.js';
-import { AssetStore } from './src/editor/store.js';
+import { dispatchProjectRequest, ProjectRegistry } from './src/editor/projects.js';
+import { isLocalEditorRequest } from './src/editor/request-origin.js';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,7 +27,7 @@ function readBody(request: IncomingMessage): Promise<Buffer> {
 }
 
 function createAssetApi(): Plugin {
-  const store = new AssetStore(path.join(rootDir, 'assets'));
+  const projects = new ProjectRegistry(rootDir);
   const handle: Connect.NextHandleFunction = (request, response, next) => {
     const url = request.url ?? '';
     const pathOnly = url.split('?')[0] ?? '';
@@ -34,45 +35,82 @@ function createAssetApi(): Plugin {
       next();
       return;
     }
-    void respondToAssetRequest(store, request, response);
+    void respondToAssetRequest(projects, request, response);
   };
   return {
     name: 'incanterm-asset-api',
     configureServer(server) {
+      server.httpServer?.once('close', () => {
+        void projects.close().catch((error: unknown) => {
+          console.error('Could not close project previews:', error);
+        });
+      });
+      server.middlewares.use((request, response, next) => {
+        if (request.url?.split('?')[0] !== '/game-preview') {
+          next();
+          return;
+        }
+        if (
+          !isLocalEditorRequest(
+            request.method ?? 'GET',
+            request.headers.host,
+            request.headers.origin,
+          )
+        ) {
+          response.statusCode = 403;
+          response.end('Local editor access required');
+          return;
+        }
+        void (async () => {
+          try {
+            const key =
+              new URL(request.url ?? '/', 'http://editor.local').searchParams.get('project') ?? '';
+            const preview = await projects.getPreview(key);
+            const browserRoot = path.join(rootDir, 'src/browser').replaceAll('\\', '/');
+            const source = await fs.readFile(path.join(browserRoot, 'index.html'), 'utf8');
+            const html = source
+              .replace('./main.ts', `/@fs/${browserRoot}/main.ts`)
+              .replace('./style.css', `/@fs/${browserRoot}/style.css`)
+              .replace(
+                '</head>',
+                `<meta name="incanterm-websocket" content="ws://127.0.0.1:${preview.port}/ws"></head>`,
+              );
+            response.setHeader('content-type', 'text/html; charset=utf-8');
+            response.setHeader('cache-control', 'no-store');
+            response.end(await server.transformIndexHtml('/game-preview', html));
+          } catch (error) {
+            response.statusCode = 422;
+            response.setHeader('content-type', 'text/plain; charset=utf-8');
+            response.end(
+              error instanceof Error ? error.message : 'Could not start project preview',
+            );
+          }
+        })();
+      });
       server.middlewares.use(handle);
     },
   };
 }
 
 async function respondToAssetRequest(
-  store: AssetStore,
+  projects: ProjectRegistry,
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
   try {
     const method = request.method ?? 'GET';
-    if (method === 'POST' && /^\/api\/scripts\/[^/]+\/open(?:\?|$)/.test(request.url ?? '')) {
-      const origin = request.headers.origin;
-      const host = request.headers.host;
-      let originHost: string | undefined;
-      try {
-        if (origin) originHost = new URL(origin).host;
-      } catch {
-        // A malformed Origin is not an editor request.
-      }
-      if (!host || originHost !== host) {
-        response.statusCode = 403;
-        response.setHeader('content-type', 'application/json; charset=utf-8');
-        response.end(JSON.stringify({ error: 'Open script requires a same-origin request' }));
-        return;
-      }
+    if (!isLocalEditorRequest(method, request.headers.host, request.headers.origin)) {
+      response.statusCode = 403;
+      response.setHeader('content-type', 'application/json; charset=utf-8');
+      response.end(JSON.stringify({ error: 'Editor changes require a same-origin local request' }));
+      return;
     }
     const body =
       method === 'GET' || method === 'HEAD' || method === 'DELETE'
         ? Buffer.alloc(0)
         : await readBody(request);
-    const result = await dispatchAssetRequest(
-      store,
+    const result = await dispatchProjectRequest(
+      projects,
       method,
       request.url ?? '/api',
       body,

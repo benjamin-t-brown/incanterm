@@ -70,6 +70,21 @@ Guide: "Next {name}"
     ]);
   });
 
+  it('compares numeric strings but rejects empty and nonnumeric values', () => {
+    const logs: string[] = [];
+    const script = '@start\n+?lt({roll}, 100):+log("below")\n+?gt({roll}, "10"):+log("above")';
+    const library = parseRpgScript(script, 'numbers.rpgscript');
+    const runner = new ScriptRunner(library, (message) => logs.push(message));
+    runner.setStorage('roll', ' 42 ');
+    runner.start('start');
+    expect(logs.map((message) => message.split(' (')[0])).toEqual(['[RPGSCRIPT] below', '[RPGSCRIPT] above']);
+
+    for (const value of ['', 'nope', undefined]) {
+      runner.setStorage('roll', value);
+      expect(() => runner.start('start')).toThrow('lt requires numeric values');
+    }
+  });
+
   it('interpolates a named once condition at evaluation time', () => {
     const logs: string[] = [];
     const runner = new ScriptRunner(

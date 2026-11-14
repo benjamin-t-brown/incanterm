@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createSprite } from '../../schema.js';
 import { encodeStoredSprite, parseStoredSprite } from '../sprite-storage.js';
@@ -53,12 +51,15 @@ describe('sprite disk storage', () => {
     expect(parseStoredSprite(stored).ok).toBe(false);
   });
 
-  it('makes the sample spritesheet substantially smaller', async () => {
-    const file = path.join(process.cwd(), 'assets', 'sprites', 'test1.json');
-    const storedText = await fs.readFile(file, 'utf8');
+  it('substantially compresses a repetitive spritesheet and re-encodes it deterministically', () => {
+    const sprite = createSprite('repeated', 64, 32);
+    sprite.sprites[0].layers[0].cells = Array.from({ length: 64 * 32 }, (_, index) =>
+      ({ ch: index < 64 * 16 ? 'A' : 'B', fg: 'white', bg: 'black' }));
+    const storedText = encodeStoredSprite(sprite);
     const parsed = parseStoredSprite(JSON.parse(storedText) as unknown);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
+    expect(parsed.value).toEqual(sprite);
     expect(encodeStoredSprite(parsed.value)).toBe(storedText);
     expect(Buffer.byteLength(storedText)).toBeLessThan(
       JSON.stringify(parsed.value, null, 2).length / 10,

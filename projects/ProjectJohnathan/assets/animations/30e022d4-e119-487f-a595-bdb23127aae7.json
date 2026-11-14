@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "30e022d4-e119-487f-a595-bdb23127aae7",
+  "label": "fabian3x3 idle right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 4,
+      "durationMs": 135
+    }
+  ]
+}

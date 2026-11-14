@@ -16,10 +16,23 @@ export function diagnoseScript(
   const known = new Set(knownScripts);
   const diagnostics: ScriptDiagnostic[] = [];
   const lines = source.split(/\r?\n/);
+  let depth = 0;
+  const switchDepths: number[] = [];
   lines.forEach((raw, index) => {
     const lineNumber = index + 1;
     const line = raw.trim();
     if (line.length === 0 || line.startsWith('//')) return;
+    const atDepth = depth;
+    if (line === '}') {
+      depth--;
+      while (switchDepths.length && switchDepths[switchDepths.length - 1] > depth)
+        switchDepths.pop();
+    } else if (line.endsWith('{')) depth++;
+    if (/^\+\?switch\(.*\)\s*:\s*\{$/.test(line)) {
+      switchDepths.push(depth);
+      return;
+    }
+    if (switchDepths.includes(atDepth) && /^.+:\s*\{$/.test(line)) return;
     if (line.startsWith('@') || line.startsWith('#') || line.startsWith('$')) return;
     if (line === '{' || line === '}') return;
     if (isDialogue(line)) {

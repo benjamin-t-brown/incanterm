@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "fa07f9d9-9a13-4e17-a46d-303c6c93670c",
+  "label": "fabian3x3 talking left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 2,
+      "durationMs": 500
+    },
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 3,
+      "durationMs": 500
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDefaultPalette, getPaletteRgb, type PaletteDocument } from '../editor/palette.js';
-import { getAnimationFrameFlips, flattenSprite, getCharacterScriptNames, parseAnimation, parsePalette, parseCharacter, type CharacterDocument } from '../editor/schema.js';
+import { getAnimationFrameFlips, flattenSprite, getCharacterScriptNames, getPortraitEmotionNames, parseAnimation, parsePalette, parseCharacter, type CharacterDocument } from '../editor/schema.js';
 import { parseStoredSprite } from '../editor/art/sprite-storage.js';
 import type { Cell } from './cell-buffer.js';
 import { parseHexColor } from './color.js';
@@ -36,7 +36,7 @@ export function getDialoguePortrait(
 ): { asset: PortraitAsset; facing: 'left' | 'right' } | undefined {
   const character = assets?.characters?.get(actor);
   for (const selectedEmotion of [emotion, '']) {
-    const selected = character?.portraits?.find((entry) => entry.facing === facing && entry.emotion === selectedEmotion);
+    const selected = character?.portraits?.find((entry) => entry.facing === facing && getPortraitEmotionNames(entry.emotion).includes(selectedEmotion));
     const asset = selected && assets?.get(selected.portrait);
     if (asset) return { asset, facing };
   }

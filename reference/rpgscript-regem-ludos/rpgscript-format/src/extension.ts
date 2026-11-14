@@ -1,5 +1,23 @@
 import * as vscode from 'vscode';
 
+function replaceRepeatedQuotedSpaces(text: string): string {
+  let quote = '';
+  let result = '';
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (character === quote) quote = '';
+    else if (!quote && (character === '"' || character === "'")) quote = character;
+
+    if (quote && character === ' ' && text[index + 1] === ' ') {
+      result += ' ';
+      while (text[index + 1] === ' ') index++;
+    } else {
+      result += character;
+    }
+  }
+  return result;
+}
+
 export function activate(context: vscode.ExtensionContext) {
   // 👎 formatter implemented as separate command
   // vscode.commands.registerCommand('extension.format-rpgscript', () => {
@@ -49,17 +67,17 @@ export function activate(context: vscode.ExtensionContext) {
           incIndent = true;
         }
 
-        if (trimmedNoComments === '}') {
+        if (trimmedNoComments === '}' || trimmedNoComments === '|') {
           indentLevel--;
         }
 
         console.log('read line', trimmed, indentLevel);
         const indent = '  '.repeat(indentLevel);
-        edits.push(vscode.TextEdit.replace(line.range, indent + trimmed));
+        edits.push(vscode.TextEdit.replace(line.range, indent + replaceRepeatedQuotedSpaces(trimmed)));
 
         if (incIndent) {
           indentLevel++;
-        } else if (trimmed.slice(-1) === '{') {
+        } else if (trimmed.slice(-1) === '{' || /^\+(?:\^?[A-Za-z_][\w.-]*|\[[A-Za-z_][\w-]*\])\s*=\s*\|$/.test(trimmed)) {
           indentLevel++;
         }
       }

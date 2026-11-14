@@ -1,0 +1,25 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "d2c9ef60-d631-49d3-9fb6-86463e049338",
+  "label": "hadassah3x3",
+  "scriptName": "Haddy,haddy,had",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "691aed9b-ac32-432d-8e8f-398ce38e100e",
+    "idle-down": "3a1cbcea-33aa-4b5f-ad62-28c02bae7cf6",
+    "idle-left": "fc088577-238d-4faf-84bc-29be2834db47",
+    "idle-right": "ba91001b-9a1f-487b-a0b1-8b8b5ae00452",
+    "walk-up": "4eec8d20-e0c8-4aa8-a854-579ab5993566",
+    "walk-down": "580ca0d2-41ff-4c76-9d50-be4d5dafee67",
+    "walk-left": "a3f25159-283c-4817-9d74-e6fc2817b5d3",
+    "walk-right": "142e8f6c-af47-4bf9-9d0b-9910996d4a05",
+    "talking-up": "6352f1cd-1490-4948-88ea-4403d30eba58",
+    "talking-down": "a73ee36c-0116-4e27-85b8-67b7430277ce",
+    "talking-left": "1f4c9c51-23c6-426b-bcdb-8c3b8178b024",
+    "talking-right": "3f1632ef-2e3d-401d-946f-e515db41ef12"
+  },
+  "customAnimations": {
+    "sit left": "d11d4316-048e-4d1b-9209-0f995cf3b8c1"
+  }
+}

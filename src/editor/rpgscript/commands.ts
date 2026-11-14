@@ -3,6 +3,7 @@ export const COMMAND_NAMES = [
   'setBusy',
   'walkTo',
   'walkToMarker',
+  'walkToOffset',
   'setFacing',
   'bark',
   'changeScene',

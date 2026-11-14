@@ -1,5 +1,5 @@
 import { connectGameClient, type GameClient } from '../client/connection.js';
-import { getDefaultAssetsRoot, TEST_SCENE_ID } from '../game/load-scene.js';
+import { getProjectSource, type ProjectSourceOptions } from '../project/project.js';
 import { generateHostKey } from '../server/host-key.js';
 import { startServer } from '../server/start.js';
 import type { ServerMessage } from '../protocol/messages.js';
@@ -13,21 +13,22 @@ export type Loopback = {
   close: () => Promise<void>;
 };
 
-export async function startLoopback(options: {
-  sceneId?: string;
-  assetsRoot?: string;
-  onMessage: (message: ServerMessage) => void;
-  onDisconnect?: () => void;
-  onError?: (error: Error) => void;
-}): Promise<Loopback> {
-  const sceneId = options.sceneId ?? TEST_SCENE_ID;
+export async function startLoopback(
+  options: ProjectSourceOptions & {
+    onMessage: (message: ServerMessage) => void;
+    onDisconnect?: () => void;
+    onError?: (error: Error) => void;
+  },
+): Promise<Loopback> {
+  const { sceneId, assetsRoot } = getProjectSource(options);
   const server = await startServer({
     host: '127.0.0.1',
     httpPort: 0,
     sshPort: 0,
     hostKey: generateHostKey(),
-    assetsRoot: options.assetsRoot ?? getDefaultAssetsRoot(),
+    assetsRoot,
     sceneId,
+    allowPlayerSpawn: true,
   });
 
   let client: GameClient;

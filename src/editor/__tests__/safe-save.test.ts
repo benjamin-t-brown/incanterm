@@ -65,6 +65,72 @@ describe('shared editor saves', () => {
     expect(mergeJson([0, 0], [1, 0], [0, 2])).toMatchObject({ ok: false });
   });
 
+  it('merges independent scene trigger additions and edits without losing either', () => {
+    const original = { triggers: [{ id: 'door', x: 0 }] };
+    const local = {
+      triggers: [
+        { id: 'door', x: 1 },
+        { id: 'local', x: 2 },
+      ],
+    };
+    const remote = {
+      triggers: [
+        { id: 'door', x: 0 },
+        { id: 'remote', x: 3 },
+      ],
+    };
+    expect(mergeJson(original, local, remote)).toEqual({
+      ok: true,
+      value: { triggers: [local.triggers[0], remote.triggers[1], local.triggers[1]] },
+    });
+  });
+
+  it('rejects conflicting edits to the same trigger or deletion of an edited trigger', () => {
+    const base = { triggers: [{ id: 'door', x: 0 }] };
+    expect(
+      mergeJson(base, { triggers: [{ id: 'door', x: 1 }] }, { triggers: [{ id: 'door', x: 2 }] }),
+    ).toMatchObject({ ok: false });
+    expect(mergeJson(base, { triggers: [] }, { triggers: [{ id: 'door', x: 2 }] })).toMatchObject({
+      ok: false,
+    });
+    expect(
+      mergeJson(
+        base,
+        {
+          triggers: [
+            { id: 'door', x: 0 },
+            { id: 'new', x: 1 },
+          ],
+        },
+        {
+          triggers: [
+            { id: 'door', x: 0 },
+            { id: 'new', x: 2 },
+          ],
+        },
+      ),
+    ).toMatchObject({ ok: false });
+  });
+
+  it('merges a trigger removal with an independent addition', () => {
+    const base = { triggers: [{ id: 'old', x: 0 }] };
+    expect(
+      mergeJson(
+        base,
+        { triggers: [] },
+        {
+          triggers: [
+            { id: 'old', x: 0 },
+            { id: 'new', x: 1 },
+          ],
+        },
+      ),
+    ).toEqual({
+      ok: true,
+      value: { triggers: [{ id: 'new', x: 1 }] },
+    });
+  });
+
   it('merges separate script lines but stops on overlapping or structural edits', () => {
     expect(mergeText('one\ntwo\n', 'ONE\ntwo\n', 'one\nTWO\n')).toEqual({
       ok: true,

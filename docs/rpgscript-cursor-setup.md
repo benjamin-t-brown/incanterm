@@ -70,20 +70,23 @@ Merge these settings into the workspace's `.vscode/settings.json`:
 
 ```json
 {
-  "rpgscript.scriptsRoot": "${workspaceFolder}/assets/scripts",
+  "rpgscript.scriptsRoot": "${workspaceFolder}/projects/ProjectJohnathan/assets/scripts",
   "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/scene-commands.ts",
   "rpgscript.debug": false
 }
 ```
 
-If those entries are already present, keep them. `${workspaceFolder}` resolves to
-the folder opened in Cursor, so these paths work wherever you cloned the repo.
+These settings select the bundled ProjectJohnathan game while the engine repository
+is open in Cursor. `${workspaceFolder}` resolves to that repository.
+For another project, change `scriptsRoot` to its script directory. If you open the
+project folder itself as the workspace, use `${workspaceFolder}/assets/scripts`
+and point `sceneCommandsPath` to your Incanterm installation's command catalog.
 The language server reads the command catalog to discover supported commands.
 Reload the window after changing these settings or adding commands to the catalog.
 
 ## 5. Verify the installation
 
-Open an `.rpgscript` file under `assets/scripts`. The status-bar language mode
+Open an `.rpgscript` file under `projects/ProjectJohnathan/assets/scripts`. The status-bar language mode
 should say **RPGScript**. For a quick check, create a temporary file there:
 
 ```rpgscript
@@ -95,19 +98,20 @@ should say **RPGScript**. For a quick check, create a temporary file there:
 ```
 
 - The script should have syntax highlighting and no diagnostics.
+- Run **Format Document** on a line such as `Guide: "Hello  there"`; it should become `Guide: "Hello there"`.
 - Change `[message]` to `{message}`: expect a warning suggesting `[message]`.
 - Change it to `[missing]`: expect an unknown-local error.
 - Remove `"hello"` from the call: expect an argument-count error.
 
 Restore the example or delete the temporary file when finished. Invalid scripts
-under `assets/scripts` also prevent normal game loading.
+under the selected project's `assets/scripts` also prevent normal game loading.
 
 To check game execution separately, run these commands **from the repository
 root**, after installing the root dependencies:
 
 ```sh
 npm install
-npm run run-rpgscript -- "testArgs()"
+npm run run-rpgscript -- --project projects/ProjectJohnathan "testArgs()"
 ```
 
 The included sample logs `Args a b`. Installing the extension enables editor
@@ -119,6 +123,8 @@ Repeat the dependency-install and packaging commands in step 2, reinstall the
 VSIX, and reload Cursor. Use the CLI's `--force` option when reinstalling the same
 extension version (`0.0.1`). Editing extension source in the checkout does not
 update an already installed VSIX.
+If an older standalone `rpgscript-format` extension is installed, disable it so
+Cursor uses the formatter bundled with `rpgscript-vs`.
 
 ## Troubleshooting
 

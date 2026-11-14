@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "154e70a8-5d91-4177-bf4f-db7eca93f69b",
+  "label": "fabian3x3 sit left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5f5fb34f-28ea-4fd0-9022-aef542391b57",
+      "index": 21,
+      "durationMs": 135
+    }
+  ]
+}

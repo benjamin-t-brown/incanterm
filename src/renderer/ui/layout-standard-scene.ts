@@ -5,6 +5,9 @@ import { UIElement, DrawContext } from './element.js';
 import { ParagraphWrapped, wrapParagraph } from './paragraph-wrapped.js';
 import { TabbedView } from './tabbed-view.js';
 import { DialoguePanel } from './dialogue-panel.js';
+import type { Rect } from './element.js';
+import type { DialogueMessage } from './dialogue-message.js';
+import type { SelectionRect } from '../../protocol/messages.js';
 import { CenterToast } from './center-toast.js';
 import {
   MIN_STANDARD_WIDTH,
@@ -36,10 +39,11 @@ export class LayoutStandardScene extends UIElement {
   readonly tabs: TabbedView;
   readonly dialoguePanel: DialoguePanel;
   readonly centerToast = new CenterToast();
-  readonly message: ParagraphWrapped;
+  readonly message: DialogueMessage;
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
   conversationOpen = false;
+  portraitExitVisible = false;
   private readonly logEntries: { message: string; error: boolean }[] = [];
   private viewportWidth = 0;
   private viewportHeight = 0;
@@ -61,6 +65,10 @@ export class LayoutStandardScene extends UIElement {
 
   clearBarks(): void {
     this.barks = [];
+  }
+
+  clearBark(character: Character): void {
+    this.barks = this.barks.filter((bark) => bark.character !== character);
   }
 
   private renderBarks(buffer: CellBuffer): void {
@@ -168,6 +176,40 @@ export class LayoutStandardScene extends UIElement {
     this.tabs.getContent('log').scrollToEnd();
   }
 
+  getLogSelectionRect(): SelectionRect | undefined {
+    if (!this.canClick || !this.ui.visible || !this.tabs.visible ||
+      this.tabs.selectedId !== 'log' || this.centerToast.visible) return;
+    const content = this.tabs.getContent('log');
+    const x = this.x + this.ui.x + this.tabs.x + content.x + 1;
+    const y = this.y + this.ui.y + this.tabs.y + content.y + 1;
+    const left = Math.max(0, x);
+    const top = Math.max(0, y);
+    return {
+      x: left,
+      y: top,
+      width: Math.max(0, Math.min(this.viewportWidth, x + content.innerWidth) - left),
+      height: Math.max(0, Math.min(this.viewportHeight, y + content.innerHeight) - top),
+    };
+  }
+
+  /** The portrait image cells, excluding the rounded frame; coordinates are on the final screen. */
+  getPortraitScreenRect(side: 'left' | 'right' = 'left'): Rect | undefined {
+    const box = side === 'left' ? this.dialoguePanel.portraitBox : this.dialoguePanel.rightPortraitBox;
+    if (!this.canClick || (!this.dialoguePanel.visible && !this.portraitExitVisible) || !box.visible) return;
+    return { x: box.x + 1, y: box.y + 1, width: box.width - 2, height: box.height - 2 };
+  }
+
+  /** Convert a scene-local rectangle to final screen coordinates, including viewport centering. */
+  getSceneScreenRect(area: Readonly<Rect> = { x: 0, y: 0, width: this.scene.width, height: this.scene.height }): Rect | undefined {
+    if (!this.canClick) return;
+    return {
+      x: this.x + Math.floor((STANDARD_WIDTH - this.scene.width) / 2) + area.x,
+      y: this.y + Math.floor((STANDARD_WORLD_HEIGHT - this.scene.height) / 2) + area.y,
+      width: area.width,
+      height: area.height,
+    };
+  }
+
   render(buffer: CellBuffer): void {
     this.viewportWidth = buffer.width;
     this.viewportHeight = buffer.height;
@@ -221,6 +263,8 @@ export class LayoutStandardScene extends UIElement {
     this.scriptLog.height = this.scriptLog.lines.length;
     if (followsLog) logPanel.scrollToEnd();
     this.dialoguePanel.visible = this.conversationOpen || this.message.text.length > 0;
+    this.dialoguePanel.setEmptyBackground(this.message.text.length === 0);
+    this.dialoguePanel.portraitExitVisible = this.portraitExitVisible;
     this.tabs.visible = !this.dialoguePanel.visible;
     super.render(buffer);
     this.dialoguePanel.drawPortrait(

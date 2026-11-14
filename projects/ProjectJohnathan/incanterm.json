@@ -1,0 +1,8 @@
+{
+  "format": "incanterm-project",
+  "version": 1,
+  "id": "project-johnathan",
+  "name": "ProjectJohnathan",
+  "assets": "assets",
+  "entryScene": "classroom1"
+}

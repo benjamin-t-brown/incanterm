@@ -10,6 +10,8 @@ function splitNotInParens(str: string, spl: string) {
   let agg = '';
   let quote = '';
   let parenDepth = 0;
+  let bracketDepth = 0;
+  let listDepth = 0;
   for (let i = 0; i < str.length; i++) {
     const ch = str[i];
 
@@ -21,9 +23,15 @@ function splitNotInParens(str: string, spl: string) {
       parenDepth++;
     } else if (ch === ')') {
       parenDepth--;
+    } else if (ch === '[') {
+      bracketDepth++;
+    } else if (ch === ']') {
+      bracketDepth--;
+    } else if (ch === '|') {
+      listDepth = listDepth === 0 ? 1 : 0;
     }
 
-    if (parenDepth === 0 && !quote && ch === spl) {
+    if (parenDepth === 0 && bracketDepth === 0 && listDepth === 0 && !quote && ch === spl) {
       ret.push(agg);
       agg = '';
     } else {
@@ -34,6 +42,31 @@ function splitNotInParens(str: string, spl: string) {
     ret.push(agg);
   }
   return ret;
+}
+
+function getLogicalLines(source: string, file: string): string[] {
+  const lines = source.split('\n');
+  for (let line = 0; line < lines.length; line++) {
+    const start = /^\s*\+(?:\^?(?:[A-Za-z_][\w.-]*|\{[^}]+\}|\[[A-Za-z_][\w-]*\]))\s*=\s*\|/.exec(lines[line]);
+    if (!start) continue;
+    let quote = '';
+    let pipes = 0;
+    let end = line;
+    for (; end < lines.length; end++) {
+      for (const character of lines[end].slice(end === line ? start[0].length - 1 : 0)) {
+        if (quote) { if (character === quote) quote = ''; }
+        else if (character === '"' || character === "'") quote = character;
+        else if (character === '|') pipes++;
+      }
+      if (pipes >= 2) break;
+    }
+    if (end === lines.length) throw new Error(`${file}:${line + 1}: Unterminated list literal`);
+    if (end > line) {
+      lines[line] = lines.slice(line, end + 1).map((part) => part.trim()).join(' ');
+      for (let index = line + 1; index <= end; index++) lines[index] = '';
+    }
+  }
+  return lines;
 }
 
 function indexOfNotInParens(str: string, spl: string) {
@@ -101,7 +134,7 @@ export interface Conditional {
 
 export type StorageReference = Readonly<{ storageKey: string }>;
 export type LocalReference = Readonly<{ localName: string }>;
-export type ScriptValue = string | number | boolean | StorageReference | LocalReference | Readonly<{ expression: string }>;
+export type ScriptValue = string | number | boolean | StorageReference | LocalReference | Readonly<{ expression: string }> | Readonly<{ literal: string }> | Readonly<{ list: readonly ScriptValue[] }> | Readonly<{ indexed: { list: StorageReference | LocalReference; index: ScriptValue } }>;
 
 export type CommandArg =
   | ScriptValue
@@ -189,6 +222,14 @@ export class ScriptParser {
 
     // Lower assignments before parsing calls so blocks and inline conditions use
     // the same storage/local commands as their long forms.
+    const indexedAssignment = /^(\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\})\s*->\s*(\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\d+)\s*=\s*(.*?)\s*;?$/.exec(commandSrc);
+    if (indexedAssignment) {
+      return {
+        i: lineNum,
+        type: 'setIndex',
+        args: [this.parseListValue(indexedAssignment[1], lineNum), this.parseListValue(indexedAssignment[2], lineNum), this.parseListValue(indexedAssignment[3], lineNum)],
+      };
+    }
     const assignment =
       /^\^?([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=\s*(.*)$/.exec(
         commandSrc,
@@ -199,7 +240,7 @@ export class ScriptParser {
         this.throwParsingError('Set-if-undefined assignments cannot target local variables', lineNum, commandSrc);
       }
       const value = assignment[2].replace(/;$/, '').trim();
-      if (isNumericExpression(value)) {
+      if (!value.startsWith('|') && !value.startsWith('[') && !/^(?:\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w.-]*\})\s*->/.test(value) && isNumericExpression(value)) {
         try {
           validateNumericExpression(value);
         } catch (error) {
@@ -207,7 +248,7 @@ export class ScriptParser {
         }
       }
       if (
-        !isNumericExpression(value) && !/^(?:"[^"]*"|'[^']*'|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|[^\s,;=(){}"']+)$/.test(
+        !isNumericExpression(value) && !value.startsWith('|') && !value.startsWith('[') && !/^(?:\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w.-]*\})\s*->/.test(value) && !/^(?:"[^"]*"|'[^']*'|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|[^\s,;=(){}"']+)$/.test(
           value,
         )
       ) {
@@ -297,6 +338,10 @@ export class ScriptParser {
       .map((_, index) => index)
       .filter((index) => index > 0 || (type !== 'callScript' && type !== 'setLocal'));
     for (const index of indices) {
+      if (args[index]?.startsWith('|') || /^(?:\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w.-]*\})\s*->/.test(args[index])) {
+        formattedArgs[index] = this.parseListValue(args[index], lineNum);
+        continue;
+      }
       if (isNumericExpression(args[index])) {
         try {
           validateNumericExpression(args[index]);
@@ -328,6 +373,33 @@ export class ScriptParser {
     };
   }
 
+  parseListValue(source: string, lineNum: number): ScriptValue {
+    const text = source.trim();
+    if (text.startsWith('|') && text.endsWith('|')) {
+      const inner = text.slice(1, -1).trim();
+      return { list: inner ? splitNotInParens(inner, ',').map((part) => this.parseListValue(part, lineNum)) : [] };
+    }
+    const indexed = /^(\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\})\s*->\s*(\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\d+)$/.exec(text);
+    if (indexed) {
+      const list = this.parseListValue(indexed[1], lineNum);
+      if (typeof list !== 'object' || !('localName' in list || 'storageKey' in list))
+        this.throwParsingError('Indexing requires a list variable', lineNum, text);
+      return { indexed: { list: list as StorageReference | LocalReference, index: this.parseListValue(indexed[2], lineNum) } };
+    }
+    if (/^\[[A-Za-z_][\w-]*\]$/.test(text)) return { localName: text.slice(1, -1) };
+    if (/^\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}$/.test(text)) return { storageKey: text.slice(1, -1) };
+    if (/^(["']).*\1$/.test(text)) return text.slice(1, -1);
+    if (text === 'true' || text === 'false') return text === 'true';
+    if (/^-?\d+(?:\.\d+)?$/.test(text)) return Number(text);
+    if (isNumericExpression(text)) {
+      try { validateNumericExpression(text); } catch (error) { this.throwParsingError(String(error), lineNum, text); }
+      return { expression: text };
+    }
+    if (/^[A-Za-z_][\w-]*$/.test(text)) return text;
+    this.throwParsingError('Invalid list value or index', lineNum, text);
+    throw new Error('Unreachable invalid list value');
+  }
+
   parseConditional(
     conditionalSrc: string,
     lineNum: number,
@@ -357,6 +429,7 @@ export class ScriptParser {
       'gt',
       'lt',
       'eq',
+      'in',
       'any',
       'all',
       'else',
@@ -497,6 +570,7 @@ export class ScriptParser {
     const previousBranch = new Map<number, number[]>();
     // Header block index of each open `while` body, keyed by the brace depth it opened at.
     const loopHeaders = new Map<number, { block: number; line: number; jumps: Command[] }>();
+    const switches = new Map<number, { header: number; cases: number[]; hasDefault: boolean }>();
     const parseLineCommand = (src: string, lineNum: number, script: ParsedScript): Command => {
       const command = this.parseCommand(src, lineNum, script);
       if (command.type === 'breakLoop' || command.type === 'continueLoop') {
@@ -510,7 +584,7 @@ export class ScriptParser {
       }
       return command;
     };
-    const lines = src.split('\n');
+    const lines = getLogicalLines(src, this.name);
 
     lines.forEach((line: string, lineNum: number) => {
       lineNum = lineNum + 1;
@@ -531,6 +605,7 @@ export class ScriptParser {
           this.throwParsingError('Unexpected closing brace', lineNum, line);
         }
         conditionalStack.pop();
+        switches.delete(conditionalStack.length);
         const loopHeader = loopHeaders.get(conditionalStack.length);
         if (loopHeader && currentScript) {
           loopHeaders.delete(conditionalStack.length);
@@ -606,6 +681,7 @@ export class ScriptParser {
         conditionalStack = [];
         previousBranch.clear();
         loopHeaders.clear();
+        switches.clear();
       } else if (firstCh === '$') {
         previousBranch.clear();
         isChoice = true;
@@ -640,6 +716,56 @@ export class ScriptParser {
         isChoice = false;
         const commandContents = line.substr(isCodeBlock || firstCh === '<' || firstCh === '!' ? 0 : 1);
         if (currentScript) {
+          const switchHeader = /^\+?\?switch\((.*)\)\s*:\s*\{$/.exec(commandContents);
+          if (switchHeader) {
+            if (!switchHeader[1].trim()) this.throwParsingError('switch requires a value', lineNum, line);
+            const selector = this.parseCommand(`switch(${switchHeader[1]})`, lineNum, currentScript).args;
+            if (selector.length !== 1) this.throwParsingError('switch requires one value', lineNum, line);
+            if (/^(["']).*\1$/.test(switchHeader[1].trim()))
+              selector[0] = { literal: switchHeader[1].trim().slice(1, -1) };
+            const header = currentScript.blocks.length;
+            const block = addCommandBlock(currentScript);
+            block.conditional = this.createAllConditional(
+              ...conditionalStack, { type: 'switchValue', args: [selector[0], header] },
+            );
+            switches.set(conditionalStack.length, { header, cases: [], hasDefault: false });
+            conditionalStack.push({ type: 'branch', args: [header] });
+            isCodeBlock = true;
+            currentBlock = block;
+            return;
+          }
+          const activeSwitch = switches.get(conditionalStack.length - 1);
+          if (activeSwitch) {
+            const colon = indexOfNotInParens(line, ':');
+            if (colon < 0 || line.slice(colon + 1).trim() !== '{')
+              this.throwParsingError('switch cases require a braced block', lineNum, line);
+            const label = line.slice(0, colon).trim();
+            if (activeSwitch.hasDefault) this.throwParsingError('No case may follow the default', lineNum, line);
+            if (!label) this.throwParsingError('switch case requires a value', lineNum, line);
+            const isDefault = label === '*';
+            let value: unknown;
+            if (!isDefault) {
+              if (/^(["']).*\1$/.test(label)) value = { literal: label.slice(1, -1) };
+              else if (/^(?:true|false)$/.test(label)) value = label === 'true';
+              else if (/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(label)) value = Number(label);
+              else if (/^\[[A-Za-z_][\w-]*\]$/.test(label)) value = { localName: label.slice(1, -1) };
+              else if (/^\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}$/.test(label)) value = { storageKey: label.slice(1, -1) };
+              else if (/^[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*$/.test(label)) value = { literal: label };
+              else value = this.parseConditional(label, lineNum, currentScript);
+            }
+            const blockIndex = currentScript.blocks.length;
+            const block = addCommandBlock(currentScript);
+            block.conditional = this.createAllConditional(
+              ...conditionalStack,
+              { type: isDefault ? 'switchDefault' : 'switchCase', args: isDefault ? [activeSwitch.header, ...activeSwitch.cases] : [activeSwitch.header, value, ...activeSwitch.cases] },
+            );
+            if (isDefault) activeSwitch.hasDefault = true;
+            activeSwitch.cases.push(blockIndex);
+            conditionalStack.push({ type: 'branch', args: [blockIndex] });
+            isCodeBlock = true;
+            currentBlock = block;
+            return;
+          }
           let { conditional, endIndex } = this.getConditionalFromLine(
             commandContents,
             lineNum,
@@ -654,8 +780,8 @@ export class ScriptParser {
             previousBranch.delete(conditionalStack.length);
             const block = addCommandBlock(currentScript);
             block.conditional = this.createAllConditional(
-              conditional.args[0] as Conditional,
               ...conditionalStack,
+              conditional.args[0] as Conditional,
             );
             loopHeaders.set(conditionalStack.length, {
               block: currentScript.blocks.length - 1,
@@ -703,7 +829,7 @@ export class ScriptParser {
             if (commandContents.slice(endIndex).trim() === '{') {
               const block = addCommandBlock(currentScript);
               setPreviousBranch();
-              block.conditional = this.createAllConditional(conditional, ...conditionalStack);
+              block.conditional = this.createAllConditional(...conditionalStack, conditional);
               conditionalStack.push({
                 type: 'branch',
                 args: [currentScript.blocks.length - 1],
@@ -715,15 +841,15 @@ export class ScriptParser {
               currentBlock = addCommandBlock(currentScript);
               setPreviousBranch();
               currentBlock.conditional = this.createAllConditional(
-                conditional,
                 ...conditionalStack,
+                conditional,
               );
               return;
             }
             // An inline conditional is a separate block even inside a braced parent.
             const block = addCommandBlock(currentScript);
             setPreviousBranch();
-            block.conditional = this.createAllConditional(conditional, ...conditionalStack);
+            block.conditional = this.createAllConditional(...conditionalStack, conditional);
             let commandSrc = commandContents.slice(endIndex);
             if (commandSrc[0] === '+') commandSrc = commandSrc.slice(1);
             const isDialog = DIALOGUE_LINE.test(commandSrc);
@@ -741,15 +867,15 @@ export class ScriptParser {
             if (currentBlock === null) {
               currentBlock = addCommandBlock(currentScript);
               currentBlock.conditional = this.createAllConditional(
-                conditional,
                 ...conditionalStack,
+                conditional,
               );
             }
             block = currentBlock;
           } else {
             block = currentBlock = addCommandBlock(currentScript);
             currentBlock.conditional = this.createAllConditional(
-              ...[conditional, ...conditionalStack],
+              ...conditionalStack, conditional,
             );
           }
 

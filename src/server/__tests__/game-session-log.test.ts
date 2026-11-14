@@ -23,6 +23,7 @@ describe('game session script log', () => {
     try {
       session.open();
       session.input(' ');
+      session.input(' ');
       expect(getPlainText(screen.buffer)).toContain('Started');
       expect(getPlainText(screen.buffer)).toContain('Finished');
     } finally {

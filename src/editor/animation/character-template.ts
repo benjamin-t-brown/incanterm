@@ -1,7 +1,7 @@
 import { createAnimation, type AnimationDocument, type CharacterState } from '../schema.js';
 
-// Frame positions match the test3x3 spritesheet. The remaining frames are available
-// for custom actions without changing the standard idle/walk/talking clips.
+// Frame positions use the engine's standard 3x3 and 5x5 templates. Any remaining
+// frames are available for custom actions without changing the standard clips.
 const FRAMES: Record<CharacterState, readonly number[]> = {
   'idle-up': [6],
   'idle-down': [0],

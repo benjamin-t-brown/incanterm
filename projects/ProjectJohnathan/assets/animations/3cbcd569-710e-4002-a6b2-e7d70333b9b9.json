@@ -1,0 +1,35 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "3cbcd569-710e-4002-a6b2-e7d70333b9b9",
+  "label": "props_door1_closing",
+  "loop": false,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 4,
+      "durationMs": 135
+    },
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 3,
+      "durationMs": 135
+    },
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 1,
+      "durationMs": 135
+    },
+    {
+      "sprite": "80b520b5-71ce-4a4d-ba40-b3d95ef8c79f",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

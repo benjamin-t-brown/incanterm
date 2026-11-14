@@ -1,4 +1,5 @@
 import { requestJson } from '../api.js';
+import { getProjectApiUrl } from '../project.js';
 import { createPageShell } from '../shell.js';
 
 type AudioEntry = { id: string; name: string };
@@ -34,7 +35,7 @@ export function mountSoundboard(root: HTMLElement): () => void {
           playing.pause();
           playing = null;
         }
-        const audio = new Audio(`/api/audio/${encodeURIComponent(file.name)}`);
+        const audio = new Audio(getProjectApiUrl(`/api/audio/${encodeURIComponent(file.name)}`));
         playing = audio;
         button.textContent = 'PLAYING';
         void audio.play();

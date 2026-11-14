@@ -1,0 +1,21 @@
+{
+  "folders": [
+    "school"
+  ],
+  "placements": {
+    "clock_static": "school",
+    "desk1": "school",
+    "podium": "school",
+    "poster_smiley": "school",
+    "vend_lime": "school",
+    "vend_energy": "school",
+    "trash": "school",
+    "banner_red": "school",
+    "banner_blue": "school",
+    "banner_green": "school",
+    "poster_heart": "school",
+    "poster_triangle": "school",
+    "poster_x": "school",
+    "door1": "school"
+  }
+}

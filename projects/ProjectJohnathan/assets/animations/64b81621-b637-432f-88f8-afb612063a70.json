@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "64b81621-b637-432f-88f8-afb612063a70",
+  "label": "wyatt3x3 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "76780fbc-a1bc-4198-9d52-011e8b17f1de",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

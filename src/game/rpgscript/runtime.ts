@@ -156,6 +156,10 @@ const conditionTypes = new Set([
   'once',
   'oncePerInstance',
   'func',
+  'in',
+  'switchValue',
+  'switchCase',
+  'switchDefault',
 ]);
 function convertToCondition(value: Conditional | boolean, file: string, line: number): Condition {
   if (typeof value === 'boolean') return value;
@@ -164,7 +168,7 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
   const args = value.args.map((arg) => {
     if (typeof arg === 'object' && arg !== null && 'type' in arg)
       return convertToCondition(arg as Conditional, file, line);
-    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg || 'expression' in arg))
+    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg || 'expression' in arg || 'literal' in arg || 'list' in arg || 'indexed' in arg))
       return Object.freeze({ ...(arg as StorageReference | LocalReference) });
     if (typeof arg === 'string') {
       return arg;
@@ -173,7 +177,10 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
     throw new Error(`${file}:${line}: Invalid argument for condition ${value.type}`);
   });
   const arity =
-    value.type === 'any' || value.type === 'all'
+    value.type === 'switchValue' ? args.length === 2 && Number.isInteger(args[1])
+      : value.type === 'switchCase' ? args.length >= 2 && Number.isInteger(args[0]) && args.slice(2).every(Number.isInteger)
+      : value.type === 'switchDefault' ? args.length >= 1 && args.every(Number.isInteger)
+      : value.type === 'any' || value.type === 'all'
       ? args.length > 0
       : value.type === 'func'
         ? args.length === 2 && args[0] === 'hasItem' &&
@@ -184,7 +191,7 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
           args.every((arg) => Number.isInteger(arg) && (arg as number) >= 0)
         : value.type === 'once' || value.type === 'oncePerInstance'
           ? args.length <= 1
-          : value.type === 'eq' || value.type === 'gt' || value.type === 'lt'
+      : value.type === 'eq' || value.type === 'gt' || value.type === 'lt' || value.type === 'in'
             ? args.length === 2
             : args.length === 1;
   const nested = args.some((arg) => typeof arg === 'object' && 'type' in arg);
@@ -240,6 +247,7 @@ function validateLocals(
     for (const match of value.matchAll(/\[([A-Za-z_][\w-]*)\]/g))
       requireLocal(match[1], parameters, file, line);
   } else if (value && typeof value === 'object') {
+    if ('literal' in value) return;
     if ('localName' in value) requireLocal(String(value.localName), parameters, file, line);
     else for (const nested of Object.values(value)) validateLocals(nested, parameters, file, line);
   }
@@ -320,6 +328,7 @@ type Frame = {
   passed?: boolean;
   instanceId?: string;
   results?: Map<number, boolean>;
+  switchValues?: Map<number, RuntimeValue>;
   /** Completed passes of each active `while`, keyed by its header block. */
   loopPasses?: Map<number, number>;
 };
@@ -399,6 +408,10 @@ export class ScriptRunner<Host> {
 
   clearSubscripts(): void {
     this.subscripts.clear();
+  }
+
+  clearSubscript(ownerId: string): void {
+    this.subscripts.delete(ownerId);
   }
 
   private callSubscript(ownerId: string, target: string, location: string): void {
@@ -555,6 +568,15 @@ export class ScriptRunner<Host> {
 
   private getScriptValue(value: ScriptValue): RuntimeValue {
     if (typeof value === 'object') {
+      if ('literal' in value) return value.literal;
+      if ('list' in value) return value.list.map((item) => this.getScriptValue(item));
+      if ('indexed' in value) {
+        const list = this.getScriptValue(value.indexed.list);
+        const index = this.getScriptValue(value.indexed.index);
+        if (!Array.isArray(list) || typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= list.length)
+          throw new ScriptExpressionError('Indexed read requires a list and an existing integer index');
+        return list[index];
+      }
       if ('expression' in value) return evaluateNumericExpression(value.expression,
         (name, local) => local ? this.getLocalValue(name) : this.storage.get(name));
       return 'storageKey' in value
@@ -586,6 +608,8 @@ export class ScriptRunner<Host> {
             : text;
     }
     if (typeof value === 'object') {
+      if ('literal' in value) return value.literal;
+      if ('list' in value || 'indexed' in value) return this.getScriptValue(value);
       if ('expression' in value) return this.getScriptValue(value);
       if ('storageKey' in value) return this.storage.get(value.storageKey);
       if ('localName' in value) return this.getLocalValue(value.localName);
@@ -600,9 +624,28 @@ export class ScriptRunner<Host> {
     pending: Set<string>,
     instanceId?: string,
     results?: ReadonlyMap<number, boolean>,
+    switchValues?: Map<number, RuntimeValue>,
   ): boolean {
     if (typeof condition === 'boolean') return condition;
     const { type, args } = condition;
+    if (type === 'switchValue') {
+      if (!switchValues) throw new Error('switch requires a script frame');
+      switchValues.set(args[1] as number, this.resolve(args[0]));
+      return true;
+    }
+    if (type === 'switchCase' || type === 'switchDefault') {
+      const header = args[0] as number;
+      if (!switchValues?.has(header)) throw new Error('switch has no evaluated value');
+      const previous = args.slice(type === 'switchCase' ? 2 : 1) as number[];
+      if (previous.some((index) => results?.get(index) === true)) return false;
+      if (type === 'switchDefault') return true;
+      const label = args[1];
+      const selected = switchValues.get(header);
+      const candidate = typeof label === 'object' && 'type' in label
+        ? this.evaluate(label as Condition, scope, pending, instanceId, results, switchValues)
+        : this.resolve(label);
+      return selected === candidate || (typeof label === 'number' && selected === String(label));
+    }
     if (type === 'branch') {
       const previous = results?.get(args[0] as number);
       if (previous === undefined) throw new Error('Nested branch has no evaluated parent');
@@ -617,12 +660,12 @@ export class ScriptRunner<Host> {
     }
     if (type === 'all')
       return args.every((arg) =>
-        this.evaluate(arg as Condition, scope, pending, instanceId, results),
+        this.evaluate(arg as Condition, scope, pending, instanceId, results, switchValues),
       );
     if (type === 'any') {
       for (const arg of args) {
         const branch = new Set(pending);
-        if (this.evaluate(arg as Condition, scope, branch, instanceId, results)) {
+        if (this.evaluate(arg as Condition, scope, branch, instanceId, results, switchValues)) {
           for (const key of branch) pending.add(key);
           return true;
         }
@@ -653,7 +696,7 @@ export class ScriptRunner<Host> {
               ? Boolean(this.getScriptValue(first))
             : 'localName' in first
               ? Boolean(this.getLocalValue(first.localName))
-              : this.evaluate(first as Condition, scope, pending, instanceId, results)
+               : this.evaluate(first as Condition, scope, pending, instanceId, results, switchValues)
           : first === 'true'
             ? true
             : first === 'false'
@@ -665,11 +708,15 @@ export class ScriptRunner<Host> {
     }
     const left = this.resolve(first);
     const right = this.resolve(args[1]);
+    if (type === 'in') return Array.isArray(right) && typeof left === 'number' && Number.isInteger(left) && left >= 0 && left < right.length;
     if (type === 'eq') return left !== undefined && right !== undefined && left === right;
     if (type === 'gt' || type === 'lt') {
-      if (typeof left !== 'number' || typeof right !== 'number')
+      const leftNumber = typeof left === 'string' && left.trim() !== '' ? Number(left) : left;
+      const rightNumber = typeof right === 'string' && right.trim() !== '' ? Number(right) : right;
+      if (typeof leftNumber !== 'number' || !Number.isFinite(leftNumber) ||
+        typeof rightNumber !== 'number' || !Number.isFinite(rightNumber))
         throw new Error(`${type} requires numeric values`);
-      return type === 'gt' ? left > right : left < right;
+      return type === 'gt' ? leftNumber > rightNumber : leftNumber < rightNumber;
     }
     throw new Error(`Condition ${type} is not supported`);
   }
@@ -695,6 +742,7 @@ export class ScriptRunner<Host> {
       }
       if (frame.passed === undefined) {
         const pending = new Set<string>();
+        frame.switchValues ??= new Map();
         try {
           frame.passed = this.evaluate(
             block.condition,
@@ -702,6 +750,7 @@ export class ScriptRunner<Host> {
             pending,
             frame.instanceId,
             frame.results,
+            frame.switchValues,
           );
         } catch (error) {
           if (!(error instanceof ScriptExpressionError)) throw error;
@@ -766,6 +815,8 @@ export class ScriptRunner<Host> {
   private jumpToBlock(frame: Frame, target: number, fromBlock: number): void {
     for (const index of frame.results?.keys() ?? [])
       if (index >= fromBlock) frame.results?.delete(index);
+    for (const index of frame.switchValues?.keys() ?? [])
+      if (index >= fromBlock) frame.switchValues?.delete(index);
     frame.block = target;
     frame.next = 0;
     frame.passed = undefined;
@@ -791,6 +842,7 @@ export class ScriptRunner<Host> {
         requireLocal(name, frame.script.locals, frame.script.file, line);
         frame.locals.set(name, value);
       },
+      getLocal: (name) => this.getLocalValue(name),
       call: (target, args) => {
         this.stack.push(this.createFrame(target, args, frame.instanceId, location));
       },
