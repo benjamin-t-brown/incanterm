@@ -30,6 +30,11 @@ export async function startLoopback(
     sceneId,
     allowPlayerSpawn: true,
   });
+  const sshPort = server.sshPort;
+  if (sshPort === undefined) {
+    await server.close();
+    throw new Error('Loopback requires an SSH listener');
+  }
 
   let client: GameClient;
   try {
@@ -60,7 +65,7 @@ export async function startLoopback(
   return {
     sceneId,
     httpPort: server.httpPort,
-    sshPort: server.sshPort,
+    sshPort,
     sendInput: client.sendInput,
     resize: client.resize,
     close() {

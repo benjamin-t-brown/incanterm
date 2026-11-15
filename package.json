@@ -29,6 +29,7 @@
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --outfile=dist/server.js --packages=external",
     "build:client": "esbuild src/client/index.ts --bundle --platform=node --format=esm --outfile=dist/client.js --packages=external",
     "build:browser": "vite build",
+    "export-game": "tsx scripts/export-game.ts",
     "start": "node dist/server.js"
   },
   "dependencies": {

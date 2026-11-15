@@ -104,6 +104,56 @@ require `--scene <id-or-label>`.
 Loopback uses temporary local ports and combines server and terminal client; press `~`
 to switch between game and server views.
 
+## Export and deploy a game
+
+Build a standalone release from a saved project:
+
+```sh
+npm run export-game -- --project projects/ProjectJohnathan --out release/ProjectJohnathan
+```
+
+Add `--scene hallwayGym` (or another scene ID or unique label) to change the release's
+entry scene without changing the source project. The output directory must be new;
+use a new release directory for subsequent exports.
+
+The release contains compiled server/browser code, runtime game assets, a production-only
+npm package and lockfile, a Dockerfile, and deployment instructions. It excludes the
+editor, reference images, folder metadata, story notes, source files, and tests.
+Build tools are only needed when exporting, not on the deployment machine.
+
+### Run with Node.js
+
+Install Node.js 22+ on the deployment machine, copy the release directory, then run:
+
+```sh
+cd release/ProjectJohnathan
+npm ci --omit=dev
+npm start
+```
+
+Open <http://127.0.0.1:7101/play>. `/health` provides a health check and `/ws` carries
+gameplay. SSH is disabled by default in the exported release. Set `INCANTERM_HOST=0.0.0.0`
+to accept connections outside localhost. `INCANTERM_HTTP_PORT` overrides `PORT`;
+otherwise the HTTP port defaults to 7101.
+
+### Run with Docker
+
+Build from the exported directory, not the engine repository:
+
+```sh
+docker build -t projectjohnathan ./release/ProjectJohnathan
+docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:7101:7101 projectjohnathan
+```
+
+The container runs as a non-root user and exposes only HTTP/WebSocket, not SSH or the
+editor. For public access, put an HTTPS reverse proxy in front of it. Proxy both
+`/play` (including browser assets) and `/ws`, enabling WebSocket upgrades and a suitable
+idle timeout. Keep the editor private.
+
+Sessions live in memory and are tied to their WebSocket connections; disconnects and
+restarts do not persist or resume a game. Start with a single instance. Persistent
+saves, cross-instance session routing, authentication, and rate limiting are not included.
+
 ## Engine development
 
 ```sh

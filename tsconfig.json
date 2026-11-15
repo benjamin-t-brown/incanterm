@@ -19,6 +19,7 @@
     "src/renderer/**/*.ts",
     "src/protocol/**/*.ts",
     "src/project/**/*.ts",
+    "src/export/**/*.ts",
     "src/editor/**/*.ts",
     "vite.config.ts",
     "vite.editor.config.ts",

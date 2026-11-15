@@ -106,6 +106,7 @@ describe('game server', () => {
     server = await start();
     const connection = new Client();
     try {
+      if (server.sshPort === undefined) throw new Error('Expected an SSH listener');
       await connect(connection, server.sshPort);
       const stream = await getShell(connection);
       const frame = await readUntil(stream, (text) => getVisibleText(text).includes('| # |'));
