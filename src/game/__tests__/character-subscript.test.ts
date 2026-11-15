@@ -34,13 +34,13 @@ it('setBusy skips direct subscripts and character timers until cleared', () => {
   runner.start('lock');
   runner.updateTimers(150);
   expect(ralgo.isBusy()).toBe(true);
-  expect(runner.getStorage('count')).toBeUndefined();
+  expect(runner.getGlobal('count')).toBeUndefined();
   runner.start('unlock');
   expect(ralgo.isBusy()).toBe(false);
   runner.updateTimers(0);
-  expect(runner.getStorage('count')).toBeUndefined();
+  expect(runner.getGlobal('count')).toBeUndefined();
   runner.updateTimers(50);
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('count')).toBe(1);
 });
 
 it.each([true, false])('conversation busy state skips calls and clears on endConversation(%s)', (restore) => {
@@ -50,12 +50,12 @@ it.each([true, false])('conversation busy state skips calls and clears on endCon
   runner.start('start');
   runner.updateTimers(50);
   expect(ralgo.isBusy()).toBe(true);
-  expect(runner.getStorage('count')).toBeUndefined();
+  expect(runner.getGlobal('count')).toBeUndefined();
   control.endConversation(restore);
   expect(ralgo.isBusy()).toBe(false);
   runner.start('start');
   runner.updateTimers(50);
-  expect(runner.getStorage('count')).toBe(2);
+  expect(runner.getGlobal('count')).toBe(2);
 });
 
 it('keeps manual and conversation busy states independent', () => {
@@ -86,13 +86,13 @@ it('lets the main runner show dialogue while a character waits, then shares glob
   );
   runner.start('start');
   expect(runner.isIdle()).toBe(true);
-  expect(runner.getStorage('tmp.mainContinued')).toBe(true);
-  expect(runner.getStorage('tmp.finished')).toBeUndefined();
+  expect(runner.getGlobal('tmp.mainContinued')).toBe(true);
+  expect(runner.getGlobal('tmp.finished')).toBeUndefined();
   runner.start('talk');
   scene.update(200);
   runner.update();
   expect(ralgo).toMatchObject({ x: 4, facing: 'left' });
-  expect(runner.getStorage('tmp.finished')).toBe('ralgo-id');
+  expect(runner.getGlobal('tmp.finished')).toBe('ralgo-id');
   expect(runner.dialogue?.text).toBe('Hello');
 });
 
@@ -108,13 +108,13 @@ it('pauses a marker walk for a talk script, then resumes after endConv without a
   scene.update(200);
   runner.update();
   expect(ralgo.x).toBe(pausedX);
-  expect(runner.getStorage('tmp.arrived')).toBeUndefined();
+  expect(runner.getGlobal('tmp.arrived')).toBeUndefined();
   runner.advance();
   expect(ralgo.isWalking()).toBe(true);
   scene.update(200);
   runner.update();
   expect(ralgo.x).toBe(4);
-  expect(runner.getStorage('tmp.arrived')).toBe(true);
+  expect(runner.getGlobal('tmp.arrived')).toBe(true);
 });
 
 it('deduplicates calls by resolved character ID and permits different characters to run independently', () => {
@@ -124,11 +124,11 @@ it('deduplicates calls by resolved character ID and permits different characters
   runner.start('start');
   expect(ralgo.isWalking()).toBe(true);
   expect(eva.isWalking()).toBe(true);
-  expect(runner.getStorage('tmp.other')).toBeUndefined();
+  expect(runner.getGlobal('tmp.other')).toBeUndefined();
   scene.update(1000);
   runner.update();
   runner.start('start');
-  expect(runner.getStorage('tmp.other')).toBe('ralgo-id');
+  expect(runner.getGlobal('tmp.other')).toBe('ralgo-id');
 });
 
 it('cancels character continuations when cleared for scene changes', () => {
@@ -137,7 +137,7 @@ it('cancels character continuations when cleared for scene changes', () => {
   runner.clearSubscripts();
   scene.update(1000);
   runner.update();
-  expect(runner.getStorage('tmp.finished')).toBeUndefined();
+  expect(runner.getGlobal('tmp.finished')).toBeUndefined();
 });
 
 it('keeps firing the main timer while a character task is waiting', () => {
@@ -147,16 +147,16 @@ it('keeps firing the main timer while a character task is waiting', () => {
   runner.restartTimers(['clock']);
   runner.updateTimers(50);
   expect(runner.isIdle()).toBe(true);
-  runner.setStorage('tmp.tickFinished', false);
+  runner.setGlobal('tmp.tickFinished', false);
   scene.update(50);
   runner.update();
   runner.updateTimers(50);
-  expect(runner.getStorage('tmp.tickFinished')).toBe(true);
-  expect(runner.getStorage('tmp.finished')).toBeUndefined();
+  expect(runner.getGlobal('tmp.tickFinished')).toBe(true);
+  expect(runner.getGlobal('tmp.finished')).toBeUndefined();
   expect(ralgo.isWalking()).toBe(true);
   scene.update(150);
   runner.update();
-  expect(runner.getStorage('tmp.finished')).toBe('ralgo-id');
+  expect(runner.getGlobal('tmp.finished')).toBe('ralgo-id');
 });
 
 it('fires character timers during main dialogue, passes instance IDs, and skips busy characters', () => {
@@ -169,17 +169,17 @@ it('fires character timers during main dialogue, passes instance IDs, and skips 
   expect(ralgo.isWalking()).toBe(false);
   runner.updateTimers(1);
   expect(ralgo.isWalking()).toBe(true);
-  expect(runner.getStorage('received')).toBe('ralgo-id');
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('received')).toBe('ralgo-id');
+  expect(runner.getGlobal('count')).toBe(1);
   runner.updateTimers(150);
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('count')).toBe(1);
   scene.update(200);
   runner.update();
-  expect(runner.getStorage('arrived')).toBe(true);
+  expect(runner.getGlobal('arrived')).toBe(true);
   runner.updateTimers(0);
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('count')).toBe(1);
   runner.updateTimers(50);
-  expect(runner.getStorage('count')).toBe(2);
+  expect(runner.getGlobal('count')).toBe(2);
   expect(runner.dialogue?.text).toBe('Hello');
 });
 
@@ -188,10 +188,10 @@ it('applies timer conditions per character and clears schedules on scene change'
   runner.restartTimers(['clock']);
   runner.updateTimers(50);
   runner.updateTimers(50);
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('count')).toBe(1);
   runner.restartTimers([]);
   runner.updateTimers(1000);
-  expect(runner.getStorage('count')).toBe(1);
+  expect(runner.getGlobal('count')).toBe(1);
 });
 
 it.each([

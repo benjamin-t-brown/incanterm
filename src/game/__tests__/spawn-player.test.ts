@@ -127,10 +127,10 @@ describe('spawning the controlled player', () => {
       commands, context: { scene, playerControl: control },
     });
     runner.start('start');
-    expect(runner.getStorage('ready')).toBeUndefined();
+    expect(runner.getGlobal('ready')).toBeUndefined();
     await vi.waitFor(() => {
       runner.update();
-      expect(runner.getStorage('ready')).toBe(true);
+      expect(runner.getGlobal('ready')).toBe(true);
     });
     expect(player.x).toBe(4);
     expect(player.bottomY).toBe(5);

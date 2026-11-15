@@ -15,29 +15,29 @@ Guide: "Next {name}"
     );
     const logs: string[] = [];
     const runner = new ScriptRunner(library, (message) => logs.push(message));
-    runner.setStorage('name', 'Ada');
-    runner.setStorage('score', 0);
-    runner.setStorage('active', false);
-    runner.setStorage('speaker', 'Narrator');
+    runner.setGlobal('name', 'Ada');
+    runner.setGlobal('score', 0);
+    runner.setGlobal('active', false);
+    runner.setGlobal('speaker', 'Narrator');
     runner.start('start');
-    expect(runner.getStorage('message')).toBe('Hello Ada, Ada!  0 false');
-    expect(runner.getStorage('raw')).toBe(0);
+    expect(runner.getGlobal('message')).toBe('Hello Ada, Ada!  0 false');
+    expect(runner.getGlobal('raw')).toBe(0);
     expect(logs).toEqual(['[RPGSCRIPT] Hello Ada, Ada!  0 false (substitution.rpgscript:4)']);
     expect(runner.dialogue).toEqual({ actor: 'Guide', text: 'Welcome Ada /  / 0 / false' });
 
-    runner.setStorage('name', 'Bea');
-    runner.setStorage('score', 8);
+    runner.setGlobal('name', 'Bea');
+    runner.setGlobal('score', 8);
     runner.advance();
     expect(runner.dialogue?.text).toBe('Next Bea');
     runner.advance();
     expect(runner.dialogue).toEqual({ actor: 'Narrator', text: 'Score 8' });
 
     const second = new ScriptRunner(library, () => {});
-    second.setStorage('name', 'Cy');
+    second.setGlobal('name', 'Cy');
     second.start('start');
     expect(second.dialogue?.text).toBe('Welcome Cy /  /  / ');
-    expect(second.getStorage('message')).toBe('Hello Cy, Cy!   ');
-    expect(second.getStorage('raw')).toBeUndefined();
+    expect(second.getGlobal('message')).toBe('Hello Cy, Cy!   ');
+    expect(second.getGlobal('raw')).toBeUndefined();
   });
 
   it('substitutes condition arguments while preserving typed whole-value references', () => {
@@ -56,9 +56,9 @@ Guide: "Next {name}"
       ),
       (message) => logs.push(message),
     );
-    runner.setStorage('name', 'Ada');
-    runner.setStorage('score', 0);
-    runner.setStorage('enabled', true);
+    runner.setGlobal('name', 'Ada');
+    runner.setGlobal('score', 0);
+    runner.setGlobal('enabled', true);
     runner.start('start');
     expect(logs.map((message) => message.split(' (')[0])).toEqual([
       '[RPGSCRIPT] matched',
@@ -75,12 +75,12 @@ Guide: "Next {name}"
     const script = '@start\n+?lt({roll}, 100):+log("below")\n+?gt({roll}, "10"):+log("above")';
     const library = parseRpgScript(script, 'numbers.rpgscript');
     const runner = new ScriptRunner(library, (message) => logs.push(message));
-    runner.setStorage('roll', ' 42 ');
+    runner.setGlobal('roll', ' 42 ');
     runner.start('start');
     expect(logs.map((message) => message.split(' (')[0])).toEqual(['[RPGSCRIPT] below', '[RPGSCRIPT] above']);
 
     for (const value of ['', 'nope', undefined]) {
-      runner.setStorage('roll', value);
+      runner.setGlobal('roll', value);
       expect(() => runner.start('start')).toThrow('lt requires numeric values');
     }
   });
@@ -91,10 +91,10 @@ Guide: "Next {name}"
       parseRpgScript('@start\n+?once("seen-{name}"):+log("new {name}")', 'once.rpgscript'),
       (message) => logs.push(message),
     );
-    runner.setStorage('name', 'Ada');
+    runner.setGlobal('name', 'Ada');
     runner.start('start');
     runner.start('start');
-    runner.setStorage('name', 'Bea');
+    runner.setGlobal('name', 'Bea');
     runner.start('start');
     expect(logs.map((message) => message.split(' (')[0])).toEqual([
       '[RPGSCRIPT] new Ada',
@@ -116,10 +116,10 @@ Guide: "Left"`,
       'choices.rpgscript',
     );
     const runner = new ScriptRunner(library);
-    runner.setStorage('item', 'key');
+    runner.setGlobal('item', 'key');
     runner.start('start');
     expect(runner.choice?.options).toEqual(['Take key', 'Skip ']);
-    runner.setStorage('item', 'coin');
+    runner.setGlobal('item', 'coin');
     runner.choose(0);
     expect(runner.choice?.options).toEqual(['Keep coin', 'Leave ']);
     runner.choose(0);

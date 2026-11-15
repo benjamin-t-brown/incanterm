@@ -29,19 +29,19 @@ it('waits for arrival before executing subsequent commands and ignores player cl
   );
   runner.start('start');
   expect(runner.isIdle()).toBe(false);
-  expect(runner.getStorage('arrived')).toBeUndefined();
+  expect(runner.getGlobal('arrived')).toBeUndefined();
   control.click(0, 3, () => false);
   scene.update(100);
   control.update();
   runner.update();
   expect(hero.x).toBe(2);
-  expect(runner.getStorage('arrived')).toBeUndefined();
+  expect(runner.getGlobal('arrived')).toBeUndefined();
   control.click(0, 3, () => false);
   scene.update(100);
   control.update();
   runner.update();
   expect(hero.x).toBe(4);
-  expect(runner.getStorage('arrived')).toBe(true);
+  expect(runner.getGlobal('arrived')).toBe(true);
   expect(runner.isIdle()).toBe(true);
 });
 
@@ -63,7 +63,7 @@ it('skipWait continues immediately but protects the walk until arrival', () => {
   );
   runner.start('start', ['hero', 'Exit']);
   expect(runner.isIdle()).toBe(true);
-  expect(runner.getStorage('started')).toBe(true);
+  expect(runner.getGlobal('started')).toBe(true);
   control.click(0, 3, () => false);
   scene.update(200);
   control.update();
@@ -78,7 +78,7 @@ it('skipWait still continues immediately when only a partial route is available'
   );
   for (let y = 0; y < scene.height; y++) (scene.blockedCells as Set<number>).add(y * scene.width + 2);
   runner.start('start');
-  expect(runner.getStorage('continued')).toBe(true);
+  expect(runner.getGlobal('continued')).toBe(true);
   scene.update(100);
   expect(hero.x).toBe(1);
 });
@@ -101,12 +101,12 @@ it('walks as close as possible and continues after bounded retries when a marker
     scene.update(100);
     runner.update();
     expect(hero.x).toBe(1);
-    expect(runner.getStorage('continued')).toBeUndefined();
+    expect(runner.getGlobal('continued')).toBeUndefined();
     for (let attempt = 0; attempt < 4; attempt++) {
       vi.advanceTimersByTime(100);
       runner.update();
     }
-    expect(runner.getStorage('continued')).toBe(true);
+    expect(runner.getGlobal('continued')).toBe(true);
     expect(hero.x).toBe(1);
   } finally {
     vi.useRealTimers();
@@ -120,7 +120,7 @@ it('retries an interrupted walk and reaches the marker', () => {
     runner.start('start');
     hero.stopWalking();
     runner.update();
-    expect(runner.getStorage('arrived')).toBeUndefined();
+    expect(runner.getGlobal('arrived')).toBeUndefined();
     expect(control.isWalkPausedForConversation(hero, { x: 4, y: 1 })).toBe(false);
     vi.advanceTimersByTime(100);
     runner.update();
@@ -128,7 +128,7 @@ it('retries an interrupted walk and reaches the marker', () => {
     scene.update(200);
     runner.update();
     expect(hero.x).toBe(4);
-    expect(runner.getStorage('arrived')).toBe(true);
+    expect(runner.getGlobal('arrived')).toBe(true);
   } finally {
     vi.useRealTimers();
   }
@@ -143,14 +143,14 @@ it('retries when a blocked destination becomes available', () => {
     scene.update(200);
     runner.update();
     expect(hero.x).toBe(3);
-    expect(runner.getStorage('arrived')).toBeUndefined();
+    expect(runner.getGlobal('arrived')).toBeUndefined();
     (scene.blockedCells as Set<number>).clear();
     vi.advanceTimersByTime(100);
     runner.update();
     scene.update(100);
     runner.update();
     expect(hero.x).toBe(4);
-    expect(runner.getStorage('arrived')).toBe(true);
+    expect(runner.getGlobal('arrived')).toBe(true);
   } finally {
     vi.useRealTimers();
   }
@@ -169,7 +169,7 @@ it('logs a scene command failure and continues with the next step when recovery 
   });
   runner.start('start');
   expect(runner.isIdle()).toBe(true);
-  expect(runner.getStorage('continued')).toBe(true);
+  expect(runner.getGlobal('continued')).toBe(true);
   expect(errors).toHaveLength(1);
   expect(errors[0]).toContain('marker.rpgscript:2 (+walkToMarker)');
   expect(errors[0]).toContain('has no marker WrongName');

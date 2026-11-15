@@ -6,8 +6,8 @@ it('declares body locals without adding parameters or writing globals', () => {
   expect(library.get('testReturn')?.parameters).toEqual([]);
   const runner = new ScriptRunner(library);
   runner.start('testReturn');
-  expect(runner.getStorage('result')).toBe(1);
-  expect(runner.getStorage('a')).toBeUndefined();
+  expect(runner.getGlobal('result')).toBe(1);
+  expect(runner.getGlobal('a')).toBeUndefined();
 });
 
 it('isolates body locals in nested calls and resets them on each invocation', () => {
@@ -21,9 +21,9 @@ it('isolates body locals in nested calls and resets them on each invocation', ()
   +childValue=[a]`, 'locals.rpgscript'));
   for (let i = 0; i < 2; i++) {
     runner.start('start');
-    expect(runner.getStorage('before')).toBeUndefined();
-    expect(runner.getStorage('after')).toBe(1);
-    expect(runner.getStorage('childValue')).toBe(2);
+    expect(runner.getGlobal('before')).toBeUndefined();
+    expect(runner.getGlobal('after')).toBe(1);
+    expect(runner.getGlobal('childValue')).toBe(2);
   }
 });
 
@@ -36,8 +36,8 @@ it('scopes conditional assignments to the script, leaving skipped assignments un
   +resultA=[a]
   +resultB=[b]`, 'locals.rpgscript'));
   runner.start('start');
-  expect(runner.getStorage('resultA')).toBeUndefined();
-  expect(runner.getStorage('resultB')).toBe(2);
+  expect(runner.getGlobal('resultA')).toBeUndefined();
+  expect(runner.getGlobal('resultB')).toBe(2);
 });
 
 it('does not let a child read its caller locals or treat quoted assignments as declarations', () => {

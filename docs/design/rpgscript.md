@@ -238,6 +238,10 @@ global existence is not checked. Signatures have no defaults or rest parameters.
 Trigger and choice targets supply zero arguments. `@name` and `@name()` both declare
 zero-argument scripts.
 
+### Storage namespace
+
+Session storage is one flat map. Every script-visible variable lives under the `global.` prefix: `+a=1` stores `global.a`, and `{a}`, `is(a)`, `eq(a, 1)` and `{key}` interpolation all read `global.a`. Write `a`, never `global.a`; the prefix is added by the runner. Engine-owned keys (`dialogue.active`, `dialogue.leftActor`, `dialogue.rightActor`) are stored unprefixed, so script variables can no longer collide with them. `lastChoiceIndex`, `vars.inventory` and `vars.rand100` are ordinary globals, so they are `global.lastChoiceIndex` and so on in storage while scripts still use the short names. Host code uses `getGlobal`/`setGlobal` (also on `CommandContext`) for script variables and `getStorage`/`setStorage` for raw keys.
+
 ### Global storage assignments
 
 `eq` returns false if either resolved operand is `undefined`, including when both
@@ -330,6 +334,8 @@ has identical behavior and remains supported.
 
 Chain further branches with `+?elseif cond:{ ... }` (or an inline `+?elseif cond:+command(...)`). An `elseif` runs only when every earlier branch in its chain failed and its own condition passes; a trailing `else` runs only when none ran. Like `else`, it uses the earlier branches' cached results and is an error without a preceding conditional at the same block depth.
 
+Longform spellings drop the `?`: `+if cond:{ ... }`, `+elseif cond:...`, `+else:...` and `+while cond:{ ... }` are identical to their `+?` forms. They are rewritten before parsing, so every rule above applies unchanged.
+
 Loop with `+?while cond:{ ... }`. The condition is re-tested before every pass (unlike `if`, whose result is cached), and branch results inside the body reset each pass. The body must be a braced block, `once` and `oncePerInstance` are rejected as loop conditions, and an `else` cannot follow a loop. Dialogue and waits work inside the body. Runaway loops are bounded two ways, and both stop the script with a file/line error through the normal command-error path instead of throwing: a single `while` stops after 1000 passes (even if it pauses for dialogue or waits each pass), and a run of more than 1000 steps without pausing hits the runner's immediate-work budget.
 
 ### Indexed lists
@@ -371,7 +377,7 @@ Control keywords are line prefixes written with `!`, like `<` for return, and wo
 - `!continue` skips to the next pass of the innermost `while`, re-testing its condition. It counts toward the 1000-pass cap.
 - `!returnempty` exits the current script and returns undefined, the same as a bare `<`.
 
-`!break` and `!continue` outside a `while` are errors, in both the runtime and the editor. A called script's loops are independent, so neither keyword can leave the caller's loop. `<value` and `!returnempty` leave the whole script, not just the loop.
+Write them without a leading `+`; `+!break` is an error, in both the runtime and the editor. `!break` and `!continue` outside a `while` are errors, in both the runtime and the editor. A called script's loops are independent, so neither keyword can leave the caller's loop. `<value` and `!returnempty` leave the whole script, not just the loop.
 
 ## Adaptation outline
 

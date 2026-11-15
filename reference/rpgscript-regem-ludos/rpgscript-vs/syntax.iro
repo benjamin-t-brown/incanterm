@@ -1,9 +1,9 @@
 #################################################################
 ## Iro
-################################################################ 
+################################################################
 ##
 ## * Press Ctrl + '+'/'-' To Zoom in
-## * Press Ctrl + S to save and recalculate... 
+## * Press Ctrl + S to save and recalculate...
 ## * Documents are saved to web storage.
 ## * Only one save slot supported.
 ## * Matches cannot span lines.
@@ -148,8 +148,12 @@ contexts [] {
 
 main : context {
    : pattern {
-      regex          \= (?:^\s*|(?<=:)\s*)(\+?)(!(?:break|continue|returnempty)\b)
-      styles []       = .control, .control;
+      regex          \= (?<=^\+|^\s\+|^\s\s\+|^\s\s\s\+|^\s\s\s\s\+|^\s\s\s\s\s\s\+)((?:if|elseif|while)\b(?=\s)|else\b(?=\s*:))
+      styles []       = .control;
+   }
+   : pattern {
+      regex          \= (?:^\s*|(?<=:)\s*)(!(?:break|continue|returnempty)\b)
+      styles []       = .control;
    }
    : inline_push {
       regex          \= (^\s*<)
@@ -171,7 +175,7 @@ main : context {
       }
       : include "in_parens" ;
    }
-   
+
    : inline_push {
       regex          \= $${__INLINE_SCRIPT}
       styles []       = .inline_function;
@@ -193,7 +197,7 @@ main : context {
       }
       : include "in_parens" ;
    }
-   
+
    : pattern {
       regex          \= $${__TRIGGERNAME}
       styles []       = .dialog;
@@ -210,7 +214,7 @@ main : context {
       context []      = trigger;
    }
 
-   : inline_push {      
+   : inline_push {
       regex          \= (\?)
       styles []       = .control;
       : pop {
@@ -260,24 +264,24 @@ main : context {
       : inline_push {
          regex          \= (\{)
          styles []       = .punctuation;
-         : pop {  
+         : pop {
             regex       \= (\})
             styles []    = .punctuation;
          }
          : include "main" ;
       }
    }
-   
+
    : inline_push {
       regex          \= (\{)
       styles []       = .punctuation;
-      : pop {  
+      : pop {
          regex       \= (\})
          styles []    = .punctuation;
       }
       : include "main" ;
    }
-   
+
    : inline_push {
       regex          \= (\")
       styles []       = .punctuation;
@@ -288,26 +292,26 @@ main : context {
       }
       : include "in_dialog" ;
    }
-   
+
    : include "multi_line_comment" ;
-   
+
    : pattern {
       regex          \= (//.*)
       styles []       = .comment;
    }
-   
+
    : inline_push {
       regex          \= (^(\s)*=)
       styles []       = .comment;
       : eol_pop {}
-      : include "in_eq" ;     
+      : include "in_eq" ;
    }
-   
+
    : pattern {
       regex          \= ([^\s])
       styles []       = .illegal;
    }
-   
+
 }
 
 #################################################
@@ -354,7 +358,7 @@ logic : context {
       styles []       = .control;
    }
    : pattern {
-      regex          \= (\b(?:elseif|while)\b(?=\s))
+      regex          \= (\b(?:if|elseif|while)\b(?=\s))
       styles []       = .control;
    }
    : inline_push {
@@ -420,53 +424,63 @@ in_parens : context {
    }
    : inline_push {
       regex          \= (')
-      styles []       = .punctuation;
+      styles []       = .text;
       // default_style   = .text
       : pop {
          regex       \= (')
-         styles []    = .punctuation;
+         styles []    = .text;
       }
       : pattern {
-         regex \= (\{[\w\d_\-\. ]*\})
-         styles [] = .punctuation;
+         regex \= (\{)([\w\d_\-\. ]*)(\})
+         styles [] = .control, .punctuation, .control;
       }
       : pattern {
-         regex \= (\[[\w\d_\-\. ]*\])
-         styles [] = .punctuation;
+         regex \= (\[)([\w\d_\-\. ]*)(\])
+         styles [] = .control, .punctuation, .control;
+      }
+
+      : pattern {
+         regex          \= ([^'\{\[]+)
+         styles []       = .text;
       }
       : pattern {
-         regex          \= (\w\.*)
+         regex          \= (.)
          styles []       = .text;
       }
    }
       : inline_push {
       regex          \= (")
-      styles []       = .punctuation;
+      styles []       = .text;
       // default_style   = .text
       : pop {
          regex       \= (")
-         styles []    = .punctuation;
+         styles []    = .text;
       }
       : pattern {
-         regex \= (\{[\w\d_\-\. ]*\})
-         styles [] = .punctuation;
+         regex \= (\{)([\w\d_\-\. ]*)(\})
+         styles [] = .control, .punctuation, .control;
       }
       : pattern {
-         regex \= (\[[\w\d_\-\. ]*\])
-         styles [] = .punctuation;
+         regex \= (\[)([\w\d_\-\. ]*)(\])
+         styles [] = .control, .punctuation, .control;
+      }
+
+      : pattern {
+         regex          \= ([^"\{\[]+)
+         styles []       = .text;
       }
       : pattern {
-         regex          \= (\w\.*)
+         regex          \= (.)
          styles []       = .text;
       }
    }
    : pattern {
-      regex \= (\{[\w\d_\-\. ]*\})
-      styles [] = .punctuation;
+      regex \= (\{)([\w\d_\-\. ]*)(\})
+      styles [] = .control, .punctuation, .control;
    }
    : pattern {
-      regex \= (\[[\w\d_\-\. ]*\])
-      styles [] = .punctuation;
+      regex \= (\[)([\w\d_\-\. ]*)(\])
+      styles [] = .control, .punctuation, .control;
    }
    :  pattern {
       regex          \= (-?[0-9]|\b(true|false)\b(?![\w.-]))
@@ -479,7 +493,7 @@ in_parens : context {
    : inline_push {
       regex          \= (\{)
       styles []       = .punctuation;
-      : pop {  
+      : pop {
          regex       \= (\})
          styles []    = .punctuation;
       }
@@ -559,5 +573,5 @@ in_eq : context {
       styles [] = .punctuation;
    }
 }
-   
+
 }

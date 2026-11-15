@@ -68,7 +68,7 @@ Guide: "Last line."
     expect(runner.dialogue?.text).toBe('Last line.');
     runner.advance();
     expect(runner.dialogue).toBeUndefined();
-    expect(runner.getStorage('a')).toBe(false);
+    expect(runner.getGlobal('a')).toBe(false);
     expect(logged).toEqual([
       '[RPGSCRIPT] A is set (dialogue.rpgscript:8)',
       '[RPGSCRIPT] A is set (dialogue.rpgscript:11)',
@@ -221,7 +221,7 @@ describe('RPGScript execution', () => {
     );
     const messages: string[] = [];
     const runner = new ScriptRunner(scripts, (message) => messages.push(message));
-    runner.setStorage('parent', true);
+    runner.setGlobal('parent', true);
     runner.start('start');
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('inner else');
@@ -240,6 +240,35 @@ describe('RPGScript execution', () => {
     ).toThrow('requires a preceding conditional');
   });
 
+  it('supports longform if/elseif/else/while without a question mark', () => {
+    const source = `@start
++if is(a):{
+  +log("a")
+}
++elseif is(b):+log("b")
++else:+log("none")
++n=0
++while lt({n}, 2):{
+  +n={n}+1
+  +log("loop")
+}`;
+    const run = (values: Record<string, boolean>) => {
+      const messages: string[] = [];
+      const runner = new ScriptRunner(parseRpgScript(source, 'longform.rpgscript'), (m) =>
+        messages.push(m),
+      );
+      for (const [key, value] of Object.entries(values)) runner.setGlobal(key, value);
+      runner.start('start');
+      return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
+    };
+    expect(
+      parseRpgScript('@start\n+?if is(a):+log("x")', 'q.rpgscript'),
+    ).toBeDefined();
+    expect(run({ a: true })).toEqual(['a', 'loop', 'loop']);
+    expect(run({ b: true })).toEqual(['b', 'loop', 'loop']);
+    expect(run({})).toEqual(['none', 'loop', 'loop']);
+  });
+
   it('supports elseif chains with cached results', () => {
     const source = `@start
 +?is(a):+log("a")
@@ -253,7 +282,7 @@ describe('RPGScript execution', () => {
       const runner = new ScriptRunner(parseRpgScript(source, 'elseif.rpgscript'), (m) =>
         messages.push(m),
       );
-      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      for (const [key, value] of Object.entries(values)) runner.setGlobal(key, value);
       runner.start('start');
       return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
     };
@@ -272,7 +301,7 @@ describe('RPGScript execution', () => {
       const runner = new ScriptRunner(parseRpgScript(source, 'while.rpgscript'), (m) =>
         messages.push(m),
       );
-      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      for (const [key, value] of Object.entries(values)) runner.setGlobal(key, value);
       runner.start('start');
       return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
     };
@@ -321,7 +350,7 @@ describe('RPGScript execution', () => {
       const runner = new ScriptRunner(parseRpgScript(source, 'flow.rpgscript'), (m) =>
         messages.push(m),
       );
-      for (const [key, value] of Object.entries(values)) runner.setStorage(key, value);
+      for (const [key, value] of Object.entries(values)) runner.setGlobal(key, value);
       runner.start('start');
       return messages.map((m) => m.replace(/^.*\] | \(.*\)$/g, ''));
     };
@@ -371,6 +400,12 @@ describe('RPGScript execution', () => {
       'inside a while loop',
     );
     expect(() => parseRpgScript('@start\n!nope', 'f.rpgscript')).toThrow('Unknown control keyword');
+    for (const line of ['+!returnempty', '+?is(a):+!returnempty', '+?is(a):!returnempty;'.replace('!', '+!')]) {
+      expect(() => parseRpgScript(`@start\n${line}`, 'f.rpgscript')).toThrow('without a leading "+"');
+    }
+    expect(() =>
+      parseRpgScript('@start\n+?while is(a):{\n  +!break\n}', 'f.rpgscript'),
+    ).toThrow('without a leading "+"');
   });
 
   it('stops runaway while loops with a located error instead of throwing', () => {
@@ -384,7 +419,7 @@ describe('RPGScript execution', () => {
           onCommandError: (error, location) => errors.push(`${location}: ${String(error)}`),
         },
       );
-      runner.setStorage('go', true);
+      runner.setGlobal('go', true);
       return { runner, errors };
     };
 
@@ -405,7 +440,7 @@ describe('RPGScript execution', () => {
     expect(spinning.errors[0]).toContain('work budget');
     expect(spinning.runner.isIdle()).toBe(true);
     spinning.runner.start('other');
-    expect(spinning.runner.getStorage('y')).toBe(2);
+    expect(spinning.runner.getGlobal('y')).toBe(2);
   });
 
   it('uses the saved if result for else even when the if body changes storage', () => {
@@ -415,13 +450,13 @@ describe('RPGScript execution', () => {
     );
     const messages: string[] = [];
     const runner = new ScriptRunner(scripts, (message) => messages.push(message));
-    runner.setStorage('a', true);
+    runner.setGlobal('a', true);
     runner.start('start');
     expect(messages.map((message) => message.split(' (')[0])).toEqual([
       '[RPGSCRIPT] if',
       '[RPGSCRIPT] after',
     ]);
-    expect(runner.getStorage('a')).toBe(false);
+    expect(runner.getGlobal('a')).toBe(false);
     messages.length = 0;
     runner.start('start');
     expect(messages.map((message) => message.split(' (')[0])).toEqual([
@@ -450,7 +485,7 @@ describe('RPGScript execution', () => {
     );
     const messages: string[] = [];
     const runner = new ScriptRunner(scripts, (message) => messages.push(message));
-    runner.setStorage('parent', true);
+    runner.setGlobal('parent', true);
     runner.start('start');
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('inner else');
@@ -486,17 +521,17 @@ describe('RPGScript execution', () => {
     const scripts = parseRpgScript(source, 'nested.rpgscript');
     const runner = new ScriptRunner(scripts);
 
-    runner.setStorage('a', false);
-    runner.setStorage('b', 1);
+    runner.setGlobal('a', false);
+    runner.setGlobal('b', 1);
     runner.start('start');
     expect(runner.dialogue?.text).toBe('Matched');
 
-    runner.setStorage('a', true);
+    runner.setGlobal('a', true);
     runner.start('start');
     expect(runner.dialogue).toBeUndefined();
 
-    runner.setStorage('a', false);
-    runner.setStorage('b', 0);
+    runner.setGlobal('a', false);
+    runner.setGlobal('b', 0);
     runner.start('start');
     expect(runner.dialogue).toBeUndefined();
 
@@ -514,7 +549,7 @@ describe('RPGScript execution', () => {
 
     runner.start('start');
 
-    expect(runner.getStorage('a')).toBe(false);
+    expect(runner.getGlobal('a')).toBe(false);
     expect(messages).toEqual(['[RPGSCRIPT] A is set (blocks.rpgscript:5)']);
 
     const skipped = new ScriptRunner(
@@ -545,8 +580,8 @@ describe('RPGScript execution', () => {
     expect(first.dialogue?.text).toBe('Outer remains active');
     first.advance();
     expect(first.dialogue?.text).toBe('Done');
-    expect(first.getStorage('flag')).toBe(false);
-    expect(second.getStorage('flag')).toBe(false);
+    expect(first.getGlobal('flag')).toBe(false);
+    expect(second.getGlobal('flag')).toBe(false);
   });
 
   it('checks trigger calls in order and commits once only for a successful condition', () => {
@@ -560,13 +595,13 @@ describe('RPGScript execution', () => {
     expect(first.dialogue?.text).toBe('Second');
     first.advance();
     expect(first.dispatchTrigger('door', TriggerType.ACTION)).toBe(false);
-    second.setStorage('open', true);
+    second.setGlobal('open', true);
     expect(second.dispatchTrigger('door', TriggerType.ACTION)).toBe(true);
     expect(second.dialogue?.text).toBe('First');
     expect(second.dispatchTrigger('door', TriggerType.ACTION)).toBe(false);
     second.advance();
     expect(second.dispatchTrigger('door', TriggerType.ACTION)).toBe(false);
-    expect(first.getStorage('open')).toBeUndefined();
+    expect(first.getGlobal('open')).toBeUndefined();
   });
 
   it('falls back when either equality operand is undefined, while matching defined falsey values', () => {
@@ -589,8 +624,8 @@ describe('RPGScript execution', () => {
     expect(missing.dialogue?.text).toBe('Fallback');
     for (const [left, right, expected] of cases) {
       const runner = new ScriptRunner(scripts);
-      runner.setStorage('vars.a', left);
-      runner.setStorage('vars.b', right);
+      runner.setGlobal('vars.a', left);
+      runner.setGlobal('vars.b', right);
       expect(runner.dispatchTrigger('door', TriggerType.ACTION)).toBe(true);
       expect(runner.dialogue?.text).toBe(expected);
     }
@@ -651,7 +686,7 @@ describe('RPGScript execution', () => {
     expect(runner.dialogue?.text).toBe('No branch');
     runner.advance();
     expect(runner.dialogue?.text).toBe('No was chosen');
-    expect(runner.getStorage('lastChoiceIndex')).toBe(1);
+    expect(runner.getGlobal('lastChoiceIndex')).toBe(1);
   });
 
   it('supports awaitChoice without a branch', () => {

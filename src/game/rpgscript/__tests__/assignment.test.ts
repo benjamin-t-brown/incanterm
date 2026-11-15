@@ -31,9 +31,9 @@ describe('RPGScript storage assignments', () => {
       ),
     );
     runner.start('start');
-    expect(runner.getStorage('a')).toBe(3);
-    expect(runner.getStorage('someVar')).toBe('a');
-    expect(runner.getStorage('{someVar}')).toBe(4);
+    expect(runner.getGlobal('a')).toBe(3);
+    expect(runner.getGlobal('someVar')).toBe('a');
+    expect(runner.getGlobal('{someVar}')).toBe(4);
     expect(runner.isIdle()).toBe(true);
   });
 
@@ -51,19 +51,19 @@ Guide: "Pause"
     );
     const first = new ScriptRunner(library);
     const second = new ScriptRunner(library);
-    first.setStorage('vars.destination', 'old');
-    first.setStorage('vars.source', false);
-    second.setStorage('vars.destination', 'other');
+    first.setGlobal('vars.destination', 'old');
+    first.setGlobal('vars.source', false);
+    second.setGlobal('vars.destination', 'other');
     first.start('start');
     second.start('start');
-    first.setStorage('vars.destination', 'new');
+    first.setGlobal('vars.destination', 'new');
     first.advance();
     second.advance();
-    expect(first.getStorage('old')).toBeUndefined();
-    expect(first.getStorage('new')).toBe(3);
-    expect(first.getStorage('other')).toBeUndefined();
-    expect(second.getStorage('other')).toBe(3);
-    expect(second.getStorage('new')).toBeUndefined();
+    expect(first.getGlobal('old')).toBeUndefined();
+    expect(first.getGlobal('new')).toBe(3);
+    expect(first.getGlobal('other')).toBeUndefined();
+    expect(second.getGlobal('other')).toBe(3);
+    expect(second.getGlobal('new')).toBeUndefined();
     const step = library.get('start')?.blocks[1].steps[0];
     if (step?.type !== 'setStorage') throw new Error('Expected storage assignment');
     expect(step.key).toEqual({ storageKey: 'vars.destination' });
@@ -75,17 +75,17 @@ Guide: "Pause"
       parseRpgScript('@start\n+someVar=a\n+a=b\n+{someVar}=2', 'assign.rpgscript'),
     );
     runner.start('start');
-    expect(runner.getStorage('a')).toBe(2);
-    expect(runner.getStorage('b')).toBeUndefined();
+    expect(runner.getGlobal('a')).toBe(2);
+    expect(runner.getGlobal('b')).toBeUndefined();
   });
 
   it.each([undefined, '', 4, false])('rejects a destination resolving to %s', (value) => {
     const runner = new ScriptRunner(parseRpgScript('@start\n+{someVar}=2', 'assign.rpgscript'));
-    runner.setStorage('someVar', value);
+    runner.setGlobal('someVar', value);
     expect(() => runner.start('start')).toThrow(
       'assign.rpgscript:2: setStorage requires a non-empty string key',
     );
-    expect(runner.getStorage('undefined')).toBeUndefined();
+    expect(runner.getGlobal('undefined')).toBeUndefined();
   });
 
   it('accepts bare dynamic assignments inside a block', () => {
@@ -93,7 +93,7 @@ Guide: "Pause"
       parseRpgScript('@start\n+someVar=a\n+?is(true):{\n  {someVar}=2\n}', 'assign.rpgscript'),
     );
     runner.start('start');
-    expect(runner.getStorage('a')).toBe(2);
+    expect(runner.getGlobal('a')).toBe(2);
   });
 
   it.each(['{someVar=2', 'someVar}=2', '{}=2', '{{someVar}}=2'])(
@@ -121,28 +121,28 @@ Guide: "Pause"
     const first = new ScriptRunner(library);
     const second = new ScriptRunner(library);
     for (const runner of [first, second]) {
-      runner.setStorage('off_source', false);
-      runner.setStorage('zero_source', 0);
-      runner.setStorage('empty_source', '');
+      runner.setGlobal('off_source', false);
+      runner.setGlobal('zero_source', 0);
+      runner.setGlobal('empty_source', '');
     }
-    first.setStorage('vars.tmp', 7);
-    second.setStorage('vars.tmp', 'second');
+    first.setGlobal('vars.tmp', 7);
+    second.setGlobal('vars.tmp', 'second');
     first.start('start');
     second.start('start');
-    expect(first.getStorage('a')).toBe(true);
-    expect(first.getStorage('b')).toBe(7);
-    expect(first.getStorage('c')).toBe(4);
-    expect(second.getStorage('b')).toBe('second');
-    first.setStorage('vars.tmp', 9);
+    expect(first.getGlobal('a')).toBe(true);
+    expect(first.getGlobal('b')).toBe(7);
+    expect(first.getGlobal('c')).toBe(4);
+    expect(second.getGlobal('b')).toBe('second');
+    first.setGlobal('vars.tmp', 9);
     first.advance();
     second.advance();
-    expect(first.getStorage('after')).toBe(9);
-    expect(first.getStorage('long_form')).toBe(9);
-    expect(second.getStorage('after')).toBe('second');
-    expect(first.getStorage('off')).toBe(false);
-    expect(first.getStorage('zero')).toBe(0);
-    expect(first.getStorage('empty')).toBe('');
-    expect(first.getStorage('literal')).toBe('9');
+    expect(first.getGlobal('after')).toBe(9);
+    expect(first.getGlobal('long_form')).toBe(9);
+    expect(second.getGlobal('after')).toBe('second');
+    expect(first.getGlobal('off')).toBe(false);
+    expect(first.getGlobal('zero')).toBe(0);
+    expect(first.getGlobal('empty')).toBe('');
+    expect(first.getGlobal('literal')).toBe('9');
     expect(first.isIdle()).toBe(true);
     const step = library.get('start')?.blocks[1].steps[0];
     expect(step?.type).toBe('setStorage');
@@ -172,13 +172,13 @@ Guide: "Pause"
     const formatted = formatRpgScript(source);
     const runner = new ScriptRunner(parseRpgScript(formatted, 'assign.rpgscript'));
     runner.start('start');
-    expect(runner.getStorage('a')).toBe(false);
-    expect(runner.getStorage('b')).toBe(4);
-    expect(runner.getStorage('nested')).toBe(true);
-    expect(runner.getStorage('after_nested')).toBe(4);
-    expect(runner.getStorage('inline')).toBe(4);
-    expect(runner.getStorage('wrong_branch')).toBeUndefined();
-    expect(runner.getStorage('wrong_inline')).toBeUndefined();
+    expect(runner.getGlobal('a')).toBe(false);
+    expect(runner.getGlobal('b')).toBe(4);
+    expect(runner.getGlobal('nested')).toBe(true);
+    expect(runner.getGlobal('after_nested')).toBe(4);
+    expect(runner.getGlobal('inline')).toBe(4);
+    expect(runner.getGlobal('wrong_branch')).toBeUndefined();
+    expect(runner.getGlobal('wrong_inline')).toBeUndefined();
     expect(runner.isIdle()).toBe(true);
     expect(formatRpgScript(formatted)).toBe(formatted);
   });
@@ -204,8 +204,8 @@ Guide: "Pause"
     runner.start('testGoodbye');
     expect(runner.dialogue).toEqual({ actor: 'Guide', text: 'See you soon.' });
     runner.advance();
-    expect(runner.getStorage('b')).toBeUndefined();
-    expect(runner.getStorage('c')).toBe(4);
+    expect(runner.getGlobal('b')).toBeUndefined();
+    expect(runner.getGlobal('c')).toBe(4);
     expect(logs).toEqual(['[RPGSCRIPT] continued (test-room-triggers.rpgscript:5)']);
     expect(runner.isIdle()).toBe(true);
   });
@@ -219,9 +219,9 @@ Guide: "Pause"
       parseRpgScript(`@start\n${assignment}\n+copy={result}\n+next=4`, 'assign.rpgscript'),
     );
     runner.start('start');
-    expect(runner.getStorage('result')).toBeUndefined();
-    expect(runner.getStorage('copy')).toBeUndefined();
-    expect(runner.getStorage('next')).toBe(4);
+    expect(runner.getGlobal('result')).toBeUndefined();
+    expect(runner.getGlobal('copy')).toBeUndefined();
+    expect(runner.getGlobal('next')).toBe(4);
     expect(runner.isIdle()).toBe(true);
   });
 
@@ -229,10 +229,10 @@ Guide: "Pause"
     const runner = new ScriptRunner(
       parseRpgScript('@start\n+setStorage(result, {source})\n+next=true', 'assign.rpgscript'),
     );
-    runner.setStorage('source', undefined);
+    runner.setGlobal('source', undefined);
     runner.start('start');
-    expect(runner.getStorage('result')).toBeUndefined();
-    expect(runner.getStorage('next')).toBe(true);
+    expect(runner.getGlobal('result')).toBeUndefined();
+    expect(runner.getGlobal('next')).toBe(true);
     expect(runner.isIdle()).toBe(true);
   });
 });

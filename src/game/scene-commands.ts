@@ -156,13 +156,13 @@ const setStorage = defineCommand({
     const key = typeof step.key === 'object' ? context.value(step.key) : step.key;
     if (typeof key !== 'string' || !key)
       throw new Error(`${context.location}: setStorage requires a non-empty string key`);
-    context.setStorage(key, context.value(step.value));
+    context.setGlobal(key, context.value(step.value));
   },
 });
 
 const rand100 = defineCommand({
   parse: (args) => args.length === 0 ? { type: 'rand100' as const } : undefined,
-  execute: (_step, context) => context.setStorage('vars.rand100', Math.floor(Math.random() * 100) + 1),
+  execute: (_step, context) => context.setGlobal('vars.rand100', Math.floor(Math.random() * 100) + 1),
 });
 
 function getInventory(value: ReturnType<CommandContext['getStorage']>, location: string): readonly string[] {
@@ -184,8 +184,8 @@ const acquireItem = defineCommand({
     ? { item: getScriptValue(args[0], location) } : undefined,
   execute: (step, context) => {
     const item = getItemName(step.item, context, 'acquireItem');
-    const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
-    if (!inventory.includes(item)) context.setStorage('vars.inventory', [...inventory, item]);
+    const inventory = getInventory(context.getGlobal('vars.inventory'), context.location);
+    if (!inventory.includes(item)) context.setGlobal('vars.inventory', [...inventory, item]);
   },
 });
 
@@ -194,12 +194,12 @@ const removeItem = defineCommand({
     ? { item: getScriptValue(args[0], location) } : undefined,
   execute: (step, context) => {
     const item = getItemName(step.item, context, 'removeItem');
-    const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
+    const inventory = getInventory(context.getGlobal('vars.inventory'), context.location);
     if (!inventory.includes(item)) {
       context.writeLog(`[RPGSCRIPT] removeItem: item ${item} is not in vars.inventory (${context.location})`);
       return;
     }
-    context.setStorage('vars.inventory', inventory.filter((owned) => owned !== item));
+    context.setGlobal('vars.inventory', inventory.filter((owned) => owned !== item));
   },
 });
 
@@ -213,7 +213,7 @@ const setStorageIfUndefined = defineCommand({
     const key = typeof step.key === 'object' ? context.value(step.key) : step.key;
     if (typeof key !== 'string' || !key)
       throw new Error(`${context.location}: setStorageIfUndefined requires a non-empty string key`);
-    if (context.getStorage(key) === undefined) context.setStorage(key, context.value(step.value));
+    if (context.getGlobal(key) === undefined) context.setGlobal(key, context.value(step.value));
   },
 });
 
@@ -307,13 +307,13 @@ const setIndex = defineCommand({
     return { target: args[0], index: getScriptValue(args[1], location), value: getScriptValue(args[2], location) };
   },
   execute: (step, context) => {
-    const list = 'storageKey' in step.target ? context.getStorage(step.target.storageKey) : context.getLocal(step.target.localName);
+    const list = 'storageKey' in step.target ? context.getGlobal(step.target.storageKey) : context.getLocal(step.target.localName);
     const index = context.value(step.index);
     if (!Array.isArray(list) || !Number.isInteger(index) || typeof index !== 'number' || index < 0 || index >= list.length)
       throw new Error(`${context.location}: Indexed assignment requires a list and an existing integer index`);
     const updated = [...list];
     updated[index] = context.value(step.value);
-    if ('storageKey' in step.target) context.setStorage(step.target.storageKey, updated);
+    if ('storageKey' in step.target) context.setGlobal(step.target.storageKey, updated);
     else context.setLocal(step.target.localName, updated);
   },
 });
@@ -469,7 +469,7 @@ const lookAtCh = defineCommand({
     const targetName = getPlayerCharacterName(step.target, script, 'lookAtCh');
     const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
     const target = findCharacter(game.scene, targetName, game.playerControl.playerWalkCh);
-    faceToward(character, target.x, target.bottomY);
+    setFacingToward(character, target.x, target.bottomY);
   },
 });
 
@@ -489,11 +489,11 @@ const lookAtMarker = defineCommand({
     const marker = game.scene.getMarker(markerName);
     if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
     const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
-    faceToward(character, marker.x, marker.y);
+    setFacingToward(character, marker.x, marker.y);
   },
 });
 
-function faceToward(character: Character, x: number, y: number): void {
+function setFacingToward(character: Character, x: number, y: number): void {
   const direction = getFacingToward(character.x, character.bottomY, x, y);
   if (!direction) return;
   character.facing = direction;

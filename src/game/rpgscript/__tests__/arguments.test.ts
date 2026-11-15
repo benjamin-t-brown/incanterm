@@ -19,7 +19,7 @@ describe('RPGScript call-local arguments', () => {
   +log("Arg1 is bad")
 }`, 'arguments.rpgscript');
     const runner = new ScriptRunner(scripts, (text) => logs.push(text));
-    runner.setStorage('arg1', 'global');
+    runner.setGlobal('arg1', 'global');
     runner.start('start');
     expect(logs.map((log) => log.replace(/ \(arguments\.rpgscript:\d+\)$/, ''))).toEqual([
       '[RPGSCRIPT] Args a',
@@ -27,8 +27,8 @@ describe('RPGScript call-local arguments', () => {
       '[RPGSCRIPT] Args ',
       '[RPGSCRIPT] Arg1 is bad',
     ]);
-    expect(runner.getStorage('arg1')).toBe('global');
-    expect(runner.getStorage('arg2')).toBeUndefined();
+    expect(runner.getGlobal('arg1')).toBe('global');
+    expect(runner.getGlobal('arg2')).toBeUndefined();
     expect(runner.isIdle()).toBe(true);
   });
 
@@ -52,14 +52,14 @@ describe('RPGScript call-local arguments', () => {
       ),
     );
     runner.start('start');
-    expect(runner.getStorage('text')).toBe('42');
-    expect(runner.getStorage('number')).toBe(42);
-    expect(runner.getStorage('flag')).toBe(false);
-    expect(runner.getStorage('word')).toBe('false');
-    expect(runner.getStorage('absent')).toBeUndefined();
-    expect(runner.getStorage('updated')).toBe(7);
-    expect(runner.getStorage('updated_text')).toBe('23');
-    expect(runner.getStorage('passed')).toBe(true);
+    expect(runner.getGlobal('text')).toBe('42');
+    expect(runner.getGlobal('number')).toBe(42);
+    expect(runner.getGlobal('flag')).toBe(false);
+    expect(runner.getGlobal('word')).toBe('false');
+    expect(runner.getGlobal('absent')).toBeUndefined();
+    expect(runner.getGlobal('updated')).toBe(7);
+    expect(runner.getGlobal('updated_text')).toBe('23');
+    expect(runner.getGlobal('passed')).toBe(true);
   });
 
   it('retains caller locals across recursion, dialogue, and choices', () => {
@@ -89,7 +89,7 @@ describe('RPGScript call-local arguments', () => {
     runner.choose(0);
     runner.advance();
     expect(runner.isIdle()).toBe(true);
-    expect(runner.getStorage('value')).toBeUndefined();
+    expect(runner.getGlobal('value')).toBeUndefined();
   });
 
   it('resolves caller arguments once and keeps separate runners isolated', () => {
@@ -102,7 +102,7 @@ describe('RPGScript call-local arguments', () => {
     );
     const first = new ScriptRunner(library);
     const second = new ScriptRunner(library);
-    first.setStorage('global', '[value]');
+    first.setGlobal('global', '[value]');
     first.start('start', ['{global}']);
     second.start('start', ['other']);
     expect(first.dialogue?.text).toBe('{global}|{global} [value]');

@@ -361,6 +361,13 @@ export class ScriptRunner<Host> {
     private readonly options: RunnerOptions<Host>,
   ) {}
 
+  /** Script-visible variables live under `global.`; engine keys such as `dialogue.active` stay raw. */
+  getGlobal(key: string): RuntimeValue {
+    return this.storage.get(`global.${key}`);
+  }
+  setGlobal(key: string, value: RuntimeValue): void {
+    this.storage.set(`global.${key}`, value);
+  }
   getStorage(key: string): RuntimeValue {
     return this.storage.get(key);
   }
@@ -526,7 +533,7 @@ export class ScriptRunner<Host> {
     ) {
       throw new Error('No such RPGScript choice');
     }
-    this.storage.set('lastChoiceIndex', index);
+    this.setGlobal('lastChoiceIndex', index);
     this.choice = undefined;
     const onChoose = this.onChoose;
     this.onChoose = undefined;
@@ -578,9 +585,9 @@ export class ScriptRunner<Host> {
         return list[index];
       }
       if ('expression' in value) return evaluateNumericExpression(value.expression,
-        (name, local) => local ? this.getLocalValue(name) : this.storage.get(name));
+        (name, local) => local ? this.getLocalValue(name) : this.getGlobal(name));
       return 'storageKey' in value
-        ? this.storage.get(value.storageKey)
+        ? this.getGlobal(value.storageKey)
         : this.getLocalValue(value.localName);
     }
     return typeof value === 'string' ? this.interpolate(value) : value;
@@ -590,7 +597,7 @@ export class ScriptRunner<Host> {
     return text.replace(
       valuePlaceholder,
       (_, key: string | undefined, local: string | undefined) => {
-        const value = local === undefined ? this.storage.get(key ?? '') : this.getLocalValue(local);
+        const value = local === undefined ? this.getGlobal(key ?? '') : this.getLocalValue(local);
         return value === undefined ? '' : String(value);
       },
     );
@@ -599,8 +606,8 @@ export class ScriptRunner<Host> {
   private resolve(value: Condition | ScriptValue): RuntimeValue {
     if (typeof value === 'string') {
       const text = this.interpolate(value);
-      return this.storage.has(text)
-        ? this.storage.get(text)
+      return this.storage.has(`global.${text}`)
+        ? this.getGlobal(text)
         : text === 'true'
           ? true
           : text === 'false'
@@ -611,7 +618,7 @@ export class ScriptRunner<Host> {
       if ('literal' in value) return value.literal;
       if ('list' in value || 'indexed' in value) return this.getScriptValue(value);
       if ('expression' in value) return this.getScriptValue(value);
-      if ('storageKey' in value) return this.storage.get(value.storageKey);
+      if ('storageKey' in value) return this.getGlobal(value.storageKey);
       if ('localName' in value) return this.getLocalValue(value.localName);
       throw new Error('Nested condition is not a value');
     }
@@ -683,7 +690,7 @@ export class ScriptRunner<Host> {
     }
     if (type === 'func') {
       const item = this.getScriptValue(args[1] as ScriptValue);
-      const inventory = this.storage.get('vars.inventory');
+      const inventory = this.getGlobal('vars.inventory');
       return typeof item === 'string' && Array.isArray(inventory) && inventory.includes(item);
     }
     const first = args[0];
@@ -691,7 +698,7 @@ export class ScriptRunner<Host> {
       const result =
         typeof first === 'object'
           ? 'storageKey' in first
-            ? Boolean(this.storage.get(first.storageKey))
+            ? Boolean(this.getGlobal(first.storageKey))
             : 'expression' in first
               ? Boolean(this.getScriptValue(first))
             : 'localName' in first
@@ -702,7 +709,7 @@ export class ScriptRunner<Host> {
             : first === 'false'
               ? false
               : typeof first === 'string'
-                ? Boolean(this.storage.get(this.interpolate(first)))
+                ? Boolean(this.getGlobal(this.interpolate(first)))
                 : Boolean(first);
       return type === 'is' ? result : !result;
     }
@@ -838,6 +845,8 @@ export class ScriptRunner<Host> {
       interpolate: (text) => this.interpolate(text),
       setStorage: (key, value) => this.storage.set(key, value),
       getStorage: (key) => this.storage.get(key),
+      setGlobal: (key, value) => this.setGlobal(key, value),
+      getGlobal: (key) => this.getGlobal(key),
       setLocal: (name, value) => {
         requireLocal(name, frame.script.locals, frame.script.file, line);
         frame.locals.set(name, value);
@@ -851,7 +860,7 @@ export class ScriptRunner<Host> {
         const child = this.createFrame(target, args, frame.instanceId, location);
         child.onReturn = (value) => {
           if (local) frame.locals.set(destination, value);
-          else this.storage.set(destination, value);
+          else this.setGlobal(destination, value);
         };
         this.stack.push(child);
       },

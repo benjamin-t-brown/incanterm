@@ -37,9 +37,9 @@ it('stops a waited walk in place and lets the waiting script continue', () => {
   runner.start('start');
   expect(hero.isWalking()).toBe(false);
   expect(hero.x).toBe(0);
-  expect(runner.getStorage('continued')).toBeUndefined();
+  expect(runner.getGlobal('continued')).toBeUndefined();
   runner.update();
-  expect(runner.getStorage('continued')).toBe(true);
+  expect(runner.getGlobal('continued')).toBe(true);
   scene.update(200);
   expect(hero.x).toBe(0);
 });
@@ -58,7 +58,7 @@ it('stops mid-walk without retrying toward the marker', () => {
   runner.update();
   expect(hero.isWalking()).toBe(false);
   expect(hero.x).toBe(2);
-  expect(runner.getStorage('continued')).toBe(true);
+  expect(runner.getGlobal('continued')).toBe(true);
   scene.update(200);
   expect(hero.x).toBe(2);
 });

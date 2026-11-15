@@ -26,13 +26,13 @@ it('walks relative to the character and waits for arrival', () => {
     '@start(dx, dy)\n+walkToOffset(player, [dx], [dy])\n+setStorage(arrived, true)',
   );
   runner.start('start', [2, -1]);
-  expect(runner.getStorage('arrived')).toBeUndefined();
+  expect(runner.getGlobal('arrived')).toBeUndefined();
   control.click(0, 0, () => false);
   scene.update(200);
   control.update();
   runner.update();
   expect({ x: hero.x, y: hero.bottomY }).toEqual({ x: 4, y: 1 });
-  expect(runner.getStorage('arrived')).toBe(true);
+  expect(runner.getGlobal('arrived')).toBe(true);
 });
 
 it('skipWait continues while the walk remains protected from clicks', () => {
@@ -40,7 +40,7 @@ it('skipWait continues while the walk remains protected from clicks', () => {
     '@start\n+walkToOffset(hero, -2, 1, true)\n+setStorage(started, true)',
   );
   runner.start('start');
-  expect(runner.getStorage('started')).toBe(true);
+  expect(runner.getGlobal('started')).toBe(true);
   control.click(7, 4, () => false);
   scene.update(200);
   expect({ x: hero.x, y: hero.bottomY }).toEqual({ x: 0, y: 3 });
@@ -74,7 +74,7 @@ it('retries unreachable destinations and interrupted walks without errors', () =
       vi.advanceTimersByTime(100);
       runner.update();
     }
-    expect(runner.getStorage('continued')).toBe(true);
+    expect(runner.getGlobal('continued')).toBe(true);
 
     const walk = createOffsetRunner('@start\n+walkToOffset(hero, 2, 0)\n+setStorage(continued, true)');
     walk.runner.start('start');
@@ -84,7 +84,7 @@ it('retries unreachable destinations and interrupted walks without errors', () =
     walk.runner.update();
     walk.scene.update(200);
     walk.runner.update();
-    expect(walk.runner.getStorage('continued')).toBe(true);
+    expect(walk.runner.getGlobal('continued')).toBe(true);
   } finally {
     vi.useRealTimers();
   }

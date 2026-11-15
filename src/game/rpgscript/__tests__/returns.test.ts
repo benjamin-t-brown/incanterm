@@ -13,10 +13,10 @@ it('captures returned globals into a declared local on each call', () => {
   +a={a} + 1
   <{a}`, 'returns.rpgscript'));
   runner.start('testReturn1');
-  expect(runner.getStorage('result')).toBe(2);
-  expect(runner.getStorage('local')).toBeUndefined();
+  expect(runner.getGlobal('result')).toBe(2);
+  expect(runner.getGlobal('local')).toBeUndefined();
   runner.start('testReturn1');
-  expect(runner.getStorage('result')).toBe(3);
+  expect(runner.getGlobal('result')).toBe(3);
 });
 
 it('returns early from conditional blocks and preserves caller locals', () => {
@@ -32,8 +32,8 @@ it('returns early from conditional blocks and preserves caller locals', () => {
   }
   <0`, 'returns.rpgscript'));
   runner.start('start');
-  expect(runner.getStorage('result')).toBe(22);
-  expect(runner.getStorage('unreachable')).toBeUndefined();
+  expect(runner.getGlobal('result')).toBe(22);
+  expect(runner.getGlobal('unreachable')).toBeUndefined();
 });
 
 it.each([
@@ -41,15 +41,15 @@ it.each([
 ])('returns a typed value: <%s', (value, expected) => {
   const runner = new ScriptRunner(parseRpgScript(`@start\n+result<+:child();\n@child\n<${value}`, 'returns.rpgscript'));
   runner.start('start');
-  expect(runner.getStorage('result')).toBe(expected);
+  expect(runner.getGlobal('result')).toBe(expected);
 });
 
 it('returns undefined at the end and discards uncaptured returns', () => {
   const runner = new ScriptRunner(parseRpgScript('@start\n+[value]=1\n+[value]<+:empty();\n+result=[value]\n+:other()\n+continued=true\n@empty\n@other\n<2\n+unreachable=true', 'returns.rpgscript'));
   runner.start('start');
-  expect(runner.getStorage('result')).toBeUndefined();
-  expect(runner.getStorage('continued')).toBe(true);
-  expect(runner.getStorage('unreachable')).toBeUndefined();
+  expect(runner.getGlobal('result')).toBeUndefined();
+  expect(runner.getGlobal('continued')).toBe(true);
+  expect(runner.getGlobal('unreachable')).toBeUndefined();
 });
 
 it('resumes the caller only after the callee finishes waiting and returns', () => {
@@ -66,10 +66,10 @@ it('resumes the caller only after the callee finishes waiting and returns', () =
   });
   runner.start('start');
   expect(runner.isIdle()).toBe(false);
-  expect(runner.getStorage('result')).toBeUndefined();
+  expect(runner.getGlobal('result')).toBeUndefined();
   ready = true;
   runner.update();
-  expect(runner.getStorage('result')).toBe(42);
+  expect(runner.getGlobal('result')).toBe(42);
   expect(runner.isIdle()).toBe(true);
 });
 

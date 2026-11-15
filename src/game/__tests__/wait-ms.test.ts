@@ -37,14 +37,14 @@ it('waits the requested milliseconds before continuing', () => {
   vi.setSystemTime(1_000);
   const { runner, storage } = createWaitRunner('@start\n+waitMs(33)\n+done=true');
   runner.start('start');
-  expect(storage.get('done')).toBeUndefined();
+  expect(storage.get('global.done')).toBeUndefined();
   expect(runner.isIdle()).toBe(false);
   vi.setSystemTime(1_032);
   runner.update();
-  expect(storage.get('done')).toBeUndefined();
+  expect(storage.get('global.done')).toBeUndefined();
   vi.setSystemTime(1_033);
   runner.update();
-  expect(storage.get('done')).toBe(true);
+  expect(storage.get('global.done')).toBe(true);
   expect(runner.isIdle()).toBe(true);
 });
 

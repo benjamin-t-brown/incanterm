@@ -34,12 +34,12 @@ timer,classroom1Updater,Ralgo,2000
     runner.restartTimers(['classroom1Update']);
     runner.updateTimers(2000);
     expect(errors).toEqual([]);
-    expect(runner.getStorage('vars.rand100')).toBeUndefined();
-    runner.setStorage('classroom1.enableRalgoMove', true);
+    expect(runner.getGlobal('vars.rand100')).toBeUndefined();
+    runner.setGlobal('classroom1.enableRalgoMove', true);
     for (let index = 0; index < 10; index++) runner.updateTimers(2000);
 
     expect(errors).toEqual([]);
-    expect(runner.getStorage('vars.rand100')).toBe(Math.floor(random * 100) + 1);
-    expect(runner.getStorage('result')).toBe(random < 0.99 ? 'move' : undefined);
+    expect(runner.getGlobal('vars.rand100')).toBe(Math.floor(random * 100) + 1);
+    expect(runner.getGlobal('result')).toBe(random < 0.99 ? 'move' : undefined);
   });
 });
