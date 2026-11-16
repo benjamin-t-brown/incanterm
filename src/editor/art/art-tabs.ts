@@ -1,5 +1,7 @@
 import { isAssetId, parseSprite, type SpriteCell, type SpriteDocument } from '../schema.js';
 
+export { addOpenTab } from '../tab-order.js';
+
 export const LAST_SPRITE_KEY = 'incanterm-editor-last-sprite';
 export const OPEN_SPRITES_KEY = 'incanterm-editor-open-sprites';
 export const ART_TAB_STORE_VERSION = 1;
@@ -76,11 +78,6 @@ export function getDefaultArtTabChrome(): ArtTabChrome {
 
 export function createEmptyArtTabStore(): ArtTabStore {
   return { version: ART_TAB_STORE_VERSION, tabs: [], active: null, sessions: {} };
-}
-
-export function addOpenTab(tabs: readonly string[], id: string): string[] {
-  if (!isAssetId(id) || tabs.includes(id)) return [...tabs];
-  return [...tabs, id];
 }
 
 export function closeOpenTab(tabs: readonly string[], id: string): string[] {

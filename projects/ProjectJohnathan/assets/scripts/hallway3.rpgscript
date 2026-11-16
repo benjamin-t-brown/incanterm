@@ -43,26 +43,27 @@
   Ada: "Did you find it yet?"
   +setAnimState(Skye, search look)
   Skye: "I know it's in here somewhere... just let me keep looking."
-  Ada: "You really should consider being more organized. Your locker is starting to smell, and I do not want to have to endure that every time I come here."
+  Ada&sigh: "You really should consider being more organized. Your locker is starting to smell, and I do not want to have to endure that every time I come over here."
   Skye: "That's just my lunch."
-  Ada: "Are you perchance eating moldy bread with wet socks wrapped around it?"
-  Skye: "It's not that bad. "
+  Ada&talking: "Are you perchance eating moldy bread with wet socks wrapped around it?"
+  Skye&angry: "It's not that bad. I haven't had a chance to eat it since you've kept me here looking for your book."
+  Ada: "It hardly seems appetizing at this point."
   +setAnimState(Skye, idle)
-  Skye: "I guess my gym clothes are on top... But I need them for class!"
+  Skye: "I guess my gym clothes are in here too... But I need them for class!"
   +setConv()
-  Johnathan: "Hello! I see everything is normal today."
+  Johnathan: "Hello! I see everything is normal with you today."
   +:ld(Ada, down)
-  Ada: "Unfortunately, yes it is."
-  +:ld(Ada, left)
+  Ada&sigh: "Unfortunately, yes it is."
   Ada: "Skye has my physics text book and I need it for homework tonight."
   +setConv2(Skye, Ada)
   +walkToOffset(Skye, 1, 0)
-  Skye: "Oh c'mon. You're always doing homework. That's like all you ever do. Can't you go one night without a stupid book?"
-  Ada: "When I lend you something I expect it back. It should be that simple."
+  +:ld(Ada, left)
+  Skye&angry: "Oh c'mon. You're always doing homework. That's like all you ever do. Can't you go one night without a stupid book?"
+  Ada&sigh: "When I lend you something, I expect it back. It should be that simple."
   +walkToOffset(Skye, -1, 0)
   +:ld(Skye, right)
   +setAnimState(Skye, search up)
-  Skye: "Fine. Let me keep looking."
+  Skye&sigh: "Fiinne. I'll keep looking."
   +setConv()
   Johnathan: "I'll... uh... leave you to it."
   +endConv()
@@ -70,8 +71,8 @@
 @hallway3_AdaSkye2
   +setConv2(Skye, Ada)
   +:ld(Ada, left)
-  Ada: "I do not plan on leaving until you find that book."
+  Ada&talking: "I do not plan on leaving until you find that book."
   +setAnimState(Skye, search look)
-  Skye: "I know, I know. Geez you're so stubborn."
+  Skye&sigh: "I know, I know. Geez you're so stubborn."
   +setAnimState(Skye, search up)
   +endConv()

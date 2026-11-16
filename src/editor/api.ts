@@ -187,6 +187,19 @@ async function handleAnimationFoldersRequest(
         await store.changeAnimationFolders({ action: 'move', id: body.id, folder: body.folder }),
       );
     if (
+      body.action === 'move-folder' &&
+      typeof body.folder === 'string' &&
+      typeof body.parent === 'string'
+    )
+      return getJson(
+        200,
+        await store.changeAnimationFolders({
+          action: 'move-folder',
+          folder: body.folder,
+          parent: body.parent,
+        }),
+      );
+    if (
       (body.action === 'create' || body.action === 'rename') &&
       typeof body.folder === 'string' &&
       typeof body.name === 'string'
@@ -227,39 +240,62 @@ async function handleSceneFoldersRequest(
   rawBody: string | Buffer,
   kind: 'scenes' | 'sprites' | 'props' | 'characters' | 'items',
 ): Promise<AssetResponse> {
-  const getFolders = () => ({
-    scenes: () => store.getSceneFolders(),
-    sprites: () => store.getSpriteFolders(),
-    props: () => store.getPropFolders(),
-    characters: () => store.getCharacterFolders(),
-    items: () => store.getItemFolders(),
-  })[kind]();
-  const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) => ({
-    scenes: () => store.changeSceneFolders(change),
-    sprites: () => store.changeSpriteFolders(change),
-    props: () => store.changePropFolders(change),
-    characters: () => store.changeCharacterFolders(change),
-    items: () => store.changeItemFolders(change),
-  })[kind]();
+  const getFolders = () =>
+    ({
+      scenes: () => store.getSceneFolders(),
+      sprites: () => store.getSpriteFolders(),
+      props: () => store.getPropFolders(),
+      characters: () => store.getCharacterFolders(),
+      items: () => store.getItemFolders(),
+    })[kind]();
+  const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) =>
+    ({
+      scenes: () => store.changeSceneFolders(change),
+      sprites: () => store.changeSpriteFolders(change),
+      props: () => store.changePropFolders(change),
+      characters: () => store.changeCharacterFolders(change),
+      items: () => store.changeItemFolders(change),
+    })[kind]();
   if (method === 'GET') return getJson(200, await getFolders());
   if (method !== 'POST') return getJson(405, { error: 'Method not allowed' });
   const body = getRecord(parseJson(rawBody));
   if (body.action === 'move' && typeof body.id === 'string' && typeof body.folder === 'string')
     return getJson(200, await changeFolders({ action: 'move', id: body.id, folder: body.folder }));
   if (
-    (body.action === 'create' || body.action === 'rename') &&
-    typeof body.folder === 'string' && typeof body.name === 'string'
+    body.action === 'move-folder' &&
+    typeof body.folder === 'string' &&
+    typeof body.parent === 'string'
   )
-    return getJson(200, await changeFolders({ action: body.action, folder: body.folder, name: body.name }));
+    return getJson(
+      200,
+      await changeFolders({ action: 'move-folder', folder: body.folder, parent: body.parent }),
+    );
   if (
-    body.action === 'delete' && typeof body.folder === 'string' &&
-    Array.isArray(body.expectedIds) && body.expectedIds.every((id) => typeof id === 'string') &&
-    Array.isArray(body.expectedFolders) && body.expectedFolders.every((folder) => typeof folder === 'string')
+    (body.action === 'create' || body.action === 'rename') &&
+    typeof body.folder === 'string' &&
+    typeof body.name === 'string'
   )
-    return getJson(200, await changeFolders({
-      action: 'delete', folder: body.folder,
-      expectedIds: body.expectedIds, expectedFolders: body.expectedFolders,
-    }));
+    return getJson(
+      200,
+      await changeFolders({ action: body.action, folder: body.folder, name: body.name }),
+    );
+  if (
+    body.action === 'delete' &&
+    typeof body.folder === 'string' &&
+    Array.isArray(body.expectedIds) &&
+    body.expectedIds.every((id) => typeof id === 'string') &&
+    Array.isArray(body.expectedFolders) &&
+    body.expectedFolders.every((folder) => typeof folder === 'string')
+  )
+    return getJson(
+      200,
+      await changeFolders({
+        action: 'delete',
+        folder: body.folder,
+        expectedIds: body.expectedIds,
+        expectedFolders: body.expectedFolders,
+      }),
+    );
   return getJson(400, { error: 'Invalid folder operation' });
 }
 

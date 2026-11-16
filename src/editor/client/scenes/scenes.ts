@@ -94,6 +94,8 @@ import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { renderTabCloseActions } from '../tab-close-actions.js';
+import { renderTabReordering } from '../tab-reordering.js';
+import { addOpenTab } from '../../tab-order.js';
 import { createSceneEntityPicker, type EntityPickerPreview } from './entity-picker.js';
 
 type ObjectRef = SceneObjectRef;
@@ -440,7 +442,8 @@ export function mountScenes(root: HTMLElement): () => void {
     }
     for (const id of openTabs) {
       const tab = document.createElement('div');
-      tab.className = 'scene-tab';
+      tab.className = 'scene-tab editor-document-tab';
+      tab.dataset.tabId = id;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
@@ -469,6 +472,14 @@ export function mountScenes(root: HTMLElement): () => void {
       tab.append(label, close);
       host.append(tab);
     }
+    renderTabReordering(host, {
+      tabs: openTabs,
+      onReorder: (tabs) => {
+        openTabs = tabs;
+        persistTabs();
+        renderTabs();
+      },
+    });
   }
   function activateScene(scene: SceneDocument, baseline: SceneDocument | null): void {
     stashCurrent();
@@ -477,7 +488,7 @@ export function mountScenes(root: HTMLElement): () => void {
     showUi = uiPreferences[scene.id] ?? false;
     showUiInput.checked = showUi;
     saved = baseline;
-    if (!openTabs.includes(scene.id)) openTabs.push(scene.id);
+    openTabs = addOpenTab(openTabs, scene.id);
     backgroundEdit = false;
     blockedEdit = false;
     blockStroke = null;

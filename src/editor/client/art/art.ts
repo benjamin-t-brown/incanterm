@@ -1719,7 +1719,8 @@ export function mountArt(root: HTMLElement): () => void {
     }
     for (const id of openTabs) {
       const tab = document.createElement('div');
-      tab.className = 'document-tab';
+      tab.className = 'document-tab editor-document-tab';
+      tab.dataset.tabId = id;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(id === spriteId));
       if (id === spriteId) tab.classList.add('current');
@@ -1752,6 +1753,14 @@ export function mountArt(root: HTMLElement): () => void {
       });
       host.append(tab);
     }
+    renderTabReordering(host, {
+      tabs: openTabs,
+      onReorder: (tabs) => {
+        openTabs = tabs;
+        flushPersist();
+        renderTabs();
+      },
+    });
   }
   async function activateSprite(id: string): Promise<boolean> {
     if (id === spriteId) return true;
@@ -4235,3 +4244,4 @@ function getArtMarkup(): string {
   </div>`;
 }
 import { renderTabCloseActions } from '../tab-close-actions.js';
+import { renderTabReordering } from '../tab-reordering.js';

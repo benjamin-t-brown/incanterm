@@ -74,6 +74,18 @@ input {
 .editor-tab-strip > [role='tablist'] > :first-child {
   margin-left: auto;
 }
+.editor-document-tab[draggable='true'] > button:first-child {
+  cursor: grab;
+}
+.editor-document-tab.editor-tab-dragging {
+  opacity: 0.5;
+}
+.editor-document-tab.editor-tab-drop-before {
+  box-shadow: inset 3px 0 0 var(--highlight);
+}
+.editor-document-tab.editor-tab-drop-after {
+  box-shadow: inset -3px 0 0 var(--highlight);
+}
 .editor-tab-close-actions {
   display: flex;
   flex: none;

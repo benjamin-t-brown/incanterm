@@ -46,6 +46,7 @@ import {
   getParentFolder,
   parseAssetFolders,
   type AssetFolders,
+  type AssetFolderChange,
 } from './asset-folders.js';
 import { SaveConflict, SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
 import { parseItem, type ItemDocument } from './items/item-schema.js';
@@ -72,10 +73,6 @@ export type AudioFile = {
 const AUDIO_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(wav|ogg|mp3)$/i;
 
 type AssetFolderKind = 'animations' | 'scenes' | 'sprites' | 'props' | 'characters' | 'items';
-type AssetFolderChange =
-  | { action: 'create' | 'rename'; folder: string; name: string }
-  | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
-  | { action: 'move'; id: string; folder: string };
 
 export class AssetStore {
   private readonly saves = new SaveCoordinator();
@@ -384,30 +381,15 @@ export class AssetStore {
     return path.join(this.root, `${kind.slice(0, -1)}-folders.json`);
   }
 
-  async changeAnimationFolders(
-    change:
-      | { action: 'create' | 'rename'; folder: string; name: string }
-      | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
-      | { action: 'move'; id: string; folder: string },
-  ): Promise<AssetFolders> {
+  async changeAnimationFolders(change: AssetFolderChange): Promise<AssetFolders> {
     return this.changeAssetFolders('animations', change);
   }
 
-  async changeSceneFolders(
-    change:
-      | { action: 'create' | 'rename'; folder: string; name: string }
-      | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
-      | { action: 'move'; id: string; folder: string },
-  ): Promise<AssetFolders> {
+  async changeSceneFolders(change: AssetFolderChange): Promise<AssetFolders> {
     return this.changeAssetFolders('scenes', change);
   }
 
-  async changeSpriteFolders(
-    change:
-      | { action: 'create' | 'rename'; folder: string; name: string }
-      | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
-      | { action: 'move'; id: string; folder: string },
-  ): Promise<AssetFolders> {
+  async changeSpriteFolders(change: AssetFolderChange): Promise<AssetFolders> {
     return this.changeAssetFolders('sprites', change);
   }
 
@@ -428,10 +410,7 @@ export class AssetStore {
 
   private async changeAssetFolders(
     kind: AssetFolderKind,
-    change:
-      | { action: 'create' | 'rename'; folder: string; name: string }
-      | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
-      | { action: 'move'; id: string; folder: string },
+    change: AssetFolderChange,
   ): Promise<AssetFolders> {
     const indexPath = this.getAssetFoldersPath(kind);
     const getFolders = () => this.getAssetFolders(kind);
@@ -496,15 +475,29 @@ export class AssetStore {
         else await this.readSprite(change.id);
         if (change.folder) tree.placements[change.id] = change.folder;
         else delete tree.placements[change.id];
-      } else if (change.action === 'create' || change.action === 'rename') {
-        if (!isAssetId(change.name)) throw new AssetError('Use a short lowercase folder name', 400);
-        const parent = change.action === 'create' ? change.folder : getParentFolder(change.folder);
+      } else {
+        const name =
+          change.action === 'move-folder'
+            ? change.folder.slice(change.folder.lastIndexOf('/') + 1)
+            : change.name;
+        if (!isAssetId(name)) throw new AssetError('Use a short lowercase folder name', 400);
+        const parent =
+          change.action === 'move-folder'
+            ? change.parent
+            : change.action === 'create'
+              ? change.folder
+              : getParentFolder(change.folder);
         if (parent && !tree.folders.includes(parent)) throw new AssetError('Folder not found', 404);
-        if (change.action === 'rename' && !tree.folders.includes(change.folder))
+        if (change.action !== 'create' && !tree.folders.includes(change.folder))
           throw new AssetError('Folder not found', 404);
-        const next = parent ? `${parent}/${change.name}` : change.name;
+        if (
+          change.action === 'move-folder' &&
+          (parent === change.folder || parent.startsWith(`${change.folder}/`))
+        )
+          throw new AssetError('Cannot move a folder into itself or its descendants', 400);
+        const next = parent ? `${parent}/${name}` : name;
         if (!isFolderPath(next)) throw new AssetError('Folder path is too long', 400);
-        if (change.action === 'rename' && next === change.folder) return tree;
+        if (change.action !== 'create' && next === change.folder) return tree;
         if (tree.folders.includes(next)) throw new AssetError('Folder already exists', 409);
         if (change.action === 'create') tree.folders.push(next);
         else {

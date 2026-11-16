@@ -4,6 +4,23 @@
   "id": "105487d2-b352-4718-8e6d-edad7b5347bf",
   "label": "skye3x3",
   "scriptName": "Skye",
+  "portraits": [
+    {
+      "facing": "right",
+      "emotion": "",
+      "portrait": "1045ea63-369e-481f-abc1-87b0fa12c489_0"
+    },
+    {
+      "facing": "right",
+      "emotion": "angry",
+      "portrait": "1045ea63-369e-481f-abc1-87b0fa12c489_1"
+    },
+    {
+      "facing": "right",
+      "emotion": "sigh/bored",
+      "portrait": "1045ea63-369e-481f-abc1-87b0fa12c489_2"
+    }
+  ],
   "defaultFacing": "down",
   "animations": {
     "idle-up": "5c49d919-4f27-4e90-b130-ac1de68e4aa0",

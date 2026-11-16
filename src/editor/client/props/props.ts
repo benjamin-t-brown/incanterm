@@ -301,7 +301,8 @@ export function mountProps(root: HTMLElement): () => void {
     }
     for (const id of openTabs) {
       const tab = document.createElement('div');
-      tab.className = 'prop-tab';
+      tab.className = 'prop-tab editor-document-tab';
+      tab.dataset.tabId = id;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
@@ -331,6 +332,14 @@ export function mountProps(root: HTMLElement): () => void {
       tab.append(label, close);
       host.append(tab);
     }
+    renderTabReordering(host, {
+      tabs: openTabs,
+      onReorder: (tabs) => {
+        openTabs = tabs;
+        persistTabs();
+        renderTabs();
+      },
+    });
   }
   function activateProp(prop: PropDocument, baseline: PropDocument | null): void {
     if (current) sessions.set(current.id, { doc: current, saved });
@@ -339,7 +348,7 @@ export function mountProps(root: HTMLElement): () => void {
     if (baseline && !baseline.customAnimations) baseline.customAnimations = {};
     current = prop;
     saved = baseline;
-    if (!openTabs.includes(prop.id)) openTabs.push(prop.id);
+    openTabs = addOpenTab(openTabs, prop.id);
     setEditorAssetUrl(baseline ? prop.id : null);
     render();
     persistTabs();
@@ -1305,3 +1314,5 @@ export function mountProps(root: HTMLElement): () => void {
   };
 }
 import { renderTabCloseActions } from '../tab-close-actions.js';
+import { renderTabReordering } from '../tab-reordering.js';
+import { addOpenTab } from '../../tab-order.js';

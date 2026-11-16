@@ -5,6 +5,12 @@ export type AssetFolders = {
   placements: Record<string, string>;
 };
 
+export type AssetFolderChange =
+  | { action: 'create' | 'rename'; folder: string; name: string }
+  | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
+  | { action: 'move'; id: string; folder: string }
+  | { action: 'move-folder'; folder: string; parent: string };
+
 export function isFolderPath(value: string): boolean {
   return value.length <= 256 && value.split('/').every(isAssetId);
 }

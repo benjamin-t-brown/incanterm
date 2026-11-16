@@ -9,11 +9,21 @@ Rooms
     - Not too difficult of puzzle, thought something to set tone
 
   - Quest item give chain
-    - The automatic door to the office is broken, Johanthan can talk to the PA who says they called maintenance but they haven't showed up yet.  They ask Johnathan to go to maintenance to see.
-    - Maintenance is not at their post, so Johnathan calls the office, and he is asked to fix it himself.  To do so he needs an access card to reset the system.  The office checks and says that these are given out upon request, all the maintenance people have it, but also one was given to Otis.
-    - Otis is cagey about the pass, but agrees to give it if he asks his sister Vivi out.  Johanthan goes and asks Vivi out, who tells him no, initially.  Otis is mad so he goes off to tell Vivi off. He tells Johanthan that he gave the pass to Skye.  
-    - Skye is talking with Ada at her locker.  She remembers Otis giving her the pass and says that she wants him to get her a soda from the vending machine, then she'll give him the pass.  Johnathan doesn't have any money though, and she suggests asking the the cafeteria for any loose change.
-    - Skye got the pass to get her out of detention, but she forgot where she put it.  She thinks she maybe left it in classroom 8 where her last class was.
+    - Mr Ralgo tells Johnathan to take the Office Envelope to the office.
+    - On the way, Otis waylays him and convinces him to ask his sister Vivi out on a date.  He runs off to get her.
+    - Johnathan goes to the Office and discovers The automatic door to the office is broken/blocked by some security measure. Johanthan can talk to the PA who says they called maintenance but they haven't showed up yet.  They ask Johnathan to go to maintenance to see.
+    - Maintenance is not at their post, so Johnathan calls the office, and he is asked to fix it himself.  To do so he needs an access card to reset the system.
+      - Johnathan can contact the The Office from there (or the terminal by the lift) and they check and says that these are given out upon request, all the maintenance people have it, but also one seems to have gone missing.
+        - Otis is the one who has stolen the pass
+    - Johnathan discovers that the maintenance people are all working on the broken elevator in the school, and don't have time to figure out how to give him a pass.  He'll have to find the missing one.  A bystander, Haddy, insinuates that Otis might be involved.
+    - Johnathan goes back to Otis, who won't talk about anything unless he asks Vivi out
+    - Johnathan goes and asks her out.  She denies him awkwardly, Johnathan returns to Otis, who is furious with her.  He runs off to confront her and they get into a big argument that causes Vivi to storm off.
+    - Otis is apologetic and Johnathan asks him about the pass.  Otis says he gave it to Skye.  
+    - Skye is talking with Ada at her locker.  She has misplaced a book Ada wants.  Ada wont let Johnathan talk to her until she finds the book.
+    - Johnathan can find the book in the library's returned books bin
+    - Returning the book gets Ada to leave and he can talk to Skye. She remembers Otis giving her the pass and says that she can't remember what she did with it.  But if she had an energy drink she might remember! She wants him to get her a soda from the vending machine, then she'll give him the pass.  Johnathan doesn't have any money though, and she suggests asking around for any loose change.
+    - Loose change can be found in one of the trash cans, it's always the last one searched.
+    - Once she drinks the soda, she remembers she got the pass to get her out of detention, but she forgot where she put it.  She thinks she maybe left it in classroom 8 where her last class was.
     - In classroom 8 Iroha tells Johnathan that anything left in the classroom after class is taken to the lost and found in the office.
     - Johnathan goes back to the PA and has the office person find the pass and reset the system from her end.
 

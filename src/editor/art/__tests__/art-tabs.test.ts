@@ -53,7 +53,7 @@ describe('art tab list', () => {
     expect(addOpenTab([], 'crate')).toEqual(['crate']);
     expect(addOpenTab(['crate'], 'crate')).toEqual(['crate']);
     expect(addOpenTab(['crate'], 'Nope')).toEqual(['crate']);
-    expect(addOpenTab(['crate'], 'test1')).toEqual(['crate', 'test1']);
+    expect(addOpenTab(['crate'], 'test1')).toEqual(['test1', 'crate']);
   });
 
   it('closes and renames tabs without leaving duplicates', () => {

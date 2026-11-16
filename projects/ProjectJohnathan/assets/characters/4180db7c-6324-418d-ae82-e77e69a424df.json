@@ -4,6 +4,28 @@
   "id": "4180db7c-6324-418d-ae82-e77e69a424df",
   "label": "ada3x3_ch",
   "scriptName": "Ada,Adalais",
+  "portraits": [
+    {
+      "facing": "left",
+      "emotion": "talking/lecture",
+      "portrait": "9090b689-1ea3-421a-bbbb-17e4d0cc780a_0"
+    },
+    {
+      "facing": "left",
+      "emotion": "think/sigh/weary",
+      "portrait": "9090b689-1ea3-421a-bbbb-17e4d0cc780a_1"
+    },
+    {
+      "facing": "left",
+      "emotion": "",
+      "portrait": "9090b689-1ea3-421a-bbbb-17e4d0cc780a_2"
+    },
+    {
+      "facing": "right",
+      "emotion": "",
+      "portrait": "9090b689-1ea3-421a-bbbb-17e4d0cc780a_3"
+    }
+  ],
   "defaultFacing": "down",
   "animations": {
     "idle-up": "5408a4c0-98af-4dbc-8092-9af2d28afda1",

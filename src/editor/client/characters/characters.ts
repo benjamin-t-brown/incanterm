@@ -97,14 +97,23 @@ export function mountCharacters(root: HTMLElement): () => void {
      <dialog id="character-portrait-dialog" aria-labelledby="character-portrait-title">
        <form id="character-portrait-form">
          <h2 id="character-portrait-title">ADD PORTRAIT</h2>
-          <label>EMOTION / ALIASES <input id="portrait-emotion" class="text-input" placeholder="Default (blank), or happy,smile/joy" title="Separate emotion aliases with a comma or /" spellcheck="false"></label>
-          <fieldset class="portrait-direction"><legend>DIRECTION</legend><label><input id="portrait-direction-left" type="radio" name="portrait-direction" value="left"> LEFT</label><label><input id="portrait-direction-right" type="radio" name="portrait-direction" value="right" checked> RIGHT</label></fieldset>
-         <label>SPRITE / ANIMATION <select id="portrait-kind" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
-         <input id="portrait-search" class="text-input" type="search" placeholder="Search sprites…" aria-label="Search portrait assets">
-         <div id="portrait-results" class="portrait-results" aria-label="Portrait assets"></div>
-          <div id="portrait-frame-label" hidden><h3 id="portrait-frames-title">SPRITE FRAME</h3><div id="portrait-frame" class="portrait-frame-grid" role="group" aria-labelledby="portrait-frames-title"></div></div>
-         <canvas id="portrait-preview" width="320" height="180" aria-label="Selected portrait preview"></canvas>
-         <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
+          <div class="portrait-identity">
+           <label>EMOTION / ALIASES <input id="portrait-emotion" class="text-input" placeholder="Default (blank), or happy,smile/joy" title="Separate emotion aliases with a comma or /" spellcheck="false"></label>
+           <fieldset class="portrait-direction"><legend>DIRECTION</legend><label><input id="portrait-direction-left" type="radio" name="portrait-direction" value="left"> LEFT</label><label><input id="portrait-direction-right" type="radio" name="portrait-direction" value="right" checked> RIGHT</label></fieldset>
+          </div>
+          <label>SPRITE / ANIMATION <select id="portrait-kind" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
+          <div class="portrait-picker-layout">
+           <section class="portrait-library" aria-label="Portrait asset browser">
+            <input id="portrait-search" class="text-input" type="search" placeholder="Search sprites…" aria-label="Search portrait assets">
+            <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"></div></div>
+            <div id="portrait-results" class="portrait-results" aria-label="Portrait assets"></div>
+           </section>
+           <section class="portrait-selection" aria-label="Portrait frames and preview">
+            <div id="portrait-frame-label" hidden><h3 id="portrait-frames-title">SPRITE FRAME</h3><div id="portrait-frame" class="portrait-frame-grid" role="group" aria-labelledby="portrait-frames-title"></div></div>
+            <canvas id="portrait-preview" width="320" height="180" aria-label="Selected portrait preview"></canvas>
+            <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
+           </section>
+          </div>
          <div class="portrait-actions"><button id="portrait-okay" type="submit" disabled>OK</button><button id="portrait-cancel" type="button">CANCEL</button></div>
        </form>
      </dialog>
@@ -183,9 +192,20 @@ export function mountCharacters(root: HTMLElement): () => void {
   let spriteLabels: Record<string, string> = {};
   let clipLabels: Record<string, string> = {};
   let animationFolders: AssetFolders = { folders: [], placements: {} };
+  let spriteFolders: AssetFolders = { folders: [], placements: {} };
   let palette: PaletteDocument | null = null;
   const portraitSprites = new Map<string, Promise<SpriteDocument>>();
   const portraitAnimations = new Map<string, Promise<AnimationDocument>>();
+  const portraitTree = createAssetTree({
+    list: portraitResults,
+    search: portraitSearch,
+    label: 'ASSETS',
+    storageKey: 'incanterm-portrait-folders-expanded',
+    readOnly: true,
+    onSelect: (id) => {
+      void showPortraitChoice({ kind: portraitKind.value as 'sprite' | 'animation', id, index: 0 });
+    },
+  });
   let current: CharacterDocument | null = null;
   let selectedVariant: string | undefined;
   let saved: CharacterDocument | null = null;
@@ -354,7 +374,8 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
     for (const id of openTabs) {
       const tab = document.createElement('div');
-      tab.className = 'prop-tab';
+      tab.className = 'prop-tab editor-document-tab';
+      tab.dataset.tabId = id;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(current?.id === id));
       tab.classList.toggle('current', current?.id === id);
@@ -386,6 +407,14 @@ export function mountCharacters(root: HTMLElement): () => void {
       tab.append(label, close);
       host.append(tab);
     }
+    renderTabReordering(host, {
+      tabs: openTabs,
+      onReorder: (tabs) => {
+        openTabs = tabs;
+        persistTabs();
+        renderTabs();
+      },
+    });
   }
   function activateCharacter(doc: CharacterDocument, baseline: CharacterDocument | null): void {
     if (portraitDialog.open) portraitDialog.close();
@@ -394,7 +423,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     current = doc;
     selectedVariant = doc.defaultVariant ?? 'default';
     saved = baseline;
-    if (!openTabs.includes(doc.id)) openTabs.push(doc.id);
+    openTabs = addOpenTab(openTabs, doc.id);
     setEditorAssetUrl(baseline ? doc.id : null);
     render();
     persistTabs();
@@ -765,42 +794,21 @@ export function mountCharacters(root: HTMLElement): () => void {
   }
 
   function renderPortraitResults(): void {
-    portraitResults.replaceChildren();
     if (!portraitDialog.open) return;
     const kind = portraitKind.value as 'sprite' | 'animation';
-    const query = portraitSearch.value.trim().toLowerCase();
-    const ids = kind === 'sprite' ? spriteFiles : clips;
-    const labels = kind === 'sprite' ? spriteLabels : clipLabels;
-    const matches = ids.filter((id) =>
-      id.toLowerCase().includes(query) || (labels[id] ?? '').toLowerCase().includes(query));
-    for (const id of matches.slice(0, 36)) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'portrait-asset-card';
-      button.classList.toggle('active', portraitChoice?.kind === kind && portraitChoice.id === id);
-      button.setAttribute('aria-label', `${labels[id] ?? id} (${kind})`);
-      const thumbnail = document.createElement('canvas');
-      thumbnail.width = 96;
-      thumbnail.height = 60;
-      const title = document.createElement('span');
-      title.textContent = labels[id] ?? 'Unnamed asset';
-      button.append(thumbnail, title);
-      button.addEventListener('click', () => {
-        portraitResults.querySelectorAll('.portrait-asset-card').forEach((card) => {
-          card.classList.toggle('active', card === button);
-        });
-        void showPortraitChoice({ kind, id, index: 0 });
-      });
-      portraitResults.append(button);
-      void drawPortraitAssetThumbnail(thumbnail, kind, id).catch(() => {
-        title.textContent = `${labels[id] ?? id} (unavailable)`;
-      });
-    }
-    if (!matches.length) portraitResults.textContent = 'No matching assets.';
+    portraitSearch.placeholder = kind === 'sprite' ? 'Search sprites…' : 'Search animations…';
+    portraitTree.select(null);
+    portraitTree.setData(
+      kind === 'sprite' ? spriteFiles : clips,
+      kind === 'sprite' ? spriteFolders : animationFolders,
+      kind === 'sprite' ? spriteLabels : clipLabels,
+    );
+    portraitTree.select(portraitChoice?.kind === kind ? portraitChoice.id : null);
   }
 
   async function showPortraitChoice(choice: { kind: 'sprite' | 'animation'; id: string; index: number }): Promise<void> {
     portraitChoice = choice;
+    portraitTree.select(choice.id);
     const token = ++portraitToken;
     clearTimeout(portraitTimer);
     portraitOkay.disabled = true;
@@ -901,24 +909,25 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitChoice = undefined;
     portraitOkay.disabled = true;
     portraitFrameLabel.hidden = true;
+    portraitCanvas.getContext('2d')?.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
     portraitStatus.textContent = 'Select a sprite or animation.';
     portraitDialog.showModal();
     renderPortraitResults();
     if (choice) {
       void showPortraitChoice(choice);
-      renderPortraitResults();
     }
     portraitEmotion.focus();
   }
 
   async function refresh(): Promise<void> {
-    const [characters, animations, sprites, colors, folders, characterFolders] = await Promise.all([
+    const [characters, animations, sprites, colors, folders, characterFolders, portraitFolders] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/characters'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
       requestJson<AssetFolders>('/api/animation-folders'),
       requestJson<AssetFolders>('/api/character-folders'),
+      requestJson<AssetFolders>('/api/sprite-folders'),
     ]);
     if (!alive) return;
     files = characters.files;
@@ -946,6 +955,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     spriteFiles = sprites.files;
     spriteLabels = sprites.labels;
     animationFolders = folders;
+    spriteFolders = portraitFolders;
     palette = colors;
     renderFolderPicker();
     render();
@@ -1199,7 +1209,6 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitCanvas.getContext('2d')?.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
     renderPortraitResults();
   });
-  portraitSearch.addEventListener('input', renderPortraitResults);
   portraitForm.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!current || current.id !== portraitCharacterId || !portraitChoice || portraitOkay.disabled) return;
@@ -1391,3 +1400,5 @@ export function mountCharacters(root: HTMLElement): () => void {
   };
 }
 import { renderTabCloseActions } from '../tab-close-actions.js';
+import { renderTabReordering } from '../tab-reordering.js';
+import { addOpenTab } from '../../tab-order.js';
