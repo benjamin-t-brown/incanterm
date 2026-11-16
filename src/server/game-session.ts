@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { getCharacterScriptNames } from '../editor/schema.js';
-import { Scene } from '../game/scene.js';
+import { Scene, Prop } from '../game/scene.js';
 import { Character } from '../game/character.js';
 import { AnimatedProp } from '../game/animated-prop.js';
 import { findCharacter } from '../game/character-movement.js';
 import { PlayerControl } from '../game/player-control.js';
-import { commands, type GameScriptContext } from '../game/scene-commands.js';
+import { addInventoryItem, commands, type GameScriptContext } from '../game/scene-commands.js';
+import { getInventoryEntries, getItemCombinationScript, hasInventoryItem, WorldItem, type ItemTarget } from '../game/items.js';
+import { compareSceneDrawRank } from '../game/scene-order.js';
 import { encodeTerminal, encodeTerminalDiff } from '../game/terminal.js';
 import { ScriptRunner, TriggerType, type ScriptLibrary } from '../game/rpgscript/index.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-standard-scene.js';
@@ -74,6 +76,7 @@ export function createGameSession(
     scene.stepTriggers,
     scene.markers,
     scene.loadCharacter,
+    scene.itemAssets,
   );
   const control = new PlayerControl(scene, allowPlayerSpawn);
   let lastUpdate = Date.now();
@@ -152,6 +155,7 @@ export function createGameSession(
     new ScriptRunner(scripts, {
       commands,
       context: gameContext,
+      hasItem: (inventory, reference) => hasInventoryItem(inventory, scene.itemAssets, reference),
       getCharacterId: (reference) => findCharacter(scene, reference, control.playerWalkCh).id,
       isCharacterBusy: (ownerId) => findCharacter(scene, ownerId, control.playerWalkCh).isBusy(),
       writeLog: (message) => layout.appendLog(message),
@@ -161,6 +165,70 @@ export function createGameSession(
     });
   let displayedDialogue: NonNullable<typeof runner>['dialogue'];
   let dialogueUpdate = Date.now();
+  let selectedItemId: string | undefined;
+
+  function runItemScript(name: string | undefined): void {
+    if (!name || !runner?.isIdle()) return;
+    const definition = scripts?.get(name);
+    if (definition?.parameters.length !== 0) {
+      layout.appendLog(`[ITEM ERROR] ${name} must be an existing zero-argument script`, true);
+      return;
+    }
+    control.stop();
+    runner.start(name);
+    finishConversationIfIdle();
+  }
+
+  function combineSelectedItem(target: ItemTarget): void {
+    const source = selectedItemId && scene.itemAssets.get(selectedItemId);
+    selectedItemId = undefined;
+    if (!source || !runner || !hasInventoryItem(runner.getStorage('vars.inventory'), scene.itemAssets, source.definition.id)) return;
+    const name = getItemCombinationScript(scene.itemAssets, source.definition, target);
+    if (name) runItemScript(name);
+    else layout.appendLog("Those don't work together.");
+  }
+
+  function clickInventoryItem(itemId: string, examine: boolean): void {
+    const asset = scene.itemAssets.get(itemId);
+    if (!asset || !runner || !hasInventoryItem(runner.getStorage('vars.inventory'), scene.itemAssets, itemId)) return;
+    if (examine) {
+      selectedItemId = undefined;
+      runItemScript(asset.definition.examineScript);
+    } else if (selectedItemId === itemId) selectedItemId = undefined;
+    else if (selectedItemId) combineSelectedItem({ targetType: 'item', target: itemId });
+    else selectedItemId = itemId;
+  }
+
+  function clickWorldItemTarget(x: number, y: number, examine = false): boolean {
+    if (!runner) return false;
+    const ranked = scene.entities.map((entity, order) => ({ entity, order }));
+    ranked.sort((a, b) => compareSceneDrawRank(
+      { background: false, foreground: a.entity instanceof Prop && a.entity.foreground, depth: a.entity.getDepth(scene.depthMode), order: a.order },
+      { background: false, foreground: b.entity instanceof Prop && b.entity.foreground, depth: b.entity.getDepth(scene.depthMode), order: b.order },
+    ));
+    const target = ranked.reverse().find(({ entity }) =>
+      (entity instanceof WorldItem || selectedItemId && (entity instanceof Character || entity instanceof AnimatedProp && entity.propId)) &&
+      entity instanceof Prop &&
+      x >= entity.x - entity.sprite.originX && x < entity.x - entity.sprite.originX + entity.sprite.width &&
+      y >= entity.y - entity.sprite.originY && y < entity.y - entity.sprite.originY + entity.sprite.height)?.entity;
+    if (!target) return false;
+    if (selectedItemId) {
+      if (target instanceof WorldItem) combineSelectedItem({ targetType: 'item', target: target.asset.definition.id });
+      else if (target instanceof Character) combineSelectedItem({ targetType: 'character', target: target.characterId });
+      else if (target instanceof AnimatedProp && target.propId) combineSelectedItem({ targetType: 'prop', target: target.propId });
+    } else if (target instanceof WorldItem) {
+      if (examine) runItemScript(target.asset.definition.examineScript);
+      else {
+        control.stop();
+        addInventoryItem(target.asset.definition.id, {
+          location: '<pickup>', getStorage: (key) => runner.getStorage(key),
+          setStorage: (key, value) => runner.setStorage(key, value),
+        }, gameContext);
+        layout.appendLog(`Picked up ${target.asset.definition.label}.`);
+      }
+    }
+    return true;
+  }
 
   function syncPortraitReveal(side: 'left' | 'right', asset: PortraitAsset | undefined, actor: string | undefined, now: number): void {
     const isVisibleActor = shownPortraitAssets[side] !== undefined && shownPortraitActors[side] === actor;
@@ -279,7 +347,11 @@ export function createGameSession(
     scene = new Scene(loaded.id, loaded.width, loaded.height, loaded.depthMode, loaded.clear,
       [...loaded.entities.filter((entity) => entity.id !== player.id).map((entity) =>
         entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity), player],
-      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter);
+      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter, loaded.itemAssets);
+    const acquired = runner?.getStorage('vars.acquiredItems');
+    if (Array.isArray(acquired)) scene.entities = scene.entities.filter((entity) =>
+      !(entity instanceof WorldItem) || !acquired.includes(entity.asset.definition.id));
+    selectedItemId = undefined;
     control.changeScene(scene, player);
     gameContext.scene = scene;
     layout.scene = scene;
@@ -326,9 +398,11 @@ export function createGameSession(
             return;
           }
           mouseInput = mouseInput.slice(match[0].length + 1);
-          if (Number(match[1]) === 0 && match[4] === 'M') {
+          if ((Number(match[1]) === 0 || Number(match[1]) === 2) && match[4] === 'M') {
+            const examine = Number(match[1]) === 2;
             const x = Number(match[2]) - 1;
             const y = Number(match[3]) - 1;
+            if (examine && (!runner?.isIdle() || runner.getStorage('dialogue.active') === true)) continue;
             if (runner?.centerToast !== undefined) {
               runner.dismissCenterToast();
               finishConversationIfIdle();
@@ -338,8 +412,14 @@ export function createGameSession(
               finishConversationIfIdle();
               dispatchLoadTriggers();
             } else if (runner?.isIdle() && runner.getStorage('dialogue.active') !== true) {
+              const inventoryAction = layout.getInventoryActionAt(x, y);
+              const tabId = !examine && layout.getTabAt(x, y);
               const point = layout.getScenePoint(x, y);
-              if (point)
+              if (tabId) layout.tabs.select(tabId);
+              else if (inventoryAction) clickInventoryItem(inventoryAction.itemId, examine || inventoryAction.examine);
+              else if (point && clickWorldItemTarget(point.x, point.y, examine)) {
+                // Item interactions take precedence over scene action triggers.
+              } else if (point && !examine && !selectedItemId)
                 control.click(
                   point.x,
                   point.y,
@@ -358,6 +438,11 @@ export function createGameSession(
             paint();
           }
         }
+        return;
+      }
+      if (data === '\x1b' && selectedItemId) {
+        selectedItemId = undefined;
+        paint();
         return;
       }
       if (data === '\t' || data === '\x1b[Z') {
@@ -466,6 +551,20 @@ export function createGameSession(
   function paint(force = false): void {
     needsFrame ||= force;
     if (!opened) return;
+    try {
+      const entries = getInventoryEntries(runner?.getStorage('vars.inventory'), scene.itemAssets);
+      layout.inventory.items = entries.flatMap((entry) => {
+        const asset = scene.itemAssets.get(entry.itemId);
+        return asset ? [asset] : [];
+      });
+      if (selectedItemId && !entries.some((entry) => entry.itemId === selectedItemId)) selectedItemId = undefined;
+    } catch {
+      // Script errors are reported by the command runner; a bad save must not crash rendering.
+      layout.inventory.items = [];
+      selectedItemId = undefined;
+    }
+    layout.inventory.selectedId = selectedItemId;
+    layout.inventory.elapsedMs = Date.now();
     const wasConversationOpen = layout.conversationOpen;
     layout.conversationOpen = runner?.getStorage('dialogue.active') === true;
     const now = Date.now();

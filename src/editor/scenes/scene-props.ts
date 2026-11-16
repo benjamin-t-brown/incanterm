@@ -1,14 +1,14 @@
-import type { SceneDocument, SceneEntity } from '../schema.js';
+import type { PropDocument, SceneDocument, SceneEntity } from '../schema.js';
 
 type PropEntry = Extract<SceneEntity, { type: 'Prop' }>;
 
 export function addSceneProp(
   scene: SceneDocument,
-  propId: string,
+  prop: PropDocument,
   x: number,
   y: number,
 ): PropEntry {
-  const base = propId.slice(0, 58).replace(/[-_]$/, '');
+  const base = prop.id.slice(0, 58).replace(/[-_]$/, '');
   const ids = new Set([
     ...scene.entities.map((entry) => entry.id),
     ...scene.triggers.map((entry) => (typeof entry === 'string' ? entry : entry.id)),
@@ -18,12 +18,13 @@ export function addSceneProp(
   const entry: PropEntry = {
     id: `${base}-${number}`,
     type: 'Prop',
-    name: `${base}_${number}`,
-    prop: propId,
+    name: prop.label ?? `${base}_${number}`,
+    prop: prop.id,
     state: 'default',
     x: Math.max(0, Math.min(scene.width - 1, x)),
     y: Math.max(0, Math.min(scene.height - 1, y)),
     z: 0,
+    depthOffset: 0,
   };
   scene.entities.push(entry);
   return entry;

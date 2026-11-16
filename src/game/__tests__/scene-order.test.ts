@@ -4,6 +4,8 @@ import { compareSceneDrawRank, getSceneDepth } from '../scene-order.js';
 describe('scene draw order', () => {
   it('uses ground Y in bottom-up and explicit z in regular-z', () => {
     expect(getSceneDepth('bottom-up', 10, -100, 2, 3)).toBe(15);
+    expect(getSceneDepth('bottom-up', 10, 0, 2, 3)).toBe(15);
+    expect(getSceneDepth('bottom-up', 10, 100, 2, 3)).toBe(15);
     expect(getSceneDepth('regular-z', 10, -100, 2, 3)).toBe(-98);
   });
 

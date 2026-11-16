@@ -1,0 +1,36 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "1b76d0ed-cbd6-4a29-81df-28d93dc07ed6",
+  "label": "yellow_tape_wide",
+  "visual": {
+    "type": "sprite",
+    "id": "0e7de3e1-9b31-4a54-b86a-14f9a0f7fa66",
+    "index": 0
+  },
+  "width": 17,
+  "height": 3,
+  "blockedCells": [
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

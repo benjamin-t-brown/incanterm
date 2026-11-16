@@ -18,6 +18,8 @@ import {
 import {
   CHARACTER_STATES,
   getCharacterLabelError,
+  getCharacterVariantNames,
+  getCharacterVisual,
   getPortraitEmotionNames,
   isPortraitEmotionValid,
   createCharacter,
@@ -28,6 +30,7 @@ import {
   getAnimationFrameFlips,
   type AnimationDocument,
   type CharacterDocument,
+  type CharacterVisual,
   type SpriteDocument,
 } from '../../schema.js';
 import { preloadSpriteFonts, terminalCellAtZoom } from '../../terminal-cell.js';
@@ -43,6 +46,7 @@ import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../she
 import { getDefaultPortraitSpriteChoice, getPortraitAssetChoice } from '../../characters/portrait-choice.js';
 import { getMissingAnimationStates } from '../../characters/missing-animation.js';
 import { getAnimationChoiceLabels } from '../../characters/animation-choice-labels.js';
+import { addCharacterVariant, renameDefaultCharacterVariant } from '../../characters/character-variants.js';
 
 export function mountCharacters(root: HTMLElement): () => void {
   root.innerHTML = createPageShell(
@@ -70,7 +74,13 @@ export function mountCharacters(root: HTMLElement): () => void {
           <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default. Separate emotion aliases with a comma or /.</p>
           <div id="character-portraits" class="character-portrait-grid"></div>
          <button id="add-character-portrait" type="button">+ PORTRAIT</button>
-         <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state. Diagonal walking uses horizontal facing.</p>
+         <h2>VISUAL VARIANTS</h2>
+         <p class="page-copy">Variants share identity and portraits. Each has its own animations. Scenes can choose a variant; scripts can use setCharacterVariant.</p>
+         <label class="character-label">DEFAULT VARIANT NAME <input id="character-default-variant" class="text-input" spellcheck="false" maxlength="64"></label>
+         <p class="page-copy">Changing a variant name requires updating explicit scene and script references.</p>
+         <label class="character-label">EDIT VARIANT <select id="character-variant" class="text-input"></select></label>
+         <div class="toolbar-row"><button id="add-character-variant" type="button">+ VARIANT</button><button id="remove-character-variant" type="button">REMOVE VARIANT</button></div>
+         <h2>IDLE, WALK &amp; TALKING</h2><p class="page-copy">Assign an animation clip for each direction of every state in the selected variant. Diagonal walking uses horizontal facing.</p>
         <div class="character-folder-fill"><label class="character-label">ANIMATION FOLDER
           <span id="character-folder-picker"></span></label>
           <button id="character-fill-folder" type="button">FILL FROM FOLDER</button></div>
@@ -177,6 +187,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   const portraitSprites = new Map<string, Promise<SpriteDocument>>();
   const portraitAnimations = new Map<string, Promise<AnimationDocument>>();
   let current: CharacterDocument | null = null;
+  let selectedVariant: string | undefined;
   let saved: CharacterDocument | null = null;
   let pendingSave: Promise<void> | null = null;
   let pendingRestore: Promise<void> | null = null;
@@ -268,9 +279,20 @@ export function mountCharacters(root: HTMLElement): () => void {
     setTimeout(() => item.remove(), 4000);
   }
   function highlightMissingAnimation(animationId: string, message: string): void {
-    if (!current) return;
+    const character = current;
+    if (!character) return;
+    const variant = getCharacterVariantNames(character).find((name) => {
+      const visual = getCharacterVisual(character, name);
+      return visual && getMissingAnimationStates(visual, animationId).length > 0;
+    });
+    if (variant && variant !== selectedVariant) {
+      selectedVariant = variant;
+      render();
+    }
+    const visual = getCurrentVisual();
+    if (!visual) return;
     let first: HTMLInputElement | null = null;
-    for (const { name, extra } of getMissingAnimationStates(current, animationId)) {
+    for (const { name, extra } of getMissingAnimationStates(visual, animationId)) {
       const host = extra ? custom : states;
       const row = [...host.querySelectorAll<HTMLElement>('.character-state-row')]
         .find((item) => item.dataset.state === name);
@@ -370,6 +392,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     if (current) sessions.set(current.id, { doc: current, saved });
     sessions.delete(doc.id);
     current = doc;
+    selectedVariant = doc.defaultVariant ?? 'default';
     saved = baseline;
     if (!openTabs.includes(doc.id)) openTabs.push(doc.id);
     setEditorAssetUrl(baseline ? doc.id : null);
@@ -401,6 +424,10 @@ export function mountCharacters(root: HTMLElement): () => void {
     assetTree.select(current?.id ?? null);
   }
 
+  function getCurrentVisual(): CharacterVisual | null {
+    return current ? getCharacterVisual(current, selectedVariant) ?? current : null;
+  }
+
   function getStateRow(name: string, animation: string, extra: boolean): HTMLElement {
     const row = document.createElement('div');
     row.className = 'character-state-row';
@@ -419,18 +446,20 @@ export function mountCharacters(root: HTMLElement): () => void {
       onInput: () => {},
       onCommit: (value) => {
         if (!current) return;
+        const visual = getCurrentVisual();
+        if (!visual) return;
         const id = byDisplay.get(value);
         const input = picker.querySelector('input') as HTMLInputElement;
         if (!id) {
           input.value = display(
             extra
-              ? current.customAnimations[name]
-              : current.animations[name as (typeof CHARACTER_STATES)[number]],
+              ? visual.customAnimations[name]
+              : visual.animations[name as (typeof CHARACTER_STATES)[number]],
           );
           return;
         }
-        if (extra) current.customAnimations[name] = id;
-        else current.animations[name as (typeof CHARACTER_STATES)[number]] = id;
+        if (extra) visual.customAnimations[name] = id;
+        else visual.animations[name as (typeof CHARACTER_STATES)[number]] = id;
         input.removeAttribute('aria-invalid');
         input.removeAttribute('title');
         renderTabs();
@@ -447,7 +476,9 @@ export function mountCharacters(root: HTMLElement): () => void {
       remove.setAttribute('aria-label', `Remove ${name}`);
       remove.addEventListener('click', () => {
         if (!current) return;
-        delete current.customAnimations[name];
+        const visual = getCurrentVisual();
+        if (!visual) return;
+        delete visual.customAnimations[name];
         render();
       });
       row.append(remove);
@@ -475,6 +506,21 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
     get$<HTMLSelectElement>('#character-facing').value = current.defaultFacing;
     get$<HTMLInputElement>('#character-script-name').value = current.scriptName ?? '';
+    const variantNames = getCharacterVariantNames(current);
+    if (!selectedVariant || !variantNames.includes(selectedVariant))
+      selectedVariant = current.defaultVariant ?? 'default';
+    const variantSelect = get$<HTMLSelectElement>('#character-variant');
+    variantSelect.replaceChildren();
+    for (const name of variantNames) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name === (current.defaultVariant ?? 'default') ? `${name} (default)` : name;
+      variantSelect.append(option);
+    }
+    variantSelect.value = selectedVariant;
+    get$<HTMLInputElement>('#character-default-variant').value = current.defaultVariant ?? 'default';
+    get$<HTMLButtonElement>('#remove-character-variant').disabled = selectedVariant === (current.defaultVariant ?? 'default');
+    const visual = getCharacterVisual(current, selectedVariant) ?? current;
     const portraitHost = get$<HTMLElement>('#character-portraits');
     portraitHost.replaceChildren();
     for (const [index, entry] of (current.portraits ?? []).entries()) {
@@ -533,14 +579,14 @@ export function mountCharacters(root: HTMLElement): () => void {
       const heading = document.createElement('h3');
       heading.textContent = group;
       column.append(heading);
-      for (const state of names) column.append(getStateRow(state, current.animations[state], false));
+      for (const state of names) column.append(getStateRow(state, visual.animations[state], false));
     }
     states.append(movement, talking);
     const invisible = document.createElement('div');
     invisible.className = 'character-state-row';
     invisible.textContent = 'INVISIBLE · no animation';
     custom.append(invisible);
-    for (const [name, id] of Object.entries(current.customAnimations)) {
+    for (const [name, id] of Object.entries(visual.customAnimations)) {
       const row = getStateRow(name, id, true);
       if (name === 'invisible')
         row.querySelector('label')?.prepend('LEGACY INVISIBLE ANIMATION (NOT USED) · ');
@@ -549,7 +595,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     for (const state of [
       ...CHARACTER_STATES,
       'invisible',
-      ...Object.keys(current.customAnimations).filter((name) => name !== 'invisible'),
+      ...Object.keys(visual.customAnimations).filter((name) => name !== 'invisible'),
     ]) {
       const option = document.createElement('option');
       option.value = state;
@@ -557,7 +603,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       previewState.append(option);
     }
     previewState.value =
-      [...CHARACTER_STATES, ...Object.keys(current.customAnimations)].includes(selected) ||
+      [...CHARACTER_STATES, ...Object.keys(visual.customAnimations)].includes(selected) ||
       selected === 'invisible'
         ? selected
         : `idle-${current.defaultFacing}`;
@@ -569,7 +615,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     const token = ++previewToken;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const character = current;
+    const character = getCurrentVisual();
     if (!character) return;
     const state = previewState.value;
     const info = get$<HTMLElement>('#character-preview-info');
@@ -1074,12 +1120,58 @@ export function mountCharacters(root: HTMLElement): () => void {
       status.textContent = 'Select an existing animation folder.';
       return;
     }
-    const result = assignCharacterAnimations(current, folder, animationFolders, clipLabels);
-    current.animations = result.animations;
+    const visual = getCurrentVisual();
+    if (!visual) return;
+    const result = assignCharacterAnimations(visual, folder, animationFolders, clipLabels);
+    visual.animations = result.animations;
     render();
     status.textContent = `Assigned ${result.matched} of ${CHARACTER_STATES.length} animations from ${folder}.${result.ambiguous.length ? ` Ambiguous: ${result.ambiguous.join(', ')}.` : ''}`;
   });
   previewState.addEventListener('change', restartPreview);
+  get$<HTMLSelectElement>('#character-variant').addEventListener('change', (event) => {
+    selectedVariant = (event.target as HTMLSelectElement).value;
+    render();
+  });
+  get$<HTMLInputElement>('#character-default-variant').addEventListener('change', (event) => {
+    if (!current) return;
+    const previous = current.defaultVariant ?? 'default';
+    try {
+      renameDefaultCharacterVariant(current, (event.target as HTMLInputElement).value.trim());
+      if (selectedVariant === previous) selectedVariant = current.defaultVariant;
+    } catch (error) {
+      toast(showMessage(error), true);
+    }
+    render();
+  });
+  get$<HTMLButtonElement>('#add-character-variant').addEventListener('click', () => {
+    void (async () => {
+      const character = current;
+      const source = selectedVariant;
+      if (!character) return;
+      const name = await askId('New visual variant name (e.g. 5x5)');
+      if (name === null || !alive || current !== character) return;
+      try {
+        addCharacterVariant(character, name.trim(), source);
+        selectedVariant = name.trim();
+        render();
+        status.textContent = 'Variant copied. Assign its animations individually or fill from an animation folder.';
+      } catch (error) {
+        toast(showMessage(error), true);
+      }
+    })();
+  });
+  get$<HTMLButtonElement>('#remove-character-variant').addEventListener('click', () => {
+    void (async () => {
+      const character = current;
+      const name = selectedVariant;
+      if (!character || !name || name === (character.defaultVariant ?? 'default')) return;
+      if (!(await confirmModal(`Remove variant ${name}? Scene and script references must be updated.`, 'REMOVE')) ||
+        !alive || current !== character) return;
+      if (character.variants) delete character.variants[name];
+      selectedVariant = character.defaultVariant ?? 'default';
+      render();
+    })();
+  });
   get$<HTMLSelectElement>('#character-facing').addEventListener('change', (event) => {
     if (!current) return;
     current.defaultFacing = (event.target as HTMLSelectElement)
@@ -1169,10 +1261,12 @@ export function mountCharacters(root: HTMLElement): () => void {
   get$<HTMLFormElement>('#character-custom-state-form').addEventListener('submit', (event) => {
     event.preventDefault();
     if (!current || saving) return;
+    const visual = getCurrentVisual();
+    if (!visual) return;
     const id = customStateName.value.trim();
     if (
       !isCharacterStateName(id) ||
-      id in current.customAnimations ||
+      id in visual.customAnimations ||
       id === 'invisible' ||
       CHARACTER_STATES.includes(id as (typeof CHARACTER_STATES)[number])
     ) {
@@ -1181,7 +1275,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       customStateName.focus();
       return;
     }
-    if (Object.keys(current.customAnimations).length >= 64) {
+    if (Object.keys(visual.customAnimations).length >= 64) {
       customStateError.textContent = 'Maximum 64 custom states';
       customStateError.hidden = false;
       return;
@@ -1194,7 +1288,7 @@ export function mountCharacters(root: HTMLElement): () => void {
       input?.focus();
       return;
     }
-    current.customAnimations[id] = animation;
+    visual.customAnimations[id] = animation;
     customStateDialog.close();
     render();
     void save();

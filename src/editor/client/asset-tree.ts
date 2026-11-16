@@ -15,11 +15,19 @@ type TreeOptions = {
   storageKey: string;
   onSelect: (id: string) => void;
   onCreateAsset?: (folder: string) => void;
+} & ({
+  readOnly: true;
+  onChange?: never;
+  askName?: never;
+  confirmDelete?: never;
+  onError?: never;
+} | {
+  readOnly?: false;
   onChange: (change: TreeChange) => Promise<AssetFolders>;
   askName: (label: string, suggestion?: string) => Promise<string | null>;
   confirmDelete: (folder: string, animations: { id: string; label: string }[], subfolders: string[]) => Promise<boolean>;
   onError: (message: string) => void;
-};
+});
 
 export function createAssetTree(options: TreeOptions) {
   const { list, search } = options;
@@ -55,7 +63,7 @@ export function createAssetTree(options: TreeOptions) {
   }
 
   async function change(operation: TreeChange): Promise<void> {
-    if (busy) return;
+    if (options.readOnly || busy) return;
     busy = true;
     try {
       tree = await options.onChange(operation);
@@ -110,6 +118,7 @@ export function createAssetTree(options: TreeOptions) {
   }
 
   function dropZone(row: HTMLElement, folder: string): void {
+    if (options.readOnly) return;
     row.addEventListener('dragover', (event) => {
       if (!event.dataTransfer?.types.includes('application/x-incanterm-asset')) return;
       event.preventDefault();
@@ -170,7 +179,7 @@ export function createAssetTree(options: TreeOptions) {
         toggle.className = 'asset-tree-folder';
         const open = query ? true : expanded.has(folder);
         toggle.setAttribute('aria-expanded', String(open));
-        toggle.title = `${folder} · F2 to rename`;
+        toggle.title = options.readOnly ? folder : `${folder} · F2 to rename`;
         const arrow = document.createElement('span');
         arrow.className = 'asset-tree-arrow';
         arrow.textContent = open ? '▾' : '▸';
@@ -192,7 +201,7 @@ export function createAssetTree(options: TreeOptions) {
           next?.querySelector<HTMLButtonElement>('.asset-tree-folder')?.focus();
         });
         row.addEventListener('keydown', (event) => {
-          if (event.key !== 'F2' || event.target instanceof HTMLInputElement) return;
+          if (options.readOnly || event.key !== 'F2' || event.target instanceof HTMLInputElement) return;
           event.preventDefault();
           renameFolder(row, toggle, folder);
         });
@@ -208,12 +217,14 @@ export function createAssetTree(options: TreeOptions) {
           actions.append(button);
           return button;
         };
-        const newFolderButton = createActionButton('', `New folder in ${folder}`, () => void createFolder(folder));
-        newFolderButton.innerHTML = FOLDER_ICON;
-        const createAsset = options.onCreateAsset;
-        if (createAsset)
-          createActionButton('+', `New ${options.assetName ?? 'animation'} in ${folder}`, () => createAsset(folder));
-        createActionButton('×', `Delete ${folder}`, () => void deleteFolder(folder));
+        if (!options.readOnly) {
+          const newFolderButton = createActionButton('', `New folder in ${folder}`, () => void createFolder(folder));
+          newFolderButton.innerHTML = FOLDER_ICON;
+          const createAsset = options.onCreateAsset;
+          if (createAsset)
+            createActionButton('+', `New ${options.assetName ?? 'animation'} in ${folder}`, () => createAsset(folder));
+          createActionButton('×', `Delete ${folder}`, () => void deleteFolder(folder));
+        }
         row.append(toggle, actions);
         dropZone(row, folder);
         container.append(row);
@@ -234,7 +245,7 @@ export function createAssetTree(options: TreeOptions) {
         button.style.setProperty('--depth', String(depth));
         button.dataset.id = id;
         button.title = labels[id] ?? id;
-        button.draggable = true;
+        button.draggable = !options.readOnly;
         button.classList.toggle('active', selected === id);
         if (selected === id) button.setAttribute('aria-current', 'true');
         const icon = document.createElement('span');
@@ -246,6 +257,7 @@ export function createAssetTree(options: TreeOptions) {
         button.append(icon, label);
         button.addEventListener('click', () => options.onSelect(id));
         button.addEventListener('dragstart', (event) => {
+          if (options.readOnly) return;
           event.dataTransfer?.setData('application/x-incanterm-asset', id);
           if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
         });
@@ -255,7 +267,7 @@ export function createAssetTree(options: TreeOptions) {
     const root = document.createElement('div');
     root.className = 'asset-tree-root';
     root.textContent = options.label;
-    root.title = `Drop here to move ${options.assetName ?? 'an animation'} out of a folder`;
+    root.title = options.readOnly ? options.label : `Drop here to move ${options.assetName ?? 'an animation'} out of a folder`;
     dropZone(root, '');
     list.append(root);
     const rootContents = document.createElement('div');
@@ -272,10 +284,12 @@ export function createAssetTree(options: TreeOptions) {
   }
 
   async function createFolder(parent = ''): Promise<void> {
+    if (options.readOnly) return;
     const name = await options.askName('New folder name');
     if (name) await change({ action: 'create', folder: parent, name });
   }
   function renameFolder(row: HTMLElement, toggle: HTMLButtonElement, folder: string): void {
+    if (options.readOnly) return;
     const original = folder.split('/').at(-1) ?? folder;
     const input = document.createElement('input');
     input.type = 'text';
@@ -327,6 +341,7 @@ export function createAssetTree(options: TreeOptions) {
     input.addEventListener('blur', () => commit(false));
   }
   async function deleteFolder(folder: string): Promise<void> {
+    if (options.readOnly) return;
     const expectedFolders = tree.folders.filter((path) => path === folder || path.startsWith(`${folder}/`));
     const expectedIds = files.filter((id) => {
       const placement = tree.placements[id];

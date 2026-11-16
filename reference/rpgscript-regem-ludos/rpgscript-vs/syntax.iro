@@ -469,11 +469,11 @@ in_parens : context {
       styles [] = .punctuation;
    }
    :  pattern {
-      regex          \= (-?[0-9]|\b(true|false)\b(?![\w.-]))
+       regex          \= (?<![\w.-])(-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)|true|false)(?![\w.-])
       styles []       = .number;
    }
    :  pattern {
-      regex          \= ([a-zA-Z_\-][\w.-]*)
+       regex          \= ([\w.-]+)
       styles []       = .parameter;
    }
    : inline_push {

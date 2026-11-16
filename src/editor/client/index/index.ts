@@ -1,9 +1,10 @@
 import { jsonRequest, requestJson } from '../api.js';
 import { alertModal, confirmModal, promptModal } from '../modal.js';
 import {
+  clearProjectSelection,
   getOpenedProject,
   importLegacyEditorState,
-  OPEN_PROJECT_KEY,
+  saveProjectSelection,
   type EditorProject,
 } from '../project.js';
 import { allowLeave, createPageShell } from '../shell.js';
@@ -27,6 +28,7 @@ export function mountIndex(root: HTMLElement): () => void {
       <a class="tool-card" href="/art"><strong>ART</strong><span>Paint sprites with the project palette.</span></a>
       <a class="tool-card" href="/animation"><strong>ANIMATION</strong><span>Arrange sprites into clips.</span></a>
       <a class="tool-card" href="/props"><strong>PROPS</strong><span>Define reusable world objects.</span></a>
+      <a class="tool-card" href="/items"><strong>ITEMS</strong><span>Create collectible items and scripted combinations.</span></a>
       <a class="tool-card" href="/characters"><strong>CHARACTERS</strong><span>Assign animation states and portraits.</span></a>
       <a class="tool-card" href="/soundboard"><strong>SOUNDBOARD</strong><span>Play project sounds.</span></a>
       <a class="tool-card" href="/scripts"><strong>SCRIPT WRITER</strong><span>Edit RPGScript.</span></a>
@@ -51,7 +53,7 @@ export function mountIndex(root: HTMLElement): () => void {
         jsonRequest('POST', { path: location, name }),
       );
       // Keep the old context immutable until a full reload. Late saves still target the old project.
-      sessionStorage.setItem(OPEN_PROJECT_KEY, project.manifestPath);
+      saveProjectSelection(project.manifestPath);
       navigateToProjectHome();
     } catch (error) {
       await alertModal(error instanceof Error ? error.message : 'Could not open project');
@@ -80,7 +82,7 @@ export function mountIndex(root: HTMLElement): () => void {
   root.querySelector('#close-project')?.addEventListener('click', () => {
     void (async () => {
       if (!(await allowLeave())) return;
-      sessionStorage.removeItem(OPEN_PROJECT_KEY);
+      clearProjectSelection();
       navigateToProjectHome();
     })();
   });
@@ -112,7 +114,11 @@ export function mountIndex(root: HTMLElement): () => void {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'tool-card';
-        button.textContent = `${project.name} — ${project.root}`;
+        const name = document.createElement('strong');
+        name.textContent = project.name;
+        const location = document.createElement('span');
+        location.textContent = project.root;
+        button.append(name, location);
         button.addEventListener('click', () => {
           void openSelectedProject(project.manifestPath);
         });

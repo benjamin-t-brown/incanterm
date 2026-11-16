@@ -14,7 +14,7 @@ let deferredFrame = false;
 const terminal = new TerminalScreen();
 
 screen.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0) return;
+  if (event.button !== 0 && event.button !== 2) return;
   const bounds = screen.getBoundingClientRect();
   const style = getComputedStyle(screen);
   const probe = document.createElement('span');
@@ -30,7 +30,7 @@ screen.addEventListener('pointerdown', (event) => {
       parseFloat(style.lineHeight),
   );
   if (x < 0 || y < 0 || x >= viewport.cols || y >= viewport.rows) return;
-  if (logSelection && x >= logSelection.x && x < logSelection.x + logSelection.width &&
+  if (event.button === 0 && logSelection && x >= logSelection.x && x < logSelection.x + logSelection.width &&
     y >= logSelection.y && y < logSelection.y + logSelection.height) {
     selectingLog = true;
     return;
@@ -38,8 +38,9 @@ screen.addEventListener('pointerdown', (event) => {
   window.getSelection()?.removeAllRanges();
   if (socket?.readyState !== WebSocket.OPEN) return;
   event.preventDefault();
-  socket.send(JSON.stringify({ type: 'input', data: `\x1b[<0;${x + 1};${y + 1}M` }));
+  socket.send(JSON.stringify({ type: 'input', data: `\x1b[<${event.button};${x + 1};${y + 1}M` }));
 });
+screen.addEventListener('contextmenu', (event) => event.preventDefault());
 
 window.addEventListener('pointerup', () => {
   selectingLog = false;

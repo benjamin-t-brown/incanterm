@@ -1,0 +1,22 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "95d4de96-3ded-4735-8589-3492eff0c7cb",
+  "label": "yellow_tape_tall_right",
+  "visual": {
+    "type": "sprite",
+    "id": "66d0165f-a30d-4c44-9d97-18bc5a2c4cc8",
+    "index": 1
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [
+    2,
+    4,
+    6
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

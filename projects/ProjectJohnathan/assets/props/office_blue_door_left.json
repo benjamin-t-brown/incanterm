@@ -1,0 +1,19 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "office_blue_door_left",
+  "visual": {
+    "type": "animation",
+    "id": "1d5ab69d-abf1-4a85-b828-6844e833ecbb"
+  },
+  "width": 2,
+  "height": 5,
+  "blockedCells": [
+    6,
+    7,
+    9
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "customAnimations": {}
+}

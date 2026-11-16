@@ -1,0 +1,30 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "1d5ab69d-abf1-4a85-b828-6844e833ecbb",
+  "label": "office_blue_door_left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "67c46d77-cea0-4352-be25-f7fbac541071",
+      "index": 0,
+      "durationMs": 135
+    },
+    {
+      "sprite": "67c46d77-cea0-4352-be25-f7fbac541071",
+      "index": 1,
+      "durationMs": 135
+    },
+    {
+      "sprite": "67c46d77-cea0-4352-be25-f7fbac541071",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "67c46d77-cea0-4352-be25-f7fbac541071",
+      "index": 3,
+      "durationMs": 135
+    }
+  ]
+}

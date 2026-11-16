@@ -12,9 +12,10 @@ import {
 } from '../../art/ascii-path.js';
 import { getArtCursorKind, type ArtCursorGesture, type ArtTool } from '../../art/art-cursor.js';
 import { generateCharacter3x3, generateCharacter5x5 } from '../../art/character-generator.js';
-import { getBrushValue } from '../../art/art-brush.js';
+import { createSpriteFromBrush, getBrushValue, type BrushStamp as Stamp } from '../../art/art-brush.js';
 import { applyBlackWhiteInversionToFrame } from '../../art/invert-black-white.js';
 import { applyFrameFlip } from '../../art/flip-frame.js';
+import { createSpriteProp } from '../../art/create-sprite-prop.js';
 import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
 import { fillCells } from '../../art/art-fill.js';
 import { moveSelectedCells, type SelectionRect } from '../../art/art-move.js';
@@ -30,6 +31,7 @@ import {
   isAssetId,
   getLayerNameError,
   getSpriteLabelError,
+  getPropLabelError,
   MAX_FRAME_DURATION_MS,
   MAX_FRAMES,
   MAX_LAYER_NAME_LENGTH,
@@ -99,6 +101,7 @@ import {
   askAssetMeta,
   confirmModal,
   isModalOpen,
+  promptModal,
 } from '../modal.js';
 import {
   askId,
@@ -109,7 +112,6 @@ import {
 } from '../shell.js';
 import { createPanelResizer } from '../panel-resizer.js';
 
-type Stamp = { width: number; height: number; cells: (SpriteCell | null)[] };
 type Point = { x: number; y: number; sx: number; sy: number };
 type Tool = ArtTool;
 type HistoryEntry = {
@@ -271,6 +273,7 @@ export function mountArt(root: HTMLElement): () => void {
   let renamingLayer = false;
   let savedState = '';
   let saving = false;
+  let creatingSpriteProp = false;
   let spriteId: string | null = null;
   let tool: Tool = 'brush';
   let brushSize = 1;
@@ -643,6 +646,7 @@ export function mountArt(root: HTMLElement): () => void {
     renderTabs();
   }
   function refreshControls(): void {
+    get$<HTMLButtonElement>('[data-action="create-sprite-prop"]').disabled = !doc || creatingSpriteProp;
     root.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((button) => {
       button.classList.toggle('active', button.dataset.tool === getToolBase(tool));
     });
@@ -1890,12 +1894,12 @@ export function mountArt(root: HTMLElement): () => void {
       announce(`Opened ${displayName(id)}`);
     }
   }
-  async function save(): Promise<void> {
+  async function save(): Promise<boolean> {
     if (!doc || !spriteId) {
       announce('Open or create a sprite');
-      return;
+      return false;
     }
-    if (saving) return;
+    if (saving) return false;
     const id = spriteId;
     const sent = cloneDoc(doc);
     let base: SpriteDocument | null;
@@ -1903,7 +1907,7 @@ export function mountArt(root: HTMLElement): () => void {
       base = savedState ? (JSON.parse(savedState) as SpriteDocument) : null;
     } catch {
       announce('Saved snapshot is invalid; reopen or save as a new id');
-      return;
+      return false;
     }
     saving = true;
     try {
@@ -1955,6 +1959,7 @@ export function mountArt(root: HTMLElement): () => void {
       announce(message);
       toast(message, !rebased);
       void refreshFiles();
+      return rebased;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Save failed';
       announce(message);
@@ -1962,6 +1967,7 @@ export function mountArt(root: HTMLElement): () => void {
       if (error instanceof ApiError && error.status === 409) {
         await alertModal(`${message}. Your unsaved draft is still open. Review or use Save As.`);
       }
+      return false;
     } finally {
       saving = false;
     }
@@ -2126,6 +2132,85 @@ export function mountArt(root: HTMLElement): () => void {
         refreshControls();
         announce(`Font ${SPRITE_FONTS.find((font) => font.id === value)?.label ?? value}`);
       });
+  }
+  async function createFromBrush(): Promise<void> {
+    const sprite = createSpriteFromBrush(
+      crypto.randomUUID(),
+      '',
+      stamp ?? {
+        width: brushSize,
+        height: brushSize,
+        cells: Array.from({ length: brushSize * brushSize }, () => ({ ch: glyph, fg, bg })),
+      },
+      getSpriteFont(),
+    );
+    const entered = await promptModal('Name for the new sprite');
+    if (entered === null || !alive) return;
+    const label = entered.trim();
+    const labelError = getSpriteLabelError(label);
+    if (labelError) return void alertModal(labelError);
+    sprite.label = label;
+    try {
+      const saved = await saveDraft<SpriteDocument>(
+        `/api/sprites/${encodeURIComponent(sprite.id)}`,
+        sprite,
+        null,
+      );
+      if (!alive) return;
+      loadSprite(saved);
+      announce(`Created ${saved.label} from brush`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Create from brush failed';
+      announce(message);
+      toast(message, true);
+    }
+  }
+  async function createPropFromCurrentFrame(): Promise<void> {
+    if (!doc || !spriteId || creatingSpriteProp) return;
+    stopPlayback();
+    const from = spriteId;
+    const index = selectedFrame;
+    let propWindow: Window | null = null;
+    creatingSpriteProp = true;
+    refreshControls();
+    try {
+      const entered = await promptModal('Label for the new sprite prop', doc.label);
+      if (entered === null || !alive || spriteId !== from || !doc) return;
+      const label = entered.trim();
+      const labelError = getPropLabelError(label);
+      if (labelError) return void alertModal(labelError);
+      // Reserve the window during the prompt's user gesture, before awaiting saves.
+      propWindow = window.open('about:blank', '_blank');
+      if (propWindow) propWindow.opener = null;
+      if (JSON.stringify(doc) !== savedState && !(await save())) return;
+      if (!alive || spriteId !== from || !doc) return;
+      if (JSON.stringify(doc) !== savedState) {
+        await alertModal('The spritesheet changed while saving. Try creating the prop again.');
+        return;
+      }
+      const prop = createSpriteProp(crypto.randomUUID(), label, doc, index);
+      await saveDraft(`/api/props/${encodeURIComponent(prop.id)}`, prop, null);
+      if (!alive) return;
+      const opened = propWindow !== null && !propWindow.closed;
+      if (opened && propWindow) {
+        propWindow.location.replace(`/props?id=${encodeURIComponent(prop.id)}`);
+        propWindow = null;
+      }
+      const message = opened
+        ? `Created sprite prop ${label}`
+        : `Created sprite prop ${label}. Allow pop-ups to open props automatically.`;
+      announce(message);
+      toast(message);
+    } catch (error) {
+      if (!alive) return;
+      const message = error instanceof Error ? error.message : 'Create sprite prop failed';
+      announce(message);
+      toast(message, true);
+    } finally {
+      propWindow?.close();
+      creatingSpriteProp = false;
+      if (alive) refreshControls();
+    }
   }
   async function createNewSprite(folder = ''): Promise<void> {
     const draft = await askNewSprite();
@@ -2965,6 +3050,8 @@ export function mountArt(root: HTMLElement): () => void {
 
   const actions: Record<string, () => void> = {
     new: () => void createNewSprite(),
+    'create-from-brush': () => void createFromBrush(),
+    'create-sprite-prop': () => void createPropFromCurrentFrame(),
     save: () => void save(),
     'save-as': () => void saveAs(),
     duplicate: () => void duplicateSprite(),
@@ -3961,6 +4048,7 @@ function getArtMarkup(): string {
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
+        <button type="button" data-action="create-from-brush">Create From Brush…</button>
         <button type="button" data-action="save">Save <kbd>Ctrl+S</kbd></button>
         <button type="button" data-action="save-as">Save as… <kbd>Ctrl+Shift+S</kbd></button>
         <button type="button" data-action="duplicate">Duplicate <kbd>Ctrl+D</kbd></button>
@@ -3990,6 +4078,9 @@ function getArtMarkup(): string {
         <button type="button" data-action="zoom-out">Zoom out</button>
         <button type="button" data-action="fit">Fit canvas</button>
         <hr><button type="button" data-action="toggle-grid">Hide grid <kbd>G</kbd></button>
+      </div></details>
+      <details class="menu"><summary>PROPS</summary><div class="menu-panel">
+        <button type="button" data-action="create-sprite-prop" disabled>Create Sprite Prop…</button>
       </div></details>
       <span class="menu-spacer"></span>
       <div id="document-tabs" class="document-tabs" role="tablist"></div>

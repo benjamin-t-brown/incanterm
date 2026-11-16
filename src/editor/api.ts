@@ -39,6 +39,10 @@ export async function dispatchAssetRequest(
       return await handleSceneFoldersRequest(store, method, rawBody, 'props');
     if (parts[1] === 'character-folders' && parts.length === 2)
       return await handleSceneFoldersRequest(store, method, rawBody, 'characters');
+    if (parts[1] === 'item-folders' && parts.length === 2)
+      return await handleSceneFoldersRequest(store, method, rawBody, 'items');
+    if (parts[1] === 'items')
+      return await handleItemsRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'animations')
       return await handleAnimationsRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'props')
@@ -221,19 +225,21 @@ async function handleSceneFoldersRequest(
   store: AssetStore,
   method: string,
   rawBody: string | Buffer,
-  kind: 'scenes' | 'sprites' | 'props' | 'characters',
+  kind: 'scenes' | 'sprites' | 'props' | 'characters' | 'items',
 ): Promise<AssetResponse> {
   const getFolders = () => ({
     scenes: () => store.getSceneFolders(),
     sprites: () => store.getSpriteFolders(),
     props: () => store.getPropFolders(),
     characters: () => store.getCharacterFolders(),
+    items: () => store.getItemFolders(),
   })[kind]();
   const changeFolders = (change: Parameters<AssetStore['changeSceneFolders']>[0]) => ({
     scenes: () => store.changeSceneFolders(change),
     sprites: () => store.changeSpriteFolders(change),
     props: () => store.changePropFolders(change),
     characters: () => store.changeCharacterFolders(change),
+    items: () => store.changeItemFolders(change),
   })[kind]();
   if (method === 'GET') return getJson(200, await getFolders());
   if (method !== 'POST') return getJson(405, { error: 'Method not allowed' });
@@ -291,6 +297,26 @@ async function handleScriptsRequest(
   return getJson(404, { error: 'Not found' });
 }
 
+async function handleItemsRequest(
+  store: AssetStore, method: string, parts: string[], rawBody: string | Buffer,
+): Promise<AssetResponse> {
+  if (parts.length === 0 && method === 'GET') {
+    const labels = await store.getItemLabels();
+    return getJson(200, { files: Object.keys(labels), labels });
+  }
+  if (parts.length === 1 && method === 'GET')
+    return getJson(200, await store.readItem(decode(parts[0])));
+  if (parts.length === 1 && method === 'PUT') {
+    const { base, doc } = getDraftBody(rawBody);
+    return getJson(200, await store.saveItemDraft(decode(parts[0]), doc, base));
+  }
+  if (parts.length === 1 && method === 'DELETE') {
+    await store.deleteItem(decode(parts[0]));
+    return getJson(200, { ok: true });
+  }
+  return getJson(404, { error: 'Not found' });
+}
+
 async function handlePropsRequest(
   store: AssetStore,
   method: string,
@@ -298,7 +324,10 @@ async function handlePropsRequest(
   rawBody: string | Buffer,
 ): Promise<AssetResponse> {
   if (parts.length === 0 && method === 'GET')
-    return getJson(200, { files: await store.listProps() });
+    return getJson(200, {
+      files: await store.listProps(),
+      labels: await store.getPropLabels(),
+    });
   if (parts.length === 1 && method === 'GET')
     return getJson(200, await store.readProp(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {

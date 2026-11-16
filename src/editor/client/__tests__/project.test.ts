@@ -1,7 +1,80 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { createProjectStorage, importLegacyEditorState, type EditorProject } from '../project.js';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import {
+  clearProjectSelection,
+  createProjectStorage,
+  getSavedProjectPath,
+  importLegacyEditorState,
+  OPEN_PROJECT_KEY,
+  saveProjectSelection,
+  type EditorProject,
+} from '../project.js';
 
 beforeEach(() => vi.resetModules());
+afterEach(() => vi.unstubAllGlobals());
+
+function createStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    key(index) {
+      return [...values.keys()][index] ?? null;
+    },
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+    clear() {
+      values.clear();
+    },
+  };
+}
+
+it('remembers the selected manifest across new tabs and browser sessions', () => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  expect(getSavedProjectPath()).toBeNull();
+  saveProjectSelection('/games/first/incanterm.json');
+  expect(sessionStorage.getItem(OPEN_PROJECT_KEY)).toBe('/games/first/incanterm.json');
+  expect(localStorage.getItem(OPEN_PROJECT_KEY)).toBe('/games/first/incanterm.json');
+
+  vi.stubGlobal('sessionStorage', createStorage());
+  expect(getSavedProjectPath()).toBe('/games/first/incanterm.json');
+});
+
+it('keeps an existing tab pinned when another tab selects a different project', () => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  saveProjectSelection('/games/first/incanterm.json');
+  localStorage.setItem(OPEN_PROJECT_KEY, '/games/second/incanterm.json');
+  expect(getSavedProjectPath()).toBe('/games/first/incanterm.json');
+  clearProjectSelection();
+  expect(sessionStorage.getItem(OPEN_PROJECT_KEY)).toBeNull();
+  expect(localStorage.getItem(OPEN_PROJECT_KEY)).toBe('/games/second/incanterm.json');
+});
+
+it('forgets the saved selection when closing or failing to reopen that project', () => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  saveProjectSelection('/games/first/incanterm.json');
+  clearProjectSelection();
+  expect(getSavedProjectPath()).toBeNull();
+  expect(localStorage.getItem(OPEN_PROJECT_KEY)).toBeNull();
+  expect(sessionStorage.getItem(OPEN_PROJECT_KEY)).toBeNull();
+});
+
+it('can reopen an existing tab selection saved before persistent selection was added', () => {
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  sessionStorage.setItem(OPEN_PROJECT_KEY, '/games/first/incanterm.json');
+  expect(getSavedProjectPath()).toBe('/games/first/incanterm.json');
+});
 
 function createEditorProject(key: string): EditorProject {
   return {
@@ -65,6 +138,7 @@ it('only imports legacy editor state explicitly, preserving both original data a
     ['incanterm-editor-open-sprites', 'legacy draft'],
     ['incanterm-editor-open-scenes', 'legacy tabs'],
     ['incanterm-editor-theme', 'light'],
+    [OPEN_PROJECT_KEY, '/games/selected/incanterm.json'],
     ['unrelated', 'other application'],
   ]);
   const storage: Storage = {
@@ -93,6 +167,7 @@ it('only imports legacy editor state explicitly, preserving both original data a
   expect(scoped.getItem('incanterm-editor-open-sprites')).toBe('newer project draft');
   expect(scoped.getItem('incanterm-editor-open-scenes')).toBe('legacy tabs');
   expect(scoped.getItem('incanterm-editor-theme')).toBeNull();
+  expect(scoped.getItem(OPEN_PROJECT_KEY)).toBeNull();
   expect(storage.getItem('incanterm-editor-open-sprites')).toBe('legacy draft');
   expect(importLegacyEditorState(storage, 'selected')).toBe(0);
 });

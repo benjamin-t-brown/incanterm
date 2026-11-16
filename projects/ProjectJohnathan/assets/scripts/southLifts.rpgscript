@@ -1,0 +1,14 @@
+#southLiftsLoad
+  load,southLiftsLoad
+@southLiftsLoad
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#southLiftsUpdate
+  timer,southLiftsUpdater,2000
+@southLiftsUpdater
+  // move stuff skip wait
+
+#southLifts_toHallway2
+  step,southLifts_toHallway2
+@southLifts_toHallway2
+  +changeScene(hallway2, FromSouthLifts)

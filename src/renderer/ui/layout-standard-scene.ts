@@ -9,6 +9,7 @@ import type { Rect } from './element.js';
 import type { DialogueMessage } from './dialogue-message.js';
 import type { SelectionRect } from '../../protocol/messages.js';
 import { CenterToast } from './center-toast.js';
+import { InventoryPanel } from './inventory-panel.js';
 import {
   MIN_STANDARD_WIDTH,
   STANDARD_TABS,
@@ -42,6 +43,7 @@ export class LayoutStandardScene extends UIElement {
   readonly message: DialogueMessage;
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
+  readonly inventory = new InventoryPanel();
   conversationOpen = false;
   portraitExitVisible = false;
   private readonly logEntries: { message: string; error: boolean }[] = [];
@@ -164,6 +166,7 @@ export class LayoutStandardScene extends UIElement {
       bg: UI_INK.bg,
     });
     this.tabs.getContent('log').addChild(this.choiceMessage).addChild(this.scriptLog);
+    this.tabs.getContent('inventory').addChild(this.inventory);
     this.ui.addChild(this.tabs);
     this.ui.addChild(this.dialoguePanel);
     this.addChild(this.ui);
@@ -190,6 +193,26 @@ export class LayoutStandardScene extends UIElement {
       width: Math.max(0, Math.min(this.viewportWidth, x + content.innerWidth) - left),
       height: Math.max(0, Math.min(this.viewportHeight, y + content.innerHeight) - top),
     };
+  }
+
+  getInventoryActionAt(x: number, y: number): ReturnType<InventoryPanel['getActionAt']> {
+    if (!this.canClick || !this.ui.visible || !this.tabs.visible ||
+      this.tabs.selectedId !== 'inventory' || this.centerToast.visible ||
+      x < 0 || y < 0 || x >= this.viewportWidth || y >= this.viewportHeight) return;
+    const pane = this.tabs.getContent('inventory');
+    const left = this.x + this.ui.x + this.tabs.x + pane.x;
+    const top = this.y + this.ui.y + this.tabs.y + pane.y;
+    if (x < left + 1 || x >= left + pane.width - 1 || y < top + 1 || y >= top + pane.height - 1) return;
+    return this.inventory.getActionAt(
+      x - left - 1 - this.inventory.x,
+      y - top - 1 + pane.scrollY - this.inventory.y,
+    );
+  }
+
+  getTabAt(x: number, y: number): string | undefined {
+    if (!this.canClick || !this.ui.visible || !this.tabs.visible || this.centerToast.visible ||
+      x < 0 || y < 0 || x >= this.viewportWidth || y >= this.viewportHeight) return;
+    return this.tabs.getTabAt(x - this.x - this.ui.x - this.tabs.x, y - this.y - this.ui.y - this.tabs.y);
   }
 
   /** The portrait image cells, excluding the rounded frame; coordinates are on the final screen. */
@@ -234,6 +257,8 @@ export class LayoutStandardScene extends UIElement {
     const followsLog = logPanel.scrollY === logPanel.maxScrollY();
     this.tabs.x = left;
     this.tabs.resize(right - left, STANDARD_UI_HEIGHT - 1);
+    this.inventory.width = Math.max(1, this.tabs.getContent('inventory').innerWidth);
+    this.inventory.height = Math.max(3, 2 + this.inventory.items.length * 4);
     const portrait = this.dialoguePanel.portraitBox;
     const rightPortrait = this.dialoguePanel.rightPortraitBox;
     const portraitVisible = portrait.visible;

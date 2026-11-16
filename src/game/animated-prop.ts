@@ -20,8 +20,9 @@ export class AnimatedProp extends Prop {
     public state: string,
     readonly instanceName?: string,
     readonly propId?: string,
+    foreground = false,
   ) {
-    super(id, x, y, depthOffset, z, sprite);
+    super(id, x, y, depthOffset, z, sprite, foreground);
   }
 
   /** Active clip for the current state (falls back to default, then a static sprite frame). */
@@ -60,6 +61,7 @@ export class AnimatedProp extends Prop {
       this.state,
       this.instanceName,
       this.propId,
+      this.foreground,
     );
   }
 

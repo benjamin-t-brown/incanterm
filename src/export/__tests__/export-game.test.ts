@@ -10,6 +10,7 @@ import { createAnimation, createCharacter, createProp, createSprite } from '../.
 import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
 import { getDefaultPalette } from '../../editor/palette.js';
 import { exportGame } from '../export-game.js';
+import { createItem } from '../../editor/items/item-schema.js';
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 let directory: string;
@@ -43,6 +44,10 @@ beforeAll(async () => {
   await fs.writeFile(
     path.join(project.assetsRoot, 'props', 'box.json'),
     JSON.stringify(createProp('box', { type: 'sprite', id: 'body', index: 0 })),
+  );
+  await fs.writeFile(
+    path.join(project.assetsRoot, 'items', 'key.json'),
+    JSON.stringify(createItem('key', { type: 'sprite', id: 'body', index: 0 })),
   );
   const scene = JSON.parse(
     await fs.readFile(path.join(project.assetsRoot, 'scenes', 'start.json'), 'utf8'),
@@ -137,6 +142,8 @@ it('keeps asset bytes and IDs, resolves the selected scene label, and never modi
   expect(await fs.readFile(path.join(exported.assetsRoot, 'audio', 'cue.wav'), 'utf8')).toBe(
     'RIFF-fixture',
   );
+  expect(JSON.parse(await fs.readFile(path.join(exported.assetsRoot, 'items', 'key.json'), 'utf8')))
+    .toEqual(createItem('key', { type: 'sprite', id: 'body', index: 0 }));
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('references');
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('scene-folders.json');
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('.env');

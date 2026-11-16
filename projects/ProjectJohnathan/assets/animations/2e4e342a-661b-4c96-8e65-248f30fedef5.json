@@ -1,0 +1,70 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "2e4e342a-661b-4c96-8e65-248f30fedef5",
+  "label": "lady3x3 sit office",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 22,
+      "durationMs": 500
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 23,
+      "durationMs": 135
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 24,
+      "durationMs": 135
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 22,
+      "durationMs": 900
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 23,
+      "durationMs": 135
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 25,
+      "durationMs": 300
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 24,
+      "durationMs": 135
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 22,
+      "durationMs": 400
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 24,
+      "durationMs": 200
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 23,
+      "durationMs": 200
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 24,
+      "durationMs": 200
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 25,
+      "durationMs": 200
+    }
+  ]
+}

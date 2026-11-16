@@ -1,6 +1,6 @@
 import type { Command, ScriptValue } from './parser.js';
 
-export type RuntimeValue = string | number | boolean | readonly RuntimeValue[] | undefined;
+export type RuntimeValue = string | number | boolean | readonly RuntimeValue[] | { readonly [key: string]: RuntimeValue } | undefined;
 
 // Only interpreter operations belong here. Host state is a separate generic argument.
 export type CommandContext = {
@@ -17,7 +17,7 @@ export type CommandContext = {
   breakLoop: (target: number, header: number) => void;
   continueLoop: (header: number) => void;
   callSubscript: (ownerId: string, target: string) => void;
-  showDialogue: (actor: string, text: string, emotion?: string) => void;
+  showDialogue: (actor: string, text: string, emotion?: string, onFinish?: () => void) => void;
   showCenterToast: (message: string) => void;
   showChoices: (options: readonly string[], onChoose?: (index: number) => void) => void;
   waitUntil: (isComplete: () => boolean) => void;

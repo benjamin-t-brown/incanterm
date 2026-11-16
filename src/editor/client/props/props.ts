@@ -4,10 +4,8 @@ import {
   createProp,
   flattenSprite,
   isAssetId,
-  isCharacterStateName,
   isInvisibleFrame,
   getAnimationFrameFlips,
-  PROP_DEFAULT_STATE,
   type AnimationDocument,
   type PropDocument,
   type PropVisual,
@@ -42,6 +40,7 @@ import {
   propVisualEditHref,
   getPropVisualSize,
 } from '../../props/prop-picker.js';
+import { updatePropCustomState } from '../../props/prop-custom-states.js';
 import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { alertModal, confirmModal } from '../modal.js';
 import type { AssetFolders } from '../../asset-folders.js';
@@ -82,7 +81,9 @@ export function mountProps(root: HTMLElement): () => void {
           </div>
           <div class="prop-block-field"><span>BLOCKED CELLS</span><span id="prop-block-count"></span></div>
           <label>GROUND OFFSET Y <input id="prop-ground" class="text-input" type="number" min="-1024" max="1024"></label>
-          <label>DEPTH OFFSET <input id="prop-depth" class="text-input" type="number" min="-1024" max="1024"></label>
+          <small>Z offset is set per instance in the Scene editor.</small>
+          <label class="prop-checkbox"><input id="prop-foreground" type="checkbox" aria-describedby="prop-foreground-help"> FOREGROUND</label>
+          <small id="prop-foreground-help">Always draws above normal props and characters. Z offset still orders foreground props relative to each other.</small>
           <h2>OTHER STATES</h2>
           <p class="page-copy">The appearance above is the <code>default</code> state. Add named states for <code>+setPropAnimState</code>.</p>
           <div id="prop-custom" class="character-state-list"></div>
@@ -97,7 +98,7 @@ export function mountProps(root: HTMLElement): () => void {
         <label class="character-label">STATE NAME<input id="prop-custom-state-name" class="text-input" type="text" autocomplete="off" spellcheck="false" required></label>
         <label class="character-label">ANIMATION<span id="prop-custom-state-picker"></span></label>
         <p id="prop-custom-state-error" class="page-copy" role="alert" hidden></p>
-        <div class="character-from-folder-actions"><button type="submit">ADD STATE</button><button id="cancel-prop-custom-state" type="button">CANCEL</button></div>
+        <div class="character-from-folder-actions"><button id="submit-prop-custom-state" type="submit">ADD STATE</button><button id="cancel-prop-custom-state" type="button">CANCEL</button></div>
       </form>
     </dialog>
     <dialog id="prop-asset-dialog" class="prop-asset-dialog" aria-labelledby="prop-picker-title">
@@ -144,6 +145,7 @@ export function mountProps(root: HTMLElement): () => void {
   let loading = 0;
   let saving = false;
   let files: string[] = [];
+  let propLabels: Record<string, string> = {};
   let sprites: string[] = [];
   let spriteLabels: Record<string, string> = {};
   let animations: string[] = [];
@@ -307,7 +309,8 @@ export function mountProps(root: HTMLElement): () => void {
       const label = document.createElement('button');
       label.type = 'button';
       label.className = 'prop-tab-label';
-      label.textContent = id;
+      label.textContent =
+        (id === current?.id ? current.label : sessions.get(id)?.doc.label) ?? propLabels[id] ?? id;
       const mark = document.createElement('span');
       mark.className = 'prop-dirty-mark';
       mark.textContent = ' ●';
@@ -792,7 +795,7 @@ export function mountProps(root: HTMLElement): () => void {
     fields.hidden = !current;
     get$<HTMLButtonElement>('#save-prop').disabled = !current;
     get$<HTMLButtonElement>('#delete-prop').disabled = !current;
-    get$<HTMLElement>('#prop-id').textContent = current?.id ?? 'NO PROP';
+    get$<HTMLElement>('#prop-id').textContent = current?.label ?? current?.id ?? 'NO PROP';
     if (!current) {
       ++defaultSizeToken;
       return;
@@ -814,44 +817,32 @@ export function mountProps(root: HTMLElement): () => void {
     showBlocksButton.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
     showBlocksButton.setAttribute('aria-pressed', String(showBlocked));
     get$<HTMLInputElement>('#prop-ground').value = String(current.groundOffsetY);
-    get$<HTMLInputElement>('#prop-depth').value = String(current.depthOffset);
+    get$<HTMLInputElement>('#prop-foreground').checked = current.foreground === true;
     if (!current.customAnimations) current.customAnimations = {};
     const custom = get$<HTMLElement>('#prop-custom');
     custom.replaceChildren();
     for (const [name, id] of Object.entries(current.customAnimations)) {
       const row = document.createElement('div');
-      row.className = 'character-state-row';
-      const label = document.createElement('label');
-      label.textContent = `${name} · `;
-      const pickerHost = document.createElement('span');
-      label.append(pickerHost);
+      row.className = 'character-state-row prop-custom-state-row';
+      const label = document.createElement('span');
+      label.className = 'prop-custom-state-label';
+      label.textContent = `${name} · ${animationLabels[id] ?? id}`;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'EDIT';
+      edit.setAttribute('aria-label', `Edit custom state ${name}`);
+      edit.addEventListener('click', () => openCustomStateDialog(name));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'REMOVE';
+      remove.setAttribute('aria-label', `Remove custom state ${name}`);
       remove.addEventListener('click', () => {
         if (!current) return;
         delete current.customAnimations[name];
         render();
         void save();
       });
-      const choices = new Map(animations.map((animation) => [animationLabels[animation] ?? animation, animation]));
-      pickerHost.replaceChildren(
-        createSearchSelect({
-          value: animationLabels[id] ?? id,
-          choices: [...choices.keys()],
-          placeholder: 'Search animations…',
-          ariaLabel: `${name} animation`,
-          onCommit: (value) => {
-            if (!current) return;
-            const animation = choices.get(value.trim());
-            if (!animation) return;
-            current.customAnimations[name] = animation;
-            render();
-            void save();
-          },
-        }),
-      );
-      row.append(label, remove);
+      row.append(edit, remove, label);
       custom.append(row);
     }
     void renderDefaultSize();
@@ -860,7 +851,7 @@ export function mountProps(root: HTMLElement): () => void {
 
   async function refresh(): Promise<void> {
     const [props, sheets, clips, colors, folders] = await Promise.all([
-      requestJson<{ files: string[] }>('/api/props'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/props'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations'),
       requestJson<PaletteDocument>('/api/palette'),
@@ -868,7 +859,8 @@ export function mountProps(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = props.files;
-    assetTree.setData(files, folders);
+    propLabels = props.labels;
+    assetTree.setData(files, folders, propLabels);
     openTabs = openTabs.filter(
       (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
@@ -1100,11 +1092,16 @@ export function mountProps(root: HTMLElement): () => void {
     event.preventDefault();
     toggleBlockedPreview();
   });
+  get$<HTMLInputElement>('#prop-foreground').addEventListener('change', (event) => {
+    if (!current) return;
+    current.foreground = (event.target as HTMLInputElement).checked;
+    renderTabs();
+    scheduleTabs();
+  });
   for (const [selector, field] of [
     ['#prop-width', 'width'],
     ['#prop-height', 'height'],
     ['#prop-ground', 'groundOffsetY'],
-    ['#prop-depth', 'depthOffset'],
   ] as const) {
     const input = get$<HTMLInputElement>(selector);
     input.addEventListener('change', () => {
@@ -1194,16 +1191,30 @@ export function mountProps(root: HTMLElement): () => void {
   const customStatePicker = get$<HTMLElement>('#prop-custom-state-picker');
   const customStateError = get$<HTMLElement>('#prop-custom-state-error');
   let customStateChoices = new Map<string, string>();
-  get$<HTMLButtonElement>('#add-prop-state').addEventListener('click', () => {
+  let editingCustomState: string | null = null;
+  let customStatePropId: string | null = null;
+  function openCustomStateDialog(name: string | null = null): void {
     if (!current || saving) return;
+    editingCustomState = name;
+    customStatePropId = current.id;
     customStateError.hidden = true;
-    customStateName.value = '';
+    customStateName.value = name ?? '';
+    get$<HTMLElement>('#prop-custom-state-title').textContent =
+      name === null ? 'NEW CUSTOM STATE' : 'EDIT CUSTOM STATE';
+    get$<HTMLButtonElement>('#submit-prop-custom-state').textContent =
+      name === null ? 'ADD STATE' : 'SAVE STATE';
+    const animation = name === null ? null : current.customAnimations[name];
     customStateChoices = new Map(
       animations.map((animation) => [animationLabels[animation] ?? animation, animation]),
     );
     customStatePicker.replaceChildren(
       createSearchSelect({
-        value: current.id,
+        value:
+          name === null
+            ? (current.label ?? '')
+            : animation
+              ? (animationLabels[animation] ?? animation)
+              : '',
         choices: [...customStateChoices.keys()],
         placeholder: 'Search animations…',
         ariaLabel: 'Custom state animation',
@@ -1212,29 +1223,17 @@ export function mountProps(root: HTMLElement): () => void {
     );
     customStateDialog.showModal();
     customStateName.focus();
-  });
+  }
+  get$<HTMLButtonElement>('#add-prop-state').addEventListener('click', () =>
+    openCustomStateDialog(),
+  );
   get$<HTMLButtonElement>('#cancel-prop-custom-state').addEventListener('click', () =>
     customStateDialog.close(),
   );
   get$<HTMLFormElement>('#prop-custom-state-form').addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!current || saving) return;
+    if (!current || saving || !customStateDialog.open || current.id !== customStatePropId) return;
     const id = customStateName.value.trim();
-    if (
-      !isCharacterStateName(id) ||
-      id === PROP_DEFAULT_STATE ||
-      id in current.customAnimations
-    ) {
-      customStateError.textContent = 'Use a unique lowercase state name (spaces allowed)';
-      customStateError.hidden = false;
-      customStateName.focus();
-      return;
-    }
-    if (Object.keys(current.customAnimations).length >= 64) {
-      customStateError.textContent = 'Maximum 64 custom states';
-      customStateError.hidden = false;
-      return;
-    }
     const input = customStatePicker.querySelector<HTMLInputElement>('input');
     const animation = customStateChoices.get(input?.value.trim() ?? '');
     if (!animation) {
@@ -1243,7 +1242,14 @@ export function mountProps(root: HTMLElement): () => void {
       input?.focus();
       return;
     }
-    current.customAnimations[id] = animation;
+    try {
+      updatePropCustomState(current, id, animation, editingCustomState);
+    } catch (error) {
+      customStateError.textContent = showMessage(error);
+      customStateError.hidden = false;
+      customStateName.focus();
+      return;
+    }
     customStateDialog.close();
     render();
     void save();
@@ -1292,6 +1298,7 @@ export function mountProps(root: HTMLElement): () => void {
     ++previewToken;
     ++defaultSizeToken;
     if (picker.open) picker.close();
+    if (customStateDialog.open) customStateDialog.close();
     document.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);

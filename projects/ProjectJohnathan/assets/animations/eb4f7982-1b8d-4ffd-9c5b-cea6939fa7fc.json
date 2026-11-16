@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "eb4f7982-1b8d-4ffd-9c5b-cea6939fa7fc",
+  "label": "lady3x3 talking right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 4,
+      "durationMs": 135
+    },
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 5,
+      "durationMs": 135
+    }
+  ]
+}

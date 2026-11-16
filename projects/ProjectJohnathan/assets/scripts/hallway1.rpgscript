@@ -1,7 +1,7 @@
 #hallway1Load
   load,hallway1Load
 @hallway1Load
-  +setPlayerWalkCh(johnathan)
+  +setPlayerWalkCh(Johnathan, 3x3)
   +^hallway1.enableChMove=false
   +?is(vars.hallway1RemoveOtis):{
     +despawnCh(Otis)
@@ -58,6 +58,11 @@
   step,hallway1_toHallwayGym
 @hallway1_toHallwayGym
   +changeScene(hallwayGym, FromHallway1)
+
+#hallway1_toHallway2
+  step,hallway1_toHallway2
+@hallway1_toHallway2
+  +changeScene(hallway2, FromHallway1)
 
 #@classroom1_toClassroom1
   +walkToMarker(player, fromClassroom1)

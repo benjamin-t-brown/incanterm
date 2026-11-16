@@ -1,0 +1,77 @@
+#hallway3Load
+  load,hallway3Load
+@hallway3Load
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#hallway3Update
+  timer,hallway3Updater,2000
+@hallway3Updater
+  // move stuff skip wait
+
+#hallway3_toHallway2
+  step,hallway3_toHallway2
+@hallway3_toHallway2
+  +changeScene(hallway2, FromHallway3)
+
+#hallway3_toOfficeLift
+  step,hallway3_toOfficeLift
+@hallway3_toOfficeLift
+  +changeScene(officeLift, FromHallway3)
+
+#hallway3_toRevirtualisEntrance
+  step,hallway3_toRevirtualisEntrance
+@hallway3_toRevirtualisEntrance
+  +changeScene(revirtualisEntrance, FromHallway3)
+
+@hallway3_SkyeAdaTalk
+  +:ld(Ada, left)
+  +walkToMarker(Johnathan, MarkerAdaSkyeTalk)
+  +:ld(Johnathan, up)
+  +^hallway3.skyeAdaTalk=0
+  +hallway3.skyeAdaTalk={hallway3.skyeAdaTalk}+1
+  +?switch(hallway3.skyeAdaTalk):{
+    1:{
+      +:hallway3_AdaSkye1()
+    }
+    *:{
+      +:hallway3_AdaSkye2()
+    }
+  }
+
+@hallway3_AdaSkye1
+  +setConv2(Skye, Ada)
+  Ada: "Did you find it yet?"
+  +setAnimState(Skye, search look)
+  Skye: "I know it's in here somewhere... just let me keep looking."
+  Ada: "You really should consider being more organized. Your locker is starting to smell, and I do not want to have to endure that every time I come here."
+  Skye: "That's just my lunch."
+  Ada: "Are you perchance eating moldy bread with wet socks wrapped around it?"
+  Skye: "It's not that bad. "
+  +setAnimState(Skye, idle)
+  Skye: "I guess my gym clothes are on top... But I need them for class!"
+  +setConv()
+  Johnathan: "Hello! I see everything is normal today."
+  +:ld(Ada, down)
+  Ada: "Unfortunately, yes it is."
+  +:ld(Ada, left)
+  Ada: "Skye has my physics text book and I need it for homework tonight."
+  +setConv2(Skye, Ada)
+  +walkToOffset(Skye, 1, 0)
+  Skye: "Oh c'mon. You're always doing homework. That's like all you ever do. Can't you go one night without a stupid book?"
+  Ada: "When I lend you something I expect it back. It should be that simple."
+  +walkToOffset(Skye, -1, 0)
+  +:ld(Skye, right)
+  +setAnimState(Skye, search up)
+  Skye: "Fine. Let me keep looking."
+  +setConv()
+  Johnathan: "I'll... uh... leave you to it."
+  +endConv()
+
+@hallway3_AdaSkye2
+  +setConv2(Skye, Ada)
+  +:ld(Ada, left)
+  Ada: "I do not plan on leaving until you find that book."
+  +setAnimState(Skye, search look)
+  Skye: "I know, I know. Geez you're so stubborn."
+  +setAnimState(Skye, search up)
+  +endConv()

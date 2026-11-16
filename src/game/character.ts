@@ -5,6 +5,7 @@ import { findPath, type Point } from './character-movement.js';
 import type { Sprite } from './sprite.js';
 
 export type CharacterClip = { frames: { sprite?: Sprite; durationMs: number }[]; loop: boolean };
+export type CharacterAppearance = { sprite: Sprite; clips: ReadonlyMap<string, CharacterClip> };
 export type CharacterActivity = Readonly<{
   state: string;
   facing: CharacterDirection;
@@ -24,7 +25,7 @@ export class Character extends Prop {
   private walkElapsed = 0;
   private busy = false;
   private conversationBusy = false;
-  readonly bottomOffset: number;
+  declare sprite: Sprite;
   /** Multiplier on walking pace; higher values move faster. Default 1. */
   speedMult = 1;
 
@@ -39,12 +40,33 @@ export class Character extends Prop {
     public state: string,
     public facing: CharacterDirection,
     public speed = 150,
-    readonly clips: ReadonlyMap<string, CharacterClip> = new Map(),
+    public clips: ReadonlyMap<string, CharacterClip> = new Map(),
     readonly talkScript?: string,
     readonly scriptName?: string,
+    public variant = 'default',
+    readonly variants: ReadonlyMap<string, CharacterAppearance> = new Map(),
   ) {
     super(id, x, y, 0, z, sprite);
-    this.bottomOffset = sprite.height - 1 - sprite.originY;
+  }
+
+  get bottomOffset(): number {
+    return this.sprite.height - 1 - this.sprite.originY;
+  }
+
+  setVariant(variant: string): void {
+    const appearance = this.variants.get(variant);
+    if (!appearance) throw new Error(`Character ${this.characterId} has no variant ${variant}`);
+    const key = this.state === 'idle' || this.state === 'walk' || this.state === 'talking'
+      ? `${this.state}-${this.facing}` : this.state;
+    if (!appearance.clips.has(key))
+      throw new Error(`Character ${this.characterId} variant ${variant} has no state ${this.state}`);
+    if (this.variant === variant) return;
+    const bottom = this.bottomY;
+    this.sprite = appearance.clips.get(key)?.frames.find((frame) => frame.sprite)?.sprite ?? appearance.sprite;
+    this.clips = appearance.clips;
+    this.variant = variant;
+    this.y = bottom - this.bottomOffset;
+    this.elapsed = 0;
   }
 
   get bottomY(): number {
@@ -162,6 +184,8 @@ export class Character extends Prop {
       this.clips,
       this.talkScript,
       this.scriptName,
+      this.variant,
+      this.variants,
     );
     character.speedMult = this.speedMult;
     character.setBusy(this.busy);

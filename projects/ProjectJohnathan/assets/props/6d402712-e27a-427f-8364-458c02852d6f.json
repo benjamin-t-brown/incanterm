@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "6d402712-e27a-427f-8364-458c02852d6f",
+  "label": "hallway2_fg2",
+  "visual": {
+    "type": "sprite",
+    "id": "c1d081e4-2b17-44b0-970e-01374eed222d",
+    "index": 0
+  },
+  "width": 6,
+  "height": 6,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

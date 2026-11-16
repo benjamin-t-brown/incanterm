@@ -10,6 +10,23 @@ export type EditorProject = {
 export const OPEN_PROJECT_KEY = 'incanterm-open-project';
 let openedProject: EditorProject | null = null;
 
+export function getSavedProjectPath(): string | null {
+  return sessionStorage.getItem(OPEN_PROJECT_KEY) ?? localStorage.getItem(OPEN_PROJECT_KEY);
+}
+
+export function saveProjectSelection(manifestPath: string): void {
+  localStorage.setItem(OPEN_PROJECT_KEY, manifestPath);
+  sessionStorage.setItem(OPEN_PROJECT_KEY, manifestPath);
+}
+
+export function clearProjectSelection(): void {
+  const selected = getSavedProjectPath();
+  sessionStorage.removeItem(OPEN_PROJECT_KEY);
+  // Another tab may have selected a different project since this one opened.
+  if (localStorage.getItem(OPEN_PROJECT_KEY) === selected)
+    localStorage.removeItem(OPEN_PROJECT_KEY);
+}
+
 export function getOpenedProject(): EditorProject | null {
   return openedProject;
 }
@@ -56,6 +73,7 @@ export function importLegacyEditorState(storage: Storage, projectKey: string): n
       !key?.startsWith('incanterm-') ||
       key.startsWith('incanterm-project:') ||
       key === 'incanterm-editor-theme' ||
+      key === OPEN_PROJECT_KEY ||
       scoped.getItem(key) !== null
     )
       continue;

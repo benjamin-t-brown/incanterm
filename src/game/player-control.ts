@@ -1,5 +1,5 @@
 import { Character, type CharacterActivity } from './character.js';
-import { findCharacter, findPath, type Point } from './character-movement.js';
+import { CharacterNotFoundError, findCharacter, findPath, type Point } from './character-movement.js';
 import type { Scene } from './scene.js';
 
 export class PlayerControl {
@@ -18,25 +18,30 @@ export class PlayerControl {
     this.playerWalkCh = player;
   }
 
-  setPlayerWalkCh(idOrInstanceName: string): void | Promise<void> {
+  setPlayerWalkCh(idOrInstanceName: string, variant?: string): void | Promise<void> {
     let character: Character;
     try {
       character = findCharacter(this.scene, idOrInstanceName, this.playerWalkCh);
     } catch (error) {
-      if (!this.allowPlayerSpawn) throw error;
+      if (!this.allowPlayerSpawn || !(error instanceof CharacterNotFoundError)) throw error;
       const marker = this.scene.getMarker('MarkerPlayer');
       if (!marker) throw new Error(`Scene ${this.scene.id} has no character ${idOrInstanceName} and no marker MarkerPlayer`);
       if (!this.scene.loadCharacter) throw error;
-      return this.createPlayerCharacter(idOrInstanceName, marker, this.scene.loadCharacter);
+      return this.createPlayerCharacter(idOrInstanceName, marker, this.scene.loadCharacter, variant);
     }
+    if (variant !== undefined) character.setVariant(variant);
     this.stop();
     this.playerWalkCh = character;
   }
 
-  private async createPlayerCharacter(reference: string, marker: Point, loadCharacter: (reference: string) => Promise<Character>): Promise<void> {
+  private async createPlayerCharacter(
+    reference: string, marker: Point, loadCharacter: (reference: string) => Promise<Character>,
+    variant?: string,
+  ): Promise<void> {
     const scene = this.scene;
     const character = await loadCharacter(reference);
     if (this.scene !== scene) return;
+    if (variant !== undefined) character.setVariant(variant);
     character.x = marker.x;
     character.y = marker.y - character.bottomOffset;
     scene.entities.push(character);

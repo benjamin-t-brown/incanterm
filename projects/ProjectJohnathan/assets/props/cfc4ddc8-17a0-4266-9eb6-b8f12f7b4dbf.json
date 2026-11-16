@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "cfc4ddc8-17a0-4266-9eb6-b8f12f7b4dbf",
+  "label": "door5x5",
+  "visual": {
+    "type": "sprite",
+    "id": "ad77cf63-0cc2-4754-8648-4d9b72edd109",
+    "index": 0
+  },
+  "width": 6,
+  "height": 7,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

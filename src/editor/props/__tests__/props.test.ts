@@ -11,6 +11,7 @@ import {
 } from '../prop-blocking.js';
 import { createAnimation, createProp, createSprite, parseProp } from '../../schema.js';
 import { AssetStore } from '../../store.js';
+import { createSpriteProp } from '../../art/create-sprite-prop.js';
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -27,6 +28,38 @@ it('validates the prop visual, footprint and depth fields', () => {
   expect(parseProp({ ...prop, blockedCells: [1] }).ok).toBe(false);
   expect(parseProp({ ...prop, blockedCells: [0, 0] }).ok).toBe(false);
   expect(parseProp({ ...prop, visual: { type: 'animation', id: 'idle' } }).ok).toBe(true);
+});
+
+it('preserves optional prop labels while accepting existing unlabeled props', () => {
+  const prop = createProp('crate', { type: 'sprite', id: 'crate-art', index: 0 });
+  expect(parseProp(prop)).toEqual({ ok: true, value: prop });
+  expect(parseProp({ ...prop, label: '  Wooden crate  ' })).toEqual({
+    ok: true,
+    value: { ...prop, label: 'Wooden crate' },
+  });
+  for (const label of ['', '   ', 'a'.repeat(81), 'Bad\nlabel', 123, null])
+    expect(parseProp({ ...prop, label }).ok).toBe(false);
+});
+
+it('saves a sprite prop and exposes its label in the prop list', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-props-'));
+  roots.push(root);
+  const store = new AssetStore(root);
+  const sprite = createSprite('crate-art', 3, 2);
+  sprite.sprites.push(structuredClone(sprite.sprites[0]));
+  await store.saveSprite(sprite.id, sprite);
+  const prop = createSpriteProp('test-prop', 'Wooden crate', sprite, 1);
+  const response = await dispatchAssetRequest(
+    store,
+    'PUT',
+    `/api/props/${prop.id}`,
+    JSON.stringify({ base: null, doc: prop }),
+  );
+  expect(response.status).toBe(200);
+  expect(await store.readProp(prop.id)).toEqual(prop);
+  expect(
+    JSON.parse(String((await dispatchAssetRequest(store, 'GET', '/api/props', '')).body)),
+  ).toEqual({ files: ['test-prop'], labels: { 'test-prop': 'Wooden crate' } });
 });
 
 it('parses prop customAnimations and rejects reserved default', () => {
@@ -129,7 +162,7 @@ it('lists, saves, merges and deletes prop assets with validated references', asy
   expect((await put('crate', null, prop)).status).toBe(200);
   expect(
     JSON.parse(String((await dispatchAssetRequest(store, 'GET', '/api/props', '')).body)),
-  ).toEqual({ files: ['crate'] });
+  ).toEqual({ files: ['crate'], labels: { crate: 'crate' } });
   expect((await put('crate', prop, { ...prop, blockedCells: [0] })).status).toBe(200);
   expect((await put('crate', prop, { ...prop, depthOffset: 2 })).status).toBe(200);
   expect(await store.readProp('crate')).toMatchObject({ blockedCells: [0], depthOffset: 2 });

@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "a5b0c98e-330c-4279-aac7-8eb513694903",
+  "label": "skye3x3 talking down",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5afb0ec0-103f-4c21-9723-de3e5e1be698",
+      "index": 0,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5afb0ec0-103f-4c21-9723-de3e5e1be698",
+      "index": 1,
+      "durationMs": 135
+    }
+  ]
+}

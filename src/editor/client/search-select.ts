@@ -3,6 +3,7 @@ let nextListId = 0;
 export function createSearchSelect(options: {
   value: string;
   choices: readonly string[];
+  labels?: Readonly<Record<string, string>>;
   placeholder?: string;
   ariaLabel?: string;
   onInput: (value: string) => void;
@@ -12,7 +13,8 @@ export function createSearchSelect(options: {
   container.className = 'search-select';
   const input = document.createElement('input');
   input.type = 'text';
-  input.value = options.value;
+  const getChoiceLabel = (value: string) => options.labels?.[value] ?? value;
+  input.value = getChoiceLabel(options.value);
   input.placeholder = options.placeholder ?? 'Search or enter a value…';
   if (options.ariaLabel) input.setAttribute('aria-label', options.ariaLabel);
   input.autocomplete = 'off';
@@ -28,6 +30,7 @@ export function createSearchSelect(options: {
   input.setAttribute('aria-controls', list.id);
   const choices = [...new Set(options.choices)];
   let active = -1;
+  let selectedValue = options.value;
 
   function close(): void {
     list.hidden = true;
@@ -50,15 +53,24 @@ export function createSearchSelect(options: {
     }
   }
 
-  function commit(): void {
-    input.value = input.value.trim();
-    options.onCommit?.(input.value);
+  function commit(chosenValue?: string): void {
+    let value = chosenValue ?? input.value.trim();
+    if (options.labels && chosenValue === undefined) {
+      if (getChoiceLabel(selectedValue) === value) value = selectedValue;
+      else if (!choices.includes(value)) {
+        const matches = choices.filter((choice) => getChoiceLabel(choice) === value);
+        if (matches.length === 1) value = matches[0];
+      }
+    }
+    selectedValue = value;
+    input.value = getChoiceLabel(value);
+    options.onCommit?.(value);
   }
 
   function choose(value: string): void {
-    input.value = value;
+    input.value = getChoiceLabel(value);
     options.onInput(value);
-    commit();
+    commit(value);
     input.focus();
     close();
   }
@@ -67,13 +79,19 @@ export function createSearchSelect(options: {
     const query = input.value.trim().toLowerCase();
     list.replaceChildren();
     active = -1;
-    for (const value of choices.filter((choice) => choice.toLowerCase().includes(query))) {
+    for (const value of choices.filter(
+      (choice) =>
+        choice.toLowerCase().includes(query) ||
+        getChoiceLabel(choice).toLowerCase().includes(query),
+    )) {
       const row = document.createElement('div');
       row.id = `${list.id}-option-${list.childElementCount}`;
       row.className = 'search-select-option';
       row.setAttribute('role', 'option');
       row.setAttribute('aria-selected', 'false');
-      row.textContent = value;
+      row.textContent = getChoiceLabel(value);
+      row.title = value;
+      row.dataset.value = value;
       row.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         choose(value);
@@ -98,7 +116,8 @@ export function createSearchSelect(options: {
       highlight(event.key === 'ArrowDown' ? Math.min(last, active + 1) : Math.max(0, active - 1));
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (!list.hidden && active >= 0) choose(list.children[active].textContent ?? '');
+      if (!list.hidden && active >= 0)
+        choose((list.children[active] as HTMLElement).dataset.value ?? '');
       else {
         commit();
         close();

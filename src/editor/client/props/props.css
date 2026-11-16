@@ -116,6 +116,11 @@
 .prop-form .text-input {
   width: 100%;
 }
+.prop-form .prop-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
 .prop-asset-field {
   display: flex;
   flex-direction: column;
@@ -207,6 +212,18 @@
 .prop-preview p {
   color: var(--muted);
   font-size: 13px;
+}
+.prop-custom-state-row {
+  align-items: center;
+}
+.prop-custom-state-row button {
+  flex: none;
+}
+.prop-custom-state-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: bold;
 }
 #prop-custom-state-dialog {
   width: min(460px, calc(100vw - 32px));

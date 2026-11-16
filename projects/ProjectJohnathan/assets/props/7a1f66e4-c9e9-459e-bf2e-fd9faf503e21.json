@@ -1,0 +1,19 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "7a1f66e4-c9e9-459e-bf2e-fd9faf503e21",
+  "label": "office_door_terminal",
+  "visual": {
+    "type": "sprite",
+    "id": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+    "index": 0
+  },
+  "width": 5,
+  "height": 2,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "customAnimations": {
+    "flashing": "d77c2087-2817-46fd-a9e2-02965ecd4370"
+  }
+}

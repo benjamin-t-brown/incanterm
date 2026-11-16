@@ -1,0 +1,14 @@
+#revirtualisEntranceLoad
+  load,revirtualisEntranceLoad
+@revirtualisEntranceLoad
+  +setPlayerWalkCh(Johnathan, 5x5)
+
+#revirtualisEntranceUpdate
+  timer,revirtualisEntranceUpdate,2000
+@revirtualisEntranceUpdate
+  // move stuff skip wait
+
+#revirtualisEntrance_toHallway3
+  step,revirtualisEntrance_toHallway3
+@revirtualisEntrance_toHallway3
+  +changeScene(hallway3, FromRevirtualisEntrance)

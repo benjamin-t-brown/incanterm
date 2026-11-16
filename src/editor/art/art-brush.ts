@@ -1,5 +1,20 @@
 import type { ArtTool } from './art-cursor.js';
-import { createBlankCell, type SpriteCell } from '../schema.js';
+import { createBlankCell, createSprite, type SpriteCell, type SpriteDocument } from '../schema.js';
+import { DEFAULT_SPRITE_FONT, type SpriteFontId } from '../terminal-cell.js';
+
+export type BrushStamp = { width: number; height: number; cells: (SpriteCell | null)[] };
+
+export function createSpriteFromBrush(
+  id: string,
+  label: string,
+  brush: BrushStamp,
+  font: SpriteFontId = DEFAULT_SPRITE_FONT,
+): SpriteDocument {
+  const sprite = createSprite(id, brush.width, brush.height, label);
+  sprite.font = font;
+  sprite.sprites[0].layers[0].cells = brush.cells.map((cell) => (cell ? { ...cell } : null));
+  return sprite;
+}
 
 export function getBrushValue(
   tool: ArtTool,

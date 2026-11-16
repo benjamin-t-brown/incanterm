@@ -1,6 +1,7 @@
 import { CellBuffer, type Cell } from './cell-buffer.js';
 import type { Sprite } from './sprite.js';
 import type { Character } from './character.js';
+import type { ItemAsset } from './items.js';
 import { compareSceneDrawRank, getSceneDepth, type DepthMode } from './scene-order.js';
 
 export type { DepthMode } from './scene-order.js';
@@ -43,6 +44,7 @@ export class Prop extends Entity {
     depthOffset: number,
     z: number,
     readonly sprite: Sprite,
+    readonly foreground = false,
   ) {
     super(id, x, y, depthOffset, z);
   }
@@ -81,6 +83,7 @@ export class Scene {
     readonly stepTriggers: readonly StepTrigger[] = [],
     readonly markers: readonly SceneMarker[] = [],
     readonly loadCharacter?: (reference: string) => Promise<Character>,
+    readonly itemAssets: ReadonlyMap<string, ItemAsset> = new Map(),
   ) {
     this.entities = [...entities];
   }
@@ -107,11 +110,13 @@ export class Scene {
       compareSceneDrawRank(
         {
           background: a.entity instanceof Background,
+          foreground: a.entity instanceof Prop && a.entity.foreground,
           depth: a.entity.getDepth(this.depthMode),
           order: a.index,
         },
         {
           background: b.entity instanceof Background,
+          foreground: b.entity instanceof Prop && b.entity.foreground,
           depth: b.entity.getDepth(this.depthMode),
           order: b.index,
         },

@@ -16,6 +16,7 @@ const RUNTIME_FOLDERS = {
   animations: 'incanterm-animation',
   characters: 'incanterm-character',
   props: 'incanterm-prop',
+  items: 'incanterm-item',
   scripts: null,
   audio: null,
 };

@@ -274,6 +274,8 @@ Portraits render at their native cell dimensions as a final overlay, bottom-alig
 
 The equivalent explicit command is `+playDialogue(Eva, "Hello", happy)`; the emotion argument is optional.
 
+Scene speakers automatically switch from `idle` to `talking` for each dialogue line, using their current facing's `talking-<direction>` animation. Advancing the line (or starting a replacement script) returns only automatically animated speakers to `idle`. Walking and explicitly selected animation states are left untouched, including manually selected talking states. A missing talking animation, off-scene speaker, or ambiguous character reference does not prevent dialogue; it simply skips automatic animation. No `setAnimState` commands are needed for ordinary speech.
+
 ### Character walking
 
 `+chWalkToCoord(npc, 5, 3)` starts any character walking to a zero-based scene cell. Coordinates refer to the character's feet, as with player clicks. The character is resolved by entity ID, instance name, then character asset ID. Arguments may use storage references or script parameters. Coordinates must be integers within the scene.

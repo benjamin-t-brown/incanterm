@@ -1,0 +1,27 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "38cfc7c4-71a4-44b8-a5d6-37a79a4dc881",
+  "label": "small_shelf_left",
+  "visual": {
+    "type": "sprite",
+    "id": "009ee56d-b914-46bd-a197-7250074e74af",
+    "index": 1
+  },
+  "width": 4,
+  "height": 3,
+  "blockedCells": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

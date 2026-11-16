@@ -1,7 +1,7 @@
 #classroom1Load
   load,classroom1Load
 @classroom1Load
-  +setPlayerWalkCh(johnathan-1)
+  +setPlayerWalkCh(johnathan-1, 3x3)
   +tmp.ralgoMoveVar=0
   +^vars.hasEnvelopeQuest=0
   +^classroom1.enableChMove=false
@@ -235,11 +235,11 @@
       Mr Ralgo: "A job interview, eh? Where at?"
       Johnathan&pleased: "Pizza delivery. I heard it makes good money."
       Mr Ralgo: "Looking for some spending cash, are we?"
-      Johnathan: "It's not exactly for me... I just want to have something. Just in case, you know?"
+      Johnathan: "It's not exactly for me... I just want to have... something. Just in case, you know?"
       Mr Ralgo: "You expecting something bad to happen to you?"
       Johnathan: "No no, of course not! I just think I should be able to help out if it does."
       Mr Ralgo: "How very mature of you."
-      Mr Ralgo: "Regardless, I still need you to take that to the office."
+      Mr Ralgo: "Regardless, I still need you to go to the office."
       Johnathan&angry: "But...!"
       Mr Ralgo: "It won't take you five minutes. Then you can go make your bag or whatever."
       Johnathan: "Okay, okay, fine."

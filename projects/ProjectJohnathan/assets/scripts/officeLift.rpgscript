@@ -1,0 +1,59 @@
+#officeLiftLoad
+  load,officeLiftLoad
+@officeLiftLoad
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#officeLiftUpdate
+  timer,officeLiftUpdater,2000
+@officeLiftUpdater
+  // move stuff skip wait
+
+#officeLift_toHallway3
+  step,officeLift_toHallway3
+@officeLift_toHallway3
+  +changeScene(hallway3, FromOffice)
+
+#@officeLift_trash
+  +setConv()
+  +walkToMarker(John, MarkerTrash)
+  +:ld(John, up)
+  Johnathan: "Nope, nothing in there. Must have just been cleared."
+  +endConv()
+
+#@officeLift_blueDoor
+  +setConv()
+  +walkToMarker(John, MarkerBlueDoor)
+  +:ld(John, right)
+  +^officeLift.blueDoor=0
+  +officeLift.blueDoor={officeLift.blueDoor}+1
+  +?switch(officeLift.blueDoor):{
+    1:{
+      Johnathan: "What's this thing? It's blocking the lift to the Offices."
+      +setAnimState(John, knock right)
+      Johnathan: "It's just like a solid wall. What's going on here?"
+      +setAnimState(John, idle)
+    }
+    *:{
+      Johnathan: "I can't get past it."
+    }
+  }
+
+
+  +endConv()
+
+#@officeLift_terminal1
+  +setConv()
+  +walkToMarker(John, MarkerTerminal1)
+  +:ld(John, up)
+  +^officeLift.terminal1=0
+  +officeLift.terminal1={officeLift.terminal1}+1
+  +?switch(officeLift.terminal1):{
+    1:{
+      +setAnimState(John, interact up)
+      Johnathan: "It's a terminal."
+    }
+    *:{
+      Johnathan: "It's a terminal."
+    }
+  }
+  +endConv()

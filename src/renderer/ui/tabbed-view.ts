@@ -55,6 +55,11 @@ export class TabbedView extends UIElement {
     return tab.content;
   }
 
+  getTabAt(x: number, y: number): string | undefined {
+    return this.tabs.find(({ button }) => x >= button.x && x < button.x + button.width &&
+      y >= button.y && y < button.y + button.height)?.id;
+  }
+
   select(id: string): void {
     const index = this.tabs.findIndex((entry) => entry.id === id);
     if (index < 0) throw new Error(`Unknown tab ${id}`);

@@ -1,0 +1,60 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "d77c2087-2817-46fd-a9e2-02965ecd4370",
+  "label": "office_terminal_flash",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 1,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 2,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 3,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 4,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 5,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 6,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 7,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 8,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 9,
+      "durationMs": 50
+    },
+    {
+      "sprite": "ac585981-6603-4bf0-8ad4-9452cc518d37",
+      "index": 10,
+      "durationMs": 50
+    }
+  ]
+}

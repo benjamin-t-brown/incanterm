@@ -11,6 +11,8 @@ import {
 import {
   getAnimationFrameFlips,
   getCharacterAnimation,
+  getCharacterVariantNames,
+  getCharacterVisual,
   getPropAnimation,
   createScene,
   flattenSprite,
@@ -47,6 +49,9 @@ import {
   type SceneClipboard,
 } from '../../scenes/scene-clipboard.js';
 import { addSceneProp } from '../../scenes/scene-props.js';
+import { addSceneItem } from '../../scenes/scene-items.js';
+import type { ItemDocument } from '../../items/item-schema.js';
+import { renameScene } from '../../scenes/scene-rename.js';
 import { addSceneMarker, getMarkerNameError } from '../../scenes/scene-markers.js';
 import {
   addSceneCharacter,
@@ -89,6 +94,7 @@ import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 import { renderTabCloseActions } from '../tab-close-actions.js';
+import { createSceneEntityPicker, type EntityPickerPreview } from './entity-picker.js';
 
 type ObjectRef = SceneObjectRef;
 
@@ -137,19 +143,41 @@ export function mountScenes(root: HTMLElement): () => void {
       </dialog>
       <dialog id="scene-prop-picker" class="scene-prop-picker" aria-labelledby="scene-prop-picker-title">
         <h2 id="scene-prop-picker-title">ADD EXISTING PROP</h2>
-        <label for="scene-prop-search">SEARCH PROPS</label>
-        <input id="scene-prop-search" type="search" placeholder="Search by name…" autocomplete="off">
-        <div id="scene-prop-results" class="scene-prop-results"></div>
+        <div class="scene-entity-picker-body">
+          <section class="scene-entity-browser" aria-label="Prop browser">
+            <label for="scene-prop-search">SEARCH PROPS</label>
+            <input id="scene-prop-search" type="search" placeholder="Search props or folders…" autocomplete="off">
+            <div class="asset-tree-toolbar"><span>PROPS</span><div class="asset-tree-toolbar-actions"></div></div>
+            <div id="scene-prop-results" class="scene-entity-files" aria-label="Prop files"></div>
+          </section>
+          <section id="scene-prop-preview" class="scene-entity-preview" aria-label="Selected prop preview" aria-live="polite"></section>
+        </div>
         <p id="scene-prop-status" role="status"></p>
         <div class="scene-background-actions"><button id="scene-prop-add" type="button" disabled>ADD TO SCENE</button><button id="scene-prop-cancel" type="button">CANCEL</button></div>
       </dialog>
       <dialog id="scene-character-picker" class="scene-prop-picker" aria-labelledby="scene-character-picker-title">
         <h2 id="scene-character-picker-title">ADD EXISTING CHARACTER</h2>
-        <label for="scene-character-search">SEARCH CHARACTERS</label>
-        <input id="scene-character-search" type="search" placeholder="Search characters…" autocomplete="off">
-        <div id="scene-character-results" class="scene-prop-results"></div>
+        <div class="scene-entity-picker-body">
+          <section class="scene-entity-browser" aria-label="Character browser">
+            <label for="scene-character-search">SEARCH CHARACTERS</label>
+            <input id="scene-character-search" type="search" placeholder="Search characters or folders…" autocomplete="off">
+            <div class="asset-tree-toolbar"><span>CHARACTERS</span><div class="asset-tree-toolbar-actions"></div></div>
+            <div id="scene-character-results" class="scene-entity-files" aria-label="Character files"></div>
+          </section>
+          <section id="scene-character-preview" class="scene-entity-preview" aria-label="Selected character preview" aria-live="polite"></section>
+        </div>
         <p id="scene-character-status" role="status"></p>
         <div class="scene-background-actions"><button id="scene-character-add" type="button" disabled>ADD TO SCENE</button><button id="scene-character-cancel" type="button">CANCEL</button></div>
+      </dialog>
+      <dialog id="scene-item-picker" class="scene-prop-picker" aria-labelledby="scene-item-picker-title">
+        <h2 id="scene-item-picker-title">ADD EXISTING ITEM</h2>
+        <div class="scene-entity-picker-body"><section class="scene-entity-browser" aria-label="Item browser">
+          <label for="scene-item-search">SEARCH ITEMS</label><input id="scene-item-search" type="search" placeholder="Search items or folders…" autocomplete="off">
+          <div class="asset-tree-toolbar"><span>ITEMS</span><div class="asset-tree-toolbar-actions"></div></div>
+          <div id="scene-item-results" class="scene-entity-files"></div></section>
+          <section id="scene-item-preview" class="scene-entity-preview" aria-label="Selected item preview"></section></div>
+        <p id="scene-item-status" role="status"></p><div class="scene-background-actions">
+          <button id="scene-item-add" type="button" disabled>ADD TO SCENE</button><button id="scene-item-cancel" type="button">CANCEL</button></div>
       </dialog>
       <div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
@@ -161,8 +189,11 @@ export function mountScenes(root: HTMLElement): () => void {
     <button id="scene-new" type="button">New scene</button>
     <button id="scene-save" type="button">Save</button>
     <button id="scene-delete" type="button">Delete</button>
+  </div></details><details class="scene-menu"><summary>EDIT</summary><div class="scene-menu-panel">
+    <button id="scene-rename" type="button" disabled>Update Metadata</button>
   </div></details><details class="scene-menu"><summary>ENTITIES</summary><div class="scene-menu-panel">
     <button id="scene-add-prop" type="button">Add Prop…</button>
+    <button id="scene-add-item" type="button">Add Item…</button>
     <button id="scene-add-character" type="button">Add Character…</button>
     <button id="scene-add-marker" type="button">Add Marker…</button>
     <button id="scene-add-trigger" type="button">Add Trigger</button>
@@ -204,6 +235,7 @@ export function mountScenes(root: HTMLElement): () => void {
   const backgroundStatus = get$<HTMLElement>('#scene-background-status');
   const backgroundAdd = get$<HTMLButtonElement>('#scene-background-add');
   const propPicker = get$<HTMLDialogElement>('#scene-prop-picker');
+  const itemPicker = get$<HTMLDialogElement>('#scene-item-picker');
   const propSearch = get$<HTMLInputElement>('#scene-prop-search');
   const propResults = get$<HTMLElement>('#scene-prop-results');
   const propStatus = get$<HTMLElement>('#scene-prop-status');
@@ -231,6 +263,7 @@ export function mountScenes(root: HTMLElement): () => void {
   let files: string[] = [];
   let sceneLabels: Record<string, string> = {};
   let props: string[] = [];
+  let propAssetLabels: Record<string, string> = {};
   let rpgTriggers: string[] = [];
   let triggerSources: Record<string, string[]> = {};
   let scriptSources: Record<string, string[]> = {};
@@ -272,11 +305,6 @@ export function mountScenes(root: HTMLElement): () => void {
   let backgroundChoice: { sprite: string; index: number } | null = null;
   let backgroundSheetId: string | null = null;
   let pickerToken = 0;
-  let propPickerToken = 0;
-  let propLoadToken = 0;
-  let propChoice: string | null = null;
-  let characterChoice: CharacterDocument | null = null;
-  let characterPickerToken = 0;
   let drag: {
     pointerId: number;
     x: number;
@@ -312,6 +340,7 @@ export function mountScenes(root: HTMLElement): () => void {
   } | null = null;
   const sheetCache = new Map<string, Promise<SpriteDocument | null>>();
   const propCache = new Map<string, Promise<PropDocument | null>>();
+  const itemCache = new Map<string, Promise<ItemDocument | null>>();
   const animationCache = new Map<string, Promise<AnimationDocument | null>>();
   const characterCache = new Map<string, Promise<CharacterDocument | null>>();
   const isDirty = () => current !== null && JSON.stringify(current) !== JSON.stringify(saved);
@@ -514,6 +543,7 @@ export function mountScenes(root: HTMLElement): () => void {
   }
   const getSheet = (id: string) => cache(sheetCache, id, `/api/sprites/${encodeURIComponent(id)}`);
   const getProp = (id: string) => cache(propCache, id, `/api/props/${encodeURIComponent(id)}`);
+  const getItem = (id: string) => cache(itemCache, id, `/api/items/${encodeURIComponent(id)}`);
   const getAnimation = (id: string) =>
     cache(animationCache, id, `/api/animations/${encodeURIComponent(id)}`);
   const getCharacter = (id: string) =>
@@ -852,7 +882,7 @@ export function mountScenes(root: HTMLElement): () => void {
     onChange: (value: string) => void,
     options: { min?: number; max?: number } = {},
     container: HTMLElement = inspector,
-  ): void {
+  ): HTMLInputElement {
     const wrapper = document.createElement('label');
     wrapper.textContent = label;
     const input = document.createElement('input');
@@ -864,6 +894,7 @@ export function mountScenes(root: HTMLElement): () => void {
     input.addEventListener('change', () => onChange(input.value));
     wrapper.append(input);
     container.append(wrapper);
+    return input;
   }
   function createNumberField(
     label: string,
@@ -872,8 +903,8 @@ export function mountScenes(root: HTMLElement): () => void {
     max: number,
     set: (value: number) => void,
     container: HTMLElement = inspector,
-  ): void {
-    createField(
+  ): HTMLInputElement {
+    return createField(
       label,
       value,
       (raw) => {
@@ -935,6 +966,8 @@ export function mountScenes(root: HTMLElement): () => void {
           ? 'BACKGROUND'
           : typeof item !== 'string' && 'type' in item && item.type === 'Character'
             ? 'CHARACTER'
+            : typeof item !== 'string' && 'type' in item && item.type === 'Item'
+              ? 'ITEM'
             : 'PROP';
     inspector.append(heading);
     const id = typeof item === 'string' ? item : item.id;
@@ -1053,7 +1086,7 @@ export function mountScenes(root: HTMLElement): () => void {
           item.name = name;
           render();
         }, { max: 80 });
-      if (item.type === 'Prop' || item.type === 'Character')
+      if (item.type === 'Prop' || item.type === 'Character' || item.type === 'Item')
         createField(
           'INSTANCE NAME',
           item.name ?? item.id,
@@ -1100,6 +1133,16 @@ export function mountScenes(root: HTMLElement): () => void {
             ? `Footprint: ${sprite.width} × ${sprite.height} cells (sprite size). No blocked cells. Background depth.`
             : 'Sprite unavailable.';
         });
+      } else if (item.type === 'Item') {
+        const link = document.createElement('a');
+        link.href = `/items?id=${encodeURIComponent(item.item)}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = `EDIT ITEM ↗ (${item.item})`;
+        inspector.append(link);
+        const note = document.createElement('p');
+        note.textContent = 'Collectible item. Appearance and interactions are defined in the Item editor. Items do not block movement.';
+        inspector.append(note);
       } else if (item.type === 'Character') {
         const talkBinding = document.createElement('label');
         talkBinding.textContent = 'TALK SCRIPT';
@@ -1156,6 +1199,12 @@ export function mountScenes(root: HTMLElement): () => void {
         stateSelect.append(new Option(item.state, item.state));
         stateLabel.append(stateSelect);
         inspector.append(stateLabel);
+        const variantLabel = document.createElement('label');
+        variantLabel.textContent = 'VISUAL VARIANT';
+        const variantSelect = document.createElement('select');
+        variantSelect.disabled = true;
+        variantLabel.append(variantSelect);
+        inspector.append(variantLabel);
         void getCharacter(assetId).then((asset) => {
           if (
             !alive ||
@@ -1165,6 +1214,14 @@ export function mountScenes(root: HTMLElement): () => void {
           )
             return;
           if (!asset) return;
+          variantSelect.replaceChildren();
+          variantSelect.append(new Option(`Default (${asset.defaultVariant ?? 'default'})`, ''));
+          for (const name of getCharacterVariantNames(asset))
+            variantSelect.append(new Option(name, name));
+          if (item.variant && !getCharacterVisual(asset, item.variant))
+            variantSelect.append(new Option(`${item.variant} (missing)`, item.variant));
+          variantSelect.value = item.variant ?? '';
+          variantSelect.disabled = false;
           stateSelect.replaceChildren();
           for (const choice of [
             ...new Set([
@@ -1172,12 +1229,16 @@ export function mountScenes(root: HTMLElement): () => void {
               'idle',
               'walk',
               'talking',
-              ...Object.keys(asset.customAnimations),
+              ...Object.keys(getCharacterVisual(asset, item.variant)?.customAnimations ?? {}),
             ]),
           ])
             stateSelect.append(new Option(choice, choice));
           stateSelect.value = item.state;
           stateSelect.disabled = false;
+        });
+        variantSelect.addEventListener('change', () => {
+          item.variant = variantSelect.value || undefined;
+          render();
         });
         stateSelect.addEventListener('change', () => {
           item.state = stateSelect.value;
@@ -1188,10 +1249,28 @@ export function mountScenes(root: HTMLElement): () => void {
         note.textContent = 'Editor-only position reference; invisible in the game.';
         inspector.append(note);
       } else if ('prop' in item) {
-        selectField('PROP ASSET', item.prop, props, (v) => {
-          item.prop = v;
-          item.state = PROP_DEFAULT_STATE;
-        });
+        const propAssetLabel = document.createElement('label');
+        propAssetLabel.textContent = 'PROP ASSET';
+        propAssetLabel.append(createSearchSelect({
+          value: item.prop,
+          choices: [...new Set([item.prop, ...props])],
+          labels: propAssetLabels,
+          placeholder: 'Search props by name or ID…',
+          ariaLabel: 'Prop asset',
+          onInput: () => {},
+          onCommit: (value) => {
+            if (value === item.prop) return;
+            if (!props.includes(value)) {
+              status.textContent = 'Select an existing prop asset.';
+              renderInspector();
+              return;
+            }
+            item.prop = value;
+            item.state = PROP_DEFAULT_STATE;
+            render();
+          },
+        }));
+        inspector.append(propAssetLabel);
         const link = document.createElement('a');
         link.href = `/props?id=${encodeURIComponent(item.prop)}`;
         link.target = '_blank';
@@ -1237,7 +1316,7 @@ export function mountScenes(root: HTMLElement): () => void {
         inspector.append(note);
       }
       const positionRow =
-        item.type === 'Prop' || item.type === 'Character' || item.type === 'Marker'
+        item.type === 'Prop' || item.type === 'Character' || item.type === 'Item' || item.type === 'Marker'
           ? document.createElement('div')
           : inspector;
       if (positionRow !== inspector) {
@@ -1264,8 +1343,8 @@ export function mountScenes(root: HTMLElement): () => void {
         },
         positionRow,
       );
-      if (item.type === 'Prop' || item.type === 'Character')
-        createNumberField(
+      if (item.type === 'Prop' || item.type === 'Character' || item.type === 'Item') {
+        const zInput = createNumberField(
           'Z',
           item.z,
           -1000,
@@ -1275,6 +1354,35 @@ export function mountScenes(root: HTMLElement): () => void {
           },
           positionRow,
         );
+        zInput.disabled = current.depthMode === 'bottom-up';
+        zInput.title = zInput.disabled
+          ? 'Z is unavailable in Bottom Up scenes; use Z Offset to adjust prop draw order.'
+          : 'World Z value in Regular Z scenes.';
+      }
+      if (item.type === 'Prop' || item.type === 'Item') {
+        const offsetInput = createNumberField(
+          'Z OFFSET',
+          item.depthOffset ?? 0,
+          -1024,
+          1024,
+          (next) => {
+            item.depthOffset = next;
+          },
+        );
+        if ('prop' in item && item.depthOffset === undefined) {
+          const assetId = item.prop;
+          void getProp(assetId).then((asset) => {
+            if (
+              alive &&
+              offsetInput.isConnected &&
+              isOnlySelected()?.id === item.id &&
+              item.prop === assetId &&
+              item.depthOffset === undefined
+            )
+              offsetInput.value = String(asset?.depthOffset ?? 0);
+          });
+        }
+      }
     }
     const remove = document.createElement('button');
     remove.type = 'button';
@@ -1389,9 +1497,20 @@ export function mountScenes(root: HTMLElement): () => void {
           return { entry, sprite: null, index: 0, depth: 0 };
         if (entry.type === 'Background')
           return { entry, sprite: await getSheet(entry.sprite), index: entry.index, depth: 0 };
+        if (entry.type === 'Item') {
+          const item = await getItem(entry.item);
+          const depth = getSceneDepth(scene.depthMode, entry.y, entry.z, entry.depthOffset);
+          if (!item) return { entry, sprite: null, index: 0, depth };
+          if (item.visual.type === 'sprite')
+            return { entry, sprite: await getSheet(item.visual.id), index: item.visual.index, depth };
+          const clip = await getAnimation(item.visual.id);
+          const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
+          if (!clip || !first || isInvisibleFrame(first)) return { entry, sprite: null, index: 0, depth };
+          return { entry, sprite: await getSheet(first.sprite), index: first.index, flips: getAnimationFrameFlips(clip, first), depth };
+        }
         if (entry.type === 'Character') {
           const asset = await getCharacter(entry.character);
-          const animationId = asset && getCharacterAnimation(asset, entry.state, entry.facing);
+          const animationId = asset && getCharacterAnimation(asset, entry.state, entry.facing, entry.variant);
           const clip = animationId ? await getAnimation(animationId) : null;
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
@@ -1447,7 +1566,7 @@ export function mountScenes(root: HTMLElement): () => void {
             scene.depthMode,
             entry.y,
             entry.z,
-            asset.depthOffset,
+            entry.depthOffset ?? asset.depthOffset,
             asset.groundOffsetY,
           ),
         };
@@ -1467,11 +1586,13 @@ export function mountScenes(root: HTMLElement): () => void {
       compareSceneDrawRank(
         {
           background: a.entry.type === 'Background',
+          foreground: a.asset?.foreground,
           depth: a.depth,
           order: order.get(a.entry.id) ?? 0,
         },
         {
           background: b.entry.type === 'Background',
+          foreground: b.asset?.foreground,
           depth: b.depth,
           order: order.get(b.entry.id) ?? 0,
         },
@@ -1480,7 +1601,7 @@ export function mountScenes(root: HTMLElement): () => void {
     for (const visual of visuals) {
       const { entry, sprite, index } = visual;
       if (entry.type === 'Marker') continue;
-      if (entry.type === 'Prop' || entry.type === 'Character')
+      if (entry.type === 'Prop' || entry.type === 'Character' || entry.type === 'Item')
         propLabels.push({
           id: entry.id,
           name: entry.name ?? entry.id,
@@ -1649,13 +1770,13 @@ export function mountScenes(root: HTMLElement): () => void {
     get$<HTMLElement>('#scene-workspace').hidden = !current;
     get$<HTMLButtonElement>('#scene-cancel-trigger').hidden = !placingTrigger;
     get$<HTMLButtonElement>('#scene-save').disabled = !current || saving;
+    get$<HTMLButtonElement>('#scene-rename').disabled = !current || saving;
     get$<HTMLButtonElement>('#scene-delete').disabled = !current;
-    get$<HTMLButtonElement>('#scene-add-prop').disabled = !current || backgroundEdit || blockedEdit;
-    get$<HTMLButtonElement>('#scene-add-character').disabled =
-      !current || backgroundEdit || blockedEdit;
-    get$<HTMLButtonElement>('#scene-add-marker').disabled = !current || backgroundEdit || blockedEdit;
-    get$<HTMLButtonElement>('#scene-add-trigger').disabled =
-      !current || backgroundEdit || blockedEdit;
+    get$<HTMLButtonElement>('#scene-add-prop').disabled = !current;
+    get$<HTMLButtonElement>('#scene-add-item').disabled = !current;
+    get$<HTMLButtonElement>('#scene-add-character').disabled = !current;
+    get$<HTMLButtonElement>('#scene-add-marker').disabled = !current;
+    get$<HTMLButtonElement>('#scene-add-trigger').disabled = !current;
     if (!current) return;
     const bg = getBackground();
     const backgroundLink = get$<HTMLAnchorElement>('#scene-background-link');
@@ -1692,7 +1813,7 @@ export function mountScenes(root: HTMLElement): () => void {
     const [sceneList, folders, propList, sheetList, colors, triggers, scripts] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/scenes'),
       requestJson<AssetFolders>('/api/scene-folders'),
-      requestJson<{ files: string[] }>('/api/props'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/props'),
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
       requestJson<PaletteDocument>('/api/palette'),
       requestJson<{ names: string[]; sources: Record<string, string[]> }>('/api/rpg-triggers'),
@@ -1707,6 +1828,7 @@ export function mountScenes(root: HTMLElement): () => void {
     );
     for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
     props = propList.files;
+    propAssetLabels = propList.labels;
     sprites = sheetList.files;
     spriteLabels = sheetList.labels;
     palette = colors;
@@ -1963,100 +2085,140 @@ export function mountScenes(root: HTMLElement): () => void {
     render();
   });
 
-  async function renderPropResults(): Promise<void> {
-    const token = ++propPickerToken;
-    propChoice = null;
-    propAdd.disabled = true;
-    propResults.replaceChildren();
-    const query = propSearch.value.trim().toLowerCase();
-    const matches = props.filter((id) => id.toLowerCase().includes(query));
-    propStatus.textContent = matches.length
-      ? `${matches.length} prop${matches.length === 1 ? '' : 's'}`
-      : 'No matching props.';
-    for (const id of matches) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'scene-prop-card';
-      button.disabled = true;
-      const thumbnail = document.createElement('canvas');
-      thumbnail.width = 160;
-      thumbnail.height = 100;
-      const name = document.createElement('strong');
-      name.textContent = id;
-      const details = document.createElement('span');
-      details.textContent = 'Loading preview…';
-      button.append(thumbnail, name, details);
-      propResults.append(button);
-      button.addEventListener('click', () => {
-        propChoice = id;
-        propAdd.disabled = false;
-        propResults.querySelectorAll('.scene-prop-card').forEach((card) => {
-          card.classList.toggle('active', card === button);
-        });
-      });
-      void (async () => {
-        const asset = await getProp(id);
-        if (!alive || !propPicker.open || token !== propPickerToken) return;
-        if (!asset) {
-          details.textContent = 'Prop unavailable';
-          return;
-        }
-        let frame: { sprite: string; index: number } | null = null;
-        if (asset.visual.type === 'sprite')
-          frame = { sprite: asset.visual.id, index: asset.visual.index };
-        else {
-          const clip = await getAnimation(asset.visual.id);
-          const first = clip?.frames.find((entry) => !isInvisibleFrame(entry));
-          if (first && !isInvisibleFrame(first)) frame = first;
-        }
-        if (!alive || !propPicker.open || token !== propPickerToken) return;
-        const sprite = frame ? await getSheet(frame.sprite) : null;
-        if (!alive || !propPicker.open || token !== propPickerToken) return;
-        if (!sprite || !frame || frame.index >= sprite.sprites.length) {
-          details.textContent = 'No visible sprite frame';
-          return;
-        }
-        drawThumbnail(thumbnail, sprite, frame.index);
-        details.textContent = `${asset.width} × ${asset.height} cells · ${asset.visual.type}`;
-        button.disabled = false;
-      })();
-    }
+  function drawEntityPreview(canvas: HTMLCanvasElement, preview: EntityPickerPreview): void {
+    drawThumbnail(canvas, preview.sprite, preview.index, preview.flips);
   }
 
+  const propEntityPicker = createSceneEntityPicker<PropDocument>({
+    dialog: propPicker,
+    search: propSearch,
+    list: propResults,
+    preview: get$<HTMLElement>('#scene-prop-preview'),
+    status: propStatus,
+    addButton: propAdd,
+    label: 'PROPS',
+    storageKey: 'incanterm-scene-prop-picker-folders',
+    loadInventory: async () => {
+      const [result, folders] = await Promise.all([
+        requestJson<{ files: string[]; labels: Record<string, string> }>('/api/props'),
+        requestJson<AssetFolders>('/api/prop-folders'),
+      ]);
+      if (alive && propPicker.open) {
+        props = result.files;
+        propAssetLabels = result.labels;
+      }
+      return { ...result, folders };
+    },
+    loadSelection: async (id) => {
+      const asset = await getProp(id);
+      if (!asset) throw new Error('Prop unavailable');
+      let frame: { sprite: string; index: number } | null = null;
+      let flips = { flipH: false, flipV: false };
+      if (asset.visual.type === 'sprite')
+        frame = { sprite: asset.visual.id, index: asset.visual.index };
+      else {
+        const clip = await getAnimation(asset.visual.id);
+        const first = clip?.frames.find((entry) => !isInvisibleFrame(entry));
+        if (clip && first && !isInvisibleFrame(first)) {
+          frame = first;
+          flips = getAnimationFrameFlips(clip, first);
+        }
+      }
+      const sprite = frame ? await getSheet(frame.sprite) : null;
+      if (!sprite || !frame || frame.index >= sprite.sprites.length)
+        throw new Error('No visible sprite frame');
+      return {
+        asset,
+        name: asset.label ?? id,
+        description: `${asset.width} × ${asset.height} cells · ${asset.visual.type}`,
+        preview: { sprite, index: frame.index, flips },
+      };
+    },
+    drawPreview: drawEntityPreview,
+  });
+
+  function startEntityEditing(): void {
+    backgroundEdit = false;
+    blockedEdit = false;
+    blockStroke = null;
+    placingTrigger = false;
+    drawingTrigger = null;
+    resizing = null;
+    drag = null;
+    marquee = null;
+    selected = [];
+    hovered = null;
+    render();
+    syncCursor();
+  }
+
+  const itemEntityPicker = createSceneEntityPicker<ItemDocument>({
+    dialog: itemPicker,
+    search: get$<HTMLInputElement>('#scene-item-search'),
+    list: get$<HTMLElement>('#scene-item-results'),
+    preview: get$<HTMLElement>('#scene-item-preview'),
+    status: get$<HTMLElement>('#scene-item-status'),
+    addButton: get$<HTMLButtonElement>('#scene-item-add'),
+    label: 'ITEMS', storageKey: 'incanterm-scene-item-picker-folders',
+    loadInventory: async () => {
+      const [result, folders] = await Promise.all([
+        requestJson<{ files: string[]; labels: Record<string, string> }>('/api/items'),
+        requestJson<AssetFolders>('/api/item-folders'),
+      ]);
+      return { ...result, folders };
+    },
+    loadSelection: async (id) => {
+      const asset = await getItem(id);
+      if (!asset) throw new Error('Item unavailable');
+      let frame: { sprite: string; index: number } | undefined;
+      let flips = { flipH: false, flipV: false };
+      if (asset.visual.type === 'sprite') frame = { sprite: asset.visual.id, index: asset.visual.index };
+      else {
+        const clip = await getAnimation(asset.visual.id);
+        const first = clip?.frames.find((entry) => !isInvisibleFrame(entry));
+        if (clip && first && !isInvisibleFrame(first)) {
+          frame = first;
+          flips = getAnimationFrameFlips(clip, first);
+        }
+      }
+      const sprite = frame ? await getSheet(frame.sprite) : null;
+      if (!sprite || !frame || !sprite.sprites[frame.index]) throw new Error('No visible item sprite');
+      return { asset, name: asset.label, description: asset.visual.type, preview: { sprite, index: frame.index, flips } };
+    },
+    drawPreview: drawEntityPreview,
+  });
+  get$<HTMLButtonElement>('#scene-add-item').addEventListener('click', () => {
+    if (!current) return;
+    startEntityEditing();
+    itemCache.clear();
+    animationCache.clear();
+    sheetCache.clear();
+    void itemEntityPicker.open();
+  });
+  get$<HTMLButtonElement>('#scene-item-cancel').addEventListener('click', () => itemPicker.close());
+  get$<HTMLButtonElement>('#scene-item-add').addEventListener('click', () => {
+    const item = itemEntityPicker.getSelection();
+    if (!current || !item || backgroundEdit) return;
+    const center = getSceneCellAt(view, viewport.clientWidth / 2, viewport.clientHeight / 2, cell.width, cell.height);
+    const entry = addSceneItem(current, item, center.x, center.y);
+    selected = [{ kind: 'entity', id: entry.id }];
+    itemPicker.close();
+    render();
+  });
+
   async function openPropPicker(): Promise<void> {
-    if (!current || backgroundEdit) return;
+    if (!current) return;
+    startEntityEditing();
     propCache.clear();
     animationCache.clear();
     sheetCache.clear();
-    propPicker.showModal();
-    propSearch.value = '';
-    propChoice = null;
-    propAdd.disabled = true;
-    propResults.replaceChildren();
-    propStatus.textContent = 'Loading props…';
-    const token = ++propLoadToken;
-    try {
-      const result = await requestJson<{ files: string[] }>('/api/props');
-      if (!alive || !propPicker.open || token !== propLoadToken) return;
-      props = result.files;
-      void renderPropResults();
-      propSearch.focus();
-    } catch (error) {
-      if (alive && propPicker.open && token === propLoadToken)
-        propStatus.textContent = showMessage(error);
-    }
+    await propEntityPicker.open();
   }
 
-  propSearch.addEventListener('input', () => void renderPropResults());
   get$<HTMLButtonElement>('#scene-prop-cancel').addEventListener('click', () => propPicker.close());
-  propPicker.addEventListener('close', () => {
-    ++propPickerToken;
-    ++propLoadToken;
-    propChoice = null;
-  });
   propAdd.addEventListener('click', () => {
-    if (!current || !propChoice || backgroundEdit) return;
-    const assetId = propChoice;
+    const prop = propEntityPicker.getSelection();
+    if (!current || !prop || backgroundEdit) return;
     const center = getSceneCellAt(
       view,
       viewport.clientWidth / 2,
@@ -2064,122 +2226,63 @@ export function mountScenes(root: HTMLElement): () => void {
       cell.width,
       cell.height,
     );
-    const entry = addSceneProp(current, assetId, center.x, center.y);
+    const entry = addSceneProp(current, prop, center.x, center.y);
     selected = [{ kind: 'entity', id: entry.id }];
     propPicker.close();
-    status.textContent = `Added ${assetId} to the scene. Drag it to position it.`;
+    status.textContent = `Added ${prop.label ?? prop.id} to the scene. Drag it to position it.`;
     render();
   });
 
+  const characterEntityPicker = createSceneEntityPicker<CharacterDocument>({
+    dialog: characterPicker,
+    search: characterSearch,
+    list: characterResults,
+    preview: get$<HTMLElement>('#scene-character-preview'),
+    status: characterStatus,
+    addButton: characterAdd,
+    label: 'CHARACTERS',
+    storageKey: 'incanterm-scene-character-picker-folders',
+    loadInventory: async () => {
+      const [result, folders] = await Promise.all([
+        requestJson<{ files: string[]; labels: Record<string, string> }>('/api/characters'),
+        requestJson<AssetFolders>('/api/character-folders'),
+      ]);
+      return { ...result, folders };
+    },
+    loadSelection: async (id) => {
+      const asset = await getCharacter(id);
+      if (!asset) throw new Error('Character unavailable');
+      const clip = await getAnimation(asset.animations['idle-down']);
+      const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
+      const sprite = first && !isInvisibleFrame(first) ? await getSheet(first.sprite) : null;
+      const preview =
+        clip && first && !isInvisibleFrame(first) &&
+        sprite && first.index < sprite.sprites.length
+          ? { sprite, index: first.index, flips: getAnimationFrameFlips(clip, first) }
+          : undefined;
+      return {
+        asset,
+        name: asset.label ?? id,
+        description: preview ? 'IDLE DOWN' : 'No idle-down preview',
+        preview,
+      };
+    },
+    drawPreview: drawEntityPreview,
+  });
+
   async function openCharacterPicker(): Promise<void> {
-    if (!current || backgroundEdit) return;
+    if (!current) return;
+    startEntityEditing();
     characterCache.clear();
     animationCache.clear();
     sheetCache.clear();
-    characterPicker.showModal();
-    characterSearch.value = '';
-    characterChoice = null;
-    characterAdd.disabled = true;
-    characterStatus.textContent = 'Loading characters…';
-    const picker = ++characterPickerToken;
-    try {
-      const result = await requestJson<{ files: string[]; labels: Record<string, string> }>(
-        '/api/characters',
-      );
-      if (!alive || !characterPicker.open || picker !== characterPickerToken) return;
-      const renderResults = () => {
-        characterResults.replaceChildren();
-        characterChoice = null;
-        characterAdd.disabled = true;
-        const matches = result.files.filter(
-          (id) =>
-            id.toLowerCase().includes(characterSearch.value.trim().toLowerCase()) ||
-            (result.labels[id] ?? id)
-              .toLowerCase()
-              .includes(characterSearch.value.trim().toLowerCase()),
-        );
-        characterStatus.textContent = matches.length
-          ? `${matches.length} character${matches.length === 1 ? '' : 's'}`
-          : 'No matching characters.';
-        for (const id of matches) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'scene-prop-card';
-          const thumbnail = document.createElement('canvas');
-          thumbnail.width = 160;
-          thumbnail.height = 100;
-          const name = document.createElement('strong');
-          name.textContent = result.labels[id] ?? id;
-          const details = document.createElement('span');
-          details.textContent = 'Loading idle-down preview…';
-          button.append(thumbnail, name, details);
-          button.disabled = true;
-          characterResults.append(button);
-          void (async () => {
-            const asset = await getCharacter(id);
-            if (
-              !alive ||
-              !characterPicker.open ||
-              !button.isConnected ||
-              picker !== characterPickerToken
-            )
-              return;
-            if (!asset) {
-              details.textContent = 'Character unavailable';
-              return;
-            }
-            button.disabled = false;
-            button.addEventListener('click', () => {
-              characterChoice = asset;
-              characterAdd.disabled = false;
-              characterResults.querySelectorAll('.scene-prop-card').forEach((card) => {
-                card.classList.toggle('active', card === button);
-              });
-            });
-            const clip = await getAnimation(asset.animations['idle-down']);
-            const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
-            const sprite = first && !isInvisibleFrame(first) ? await getSheet(first.sprite) : null;
-            if (
-              !alive ||
-              !characterPicker.open ||
-              !button.isConnected ||
-              picker !== characterPickerToken
-            )
-              return;
-            if (
-              !clip ||
-              !first ||
-              isInvisibleFrame(first) ||
-              !sprite ||
-              first.index >= sprite.sprites.length
-            ) {
-              details.textContent = 'No idle-down preview';
-              return;
-            }
-            drawThumbnail(thumbnail, sprite, first.index, getAnimationFrameFlips(clip, first));
-            details.textContent = 'IDLE DOWN';
-          })().catch(() => {
-            if (alive && button.isConnected && picker === characterPickerToken)
-              details.textContent = 'Preview unavailable';
-          });
-        }
-      };
-      characterSearch.oninput = renderResults;
-      renderResults();
-      characterSearch.focus();
-    } catch (error) {
-      if (alive && picker === characterPickerToken)
-        characterStatus.textContent = showMessage(error);
-    }
+    await characterEntityPicker.open();
   }
   get$<HTMLButtonElement>('#scene-character-cancel').addEventListener('click', () =>
     characterPicker.close(),
   );
-  characterPicker.addEventListener('close', () => {
-    ++characterPickerToken;
-    characterChoice = null;
-  });
   characterAdd.addEventListener('click', () => {
+    const characterChoice = characterEntityPicker.getSelection();
     if (!current || !characterChoice || backgroundEdit) return;
     const center = getSceneCellAt(
       view,
@@ -2223,11 +2326,12 @@ export function mountScenes(root: HTMLElement): () => void {
   });
 
   function addTrigger(): void {
-    if (!current || backgroundEdit || blockedEdit) return;
+    if (!current) return;
     if (placingTrigger) {
       cancelTrigger();
       return;
     }
+    startEntityEditing();
     placingTrigger = true;
     selected = [];
     status.textContent = 'Drag on the scene to draw a trigger region. Esc cancels.';
@@ -2622,7 +2726,8 @@ export function mountScenes(root: HTMLElement): () => void {
   );
   get$<HTMLButtonElement>('#scene-add-marker').addEventListener('click', () => {
     const scene = current;
-    if (!scene || backgroundEdit || blockedEdit) return;
+    if (!scene) return;
+    startEntityEditing();
     void promptModal('Marker name').then((answer) => {
       if (answer === null || current !== scene) return;
       const name = answer.trim();
@@ -2755,6 +2860,23 @@ export function mountScenes(root: HTMLElement): () => void {
   };
   document.addEventListener('pointerdown', closeMenus);
   get$<HTMLButtonElement>('#scene-save').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#scene-rename').addEventListener('click', () => {
+    void (async () => {
+      if (!current || saving) return;
+      const scene = current;
+      const label = await promptModal('Scene name', scene.label ?? scene.id);
+      if (label === null || !alive || current !== scene || saving) return;
+      try {
+        renameScene(scene, label);
+        status.textContent = `Renamed scene to ${scene.label}`;
+        render();
+        await save();
+      } catch (error) {
+        status.textContent = showMessage(error);
+        toast(status.textContent, true);
+      }
+    })();
+  });
   get$<HTMLButtonElement>('#scene-new').addEventListener('click', () => {
     get$<HTMLInputElement>('#scene-new-label').value = '';
     get$<HTMLInputElement>('#scene-new-width').value = '120';
@@ -3074,13 +3196,11 @@ export function mountScenes(root: HTMLElement): () => void {
     persistTabs();
     ++token;
     ++pickerToken;
-    ++propPickerToken;
-    ++propLoadToken;
-    ++characterPickerToken;
+    propEntityPicker.cleanup();
+    itemEntityPicker.cleanup();
+    characterEntityPicker.cleanup();
     if (backgroundPicker.open) backgroundPicker.close();
     if (newDialog.open) newDialog.close();
-    if (propPicker.open) propPicker.close();
-    if (characterPicker.open) characterPicker.close();
     resizeObserver.disconnect();
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('keyup', onKeyUp);

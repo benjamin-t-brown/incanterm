@@ -86,13 +86,13 @@
     +log("a is [a]")
     +[a]=[a]+1
     +?eq([a], 5):{
-      +!continue
+      !continue
     }
     +?eq([a], 9):{
-      +!break
+      !break
     }
   }
-  +!returnempty
+  !returnempty
 
 @testPort
   +setConv()

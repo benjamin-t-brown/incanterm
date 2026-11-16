@@ -97,8 +97,9 @@ export function mountAnimation(root: HTMLElement): () => void {
                <input id="sheet-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search spritesheets" autocomplete="off" spellcheck="false">
                <div id="sheet-list" class="anim-sheets asset-list"></div>
                <a id="edit-selected-sheet" class="anim-edit-sheet" href="/art" target="_blank" rel="noopener noreferrer" hidden>EDIT SPRITESHEET ↗</a>
-            </div>
-            <div id="sprite-icons" class="anim-sprites"></div>
+             </div>
+             <div id="animation-sheet-resizer" class="panel-resizer" role="separator" aria-label="Resize spritesheet list" aria-orientation="vertical" aria-controls="sheet-list" tabindex="0" title="Drag to resize spritesheets; double-click to reset"></div>
+             <div id="sprite-icons" class="anim-sprites"></div>
           </section>
         </div>
       </div>
@@ -148,6 +149,16 @@ export function mountAnimation(root: HTMLElement): () => void {
   const editSelectedSheet = get$<HTMLAnchorElement>('#edit-selected-sheet');
   const sheetSearch = get$<HTMLInputElement>('#sheet-search');
   const iconList = get$<HTMLElement>('#sprite-icons');
+  const sheetPicker = get$<HTMLElement>('.anim-picker');
+  const disposeSheetResizer = createPanelResizer({
+    container: sheetPicker,
+    panel: get$<HTMLElement>('.anim-sheet-pane'),
+    handle: get$<HTMLElement>('#animation-sheet-resizer'),
+    storageKey: 'incanterm-animation-sheet-list-width',
+    defaultWidth: 180,
+    reserve: 140,
+    applyWidth: (width) => sheetPicker.style.setProperty('--anim-sheet-list-width', `${width}px`),
+  });
   const status = get$<HTMLElement>('#animation-status');
   const idLabel = get$<HTMLElement>('#animation-id');
   const loopInput = get$<HTMLInputElement>('#loop');
@@ -841,12 +852,14 @@ export function mountAnimation(root: HTMLElement): () => void {
       const label = document.createElement('span');
       label.textContent = String(index + 1);
       button.append(thumb, label);
-      button.addEventListener('click', () => {
+      const selectIcon = () => {
         inspect = { sprite: sprite.id, index };
         markSelectedIcon();
         void drawPreview();
-      });
+      };
+      button.addEventListener('click', selectIcon);
       button.addEventListener('dragstart', (event) => {
+        selectIcon();
         event.dataTransfer?.setData(
           'text/plain',
           JSON.stringify({ kind: 'sprite', sprite: sprite.id, index }),
@@ -920,6 +933,7 @@ export function mountAnimation(root: HTMLElement): () => void {
     inspect = null;
     playIndex = at;
     renderReel();
+    markSelectedIcon();
     refreshToolbar();
     void drawPreview();
     autoSave();
@@ -1395,6 +1409,7 @@ export function mountAnimation(root: HTMLElement): () => void {
 
   return () => {
     disposeResizer();
+    disposeSheetResizer();
     alive = false;
     ++openToken;
     stop();

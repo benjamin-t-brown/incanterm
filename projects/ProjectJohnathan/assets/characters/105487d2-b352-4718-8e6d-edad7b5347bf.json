@@ -1,0 +1,26 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "105487d2-b352-4718-8e6d-edad7b5347bf",
+  "label": "skye3x3",
+  "scriptName": "Skye",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "5c49d919-4f27-4e90-b130-ac1de68e4aa0",
+    "idle-down": "17d659ce-cc5b-4d73-ae1c-5f22045c3743",
+    "idle-left": "f8f836a2-2feb-4031-8dac-2e5bcffc7bbf",
+    "idle-right": "d08626d1-4264-4f32-80ef-a5cf545b2d13",
+    "walk-up": "da32fb56-ac23-48e4-a099-bb9d39f7485e",
+    "walk-down": "c6363ccf-f95e-47a7-bfe8-889ceb2d167b",
+    "walk-left": "66d47c44-0320-4013-8936-833c297ca63c",
+    "walk-right": "441512ba-7b87-4259-a4ed-9145d8a9b4b9",
+    "talking-up": "6b1ea923-8a66-4a77-b998-9d2115df1922",
+    "talking-down": "a5b0c98e-330c-4279-aac7-8eb513694903",
+    "talking-left": "427fe539-4499-4920-874b-088f4825a033",
+    "talking-right": "e1fcdc99-bfc9-4e7a-87b6-9cf85487c5d4"
+  },
+  "customAnimations": {
+    "search up": "ff9eb4f1-23e2-41d2-b11e-307f857d3e66",
+    "search look": "f7274fc3-e939-41a9-9d7a-faf817f6356c"
+  }
+}

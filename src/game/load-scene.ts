@@ -5,6 +5,8 @@ import {
   flattenSprite,
   getCharacterAnimation,
   getCharacterScriptNames,
+  getCharacterVariantNames,
+  getCharacterVisual,
   getAnimationFrameFlips,
   getPropAnimation,
   isCharacterStateName,
@@ -30,6 +32,8 @@ import {
 import { Character, type CharacterClip } from './character.js';
 import { Sprite } from './sprite.js';
 import { AnimatedProp, type PropClip } from './animated-prop.js';
+import { parseItem } from '../editor/items/item-schema.js';
+import { WorldItem, type ItemAsset } from './items.js';
 
 export async function loadSceneByReference(assetsRoot: string, reference: string): Promise<Scene> {
   const scenesRoot = path.join(assetsRoot, 'scenes');
@@ -100,6 +104,7 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
   }
 
   const sprites = new Map<string, Sprite>();
+  const itemAssets = await loadItemAssets(assetsRoot, sprites);
   const seen = new Set<string>();
   const entities: Prop[] = [];
   const markers: { id: string; name: string; x: number; y: number }[] = [];
@@ -121,6 +126,20 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
     if (entry.type === 'Background') {
       if (hasBackground) throw new Error(`${scenePath} can contain only one background`);
       hasBackground = true;
+    }
+    if (entry.type === 'Item') {
+      const itemId = readId(entry.item, `${scenePath} item asset`);
+      const asset = itemAssets.get(itemId);
+      if (!asset) throw new Error(`${scenePath}: Unknown item ${itemId}`);
+      const id = readId(entry.id, `${scenePath} item id`);
+      if (seen.has(id)) throw new Error(`${scenePath} duplicates id ${id}`);
+      seen.add(id);
+      entities.push(new WorldItem(id,
+        readInt(entry.x, 'item x', 0, width - 1), readInt(entry.y, 'item y', 0, height - 1),
+        readInt(entry.depthOffset ?? 0, 'item depthOffset', -1024, 1024),
+        readInt(entry.z ?? 0, 'item z', -1000, 1000), asset,
+        typeof entry.name === 'string' ? entry.name : undefined));
+      continue;
     }
     entities.push(
       await readProp(
@@ -150,7 +169,40 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
     stepTriggers,
     markers,
     (reference) => loadCharacterByReference(assetsRoot, reference),
+    itemAssets,
   );
+}
+
+async function loadItemAssets(assetsRoot: string, sprites: Map<string, Sprite>): Promise<ReadonlyMap<string, ItemAsset>> {
+  const assets = new Map<string, ItemAsset>();
+  let files: string[];
+  try { files = await fs.readdir(path.join(assetsRoot, 'items')); }
+  catch (error) { if (isNotFound(error)) return assets; throw error; }
+  const names = new Set<string>();
+  for (const file of files.sort()) {
+    if (!/^[a-z0-9_-]+\.json$/.test(file)) continue;
+    const parsed = parseItem(await readJson(path.join(assetsRoot, 'items', file)));
+    if (!parsed.ok) throw new Error(`${file}: ${parsed.error}`);
+    const definition = parsed.value;
+    if (file !== `${definition.id}.json`) throw new Error(`${file}: Item id does not match its file`);
+    if (definition.scriptName) {
+      if (names.has(definition.scriptName)) throw new Error(`Duplicate item script name ${definition.scriptName}`);
+      names.add(definition.scriptName);
+    }
+    const visual = definition.visual;
+    const clip: PropClip = visual.type === 'sprite'
+      ? { frames: [{ sprite: await loadSprite(assetsRoot, visual.id, sprites, visual.index), durationMs: 1000 }], loop: true }
+      : await loadPropClip(assetsRoot, visual.id, sprites, `Item ${definition.id}`);
+    const sprite = clip.frames.find((frame) => frame.sprite)?.sprite;
+    if (!sprite) throw new Error(`Item ${definition.id} has no visible frame`);
+    assets.set(definition.id, { definition, sprite, clip });
+  }
+  for (const asset of assets.values()) {
+    const name = asset.definition.scriptName;
+    if (name && assets.has(name) && name !== asset.definition.id)
+      throw new Error(`Item script name ${name} conflicts with an asset id`);
+  }
+  return assets;
 }
 
 export async function loadCharacterByReference(assetsRoot: string, reference: string): Promise<Character> {
@@ -252,36 +304,30 @@ async function readProp(
     const state = record.state;
     if (typeof state !== 'string' || !isCharacterStateName(state))
       throw new Error(`${label} state must be a valid state name`);
-    const animationId = getCharacterAnimation(parsed.value, state, facing);
-    if (!animationId) throw new Error(`${label} has no animation state ${state}`);
-    const clipFile = path.join(assetsRoot, 'animations', `${animationId}.json`);
-    const clip = parseAnimation(await readJson(clipFile));
-    if (!clip.ok) throw new Error(`${clipFile}: ${clip.error}`);
-    const first = clip.value.frames.find((frame) => !isInvisibleFrame(frame));
-    if (!first || isInvisibleFrame(first)) throw new Error(`${clipFile} has no visible frame`);
-    const sprite = await loadSprite(assetsRoot, first.sprite, sprites, first.index);
-    const clips = new Map<string, CharacterClip>();
-    for (const [key, clipId] of Object.entries({
-      ...parsed.value.animations,
-      ...parsed.value.customAnimations,
-    })) {
-      const file = path.join(assetsRoot, 'animations', `${clipId}.json`);
-      const animation = parseAnimation(await readJson(file));
-      if (!animation.ok) throw new Error(`${file}: ${animation.error}`);
-      const frames: CharacterClip['frames'] = [];
-      for (const frame of animation.value.frames) {
-        if (isInvisibleFrame(frame)) frames.push({ durationMs: frame.durationMs });
-        else {
-          const source = await loadSprite(assetsRoot, frame.sprite, sprites, frame.index);
-          const flips = getAnimationFrameFlips(animation.value, frame);
-          frames.push({
-            sprite: source.getFlipped(flips.flipH, flips.flipV),
-            durationMs: frame.durationMs,
-          });
-        }
+    const variant = record.variant ?? parsed.value.defaultVariant ?? 'default';
+    if (typeof variant !== 'string' || !getCharacterVisual(parsed.value, variant))
+      throw new Error(`${label} has no character variant ${String(variant)}`);
+    if (!getCharacterAnimation(parsed.value, state, facing, variant))
+      throw new Error(`${label} has no animation state ${state}`);
+    const variants = new Map<string, { sprite: Sprite; clips: ReadonlyMap<string, CharacterClip> }>();
+    for (const name of getCharacterVariantNames(parsed.value)) {
+      const visual = getCharacterVisual(parsed.value, name);
+      if (!visual) continue;
+      const clips = new Map<string, CharacterClip>();
+      for (const [key, clipId] of Object.entries({
+        ...visual.animations,
+        ...visual.customAnimations,
+      })) {
+        clips.set(key, await loadPropClip(assetsRoot, clipId, sprites, `${label} variant ${name}`));
       }
-      clips.set(key, { frames, loop: animation.value.loop });
+      const variantSprite = clips.get(`idle-${facing}`)?.frames.find((frame) => frame.sprite)?.sprite;
+      if (!variantSprite) throw new Error(`${label} variant ${name} has no visible idle frame`);
+      variants.set(name, { sprite: variantSprite, clips });
     }
+    const appearance = variants.get(variant);
+    if (!appearance) throw new Error(`${label} has no character variant ${variant}`);
+    const key = state === 'idle' || state === 'walk' || state === 'talking' ? `${state}-${facing}` : state;
+    const sprite = appearance.clips.get(key)?.frames.find((frame) => frame.sprite)?.sprite ?? appearance.sprite;
     return new Character(
       id,
       readInt(record.x, `${label} x`, 0, width - 1),
@@ -293,16 +339,24 @@ async function readProp(
       state,
       facing,
       readInt(record.speed ?? parsed.value.speed ?? 150, `${label} speed`, 1, 60000),
-      clips,
+      appearance.clips,
       typeof record.talkScript === 'string' ? record.talkScript : undefined,
       parsed.value.scriptName,
+      variant,
+      variants,
     );
   }
   if (record.type !== 'Prop')
     throw new Error(`${label} type must be Prop, Character or Background`);
   let sprite: Sprite;
   let clips: Map<string, PropClip> | undefined;
-  let depthOffset = readInt(record.depthOffset ?? 0, `${label} depthOffset`, -1000, 1000);
+  let depthOffset = readInt(
+    record.depthOffset === undefined ? 0 : record.depthOffset,
+    `${label} depthOffset`,
+    -1024,
+    1024,
+  );
+  let foreground = false;
   let instanceName: string | undefined;
   let propId: string | undefined;
   let state = PROP_DEFAULT_STATE;
@@ -349,14 +403,29 @@ async function readProp(
       const y = Number(record.y) - sprite.originY + Math.floor(cell / asset.width);
       if (x >= 0 && y >= 0 && x < width && y < height) blockedCells.add(y * width + x);
     }
-    depthOffset = asset.depthOffset + (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
+    depthOffset =
+      (record.depthOffset === undefined ? asset.depthOffset : depthOffset) +
+      (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
+    foreground = asset.foreground;
   } else sprite = await loadSprite(assetsRoot, readId(record.sprite, `${label} sprite`), sprites);
   const x = readInt(record.x, `${label} x`, 0, width - 1);
   const y = readInt(record.y, `${label} y`, 0, height - 1);
   const z = readInt(record.z ?? 0, `${label} z`, -1000, 1000);
   if (clips)
-    return new AnimatedProp(id, x, y, depthOffset, z, sprite, clips, state, instanceName, propId);
-  return new Prop(id, x, y, depthOffset, z, sprite);
+    return new AnimatedProp(
+      id,
+      x,
+      y,
+      depthOffset,
+      z,
+      sprite,
+      clips,
+      state,
+      instanceName,
+      propId,
+      foreground,
+    );
+  return new Prop(id, x, y, depthOffset, z, sprite, foreground);
 }
 
 async function loadPropClip(

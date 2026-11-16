@@ -10,6 +10,7 @@ import { diagnoseScript, getScriptNames, type ScriptDiagnostic } from './rpgscri
 import {
   CHARACTER_STATES,
   getCharacterAnimation,
+  getCharacterVisual,
   importEdAscii,
   parseCharacter,
   isAssetId,
@@ -47,6 +48,7 @@ import {
   type AssetFolders,
 } from './asset-folders.js';
 import { SaveConflict, SaveCoordinator, mergeJson, mergeText } from './safe-save.js';
+import { parseItem, type ItemDocument } from './items/item-schema.js';
 
 export class AssetError extends Error {
   constructor(
@@ -69,7 +71,7 @@ export type AudioFile = {
 
 const AUDIO_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(wav|ogg|mp3)$/i;
 
-type AssetFolderKind = 'animations' | 'scenes' | 'sprites' | 'props' | 'characters';
+type AssetFolderKind = 'animations' | 'scenes' | 'sprites' | 'props' | 'characters' | 'items';
 type AssetFolderChange =
   | { action: 'create' | 'rename'; folder: string; name: string }
   | { action: 'delete'; folder: string; expectedIds: string[]; expectedFolders: string[] }
@@ -352,6 +354,14 @@ export class AssetStore {
     return this.getAssetFolders('props');
   }
 
+  async getItemFolders(): Promise<AssetFolders> {
+    return this.getAssetFolders('items');
+  }
+
+  async changeItemFolders(change: AssetFolderChange): Promise<AssetFolders> {
+    return this.changeAssetFolders('items', change);
+  }
+
   async getCharacterFolders(): Promise<AssetFolders> {
     return this.getAssetFolders('characters');
   }
@@ -482,6 +492,7 @@ export class AssetStore {
         else if (kind === 'scenes') await this.readScene(change.id);
         else if (kind === 'props') await this.readProp(change.id);
         else if (kind === 'characters') await this.readCharacter(change.id);
+        else if (kind === 'items') await this.readItem(change.id);
         else await this.readSprite(change.id);
         if (change.folder) tree.placements[change.id] = change.folder;
         else delete tree.placements[change.id];
@@ -672,8 +683,90 @@ export class AssetStore {
     );
   }
 
+  async listItems(): Promise<string[]> {
+    return this.listValid('items', '.json', (text) => parseItem(JSON.parse(text)).ok);
+  }
+
+  async getItemLabels(): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of await this.listItems()) labels[id] = (await this.readItem(id)).label;
+    return labels;
+  }
+
+  async readItem(id: string): Promise<ItemDocument> {
+    const parsed = parseItem(await this.readJson(this.getFile('items', id, '.json')));
+    if (!parsed.ok) throw new AssetError(parsed.error, 422);
+    if (parsed.value.id !== id) throw new AssetError('Item id does not match its file', 422);
+    return parsed.value;
+  }
+
+  async saveItemDraft(id: string, draft: unknown, base: unknown): Promise<ItemDocument> {
+    this.requireId(id);
+    const file = this.getFile('items', id, '.json');
+    // Serialize catalog writes too: two assets must not claim the same script name.
+    return this.saves.run(path.join(this.root, '.item-catalog'), () => this.saves.save({
+      key: file, base, doc: draft,
+      validate: (value) => {
+        const parsed = parseItem(value);
+        if (!parsed.ok) throw new AssetError(parsed.error, 422);
+        if (parsed.value.id !== id) throw new AssetError('Item id does not match its file', 422);
+        return parsed.value;
+      },
+      read: () => this.readOptional(() => this.readItem(id)),
+      write: async (value) => {
+        await this.checkItemVisual(value);
+        for (const otherId of await this.listItems()) {
+          if (otherId === id) continue;
+          const other = await this.readItem(otherId);
+          if (value.scriptName && (other.scriptName === value.scriptName || otherId === value.scriptName) ||
+            other.scriptName === id)
+            throw new AssetError('Item script name conflicts with another item', 422);
+        }
+        for (const rule of value.combinations) {
+          if (rule.targetType === 'item' && rule.target !== id) await this.readItem(rule.target);
+          else if (rule.targetType === 'prop') await this.readProp(rule.target);
+          else if (rule.targetType === 'character') await this.readCharacter(rule.target);
+        }
+        const scripts = await this.getRpgScriptSources();
+        for (const name of [value.examineScript, value.combineFailScript, ...value.combinations.map((rule) => rule.script)]) {
+          if (name && scripts[name]?.length !== 1)
+            throw new AssetError(`Item script ${name} is missing or ambiguous`, 422);
+        }
+        await this.writeAtomic(file, getJson(value));
+      },
+      merge: mergeJson,
+    }));
+  }
+
+  private async checkItemVisual(item: ItemDocument): Promise<void> {
+    if (item.visual.type === 'sprite') {
+      const sprite = await this.readSprite(item.visual.id);
+      if (!sprite.sprites[item.visual.index]) throw new AssetError('Item references a missing sprite frame', 422);
+    } else {
+      const animation = await this.readAnimation(item.visual.id);
+      if (!animation.frames.some((frame) => !isInvisibleFrame(frame)))
+        throw new AssetError('Item animation needs a visible frame', 422);
+      await this.checkAnimationReferences(animation);
+    }
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    const file = this.getFile('items', id, '.json');
+    await this.saves.run(file, () =>
+      this.saves.run(this.getAssetFoldersPath('items'), async () => {
+        await this.remove(file);
+        await this.clearPlacement('items', id);
+      }));
+  }
+
   async listProps(): Promise<string[]> {
     return this.listValid('props', '.json', (text) => parseProp(JSON.parse(text)).ok);
+  }
+
+  async getPropLabels(): Promise<Record<string, string>> {
+    const labels: Record<string, string> = {};
+    for (const id of await this.listProps()) labels[id] = (await this.readProp(id)).label ?? id;
+    return labels;
   }
 
   async readProp(id: string): Promise<PropDocument> {
@@ -764,10 +857,9 @@ export class AssetStore {
       read: () => this.readOptional(() => this.readCharacter(id)),
       write: async (value) => {
         const available = new Set(await this.listAnimations());
-        for (const animation of [
-          ...Object.values(value.animations),
-          ...Object.values(value.customAnimations),
-        ]) {
+        for (const animation of [value, ...Object.values(value.variants ?? {})].flatMap((visual) => [
+          ...Object.values(visual.animations), ...Object.values(visual.customAnimations),
+        ])) {
           if (!available.has(animation))
             throw new AssetError(`Character references missing animation "${animation}"`, 422);
         }
@@ -877,9 +969,13 @@ export class AssetStore {
             }
             if (entity.type === 'Background' && sprite && entity.index >= sprite.sprites.length)
               throw new AssetError(`Background ${entity.id} references missing frame`, 422);
+          } else if (entity.type === 'Item') {
+            await this.checkItemVisual(await this.readItem(entity.item));
           } else if (entity.type === 'Character') {
             const character = await this.readCharacter(entity.character);
-            const animationId = getCharacterAnimation(character, entity.state, entity.facing);
+            if (!getCharacterVisual(character, entity.variant))
+              throw new AssetError(`Character ${entity.id} has no variant ${entity.variant}`, 422);
+            const animationId = getCharacterAnimation(character, entity.state, entity.facing, entity.variant);
             if (!animationId)
               throw new AssetError(`Character ${entity.id} has no state ${entity.state}`, 422);
             await this.readAnimation(animationId);

@@ -594,13 +594,13 @@
         </dict>
         <dict>
           <key>match</key>
-          <string>(-?[0-9]|\b(true|false)\b(?![\w.-]))</string>
+          <string>(?&lt;![\w.-])(-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)|true|false)(?![\w.-])</string>
           <key>name</key>
           <string>variable.other.constant.rpgscript</string>
         </dict>
         <dict>
           <key>match</key>
-          <string>([a-zA-Z_\-][\w.-]*)</string>
+          <string>([\w.-]+)</string>
           <key>name</key>
           <string>variable.parameter.rpgscript</string>
         </dict>

@@ -1,0 +1,27 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "bf2ee447-e067-46a1-aed0-db0e7fcae77e",
+  "label": "office_desk_up",
+  "visual": {
+    "type": "sprite",
+    "id": "7a2c6f5a-06d8-4fd8-bb5b-802f391a28b0",
+    "index": 0
+  },
+  "width": 7,
+  "height": 2,
+  "blockedCells": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    13
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "customAnimations": {}
+}

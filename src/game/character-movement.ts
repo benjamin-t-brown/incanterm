@@ -132,18 +132,24 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
   return result.reverse();
 }
 
+export class CharacterNotFoundError extends Error {}
+
 export function findCharacter(scene: Scene, reference: string, controlled?: Character): Character {
   const normalizedReference = reference.toLowerCase();
   if (normalizedReference === 'player' && controlled && scene.entities.includes(controlled)) return controlled;
   const characters = scene.entities.filter(
     (entity): entity is Character => entity instanceof Character,
   );
-  const character =
-    characters.find((entity) => entity.id.toLowerCase() === normalizedReference) ??
-    characters.find((entity) => entity.instanceName?.toLowerCase() === normalizedReference) ??
-    characters.find((entity) => entity.characterId.toLowerCase() === normalizedReference) ??
-    characters.find((entity) => getCharacterScriptNames(entity.scriptName)
-      .some((name) => name.toLowerCase() === normalizedReference));
-  if (!character) throw new Error(`Scene ${scene.id} has no character ${reference}`);
-  return character;
+  for (const matches of [
+    characters.filter((entity) => entity.id.toLowerCase() === normalizedReference),
+    characters.filter((entity) => entity.instanceName?.toLowerCase() === normalizedReference),
+    characters.filter((entity) => entity.characterId.toLowerCase() === normalizedReference),
+    characters.filter((entity) => getCharacterScriptNames(entity.scriptName)
+      .some((name) => name.toLowerCase() === normalizedReference)),
+  ]) {
+    if (matches.length > 1)
+      throw new Error(`Scene ${scene.id} character ${reference} is ambiguous; use a unique instance name or ID`);
+    if (matches[0]) return matches[0];
+  }
+  throw new CharacterNotFoundError(`Scene ${scene.id} has no character ${reference}`);
 }

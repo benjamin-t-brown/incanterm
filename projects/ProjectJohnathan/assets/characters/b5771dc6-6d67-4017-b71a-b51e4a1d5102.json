@@ -1,0 +1,24 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "b5771dc6-6d67-4017-b71a-b51e4a1d5102",
+  "label": "lady3x3",
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "bd3f2d03-cc39-4d36-8796-12eda86115e5",
+    "idle-down": "3453ad3b-d9bf-4c63-9f00-2c92657d9583",
+    "idle-left": "89ed00b1-c28a-409c-aa5e-21954bf6ce2d",
+    "idle-right": "4b1be1f3-1927-438f-b1cc-f29140ae6100",
+    "walk-up": "3bd77540-3e09-4513-a584-de3d9572a931",
+    "walk-down": "a6614ed5-d30c-463e-bf00-e94757cd706c",
+    "walk-left": "1070ab0e-4a96-4cef-812e-8963789b5329",
+    "walk-right": "ddc85889-f954-4d6b-8677-667201132d5c",
+    "talking-up": "015888de-0d9d-4cb3-a4a5-9c77e3d3709e",
+    "talking-down": "7950a002-c77a-42cb-8240-be82263b9b2b",
+    "talking-left": "7876dcc8-096c-44d0-91d1-1f413ba2239e",
+    "talking-right": "eb4f7982-1b8d-4ffd-9c5b-cea6939fa7fc"
+  },
+  "customAnimations": {
+    "sit office": "2e4e342a-661b-4c96-8e65-248f30fedef5"
+  }
+}

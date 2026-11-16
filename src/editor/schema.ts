@@ -86,12 +86,15 @@ export type PropDocument = {
   format: 'incanterm-prop';
   version: 1;
   id: string;
+  label?: string;
   visual: PropVisual;
   width: number;
   height: number;
   blockedCells: number[];
   groundOffsetY: number;
+  /** Legacy fallback for scene instances without their own depthOffset. */
   depthOffset: number;
+  foreground: boolean;
   customAnimations: Record<string, string>;
 };
 
@@ -121,6 +124,10 @@ export const CHARACTER_STATES = [
   'talking-right',
 ] as const;
 export type CharacterState = (typeof CHARACTER_STATES)[number];
+export type CharacterVisual = {
+  animations: Record<CharacterState, string>;
+  customAnimations: Record<string, string>;
+};
 export type CharacterDocument = {
   format: 'incanterm-character';
   version: 1;
@@ -130,6 +137,9 @@ export type CharacterDocument = {
   portraits?: { facing: 'left' | 'right'; emotion: string; portrait: string }[];
   defaultFacing: CharacterDirection;
   speed?: number;
+  /** Name of the original animation set; legacy characters use "default". */
+  defaultVariant?: string;
+  variants?: Record<string, CharacterVisual>;
   animations: Record<CharacterState, string>;
   customAnimations: Record<string, string>;
 };
@@ -152,10 +162,23 @@ export function getCharacterAnimation(
   character: CharacterDocument,
   state: string,
   facing: CharacterDirection,
+  variant?: string,
 ): string | undefined {
+  const visual = getCharacterVisual(character, variant);
+  if (!visual) return undefined;
   if (state === 'idle' || state === 'walk' || state === 'talking')
-    return character.animations[`${state}-${facing}`];
-  return character.customAnimations[state];
+    return visual.animations[`${state}-${facing}`];
+  return visual.customAnimations[state];
+}
+
+export function getCharacterVariantNames(character: CharacterDocument): string[] {
+  return [character.defaultVariant ?? 'default', ...Object.keys(character.variants ?? {})];
+}
+
+export function getCharacterVisual(character: CharacterDocument, variant?: string): CharacterVisual | undefined {
+  if (variant === undefined || variant === (character.defaultVariant ?? 'default')) return character;
+  return character.variants && Object.hasOwn(character.variants, variant)
+    ? character.variants[variant] : undefined;
 }
 
 export function getCharacterLabelError(label: string): string | null {
@@ -263,6 +286,28 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
     if (!animation.ok) return animation;
     customAnimations[state] = animation.value;
   }
+  if (record.defaultVariant !== undefined &&
+    (typeof record.defaultVariant !== 'string' || !isCharacterVariantName(record.defaultVariant)))
+    return fail('Character defaultVariant must be a variant name (letters, numbers, hyphens, underscores)');
+  const variants: Record<string, CharacterVisual> = {};
+  if (record.variants !== undefined) {
+    const sourceVariants = getObject(record.variants);
+    if (!sourceVariants || Object.keys(sourceVariants).length > 32)
+      return fail('Character variants must contain at most 32 animation sets');
+    for (const [name, value] of Object.entries(sourceVariants)) {
+      if (!isCharacterVariantName(name) || name === (record.defaultVariant ?? 'default'))
+        return fail(`Invalid or duplicate character variant "${name}"`);
+      const visual = getObject(value);
+      if (!visual) return fail(`Character variant "${name}" must be an animation set`);
+      const parsed = parseCharacter({
+        format: 'incanterm-character', version: 1, id: id.value,
+        defaultFacing: record.defaultFacing,
+        animations: visual.animations, customAnimations: visual.customAnimations,
+      });
+      if (!parsed.ok) return fail(`Character variant "${name}": ${parsed.error}`);
+      variants[name] = { animations: parsed.value.animations, customAnimations: parsed.value.customAnimations };
+    }
+  }
   return {
     ok: true,
     value: {
@@ -274,21 +319,30 @@ export function parseCharacter(value: unknown): SchemaResult<CharacterDocument> 
        ...(record.portraits !== undefined ? { portraits } : {}),
       defaultFacing: record.defaultFacing as CharacterDirection,
       ...(typeof record.speed === 'number' ? { speed: record.speed } : {}),
+      ...(typeof record.defaultVariant === 'string' ? { defaultVariant: record.defaultVariant } : {}),
+      ...(record.variants !== undefined ? { variants } : {}),
       animations,
       customAnimations,
     },
   };
 }
 
+export function isCharacterVariantName(name: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(name) &&
+    !['__proto__', 'constructor', 'prototype'].includes(name);
+}
+
 export type SceneEntity =
   | { id: string; type: 'Background'; sprite: string; index: number; x: number; y: number }
   | { id: string; type: 'Marker'; name: string; x: number; y: number }
+  | { id: string; type: 'Item'; item: string; name?: string; x: number; y: number; z: number; depthOffset: number }
   | {
       id: string;
       type: 'Prop';
       name?: string;
       prop: string;
       state?: string;
+      depthOffset?: number;
       x: number;
       y: number;
       z: number;
@@ -298,6 +352,7 @@ export type SceneEntity =
       type: 'Character';
       name?: string;
        character: string;
+      variant?: string;
        talkScript?: string;
       speed?: number;
       facing: CharacterDirection;
@@ -400,6 +455,10 @@ export function getAnimationLabelError(label: string): string | null {
   return getSpriteLabelError(label)?.replace('Sprite', 'Animation') ?? null;
 }
 
+export function getPropLabelError(label: string): string | null {
+  return getSpriteLabelError(label)?.replace('Sprite', 'Prop') ?? null;
+}
+
 export function createSprite(
   id: string,
   width: number,
@@ -453,6 +512,7 @@ export function createProp(id: string, visual: PropVisual): PropDocument {
     blockedCells: [],
     groundOffsetY: 0,
     depthOffset: 0,
+    foreground: false,
     customAnimations: {},
   };
 }
@@ -568,6 +628,20 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         x: x.value,
         y: y.value,
       });
+    } else if (entry.type === 'Item') {
+      const item = readId(entry.item, `Scene item ${index} asset`);
+      if (!item.ok) return item;
+      const z = readInt(entry.z ?? 0, `Scene item ${index} z`, -1000, 1000);
+      if (!z.ok) return z;
+      const depthOffset = readInt(entry.depthOffset ?? 0, `Scene item ${index} depthOffset`, -1024, 1024);
+      if (!depthOffset.ok) return depthOffset;
+      if (entry.name !== undefined && (typeof entry.name !== 'string' || getSpriteLabelError(entry.name)))
+        return fail(`Scene item ${index} name must be 1 to 80 characters`);
+      entities.push({
+        id: entityId.value, type: 'Item', item: item.value,
+        ...(typeof entry.name === 'string' ? { name: entry.name.trim() } : {}),
+        x: x.value, y: y.value, z: z.value, depthOffset: depthOffset.value,
+      });
     } else if (entry.type === 'Character') {
       if (entry.talkScript !== undefined &&
         (typeof entry.talkScript !== 'string' || !/^[A-Za-z_][\w-]*$/.test(entry.talkScript)))
@@ -578,6 +652,9 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       )
         return fail(`Scene character ${index} name must be 1 to 80 characters`);
       const character = readId(entry.character, `Scene character ${index} asset`);
+      if (entry.variant !== undefined &&
+        (typeof entry.variant !== 'string' || !isCharacterVariantName(entry.variant)))
+        return fail(`Scene character ${index} variant must be a variant name`);
       if (
         entry.speed !== undefined &&
         (typeof entry.speed !== 'number' ||
@@ -598,6 +675,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
         type: 'Character',
         ...(typeof entry.name === 'string' ? { name: entry.name.trim() } : {}),
         character: character.value,
+        ...(typeof entry.variant === 'string' ? { variant: entry.variant } : {}),
         ...(typeof entry.talkScript === 'string' ? { talkScript: entry.talkScript } : {}),
         ...(typeof entry.speed === 'number' ? { speed: entry.speed } : {}),
         facing: entry.facing as CharacterDirection,
@@ -621,6 +699,13 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       const state = typeof entry.state === 'string' ? entry.state : undefined;
       const z = readInt(entry.z ?? 0, `Scene prop ${index} z`, -1000, 1000);
       if (!z.ok) return z;
+      const depthOffset = readInt(
+        entry.depthOffset === undefined ? 0 : entry.depthOffset,
+        `Scene prop ${index} depthOffset`,
+        -1024,
+        1024,
+      );
+      if (!depthOffset.ok) return depthOffset;
       if (entry.prop !== undefined) {
         const prop = readId(entry.prop, `Scene prop ${index} asset`);
         if (!prop.ok) return prop;
@@ -630,6 +715,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           ...(name !== undefined ? { name } : {}),
           prop: prop.value,
           ...(state !== undefined ? { state } : {}),
+          ...(entry.depthOffset !== undefined ? { depthOffset: depthOffset.value } : {}),
           x: x.value,
           y: y.value,
           z: z.value,
@@ -637,13 +723,6 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       } else {
         const sprite = readId(entry.sprite, `Scene prop ${index} sprite`);
         if (!sprite.ok) return sprite;
-        const depthOffset = readInt(
-          entry.depthOffset ?? 0,
-          `Scene prop ${index} depthOffset`,
-          -1000,
-          1000,
-        );
-        if (!depthOffset.ok) return depthOffset;
         entities.push({
           id: entityId.value,
           type: 'Prop',
@@ -656,7 +735,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           depthOffset: depthOffset.value,
         });
       }
-    } else return fail(`Scene entity ${index} must be a Background, Prop, Character, or Marker`);
+    } else return fail(`Scene entity ${index} must be a Background, Prop, Item, Character, or Marker`);
   }
   for (const [index, raw] of (scene.triggers ?? []).entries()) {
     if (typeof raw === 'string') {
@@ -894,6 +973,11 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
   }
   const id = readId(record.id, 'Prop id');
   if (!id.ok) return id;
+  if (
+    record.label !== undefined &&
+    (typeof record.label !== 'string' || getPropLabelError(record.label))
+  )
+    return fail('Prop label must be 1 to 80 characters without control characters');
   const source = getObject(record.visual);
   if (!source) return fail('Prop visual must be a sprite or animation');
   const visualId = readId(source.id, 'Prop visual id');
@@ -936,6 +1020,8 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
   if (!groundOffsetY.ok) return groundOffsetY;
   const depthOffset = readInt(record.depthOffset, 'Prop depthOffset', -1024, 1024);
   if (!depthOffset.ok) return depthOffset;
+  if (record.foreground !== undefined && typeof record.foreground !== 'boolean')
+    return fail('Prop foreground must be a boolean');
   const extras = getObject(record.customAnimations) ?? {};
   if (Object.keys(extras).length > 64)
     return fail('Prop customAnimations must contain at most 64 states');
@@ -953,12 +1039,14 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       format: 'incanterm-prop',
       version: 1,
       id: id.value,
+      ...(typeof record.label === 'string' ? { label: record.label.trim() } : {}),
       visual,
       width: width.value,
       height: height.value,
       blockedCells,
       groundOffsetY: groundOffsetY.value,
       depthOffset: depthOffset.value,
+      foreground: record.foreground === true,
       customAnimations,
     },
   };

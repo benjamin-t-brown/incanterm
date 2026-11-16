@@ -10,8 +10,18 @@ export function getSceneDepth(
   return mode === 'bottom-up' ? y + groundOffsetY + depthOffset : z + depthOffset;
 }
 
-export type DrawRank = { background: boolean; depth: number; order: number };
+export type DrawRank = {
+  background: boolean;
+  foreground?: boolean;
+  depth: number;
+  order: number;
+};
 
 export function compareSceneDrawRank(a: DrawRank, b: DrawRank): number {
-  return Number(b.background) - Number(a.background) || a.depth - b.depth || a.order - b.order;
+  return (
+    Number(b.background) - Number(a.background) ||
+    Number(a.foreground === true) - Number(b.foreground === true) ||
+    a.depth - b.depth ||
+    a.order - b.order
+  );
 }

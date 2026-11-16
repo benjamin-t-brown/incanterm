@@ -366,9 +366,12 @@
   flex: 1 1 38%;
   min-height: 120px;
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: var(--anim-sheet-list-width, 180px) 10px minmax(0, 1fr);
+  gap: 0;
   min-width: 0;
+}
+#animation-sheet-resizer {
+  margin: 0;
 }
 .anim-sheet-pane {
   display: flex;

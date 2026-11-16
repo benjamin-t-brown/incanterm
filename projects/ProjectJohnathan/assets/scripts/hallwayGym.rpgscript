@@ -1,7 +1,7 @@
 #hallwayGymLoad
   load,hallwayGymLoad
 @hallwayGymLoad
-  +setPlayerWalkCh(johnathan)
+  +setPlayerWalkCh(Johnathan, 3x3)
 
 #hallwayGymUpdate
   timer,hallwayGymUpdater,2000

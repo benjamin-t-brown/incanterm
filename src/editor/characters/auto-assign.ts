@@ -1,8 +1,8 @@
-import { CHARACTER_STATES, createCharacter, type CharacterDocument } from '../schema.js';
+import { CHARACTER_STATES, createCharacter, type CharacterDocument, type CharacterVisual } from '../schema.js';
 import type { AssetFolders } from '../asset-folders.js';
 
 export function assignCharacterAnimations(
-  character: CharacterDocument,
+  character: CharacterVisual,
   folder: string,
   folders: AssetFolders,
   labels: Record<string, string>,

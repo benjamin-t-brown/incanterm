@@ -480,6 +480,54 @@
       "actionEnabled": false,
       "stepEnabled": true,
       "description": ""
+    },
+    {
+      "id": "119d432a-8e71-4d61-a5ce-7dd3dde8f0f7",
+      "trigger": "hallway1_toHallway2",
+      "event": "action",
+      "x": 6,
+      "y": 14,
+      "width": 3,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "2e28652b-235f-4704-9f20-52893291a2a1",
+      "trigger": "hallway1_toHallway2",
+      "event": "action",
+      "x": 7,
+      "y": 16,
+      "width": 3,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "51223eb8-64d7-4877-a116-038a5fa713f7",
+      "trigger": "hallway1_toHallway2",
+      "event": "action",
+      "x": 9,
+      "y": 18,
+      "width": 3,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "adda2a32-90e8-4c76-b9e1-419745f4f4dc",
+      "trigger": "hallway1_toHallway2",
+      "event": "action",
+      "x": 11,
+      "y": 20,
+      "width": 3,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
     }
   ]
 }

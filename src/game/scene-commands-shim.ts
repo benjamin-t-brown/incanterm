@@ -1,4 +1,4 @@
-import { commands, getAnimationStateName, getBark, getBusyState, getFacingDirection, getPlayerCharacterName, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
+import { commands, getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection, getPlayerCharacterName, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -7,6 +7,38 @@ import { defineCommand } from './rpgscript/command.js';
 // A terminal has no player character. Validate the command without controlling a scene.
 export const sceneCommandsShim = {
   ...commands,
+  playDialogue: defineCommand({
+    parse: commands.playDialogue.parse,
+    execute: (step, script) =>
+      script.showDialogue(script.interpolate(step.actor), script.interpolate(step.text), step.emotion),
+  }),
+  setCharacterVariant: defineCommand({
+    parse: commands.setCharacterVariant.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setCharacterVariant');
+      getCharacterVariantName(step.variant, script);
+    },
+  }),
+  acquireItem: defineCommand({
+    parse: commands.acquireItem.parse,
+    execute: (step, script) => commands.acquireItem.run({ ...step, command: 'acquireItem', line: 0 }, script, undefined),
+  }),
+  addItem: defineCommand({
+    parse: commands.addItem.parse,
+    execute: (step, script) => commands.acquireItem.run({ ...step, command: 'acquireItem', line: 0 }, script, undefined),
+  }),
+  removeItem: defineCommand({
+    parse: commands.removeItem.parse,
+    execute: (step, script) => commands.removeItem.run({ ...step, command: 'removeItem', line: 0 }, script, undefined),
+  }),
+  examineItem: defineCommand({
+    parse: commands.examineItem.parse,
+    execute: (_step, script) => { throw new Error(`${script.location}: examineItem requires a world scene`); },
+  }),
+  combineItem: defineCommand({
+    parse: commands.combineItem.parse,
+    execute: (_step, script) => { throw new Error(`${script.location}: combineItem requires a world scene`); },
+  }),
   setBusy: defineCommand({
     parse: commands.setBusy.parse,
     execute: (step, script) => {
@@ -130,6 +162,8 @@ export const sceneCommandsShim = {
     parse: commands.setPlayerWalkCh.parse,
     execute: (step, script) => {
       getPlayerCharacterName(step.idOrInstanceName, script);
+      if (step.variant !== undefined)
+        getCharacterVariantName(step.variant, script, 'setPlayerWalkCh');
     },
   }),
   endConv: defineCommand({

@@ -48,6 +48,7 @@ my-game/
     animations/
     characters/
     props/
+    items/
     audio/
     references/
   story/                   Optional game-owned notes
@@ -72,6 +73,76 @@ for both standalone servers and local previews.
 Editor saves merge independent changes against the last loaded version and reject
 conflicts rather than overwriting newer disk content. Binary reference images use
 revision checks instead of merges.
+
+## Character visual variants
+
+A character owns its script names, portraits, default facing, and walking speed.
+Use **CHARACTERS → VISUAL VARIANTS → + VARIANT** to copy the selected animation set,
+then edit its clips or **FILL FROM FOLDER**. Each variant defines all idle, walk,
+and talking directions; custom states can differ between variants.
+
+Existing characters keep their original animations as the default variant, initially
+named `default`. You can name it `3x3`, for example, and add a `5x5` variant. Variant
+names use letters, numbers, hyphens, or underscores and are case-sensitive.
+Scene character instances have a **VISUAL VARIANT** picker. Leaving it at Default
+uses the character's original animation set. Script-spawned characters also start there.
+
+```text
++setPlayerWalkCh(Johnathan, 5x5)
+```
+
+The second argument is optional: omitting it keeps an existing character's current
+variant, or uses the default for a newly spawned character. Use
+`+setCharacterVariant(Johnathan, 3x3)` to change visuals without selecting a walker.
+
+Switching visuals keeps the same character instance, facing, animation state, speed,
+busy status, and walk destination, with the feet anchored in place. The new variant
+must support the current state; otherwise the switch fails without changing the
+character. Set an ordinary state such as `idle` first when leaving a variant-only
+custom state. Cloned characters retain their variant.
+
+The asset format remains backwards compatible: `animations` and `customAnimations`
+are the default visual set, optional `defaultVariant` names it, and optional `variants`
+maps additional names to `{ animations, customAnimations }`. Scene instances store an
+optional `variant`. Portraits stay on the character, not its variants. Renaming or
+removing a variant requires updating explicit scene/script references.
+If two instances of the same character share a scene, target their unique instance
+names or IDs rather than an ambiguous shared script name.
+
+## Items and inventory
+
+Use **ITEMS** to create reusable item assets with a sprite frame or animation, an optional
+unique script name (for example `OfficeKey`), examine/failure scripts, and combination
+rules targeting item, prop, or character **asset IDs**. Bind zero-argument `@scripts`,
+not `#triggers`. Item recipes work in either direction; the selected item's rule wins
+when both items define a recipe. Scripts decide which ingredients to remove or results
+to grant; combinations do not automatically consume anything.
+
+In **SCENE → ENTITIES → Add Item**, choose an item and position its world instance.
+Items animate and participate in depth ordering without blocking movement.
+Left-click a world item to collect it; right-click to examine it.
+Open Inventory by clicking its tab or pressing Tab, click **EXAMINE** to inspect an item,
+or select an item and click another inventory item or a world item/prop/character to
+combine them. Esc cancels the selection.
+
+```text
++addItem(OfficeKey)
++?func(hasItem, OfficeKey):+examineItem(OfficeKey)
++combineItem(OfficeKey, prop, OfficeDoor)
++removeItem(OfficeKey)
+```
+
+`acquireItem` remains an alias for `addItem` in world games. Both resolve an item asset
+by ID or script name and reject unknown references. Prop/character command targets use
+scene instance IDs/names. Player-session `vars.inventory` holds unique `{ "itemId": "…" }`
+references, not copies of asset definitions. Legacy string entries resolve through the
+item catalog and are normalized on the next inventory mutation; create matching assets
+and script names before running old game scripts. The standalone script-only terminal
+shim retains name-only inventory because it has no world scene.
+
+Items are currently unique, non-stacking objects per player. Once acquired, their world
+instances stay collected across scene changes, even if a script later consumes the item.
+Each player's inventory and world pickups are independent.
 
 ## Command-line play and tools
 

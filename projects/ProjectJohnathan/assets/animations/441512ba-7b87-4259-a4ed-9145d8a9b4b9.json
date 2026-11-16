@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "441512ba-7b87-4259-a4ed-9145d8a9b4b9",
+  "label": "skye3x3 walk right",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "5afb0ec0-103f-4c21-9723-de3e5e1be698",
+      "index": 12,
+      "durationMs": 135
+    },
+    {
+      "sprite": "5afb0ec0-103f-4c21-9723-de3e5e1be698",
+      "index": 13,
+      "durationMs": 135
+    }
+  ]
+}

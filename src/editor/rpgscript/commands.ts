@@ -5,6 +5,7 @@ export const COMMAND_NAMES = [
   'walkToMarker',
   'walkToOffset',
   'setFacing',
+  'setCharacterVariant',
   'bark',
   'changeScene',
   'spawnAtMarker',

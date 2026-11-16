@@ -6,8 +6,9 @@ import type { Scene } from './scene.js';
 import type { Character } from './character.js';
 import { findCharacter, findPath, getWalkAnchor, type Point } from './character-movement.js';
 import { findAnimatedProps } from './prop-lookup.js';
-import { CHARACTER_DIRECTIONS, PROP_DEFAULT_STATE, type CharacterDirection } from '../editor/schema.js';
+import { CHARACTER_DIRECTIONS, PROP_DEFAULT_STATE, isCharacterVariantName, type CharacterDirection } from '../editor/schema.js';
 import { defineCommand, type CommandContext } from './rpgscript/command.js';
+import { getInventoryEntries, getItemAsset, getItemCombinationScript, WorldItem, type ItemTarget } from './items.js';
 
 export type GameScriptContext = {
   scene: Scene;
@@ -122,8 +123,24 @@ const playDialogue = defineCommand({
     )
       return { type: 'dialogue' as const, actor: dialogue.actorName, text: dialogue.text, emotion: dialogue.portraitEmotion };
   },
-  execute: (step, context) =>
-    context.showDialogue(context.interpolate(step.actor), context.interpolate(step.text), step.emotion),
+  execute: (step, context, game?: GameScriptContext) => {
+    const actor = context.interpolate(step.actor);
+    let speaker: Character | undefined;
+    context.showDialogue(actor, context.interpolate(step.text), step.emotion, () => {
+      if (speaker?.state === 'talking') speaker.setAnimationState('idle');
+    });
+    if (!game?.scene) return;
+    let character: Character;
+    try {
+      character = findCharacter(game.scene, actor, game.playerControl.playerWalkCh);
+    } catch {
+      // Off-scene or ambiguous speakers can still speak without animating an instance.
+      return;
+    }
+    if (character.state !== 'idle' || !character.hasAnimationState('talking')) return;
+    speaker = character;
+    speaker.setAnimationState('talking');
+  },
 });
 
 const showCenterToast = defineCommand({
@@ -182,24 +199,108 @@ function getItemName(value: ScriptValue, context: CommandContext, command: strin
 const acquireItem = defineCommand({
   parse: (args, location) => args.length === 1
     ? { item: getScriptValue(args[0], location) } : undefined,
-  execute: (step, context) => {
+  execute: (step, context, game?: GameScriptContext) => {
     const item = getItemName(step.item, context, 'acquireItem');
+    if (game?.scene) {
+      addInventoryItem(item, context, game);
+      return;
+    }
+    // Script-only terminal runners have no project assets.
     const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
     if (!inventory.includes(item)) context.setStorage('vars.inventory', [...inventory, item]);
   },
 });
 
+// Keep the existing acquireItem spelling as an alias for older scripts.
+const addItem = defineCommand({
+  parse: acquireItem.parse,
+  execute: (step, context, game?: GameScriptContext) => {
+    const item = getItemName(step.item, context, 'addItem');
+    if (!game?.scene) throw new Error(`${context.location}: addItem requires item assets`);
+    addInventoryItem(item, context, game);
+  },
+});
+
+export function addInventoryItem(
+  reference: string, script: Pick<CommandContext, 'getStorage' | 'setStorage' | 'location'>, game: GameScriptContext,
+): void {
+  const asset = getItemAsset(game.scene.itemAssets, reference);
+  const itemId = asset.definition.id;
+  const entries = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets);
+  if (!entries.some((entry) => entry.itemId === itemId)) entries.push({ itemId });
+  script.setStorage('vars.inventory', entries);
+  const acquired = getInventory(script.getStorage('vars.acquiredItems'), script.location);
+  if (!acquired.includes(itemId)) script.setStorage('vars.acquiredItems', [...acquired, itemId]);
+  for (const entity of [...game.scene.entities])
+    if (entity instanceof WorldItem && entity.asset.definition.id === itemId) game.scene.removeEntity(entity);
+}
+
 const removeItem = defineCommand({
   parse: (args, location) => args.length === 1
     ? { item: getScriptValue(args[0], location) } : undefined,
-  execute: (step, context) => {
+  execute: (step, context, game?: GameScriptContext) => {
     const item = getItemName(step.item, context, 'removeItem');
+    if (game?.scene) {
+      const id = getItemAsset(game.scene.itemAssets, item).definition.id;
+      const entries = getInventoryEntries(context.getStorage('vars.inventory'), game.scene.itemAssets);
+      if (!entries.some((entry) => entry.itemId === id))
+        context.writeLog(`[RPGSCRIPT] removeItem: item ${item} is not in vars.inventory (${context.location})`);
+      context.setStorage('vars.inventory', entries.filter((entry) => entry.itemId !== id));
+      return;
+    }
     const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
     if (!inventory.includes(item)) {
       context.writeLog(`[RPGSCRIPT] removeItem: item ${item} is not in vars.inventory (${context.location})`);
       return;
     }
     context.setStorage('vars.inventory', inventory.filter((owned) => owned !== item));
+  },
+});
+
+const examineItem = defineCommand({
+  parse: acquireItem.parse,
+  execute: (step, script, game: GameScriptContext) => {
+    const asset = getItemAsset(game.scene.itemAssets, getItemName(step.item, script, 'examineItem'));
+    const owned = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets)
+      .some((entry) => entry.itemId === asset.definition.id);
+    const present = game.scene.entities.some((entity) =>
+      entity instanceof WorldItem && entity.asset.definition.id === asset.definition.id);
+    if (!owned && !present) throw new Error(`${script.location}: Item ${asset.definition.id} is not available`);
+    if (asset.definition.examineScript) script.call(asset.definition.examineScript, []);
+  },
+});
+
+const combineItem = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 3) return;
+    return { item: getScriptValue(args[0], location), targetType: getScriptValue(args[1], location), target: getScriptValue(args[2], location) };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const asset = getItemAsset(game.scene.itemAssets, getItemName(step.item, script, 'combineItem'));
+    const entries = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets);
+    if (!entries.some((entry) => entry.itemId === asset.definition.id))
+      throw new Error(`${script.location}: combineItem requires an owned item`);
+    const targetType = script.value(step.targetType);
+    const reference = script.value(step.target);
+    if (!['item', 'prop', 'character'].includes(String(targetType)) || typeof reference !== 'string')
+      throw new Error(`${script.location}: combineItem requires item, prop, or character and a target`);
+    let target: ItemTarget;
+    if (targetType === 'item') {
+      const id = getItemAsset(game.scene.itemAssets, reference).definition.id;
+      const available = entries.some((entry) => entry.itemId === id) || game.scene.entities.some((entity) =>
+        entity instanceof WorldItem && entity.asset.definition.id === id);
+      if (!available) throw new Error(`${script.location}: Target item ${reference} is not available`);
+      target = { targetType, target: id };
+    } else if (targetType === 'character') {
+      target = { targetType, target: findCharacter(game.scene, reference, game.playerControl.playerWalkCh).characterId };
+    } else {
+      const props = findAnimatedProps(game.scene, reference);
+      const ids = new Set(props.map((prop) => prop.propId).filter((id): id is string => !!id));
+      if (ids.size !== 1) throw new Error(`${script.location}: Prop target ${reference} is ambiguous or has no asset`);
+      target = { targetType: 'prop', target: [...ids][0] };
+    }
+    const targetScript = getItemCombinationScript(game.scene.itemAssets, asset.definition, target);
+    if (targetScript) script.call(targetScript, []);
   },
 });
 
@@ -271,11 +372,18 @@ const endConvNR = defineCommand({
 
 const setPlayerWalkCh = defineCommand({
   parse: (args, location) => {
-    if (args.length === 1)
-      return { type: 'setPlayerWalkCh' as const, idOrInstanceName: getScriptValue(args[0], location) };
+    if (args.length === 1 || args.length === 2)
+      return {
+        type: 'setPlayerWalkCh' as const,
+        idOrInstanceName: getScriptValue(args[0], location),
+        variant: args.length === 2 ? getScriptValue(args[1], location) : undefined,
+      };
   },
   execute: (step, script, game: GameScriptContext) => {
-    const pending = game.playerControl.setPlayerWalkCh(getPlayerCharacterName(step.idOrInstanceName, script));
+    const name = getPlayerCharacterName(step.idOrInstanceName, script);
+    const variant = step.variant === undefined ? undefined
+      : getCharacterVariantName(step.variant, script, 'setPlayerWalkCh');
+    const pending = game.playerControl.setPlayerWalkCh(name, variant);
     if (!pending) return;
     let complete = false;
     let failure: unknown;
@@ -469,7 +577,7 @@ const lookAtCh = defineCommand({
     const targetName = getPlayerCharacterName(step.target, script, 'lookAtCh');
     const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
     const target = findCharacter(game.scene, targetName, game.playerControl.playerWalkCh);
-    faceToward(character, target.x, target.bottomY);
+    setFacingToward(character, target.x, target.bottomY);
   },
 });
 
@@ -489,11 +597,11 @@ const lookAtMarker = defineCommand({
     const marker = game.scene.getMarker(markerName);
     if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
     const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
-    faceToward(character, marker.x, marker.y);
+    setFacingToward(character, marker.x, marker.y);
   },
 });
 
-function faceToward(character: Character, x: number, y: number): void {
+function setFacingToward(character: Character, x: number, y: number): void {
   const direction = getFacingToward(character.x, character.bottomY, x, y);
   if (!direction) return;
   character.facing = direction;
@@ -536,6 +644,18 @@ const setAnimState = defineCommand({
       return;
     }
     character.setAnimationState(state);
+  },
+});
+
+const setCharacterVariant = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return { character: getScriptValue(args[0], location), variant: getScriptValue(args[1], location) };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'setCharacterVariant');
+    const variant = getCharacterVariantName(step.variant, script);
+    findCharacter(game.scene, name, game.playerControl.playerWalkCh).setVariant(variant);
   },
 });
 
@@ -675,7 +795,10 @@ export const commands = {
   setStorage,
   rand100,
   acquireItem,
+  addItem,
   removeItem,
+  examineItem,
+  combineItem,
   setStorageIfUndefined,
   setLocal,
   setIndex,
@@ -695,6 +818,7 @@ export const commands = {
   lookAtMarker,
   bark,
   setAnimState,
+  setCharacterVariant,
   setPropAnimState,
   despawnCh,
   waitMs,
@@ -802,6 +926,15 @@ export function getAnimationStateName(
   if (typeof state !== 'string' || !state.trim())
     throw new Error(`${script.location}: ${command} requires an animation state name`);
   return state;
+}
+
+export function getCharacterVariantName(
+  value: ScriptValue, script: CommandContext, command = 'setCharacterVariant',
+): string {
+  const variant = script.value(value);
+  if (typeof variant !== 'string' || !isCharacterVariantName(variant))
+    throw new Error(`${script.location}: ${command} requires a variant name`);
+  return variant;
 }
 
 export function getWaitMilliseconds(value: ScriptValue, script: CommandContext): number {

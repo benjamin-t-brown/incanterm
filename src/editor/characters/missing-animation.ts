@@ -1,7 +1,7 @@
-import type { CharacterDocument } from '../schema.js';
+import type { CharacterVisual } from '../schema.js';
 
 export function getMissingAnimationStates(
-  character: CharacterDocument,
+  character: CharacterVisual,
   animationId: string,
 ): { name: string; extra: boolean }[] {
   return [

@@ -1,0 +1,21 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "72d5c3e9-1ed3-4bd0-b8df-6cd168ba3a9e",
+  "label": "stanchion",
+  "visual": {
+    "type": "sprite",
+    "id": "0034a331-c445-406c-a318-85555d1ed521",
+    "index": 0
+  },
+  "width": 1,
+  "height": 4,
+  "blockedCells": [
+    2,
+    3
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

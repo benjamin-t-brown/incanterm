@@ -111,6 +111,7 @@ export async function createProject(location: string, name: string): Promise<Loa
     'animations',
     'characters',
     'props',
+    'items',
     'audio',
     'references',
   ])

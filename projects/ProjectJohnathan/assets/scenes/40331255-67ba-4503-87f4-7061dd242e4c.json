@@ -1,0 +1,118 @@
+{
+  "format": "incanterm-scene",
+  "version": 1,
+  "id": "40331255-67ba-4503-87f4-7061dd242e4c",
+  "label": "southLifts",
+  "width": 120,
+  "height": 40,
+  "depthMode": "bottom-up",
+  "blockedCells": [
+    877,
+    905,
+    997,
+    1025,
+    1117,
+    1145,
+    1238,
+    1266,
+    1359,
+    1387,
+    1480,
+    1508,
+    1629,
+    1750,
+    1871,
+    1964,
+    1992,
+    2085,
+    2113,
+    2206,
+    2234,
+    2327,
+    2355,
+    2448,
+    2476,
+    2569,
+    2597,
+    2690,
+    2691,
+    2692,
+    2693,
+    2694,
+    2702,
+    2703,
+    2704,
+    2712,
+    2713,
+    2714,
+    2715,
+    2716,
+    2717,
+    2718
+  ],
+  "clear": {
+    "ch": " ",
+    "fg": "#e0e9db",
+    "bg": "#102b2a"
+  },
+  "entities": [
+    {
+      "id": "background-1",
+      "type": "Background",
+      "sprite": "ce2525cc-413c-4765-a642-9e1c719357a7",
+      "index": 0,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "marker-1",
+      "type": "Marker",
+      "name": "MarkerPlayer",
+      "x": 56,
+      "y": 13
+    },
+    {
+      "id": "b8b6fc7a-1883-4154-987b-91583eb17b83",
+      "type": "Marker",
+      "name": "FromHallway2",
+      "x": 52,
+      "y": 9
+    }
+  ],
+  "triggers": [
+    {
+      "id": "1a706529-fed9-453c-aa36-8a86fc1cbfff",
+      "trigger": "southLiftsLoad",
+      "event": "load",
+      "x": 1,
+      "y": 2,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": false
+    },
+    {
+      "id": "b26f9b97-ec73-4b2c-83ab-e616c9efda29",
+      "trigger": "southLiftsUpdate",
+      "event": "timer",
+      "x": 1,
+      "y": 4,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": false
+    },
+    {
+      "id": "242e9ac3-d020-4d2d-b66b-c741880747d3",
+      "trigger": "southLifts_toHallway2",
+      "event": "action",
+      "x": 38,
+      "y": 8,
+      "width": 27,
+      "height": 1,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    }
+  ]
+}

@@ -5,14 +5,17 @@ import { mountGame } from './game/game.js';
 import { mountIndex } from './index/index.js';
 import { mountScenes } from './scenes/scenes.js';
 import { mountProps } from './props/props.js';
+import { mountItems } from './items/items.js';
 import { mountCharacters } from './characters/characters.js';
 import { mountScripts } from './scripts/scripts.js';
 import { allowLeave, setDirtyGuard, setupThemeToggle } from './shell.js';
 import { requestJson, jsonRequest } from './api.js';
 import {
+  clearProjectSelection,
   getOpenedProject,
+  getSavedProjectPath,
+  saveProjectSelection,
   setOpenedProject,
-  OPEN_PROJECT_KEY,
   type EditorProject,
 } from './project.js';
 import { mountSoundboard } from './soundboard/soundboard.js';
@@ -28,6 +31,7 @@ const titles: Record<string, string> = {
   '/art': 'Incanterm Editor - Art',
   '/animation': 'Incanterm Editor - Animation',
   '/props': 'Incanterm Editor - Props',
+  '/items': 'Incanterm Editor - Items',
   '/characters': 'Incanterm Editor - Characters',
   '/soundboard': 'Incanterm Editor - Soundboard',
   '/scripts': 'Incanterm Editor - Script Writer',
@@ -40,6 +44,7 @@ const routes: Record<string, (root: HTMLElement) => void | (() => void)> = {
   '/art': mountArt,
   '/animation': mountAnimation,
   '/props': mountProps,
+  '/items': mountItems,
   '/characters': mountCharacters,
   '/soundboard': mountSoundboard,
   '/scripts': mountScripts,
@@ -112,18 +117,18 @@ async function navigateBack(): Promise<void> {
 }
 
 async function startEditor(): Promise<void> {
-  const selected = sessionStorage.getItem(OPEN_PROJECT_KEY);
+  const selected = getSavedProjectPath();
   if (selected) {
     try {
-      setOpenedProject(
-        await requestJson<EditorProject>(
-          '/api/projects/open',
-          jsonRequest('POST', { path: selected }),
-        ),
+      const project = await requestJson<EditorProject>(
+        '/api/projects/open',
+        jsonRequest('POST', { path: selected }),
       );
+      setOpenedProject(project);
+      saveProjectSelection(project.manifestPath);
     } catch (error) {
       console.error('Could not reopen project:', error);
-      sessionStorage.removeItem(OPEN_PROJECT_KEY);
+      clearProjectSelection();
     }
   }
   render();

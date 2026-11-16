@@ -334,6 +334,7 @@ type Frame = {
 };
 
 export type RunnerOptions<Host> = {
+  hasItem?: (inventory: RuntimeValue, reference: string) => boolean;
   isCharacterBusy?: (ownerId: string) => boolean;
   getCharacterId?: (reference: string) => string;
   commands: CommandRegistry<Host>;
@@ -349,6 +350,7 @@ export class ScriptRunner<Host> {
   private usedOnce = new Set<string>();
   private subscripts = new Map<string, ScriptRunner<Host>>();
   dialogue: Dialogue | undefined;
+  private finishDialogue: (() => void) | undefined;
   centerToast: string | undefined;
   choice: ChoicePrompt | undefined;
   private onChoose: ((index: number) => void) | undefined;
@@ -374,7 +376,8 @@ export class ScriptRunner<Host> {
 
   start(name: string, args: readonly RuntimeValue[] = []): void {
     this.stack = [this.createFrame(name, args)];
-    this.dialogue = this.choice = undefined;
+    this.clearDialogue();
+    this.choice = undefined;
     this.centerToast = undefined;
     this.onChoose = undefined;
     this.isWaitComplete = undefined;
@@ -507,8 +510,15 @@ export class ScriptRunner<Host> {
 
   advance(): void {
     if (!this.dialogue) return;
-    this.dialogue = undefined;
+    this.clearDialogue();
     this.run();
+  }
+
+  private clearDialogue(): void {
+    this.dialogue = undefined;
+    const finishDialogue = this.finishDialogue;
+    this.finishDialogue = undefined;
+    finishDialogue?.();
   }
 
   dismissCenterToast(): void {
@@ -684,7 +694,10 @@ export class ScriptRunner<Host> {
     if (type === 'func') {
       const item = this.getScriptValue(args[1] as ScriptValue);
       const inventory = this.storage.get('vars.inventory');
-      return typeof item === 'string' && Array.isArray(inventory) && inventory.includes(item);
+      return typeof item === 'string' && (this.options.hasItem
+        ? this.options.hasItem(inventory, item)
+        : Array.isArray(inventory) && inventory.some((entry) => entry === item ||
+          entry && typeof entry === 'object' && !Array.isArray(entry) && entry.itemId === item));
     }
     const first = args[0];
     if (type === 'is' || type === 'isnot') {
@@ -869,9 +882,11 @@ export class ScriptRunner<Host> {
         this.jumpToBlock(frame, header, header);
       },
       callSubscript: (ownerId, target) => this.callSubscript(ownerId, target, location),
-      showDialogue: (actor, text, emotion) => {
+      showDialogue: (actor, text, emotion, onFinish) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show dialogue`);
+        this.clearDialogue();
         this.dialogue = emotion ? { actor, text, emotion } : { actor, text };
+        this.finishDialogue = onFinish;
       },
       showCenterToast: (message) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show a center toast`);
