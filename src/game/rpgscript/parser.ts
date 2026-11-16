@@ -418,6 +418,8 @@ export class ScriptParser {
       }
       return { type: 'while', args: [condition] };
     }
+    const ifLong = /^if\s+(.+)$/s.exec(conditionalSrc.trim());
+    if (ifLong) return this.parseConditional(ifLong[1], lineNum, script);
     const elseIf = /^elseif\s+(.+)$/s.exec(conditionalSrc.trim());
     if (elseIf) {
       return { type: 'elseif', args: [this.parseConditional(elseIf[1], lineNum, script)] };
@@ -459,6 +461,17 @@ export class ScriptParser {
         }
       }),
     };
+  }
+
+  /** Rewrites longform `if cond:`, `elseif cond:`, `while cond:` and `else:` into the `?cond:` form. */
+  getShortFormConditional(contents: string): string {
+    const longForm = /^(if|elseif|while)\s+(?=\S)/.exec(contents);
+    if (longForm) {
+      const rest = contents.slice(longForm[0].length);
+      return longForm[1] === 'if' ? `?${rest}` : `?${longForm[1]} ${rest}`;
+    }
+    if (/^else\s*:/.test(contents)) return `?${contents}`;
+    return contents;
   }
 
   combineConditionals(
@@ -714,7 +727,18 @@ export class ScriptParser {
         addTrigger(line.substr(1), currentTrigger);
       } else if (firstCh === '+' || firstCh === '<' || firstCh === '!' || isCodeBlock) {
         isChoice = false;
-        const commandContents = line.substr(isCodeBlock || firstCh === '<' || firstCh === '!' ? 0 : 1);
+        const plusControl = /\+\s*(!(?:break|continue|returnempty))\b\s*;?$/.exec(line);
+        if (plusControl) {
+          this.throwParsingError(
+            `${plusControl[1]} is written without a leading "+"`,
+            lineNum,
+            line,
+          );
+        }
+        let commandContents = line.substr(isCodeBlock || firstCh === '<' || firstCh === '!' ? 0 : 1);
+        if (firstCh === '+' && !isCodeBlock) {
+          commandContents = this.getShortFormConditional(commandContents);
+        }
         if (currentScript) {
           const switchHeader = /^\+?\?switch\((.*)\)\s*:\s*\{$/.exec(commandContents);
           if (switchHeader) {

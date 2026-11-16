@@ -37,47 +37,77 @@ export function activate(context: vscode.ExtensionContext) {
   //   }
   // });
 
+  // Removes // and /* */ comments that sit outside of quoted strings.
+  function stripComments(text: string): string {
+    let result = '';
+    let quote = '';
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (quote) {
+        result += ch;
+        if (ch === '\\' && i + 1 < text.length) result += text[++i];
+        else if (ch === quote) quote = '';
+      } else if (ch === '"' || ch === "'") {
+        quote = ch;
+        result += ch;
+      } else if (ch === '/' && text[i + 1] === '/' && text[i - 1] !== ':') {
+        break;
+      } else if (ch === '/' && text[i + 1] === '*') {
+        const close = text.indexOf('*/', i + 2);
+        if (close === -1) break;
+        i = close + 1;
+      } else {
+        result += ch;
+      }
+    }
+    return result.trim();
+  }
+
   class RPGScriptFormatter {
     format(document: vscode.TextDocument): vscode.TextEdit[] {
       const edits: vscode.TextEdit[] = [];
       let indentLevel = 0;
       for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
-        const text = line.text;
-        let trimmed = text.trim();
-        while (trimmed.slice(-1) === ';') {
-          trimmed = trimmed.slice(0, -1);
-        }
-        const trimmedNoComments = trimmed.replace(
-          /\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm,
-          ''
-        );
-
-        if (trimmedNoComments === '') {
+        let trimmed = line.text.trim();
+        if (trimmed === '') {
           continue;
         }
 
-        let incIndent = false;
+        const code = stripComments(trimmed).replace(/;+$/, '').trim();
 
-        if (
-          trimmedNoComments.at(0) === '@' ||
-          trimmedNoComments.at(0) === '#'
-        ) {
+        // Comment-only lines follow the current indentation without changing it.
+        if (code === '') {
+          edits.push(
+            vscode.TextEdit.replace(line.range, '  '.repeat(indentLevel) + trimmed)
+          );
+          continue;
+        }
+
+        // Trailing semicolons are dropped from the code, comments are preserved.
+        if (trimmed.length > code.length && trimmed.startsWith(code + ';')) {
+          trimmed = trimmed.replace(/^([^]*?);+(\s*(\/\/|\/\*).*)?$/, (_m, c, rest) => c + (rest ?? ''));
+        } else {
+          while (trimmed.slice(-1) === ';') {
+            trimmed = trimmed.slice(0, -1);
+          }
+        }
+
+        let isHeader = false;
+        if (code[0] === '@' || code[0] === '#') {
           indentLevel = 0;
-          incIndent = true;
+          isHeader = true;
         }
 
-        if (trimmedNoComments === '}' || trimmedNoComments === '|') {
-          indentLevel--;
+        if (code[0] === '}' || code === '|') {
+          indentLevel = Math.max(0, indentLevel - 1);
         }
 
-        console.log('read line', trimmed, indentLevel);
-        const indent = '  '.repeat(indentLevel);
-        edits.push(vscode.TextEdit.replace(line.range, indent + replaceRepeatedQuotedSpaces(trimmed)));
+        edits.push(
+          vscode.TextEdit.replace(line.range, '  '.repeat(indentLevel) + replaceRepeatedQuotedSpaces(trimmed))
+        );
 
-        if (incIndent) {
-          indentLevel++;
-        } else if (trimmed.slice(-1) === '{' || /^\+(?:\^?[A-Za-z_][\w.-]*|\[[A-Za-z_][\w-]*\])\s*=\s*\|$/.test(trimmed)) {
+        if (isHeader || code.slice(-1) === '{' || /^\+(?:\^?[A-Za-z_][\w.-]*|\[[A-Za-z_][\w-]*\])\s*=\s*\|$/.test(code)) {
           indentLevel++;
         }
       }

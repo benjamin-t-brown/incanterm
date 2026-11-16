@@ -64,8 +64,8 @@ describe('scene-free RPGScript shim', () => {
       ['Go', 'Stay'],
       ['Yes', 'No'],
     ]);
-    expect(runner.getStorage('name')).toBe('Ada');
-    expect(runner.getStorage('lastChoiceIndex')).toBe(0);
+    expect(runner.getGlobal('name')).toBe('Ada');
+    expect(runner.getGlobal('lastChoiceIndex')).toBe(0);
     expect(runner.isIdle()).toBe(true);
   });
 

@@ -31,7 +31,7 @@ it.each(['walkToMarker(hero, Door)', 'chWalkToCoord(hero, 4, 2)'])(
     expect(hero.x).toBe(3);
     expect(hero.bottomY).toBe(2);
     expect(hero.isWalking()).toBe(false);
-    expect(runner.getStorage('arrived')).toBe(true);
+    expect(runner.getGlobal('arrived')).toBe(true);
   },
 );
 
@@ -43,7 +43,7 @@ it.each([[3, 1], [2, 0], [4, 2]])('accounts for width %s and origin %s', (width,
   runner.update();
   expect(hero.x - originX + Math.floor(width / 2)).toBe(4);
   expect(hero.bottomY).toBe(2);
-  expect(runner.getStorage('arrived')).toBe(true);
+  expect(runner.getGlobal('arrived')).toBe(true);
 });
 
 it('keeps origin-column targeting in regular-z scenes', () => {
@@ -54,5 +54,5 @@ it('keeps origin-column targeting in regular-z scenes', () => {
   runner.update();
   expect(hero.x).toBe(4);
   expect(hero.bottomY).toBe(2);
-  expect(runner.getStorage('arrived')).toBe(true);
+  expect(runner.getGlobal('arrived')).toBe(true);
 });

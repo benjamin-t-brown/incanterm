@@ -182,7 +182,7 @@ export function createGameSession(
   function combineSelectedItem(target: ItemTarget): void {
     const source = selectedItemId && scene.itemAssets.get(selectedItemId);
     selectedItemId = undefined;
-    if (!source || !runner || !hasInventoryItem(runner.getStorage('vars.inventory'), scene.itemAssets, source.definition.id)) return;
+    if (!source || !runner || !hasInventoryItem(runner.getGlobal('vars.inventory'), scene.itemAssets, source.definition.id)) return;
     const name = getItemCombinationScript(scene.itemAssets, source.definition, target);
     if (name) runItemScript(name);
     else layout.appendLog("Those don't work together.");
@@ -190,7 +190,7 @@ export function createGameSession(
 
   function clickInventoryItem(itemId: string, examine: boolean): void {
     const asset = scene.itemAssets.get(itemId);
-    if (!asset || !runner || !hasInventoryItem(runner.getStorage('vars.inventory'), scene.itemAssets, itemId)) return;
+    if (!asset || !runner || !hasInventoryItem(runner.getGlobal('vars.inventory'), scene.itemAssets, itemId)) return;
     if (examine) {
       selectedItemId = undefined;
       runItemScript(asset.definition.examineScript);
@@ -221,8 +221,8 @@ export function createGameSession(
       else {
         control.stop();
         addInventoryItem(target.asset.definition.id, {
-          location: '<pickup>', getStorage: (key) => runner.getStorage(key),
-          setStorage: (key, value) => runner.setStorage(key, value),
+          location: '<pickup>', getGlobal: (key) => runner.getGlobal(key),
+          setGlobal: (key, value) => runner.setGlobal(key, value),
         }, gameContext);
         layout.appendLog(`Picked up ${target.asset.definition.label}.`);
       }
@@ -348,7 +348,7 @@ export function createGameSession(
       [...loaded.entities.filter((entity) => entity.id !== player.id).map((entity) =>
         entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity), player],
       loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter, loaded.itemAssets);
-    const acquired = runner?.getStorage('vars.acquiredItems');
+    const acquired = runner?.getGlobal('vars.acquiredItems');
     if (Array.isArray(acquired)) scene.entities = scene.entities.filter((entity) =>
       !(entity instanceof WorldItem) || !acquired.includes(entity.asset.definition.id));
     selectedItemId = undefined;
@@ -552,7 +552,7 @@ export function createGameSession(
     needsFrame ||= force;
     if (!opened) return;
     try {
-      const entries = getInventoryEntries(runner?.getStorage('vars.inventory'), scene.itemAssets);
+      const entries = getInventoryEntries(runner?.getGlobal('vars.inventory'), scene.itemAssets);
       layout.inventory.items = entries.flatMap((entry) => {
         const asset = scene.itemAssets.get(entry.itemId);
         return asset ? [asset] : [];

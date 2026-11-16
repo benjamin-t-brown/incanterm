@@ -11,10 +11,10 @@ describe('rand100 scene command', () => {
     const runner = new ScriptRunner(scripts);
 
     runner.start('roll');
-    expect(runner.getStorage('vars.rand100')).toBe(1);
+    expect(runner.getGlobal('vars.rand100')).toBe(1);
     expect(runner.dialogue?.text).toBe('Rolled 1');
     runner.advance();
-    expect(runner.getStorage('vars.rand100')).toBe(100);
+    expect(runner.getGlobal('vars.rand100')).toBe(100);
     expect(random).toHaveBeenCalledTimes(2);
     expect(sceneCommandsShim.rand100).toBe(commands.rand100);
   });

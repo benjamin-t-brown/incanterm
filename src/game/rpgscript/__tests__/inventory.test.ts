@@ -12,14 +12,14 @@ describe('item commands and conditions', () => {
 }`, 'items.rpgscript');
     const withoutItem = new ScriptRunner(scripts);
     withoutItem.start('start');
-    expect(withoutItem.getStorage('doorBlocked')).toBe(true);
-    expect(withoutItem.getStorage('doorOpen')).toBeUndefined();
+    expect(withoutItem.getGlobal('doorBlocked')).toBe(true);
+    expect(withoutItem.getGlobal('doorOpen')).toBeUndefined();
 
     const withItem = new ScriptRunner(scripts);
-    withItem.setStorage('vars.inventory', ['OfficeEnvelope']);
+    withItem.setGlobal('vars.inventory', ['OfficeEnvelope']);
     withItem.start('start');
-    expect(withItem.getStorage('doorBlocked')).toBeUndefined();
-    expect(withItem.getStorage('doorOpen')).toBe(true);
+    expect(withItem.getGlobal('doorBlocked')).toBeUndefined();
+    expect(withItem.getGlobal('doorOpen')).toBe(true);
   });
 
   it('acquires unique items, checks membership, removes items and keeps inventory per player', () => {
@@ -33,16 +33,16 @@ describe('item commands and conditions', () => {
     const first = new ScriptRunner(scripts);
     const second = new ScriptRunner(scripts);
     first.start('start', ['key']);
-    expect(first.getStorage('vars.inventory')).toEqual(['key']);
+    expect(first.getGlobal('vars.inventory')).toEqual(['key']);
     expect(first.dialogue?.text).toBe('Owned');
-    expect(second.getStorage('vars.inventory')).toBeUndefined();
+    expect(second.getGlobal('vars.inventory')).toBeUndefined();
     first.advance();
-    expect(first.getStorage('vars.inventory')).toEqual([]);
+    expect(first.getGlobal('vars.inventory')).toEqual([]);
     expect(first.dialogue?.text).toBe('Removed');
     first.advance();
     expect(first.isIdle()).toBe(true);
     second.start('start', ['coin']);
-    expect(second.getStorage('vars.inventory')).toEqual(['coin']);
+    expect(second.getGlobal('vars.inventory')).toEqual(['coin']);
   });
 
   it('treats bare item names as literals, supports interpolation and checks existing inventory', () => {
@@ -53,10 +53,10 @@ describe('item commands and conditions', () => {
 +?func(hasItem, {wanted}):A: "Wanted"
 +?func(hasItem, "{wanted}"):A: "Interpolated"`, 'items.rpgscript');
     const runner = new ScriptRunner(scripts);
-    runner.setStorage('key', 'coin');
-    runner.setStorage('wanted', 'coin');
+    runner.setGlobal('key', 'coin');
+    runner.setGlobal('wanted', 'coin');
     runner.start('start');
-    expect(runner.getStorage('vars.inventory')).toEqual(['key', 'coin']);
+    expect(runner.getGlobal('vars.inventory')).toEqual(['key', 'coin']);
     expect(runner.dialogue?.text).toBe('Key');
     runner.advance();
     expect(runner.dialogue?.text).toBe('Wanted');
@@ -69,7 +69,7 @@ describe('item commands and conditions', () => {
     const logs: string[] = [];
     const runner = new ScriptRunner(scripts, (message) => logs.push(message));
     runner.start('start');
-    expect(runner.getStorage('vars.inventory')).toEqual(['coin']);
+    expect(runner.getGlobal('vars.inventory')).toEqual(['coin']);
     expect(logs).toEqual(['[RPGSCRIPT] removeItem: item key is not in vars.inventory (items.rpgscript:2)']);
   });
 

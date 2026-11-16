@@ -143,10 +143,10 @@ it('waits for the requested spawn variant before continuing and anchors its feet
     'variants.rpgscript', { commands },
   ), { commands, context: { scene, playerControl: control } });
   runner.start('start');
-  expect(runner.getStorage('ready')).toBeUndefined();
+  expect(runner.getGlobal('ready')).toBeUndefined();
   await vi.waitFor(() => {
     runner.update();
-    expect(runner.getStorage('ready')).toBe(true);
+    expect(runner.getGlobal('ready')).toBe(true);
   });
   expect(control.playerWalkCh).toMatchObject({ variant: '5x5', x: 4, y: 4 });
   expect(control.playerWalkCh?.bottomY).toBe(8);

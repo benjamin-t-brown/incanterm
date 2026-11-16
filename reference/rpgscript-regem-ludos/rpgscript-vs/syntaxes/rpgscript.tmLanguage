@@ -36,8 +36,8 @@
           <key>patterns</key><array><dict><key>include</key><string>#in_parens</string></dict></array>
         </dict>
         <dict>
-          <key>match</key><string>(?:^\s*|(?&lt;=:)\s*)(\+?)(!(?:break|continue|returnempty)\b)</string>
-          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
+          <key>match</key><string>(?:^\s*|(?&lt;=:)\s*)(!(?:break|continue|returnempty)\b)</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
         </dict>
         <dict>
           <key>begin</key><string>^\s*(&lt;)</string>
@@ -530,7 +530,7 @@
             <key>1</key>
             <dict>
               <key>name</key>
-              <string>punctuation.terminator.statement.rpgscript</string>
+              <string>string.rpgscript</string>
             </dict>
           </dict>
           <key>patterns</key>
@@ -547,7 +547,7 @@
             <key>1</key>
             <dict>
               <key>name</key>
-              <string>punctuation.terminator.statement.rpgscript</string>
+              <string>string.rpgscript</string>
             </dict>
           </dict>
         </dict>
@@ -559,7 +559,7 @@
             <key>1</key>
             <dict>
               <key>name</key>
-              <string>punctuation.terminator.statement.rpgscript</string>
+              <string>string.rpgscript</string>
             </dict>
           </dict>
           <key>patterns</key>
@@ -576,21 +576,17 @@
             <key>1</key>
             <dict>
               <key>name</key>
-              <string>punctuation.terminator.statement.rpgscript</string>
+              <string>string.rpgscript</string>
             </dict>
           </dict>
         </dict>
         <dict>
-          <key>match</key>
-          <string>(\{[\w\d_\-\.\x{0020}]*\})</string>
-          <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <key>match</key><string>(\{)([\w\d_\-\.\x{0020}]*)(\})</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
         </dict>
         <dict>
-          <key>match</key>
-          <string>(\[[\w\d_\-\.\x{0020}]*\])</string>
-          <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <key>match</key><string>(\[)([\w\d_\-\.\x{0020}]*)(\])</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
         </dict>
         <dict>
           <key>match</key>
@@ -640,20 +636,22 @@
       <key>patterns</key>
       <array>
         <dict>
-          <key>match</key>
-          <string>(\{[\w\d_\-\.\x{0020}]*\})</string>
-          <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <key>match</key><string>(\{)([\w\d_\-\.\x{0020}]*)(\})</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
+        </dict>
+        <dict>
+          <key>match</key><string>(\[)([\w\d_\-\.\x{0020}]*)(\])</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
         </dict>
         <dict>
           <key>match</key>
-          <string>(\[[\w\d_\-\.\x{0020}]*\])</string>
+          <string>([^&apos;\{\[]+)</string>
           <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <string>string.rpgscript</string>
         </dict>
         <dict>
           <key>match</key>
-           <string>(.)</string>
+          <string>(.)</string>
           <key>name</key>
           <string>string.rpgscript</string>
         </dict>
@@ -664,20 +662,22 @@
       <key>patterns</key>
       <array>
         <dict>
-          <key>match</key>
-          <string>(\{[\w\d_\-\.\x{0020}]*\})</string>
-          <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <key>match</key><string>(\{)([\w\d_\-\.\x{0020}]*)(\})</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
+        </dict>
+        <dict>
+          <key>match</key><string>(\[)([\w\d_\-\.\x{0020}]*)(\])</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict><key>2</key><dict><key>name</key><string>punctuation.terminator.statement.rpgscript</string></dict><key>3</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
         </dict>
         <dict>
           <key>match</key>
-          <string>(\[[\w\d_\-\.\x{0020}]*\])</string>
+          <string>([^&quot;\{\[]+)</string>
           <key>name</key>
-          <string>punctuation.terminator.statement.rpgscript</string>
+          <string>string.rpgscript</string>
         </dict>
         <dict>
           <key>match</key>
-           <string>(.)</string>
+          <string>(.)</string>
           <key>name</key>
           <string>string.rpgscript</string>
         </dict>
@@ -707,7 +707,7 @@
         </dict>
         <dict>
           <key>match</key>
-          <string>(\b(?:elseif|while)\b(?=\s))</string>
+          <string>(\b(?:if|elseif|while)\b(?=\s))</string>
           <key>name</key>
           <string>keyword.operator.assignment.rpgscript</string>
         </dict>
@@ -880,6 +880,10 @@
       <key>patterns</key>
       <array>
         <dict><key>match</key><string>-&gt;</string><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict>
+        <dict>
+          <key>match</key><string>(?&lt;=^\+|^\s\+|^\s\s\+|^\s\s\s\+|^\s\s\s\s\+|^\s\s\s\s\s\s\+)((?:if|elseif|while)\b(?=\s)|else\b(?=\s*:))</string>
+          <key>captures</key><dict><key>1</key><dict><key>name</key><string>keyword.operator.assignment.rpgscript</string></dict></dict>
+        </dict>
         <dict><key>match</key><string>(&lt;)</string><key>name</key><string>keyword.control.return.rpgscript</string></dict>
         <dict>
           <key>include</key>

@@ -173,13 +173,13 @@ const setStorage = defineCommand({
     const key = typeof step.key === 'object' ? context.value(step.key) : step.key;
     if (typeof key !== 'string' || !key)
       throw new Error(`${context.location}: setStorage requires a non-empty string key`);
-    context.setStorage(key, context.value(step.value));
+    context.setGlobal(key, context.value(step.value));
   },
 });
 
 const rand100 = defineCommand({
   parse: (args) => args.length === 0 ? { type: 'rand100' as const } : undefined,
-  execute: (_step, context) => context.setStorage('vars.rand100', Math.floor(Math.random() * 100) + 1),
+  execute: (_step, context) => context.setGlobal('vars.rand100', Math.floor(Math.random() * 100) + 1),
 });
 
 function getInventory(value: ReturnType<CommandContext['getStorage']>, location: string): readonly string[] {
@@ -206,8 +206,8 @@ const acquireItem = defineCommand({
       return;
     }
     // Script-only terminal runners have no project assets.
-    const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
-    if (!inventory.includes(item)) context.setStorage('vars.inventory', [...inventory, item]);
+    const inventory = getInventory(context.getGlobal('vars.inventory'), context.location);
+    if (!inventory.includes(item)) context.setGlobal('vars.inventory', [...inventory, item]);
   },
 });
 
@@ -222,15 +222,15 @@ const addItem = defineCommand({
 });
 
 export function addInventoryItem(
-  reference: string, script: Pick<CommandContext, 'getStorage' | 'setStorage' | 'location'>, game: GameScriptContext,
+  reference: string, script: Pick<CommandContext, 'getGlobal' | 'setGlobal' | 'location'>, game: GameScriptContext,
 ): void {
   const asset = getItemAsset(game.scene.itemAssets, reference);
   const itemId = asset.definition.id;
-  const entries = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets);
+  const entries = getInventoryEntries(script.getGlobal('vars.inventory'), game.scene.itemAssets);
   if (!entries.some((entry) => entry.itemId === itemId)) entries.push({ itemId });
-  script.setStorage('vars.inventory', entries);
-  const acquired = getInventory(script.getStorage('vars.acquiredItems'), script.location);
-  if (!acquired.includes(itemId)) script.setStorage('vars.acquiredItems', [...acquired, itemId]);
+  script.setGlobal('vars.inventory', entries);
+  const acquired = getInventory(script.getGlobal('vars.acquiredItems'), script.location);
+  if (!acquired.includes(itemId)) script.setGlobal('vars.acquiredItems', [...acquired, itemId]);
   for (const entity of [...game.scene.entities])
     if (entity instanceof WorldItem && entity.asset.definition.id === itemId) game.scene.removeEntity(entity);
 }
@@ -242,18 +242,18 @@ const removeItem = defineCommand({
     const item = getItemName(step.item, context, 'removeItem');
     if (game?.scene) {
       const id = getItemAsset(game.scene.itemAssets, item).definition.id;
-      const entries = getInventoryEntries(context.getStorage('vars.inventory'), game.scene.itemAssets);
+      const entries = getInventoryEntries(context.getGlobal('vars.inventory'), game.scene.itemAssets);
       if (!entries.some((entry) => entry.itemId === id))
         context.writeLog(`[RPGSCRIPT] removeItem: item ${item} is not in vars.inventory (${context.location})`);
-      context.setStorage('vars.inventory', entries.filter((entry) => entry.itemId !== id));
+      context.setGlobal('vars.inventory', entries.filter((entry) => entry.itemId !== id));
       return;
     }
-    const inventory = getInventory(context.getStorage('vars.inventory'), context.location);
+    const inventory = getInventory(context.getGlobal('vars.inventory'), context.location);
     if (!inventory.includes(item)) {
       context.writeLog(`[RPGSCRIPT] removeItem: item ${item} is not in vars.inventory (${context.location})`);
       return;
     }
-    context.setStorage('vars.inventory', inventory.filter((owned) => owned !== item));
+    context.setGlobal('vars.inventory', inventory.filter((owned) => owned !== item));
   },
 });
 
@@ -261,7 +261,7 @@ const examineItem = defineCommand({
   parse: acquireItem.parse,
   execute: (step, script, game: GameScriptContext) => {
     const asset = getItemAsset(game.scene.itemAssets, getItemName(step.item, script, 'examineItem'));
-    const owned = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets)
+    const owned = getInventoryEntries(script.getGlobal('vars.inventory'), game.scene.itemAssets)
       .some((entry) => entry.itemId === asset.definition.id);
     const present = game.scene.entities.some((entity) =>
       entity instanceof WorldItem && entity.asset.definition.id === asset.definition.id);
@@ -277,7 +277,7 @@ const combineItem = defineCommand({
   },
   execute: (step, script, game: GameScriptContext) => {
     const asset = getItemAsset(game.scene.itemAssets, getItemName(step.item, script, 'combineItem'));
-    const entries = getInventoryEntries(script.getStorage('vars.inventory'), game.scene.itemAssets);
+    const entries = getInventoryEntries(script.getGlobal('vars.inventory'), game.scene.itemAssets);
     if (!entries.some((entry) => entry.itemId === asset.definition.id))
       throw new Error(`${script.location}: combineItem requires an owned item`);
     const targetType = script.value(step.targetType);
@@ -314,7 +314,7 @@ const setStorageIfUndefined = defineCommand({
     const key = typeof step.key === 'object' ? context.value(step.key) : step.key;
     if (typeof key !== 'string' || !key)
       throw new Error(`${context.location}: setStorageIfUndefined requires a non-empty string key`);
-    if (context.getStorage(key) === undefined) context.setStorage(key, context.value(step.value));
+    if (context.getGlobal(key) === undefined) context.setGlobal(key, context.value(step.value));
   },
 });
 
@@ -415,13 +415,13 @@ const setIndex = defineCommand({
     return { target: args[0], index: getScriptValue(args[1], location), value: getScriptValue(args[2], location) };
   },
   execute: (step, context) => {
-    const list = 'storageKey' in step.target ? context.getStorage(step.target.storageKey) : context.getLocal(step.target.localName);
+    const list = 'storageKey' in step.target ? context.getGlobal(step.target.storageKey) : context.getLocal(step.target.localName);
     const index = context.value(step.index);
     if (!Array.isArray(list) || !Number.isInteger(index) || typeof index !== 'number' || index < 0 || index >= list.length)
       throw new Error(`${context.location}: Indexed assignment requires a list and an existing integer index`);
     const updated = [...list];
     updated[index] = context.value(step.value);
-    if ('storageKey' in step.target) context.setStorage(step.target.storageKey, updated);
+    if ('storageKey' in step.target) context.setGlobal(step.target.storageKey, updated);
     else context.setLocal(step.target.localName, updated);
   },
 });

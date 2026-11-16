@@ -1,11 +1,13 @@
 #testRoomEntry
   load,testRoomEntry
 @testRoomEntry
+  +setConv()
   Guide: "Welcome to Incanterm."
   Guide: "The crate is waiting for you."
   +endConv()
 
 @testRoomEntry2
+  +setConv()
   Guide: "See you soon."
   +a=true
   +someVar=a
@@ -19,6 +21,7 @@
     +a=false
     +log("A is set")
   }
+  +endConv()
 
 @testReturn1
   +[local]<+:testReturn2()
@@ -62,18 +65,19 @@
 @trigger3
   +log("Clicked trigger3 under a condition")
 
-
 @testFalse
   +a=false
   +b=1
   +c=false
-  +?is(a):{
+  +?if is(a):{
     +log("A is true")
   }
   +?elseif is(c):{
-    +log("C is true (elseif)")
+    +c=1
+    +b="c"
+    +log("C is true (elseif), b is {{b}}")
   }
-  +?elseif any(is(b), is(c)): {
+  +?elseif any(is(b), is(c)):{
     +log("B and C are true (elseif)")
   }
   +?else:{
@@ -98,6 +102,7 @@
   +setConv()
   Guide: "Welcome to Incanterm."
   Guide: "The crate is waiting for you."
+  +endConv()
 
 #trigger4
   action,trigger4
@@ -118,3 +123,7 @@
   step,trigger7
 @trigger7
   +log("Clicked trigger6")
+
+@testTextHighlight
+  +a="yay!"
+  +showCenterToast("(Got item: Office Envelope.) {a}")

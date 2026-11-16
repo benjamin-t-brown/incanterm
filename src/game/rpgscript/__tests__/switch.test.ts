@@ -47,10 +47,10 @@ describe('RPGScript switch', () => {
     ['*', 'star'], ['a', 'bare a'], ['local match', 'local'], ['global match', 'global'], ['other', 'default'],
   ])('matches %s as %s', (value, expected) => {
     const runner = new ScriptRunner(parseRpgScript(source, 'switch.rpgscript'));
-    runner.setStorage('expected', 'global match');
-    runner.setStorage('a', 'other');
+    runner.setGlobal('expected', 'global match');
+    runner.setGlobal('a', 'other');
     runner.start('pick', [value, 'local match']);
-    expect(runner.getStorage('result')).toBe(expected);
+    expect(runner.getGlobal('result')).toBe(expected);
   });
 
   it('uses bare names as literal strings, not storage lookups or the default', () => {
@@ -64,11 +64,11 @@ describe('RPGScript switch', () => {
   }
 }`, 'switch.rpgscript');
     const runner = new ScriptRunner(scripts);
-    runner.setStorage('a', 'other');
+    runner.setGlobal('a', 'other');
     runner.start('pick', ['other']);
-    expect(runner.getStorage('result')).toBe('default');
+    expect(runner.getGlobal('result')).toBe('default');
     runner.start('pick', ['a']);
-    expect(runner.getStorage('result')).toBe('a');
+    expect(runner.getGlobal('result')).toBe('a');
   });
 
   it('evaluates conditions in switch(true) in order and does not fall through', () => {
@@ -86,9 +86,9 @@ describe('RPGScript switch', () => {
 }`, 'switch.rpgscript');
     const runner = new ScriptRunner(scripts);
     for (const [score, result] of [[30, 'low'], [70, 'mid'], [90, 'high']] as const) {
-      runner.setStorage('score', score);
+      runner.setGlobal('score', score);
       runner.start('pick');
-      expect(runner.getStorage('result')).toBe(result);
+      expect(runner.getGlobal('result')).toBe(result);
     }
   });
 
@@ -114,7 +114,7 @@ describe('RPGScript switch', () => {
     runner.advance();
     expect(runner.dialogue?.text).toBe('Second');
     runner.advance();
-    expect(runner.getStorage('result')).toBe(2);
+    expect(runner.getGlobal('result')).toBe(2);
   });
 
   it('treats quoted labels as literal strings, including brackets', () => {
@@ -126,7 +126,7 @@ describe('RPGScript switch', () => {
 }`, 'switch.rpgscript');
     const runner = new ScriptRunner(scripts);
     runner.start('pick');
-    expect(runner.getStorage('result')).toBe('matched');
+    expect(runner.getGlobal('result')).toBe('matched');
   });
 
   it('rejects malformed cases and cases after the default', () => {

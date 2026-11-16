@@ -15,9 +15,9 @@ describe('RPGScript indexed lists', () => {
 +count=[i]`;
     const runner = new ScriptRunner(parseRpgScript(source, 'lists.rpgscript'));
     runner.start('start');
-    expect(runner.getStorage('count')).toBe(3);
-    expect(runner.getStorage('items')).toEqual(['key', 'compass', 'coin']);
-    expect(runner.getStorage('result')).toBe('compass');
+    expect(runner.getGlobal('count')).toBe(3);
+    expect(runner.getGlobal('items')).toEqual(['key', 'compass', 'coin']);
+    expect(runner.getGlobal('result')).toBe('compass');
   });
 
   it('keeps local lists local and allows indexed assignments', () => {
@@ -26,8 +26,8 @@ describe('RPGScript indexed lists', () => {
 +[items]->0=5
 +answer=[items]->0`, 'lists.rpgscript'));
     runner.start('start');
-    expect(runner.getStorage('answer')).toBe(5);
-    expect(runner.getStorage('items')).toBeUndefined();
+    expect(runner.getGlobal('answer')).toBe(5);
+    expect(runner.getGlobal('items')).toBeUndefined();
   });
 
   it('rejects invalid indexes without extending lists', () => {
@@ -35,7 +35,7 @@ describe('RPGScript indexed lists', () => {
 +items=|1|
 +{items}->1=3`, 'lists.rpgscript'));
     expect(() => runner.start('start')).toThrow('existing integer index');
-    expect(runner.getStorage('items')).toEqual([1]);
+    expect(runner.getGlobal('items')).toEqual([1]);
   });
 
   it('supports multiline, empty, and single-element lists without confusing local references', () => {
@@ -51,16 +51,16 @@ describe('RPGScript indexed lists', () => {
 +one=|[value]|
 +result={items}->0`, 'lists.rpgscript'));
     runner.start('start');
-    expect(runner.getStorage('items')).toEqual(['hello', 'a,b', 3]);
-    expect(runner.getStorage('empty')).toEqual([]);
-    expect(runner.getStorage('one')).toEqual(['hello']);
-    expect(runner.getStorage('result')).toBe('hello');
+    expect(runner.getGlobal('items')).toEqual(['hello', 'a,b', 3]);
+    expect(runner.getGlobal('empty')).toEqual([]);
+    expect(runner.getGlobal('one')).toEqual(['hello']);
+    expect(runner.getGlobal('result')).toBe('hello');
   });
 
   it('uses pipes for one bare string and rejects the old bracket literal', () => {
     const runner = new ScriptRunner(parseRpgScript('@start\n+one=|a|\n+copy={one}', 'lists.rpgscript'));
     runner.start('start');
-    expect(runner.getStorage('one')).toEqual(['a']);
+    expect(runner.getGlobal('one')).toEqual(['a']);
     expect(() => parseRpgScript('@start\n+items=[1, 2]', 'lists.rpgscript')).toThrow();
   });
 

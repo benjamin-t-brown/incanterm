@@ -175,7 +175,7 @@ describe('player walking', () => {
     );
     runner.start('start', ['npc', 3, 4]);
     expect(runner.isIdle()).toBe(true);
-    expect(runner.getStorage('started')).toBe(true);
+    expect(runner.getGlobal('started')).toBe(true);
     scene.update(50);
     expect(player.x).toBe(1);
     expect(npc.x).toBe(0);
@@ -356,7 +356,7 @@ describe('player walking', () => {
       runner.dispatchTrigger(name, TriggerType.ACTION, id);
     control.click(3, 3, activate);
     control.scene.update(100);
-    expect(runner.getStorage('entered')).toBe(true);
+    expect(runner.getGlobal('entered')).toBe(true);
     expect(player.x).toBe(1);
     control.click(3, 3, activate);
     control.scene.update(100);
@@ -381,12 +381,12 @@ describe('player walking', () => {
     });
     control.click(5, 1, (name, id) => runner.dispatchTrigger(name, TriggerType.ACTION, id));
     expect(player.isWalking()).toBe(true);
-    expect(runner.getStorage('arrived')).toBeUndefined();
+    expect(runner.getGlobal('arrived')).toBeUndefined();
     scene.update(150);
     control.update();
     runner.update();
     expect(player).toMatchObject({ x: 4, y: 1, facing: 'up' });
-    expect(runner.getStorage('arrived')).toBe(true);
+    expect(runner.getGlobal('arrived')).toBe(true);
     expect(errors).toEqual([]);
   });
 

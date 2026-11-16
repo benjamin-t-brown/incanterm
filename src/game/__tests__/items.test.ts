@@ -67,38 +67,40 @@ describe('item assets and inventory', () => {
       commands,
       context: { scene, playerControl: new PlayerControl(scene) },
     });
-    runner.setStorage('vars.inventory', [{ itemId: 'key' }]);
+    runner.setGlobal('vars.inventory', [{ itemId: 'key' }]);
     runner.start('check');
-    expect(runner.getStorage('owned')).toBe(true);
+    expect(runner.getGlobal('owned')).toBe(true);
   });
 
   it('resolves script names, keeps canonical unique references, removes world items, and isolates players', () => {
     const { scene, runner } = createItemRunner();
     const other = createItemRunner();
     runner.start('add');
-    expect(runner.getStorage('vars.inventory')).toEqual([{ itemId: 'key' }]);
-    expect(runner.getStorage('vars.acquiredItems')).toEqual(['key']);
-    expect(runner.getStorage('owned')).toBe(true);
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }]);
+    expect(runner.getGlobal('vars.acquiredItems')).toEqual(['key']);
+    expect(runner.getGlobal('owned')).toBe(true);
+    expect(runner.getStorage('vars.inventory')).toBeUndefined();
+    expect(runner.getStorage('vars.acquiredItems')).toBeUndefined();
     expect(
       scene.entities.some(
         (entity) => entity instanceof WorldItem && entity.asset.definition.id === 'key',
       ),
     ).toBe(false);
     expect(other.scene.entities).toHaveLength(2);
-    expect(other.runner.getStorage('vars.inventory')).toBeUndefined();
+    expect(other.runner.getGlobal('vars.inventory')).toBeUndefined();
     runner.start('remove');
-    expect(runner.getStorage('vars.inventory')).toEqual([]);
+    expect(runner.getGlobal('vars.inventory')).toEqual([]);
     expect(() => runner.start('unknown')).toThrow('Unknown item missing');
   });
 
   it('migrates legacy inventory names without duplicating or copying item definitions', () => {
     const { scene, runner } = createItemRunner();
-    runner.setStorage('vars.inventory', ['OfficeKey', 'key', 'coin']);
+    runner.setGlobal('vars.inventory', ['OfficeKey', 'key', 'coin']);
     expect(
-      hasInventoryItem(runner.getStorage('vars.inventory'), scene.itemAssets, 'OfficeKey'),
+      hasInventoryItem(runner.getGlobal('vars.inventory'), scene.itemAssets, 'OfficeKey'),
     ).toBe(true);
     runner.start('add');
-    expect(runner.getStorage('vars.inventory')).toEqual([{ itemId: 'key' }, { itemId: 'coin' }]);
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }, { itemId: 'coin' }]);
     expect(() => getInventoryEntries([3], scene.itemAssets)).toThrow(
       'Invalid inventory item reference',
     );
@@ -111,12 +113,12 @@ describe('item assets and inventory', () => {
   it('examines available items, combines against world items, and lets scripts consume ingredients', () => {
     const { runner } = createItemRunner();
     runner.start('inspect'); // World item need not be owned to examine it.
-    expect(runner.getStorage('examined')).toBe(true);
+    expect(runner.getGlobal('examined')).toBe(true);
     expect(() => runner.start('combine', ['item', 'coin'])).toThrow('requires an owned item');
     runner.start('add');
     runner.start('combine', ['item', 'coin']);
-    expect(runner.getStorage('combined')).toBe('coin');
-    expect(runner.getStorage('vars.inventory')).toEqual([]);
+    expect(runner.getGlobal('combined')).toBe('coin');
+    expect(runner.getGlobal('vars.inventory')).toEqual([]);
     expect(() => runner.start('inspect')).toThrow('not available');
   });
 
@@ -141,12 +143,12 @@ describe('item assets and inventory', () => {
     );
     runner.start('add');
     runner.start('combine', ['prop', 'OfficeDoor']);
-    expect(runner.getStorage('combined')).toBe('lock');
+    expect(runner.getGlobal('combined')).toBe('lock');
     runner.start('combine', ['character', 'Gatekeeper']);
-    expect(runner.getStorage('combined')).toBe('guard');
+    expect(runner.getGlobal('combined')).toBe('guard');
     runner.start('combine', ['character', 'Stranger']);
-    expect(runner.getStorage('failed')).toBe(true);
-    expect(runner.getStorage('vars.inventory')).toEqual([{ itemId: 'key' }]);
+    expect(runner.getGlobal('failed')).toBe(true);
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }]);
     expect(() => runner.start('combine', ['prop', 'missing'])).toThrow('no prop missing');
   });
 
