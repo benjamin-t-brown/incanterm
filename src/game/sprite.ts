@@ -1,5 +1,9 @@
 import type { CellBuffer, Cell } from './cell-buffer.js';
 
+function isBackgroundTransparent(cell: Cell): boolean {
+  return cell.bg.r === 0 && cell.bg.g === 0 && cell.bg.b === 0;
+}
+
 export class Sprite {
   private readonly cells: Cell[];
 
@@ -46,6 +50,14 @@ export class Sprite {
     return new Sprite(this.id, this.width, this.height, this.originX, this.originY, cells);
   }
 
+  hasVisibleCell(x: number, y: number): boolean {
+    const column = x + this.originX;
+    const row = y + this.originY;
+    if (column < 0 || column >= this.width || row < 0 || row >= this.height) return false;
+    const cell = this.cells[row * this.width + column];
+    return !!cell && (cell.ch !== ' ' || !isBackgroundTransparent(cell));
+  }
+
   draw(buffer: CellBuffer, anchorX: number, anchorY: number): void {
     const left = anchorX - this.originX;
     const top = anchorY - this.originY;
@@ -62,7 +74,7 @@ export class Sprite {
           targetY >= buffer.height
         )
           continue;
-        const transparent = cell.bg.r === 0 && cell.bg.g === 0 && cell.bg.b === 0;
+        const transparent = isBackgroundTransparent(cell);
         if (transparent && cell.ch === ' ') continue;
         buffer.set(targetX, targetY, {
           ch: cell.ch,

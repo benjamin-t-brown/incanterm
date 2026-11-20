@@ -38,6 +38,20 @@
     53
   ],
   "groundOffsetY": 0,
+  "slideCells": [
+    36,
+    37,
+    38,
+    39,
+    43,
+    44,
+    45,
+    46,
+    50,
+    51,
+    52,
+    53
+  ],
   "depthOffset": 0,
   "foreground": false,
   "customAnimations": {}

@@ -1,7 +1,6 @@
 import type { CharacterDirection } from '../editor/schema.js';
-import type { CellBuffer } from './cell-buffer.js';
 import { Prop, type Scene } from './scene.js';
-import { findPath, type Point } from './character-movement.js';
+import { findExactPath, findPath, type Point } from './character-movement.js';
 import type { Sprite } from './sprite.js';
 
 export type CharacterClip = { frames: { sprite?: Sprite; durationMs: number }[]; loop: boolean };
@@ -15,6 +14,7 @@ export type CharacterActivity = Readonly<{
   visualKey: string;
   walkElapsed: number;
   destination?: Point;
+  exactWalk?: boolean;
 }>;
 
 export class Character extends Prop {
@@ -23,6 +23,7 @@ export class Character extends Prop {
   private visualKey = '';
   private walkPath: Point[] = [];
   private walkElapsed = 0;
+  private exactWalk = false;
   private busy = false;
   private conversationBusy = false;
   declare sprite: Sprite;
@@ -73,11 +74,12 @@ export class Character extends Prop {
     return this.y + this.bottomOffset;
   }
 
-  walkTo(scene: Scene, target: Point): void {
+  walkTo(scene: Scene, target: Point, exact = false): void {
     const elapsed = this.walkPath.length ? this.walkElapsed : 0;
     this.stopWalking();
     this.walkElapsed = elapsed;
-    this.walkPath = findPath(scene, this, target);
+    this.exactWalk = exact;
+    this.walkPath = exact ? findExactPath(scene, this, target) ?? [] : findPath(scene, this, target);
     if (this.walkPath.length) this.state = 'walk';
   }
 
@@ -127,11 +129,15 @@ export class Character extends Prop {
       visualKey: this.visualKey,
       walkElapsed: this.walkElapsed,
       ...(destination ? { destination: { ...destination } } : {}),
+      ...(destination && this.exactWalk ? { exactWalk: true } : {}),
     };
   }
 
   restoreActivity(activity: CharacterActivity, scene: Scene): void {
-    this.walkPath = activity.destination ? findPath(scene, this, activity.destination) : [];
+    this.exactWalk = activity.exactWalk ?? false;
+    this.walkPath = activity.destination
+      ? (this.exactWalk ? findExactPath(scene, this, activity.destination) ?? [] : findPath(scene, this, activity.destination))
+      : [];
     this.walkElapsed = this.walkPath.length ? activity.walkElapsed : 0;
     this.state = activity.destination && !this.walkPath.length ? 'idle' : activity.state;
     this.facing = activity.facing;
@@ -149,7 +155,7 @@ export class Character extends Prop {
     while (this.walkPath.length && this.walkElapsed >= speed / 2) {
       const target = this.walkPath[this.walkPath.length - 1];
       // Recheck occupancy before each step, including diagonal corners.
-      this.walkPath = findPath(scene, this, target);
+      this.walkPath = this.exactWalk ? findExactPath(scene, this, target) ?? [] : findPath(scene, this, target);
       const next = this.walkPath[0];
       if (next) {
         const dx = next.x - this.x,
@@ -201,13 +207,10 @@ export class Character extends Prop {
     } else this.elapsed += deltaMs;
   }
 
-  override draw(buffer: CellBuffer, originX: number, originY: number): void {
+  override getDrawSprite(): Sprite | undefined {
     const clip = this.clips.get(this.state === 'idle' || this.state === 'walk' || this.state === 'talking'
       ? `${this.state}-${this.facing}` : this.state);
-    if (!clip) {
-      super.draw(buffer, originX, originY);
-      return;
-    }
+    if (!clip) return super.getDrawSprite();
     const total = clip.frames.reduce((sum, frame) => sum + frame.durationMs, 0);
     let elapsed = clip.loop && total > 0 ? this.elapsed % total : this.elapsed;
     let frame = clip.frames[clip.frames.length - 1];
@@ -216,6 +219,6 @@ export class Character extends Prop {
       if (elapsed < frame.durationMs) break;
       elapsed -= frame.durationMs;
     }
-    frame?.sprite?.draw(buffer, originX + this.x, originY + this.y);
+    return frame?.sprite;
   }
 }

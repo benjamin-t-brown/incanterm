@@ -1,4 +1,5 @@
-import { isKnownCommand } from './commands.js';
+import { isKnownCommand, PROP_SLIDE_COMMAND_NAMES } from './commands.js';
+import { commands } from '../../game/scene-commands.js';
 import { ScriptParser } from '../../game/rpgscript/parser.js';
 import { getTriggerScriptPrefix, parseTriggerScriptHeader } from '../../game/rpgscript/signature.js';
 
@@ -88,6 +89,15 @@ export function diagnoseScript(
           severity: 'warning',
           message: `No command exists with name "${parsed.name}"`,
         });
+      }
+      const slideCommand = PROP_SLIDE_COMMAND_NAMES.find((name) => name === parsed.name);
+      if (slideCommand) {
+        try {
+          const command = parser.parseCommand(body.replace(/^\+/, '').replace(/;$/, ''), lineNumber);
+          commands[slideCommand](command, 'Prop slide command', []);
+        } catch (error) {
+          diagnostics.push(reportError(lineNumber, (error as Error).message));
+        }
       }
       return;
     }

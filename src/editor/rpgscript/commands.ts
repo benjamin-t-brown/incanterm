@@ -1,3 +1,7 @@
+export const PROP_SLIDE_COMMAND_NAMES = [
+  'approachSlideProp', 'getPropPushes', 'choosePropPush', 'slideProp', 'resetPropSlides',
+] as const;
+
 export const COMMAND_NAMES = [
   'callChSubscript',
   'setBusy',
@@ -43,6 +47,7 @@ export const COMMAND_NAMES = [
   'stopMusic',
   'fade',
   'wait',
+  ...PROP_SLIDE_COMMAND_NAMES,
 ] as const;
 
 const KNOWN = new Set<string>(COMMAND_NAMES);

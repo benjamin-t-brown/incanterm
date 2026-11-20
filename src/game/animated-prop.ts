@@ -1,5 +1,4 @@
 import { PROP_DEFAULT_STATE } from '../editor/schema.js';
-import type { CellBuffer } from './cell-buffer.js';
 import { Prop } from './scene.js';
 import type { Sprite } from './sprite.js';
 
@@ -22,8 +21,9 @@ export class AnimatedProp extends Prop {
     readonly propId?: string,
     foreground = false,
     blockingOffsets: Prop['blockingOffsets'] = [],
+    slidable?: Prop['slidable'],
   ) {
-    super(id, x, y, depthOffset, z, sprite, foreground, instanceName, blockingOffsets);
+    super(id, x, y, depthOffset, z, sprite, foreground, instanceName, blockingOffsets, slidable);
   }
 
   /** Active clip for the current state (falls back to default, then a static sprite frame). */
@@ -64,10 +64,11 @@ export class AnimatedProp extends Prop {
       this.propId,
       this.foreground,
       this.blockingOffsets,
+      this.slidable,
     );
   }
 
-  override draw(buffer: CellBuffer, originX: number, originY: number): void {
+  override getDrawSprite(): Sprite | undefined {
     const clip = this.clip;
     const total = clip.frames.reduce((sum, frame) => sum + frame.durationMs, 0);
     let elapsed = clip.loop && total > 0 ? this.elapsed % total : this.elapsed;
@@ -77,6 +78,6 @@ export class AnimatedProp extends Prop {
       if (elapsed < frame.durationMs) break;
       elapsed -= frame.durationMs;
     }
-    frame?.sprite?.draw(buffer, originX + this.x, originY + this.y);
+    return frame?.sprite;
   }
 }

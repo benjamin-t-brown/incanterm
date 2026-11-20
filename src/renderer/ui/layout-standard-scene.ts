@@ -10,6 +10,7 @@ import type { DialogueMessage } from './dialogue-message.js';
 import type { SelectionRect } from '../../protocol/messages.js';
 import { CenterToast } from './center-toast.js';
 import { InventoryPanel } from './inventory-panel.js';
+import { PushDirectionPad } from './push-direction-pad.js';
 import { BorderBox } from './border-box.js';
 import {
   MIN_STANDARD_WIDTH,
@@ -45,6 +46,7 @@ export class LayoutStandardScene extends UIElement {
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
   readonly inventory = new InventoryPanel();
+  readonly pushPad = new PushDirectionPad();
   readonly logWindow = new BorderBox('log-window', 1, 1, 2, 2, {
     fg: UI_INK.fg, bg: UI_INK.bg, visible: false,
   });
@@ -177,6 +179,7 @@ export class LayoutStandardScene extends UIElement {
     this.tabs.getContent('inventory').addChild(this.inventory);
     this.ui.addChild(this.tabs);
     this.ui.addChild(this.dialoguePanel);
+    this.ui.addChild(this.pushPad);
     this.addChild(this.ui);
     this.logWindow.addChild(this.logWindowText);
   }
@@ -226,6 +229,11 @@ export class LayoutStandardScene extends UIElement {
       x - left - 1 - this.inventory.x,
       y - top - 1 + pane.scrollY - this.inventory.y,
     );
+  }
+
+  getPushChoiceAt(x: number, y: number): number | undefined {
+    if (!this.canClick || !this.ui.visible || this.centerToast.visible || this.logWindow.visible) return;
+    return this.pushPad.getChoiceAt(x - this.x - this.ui.x - this.pushPad.x, y - this.y - this.ui.y - this.pushPad.y);
   }
 
   getTabAt(x: number, y: number): string | undefined {
@@ -310,10 +318,11 @@ export class LayoutStandardScene extends UIElement {
     this.scriptLog.visible = this.logEntries.length > 0;
     this.scriptLog.height = this.scriptLog.lines.length;
     if (followsLog) logPanel.scrollToEnd();
-    this.dialoguePanel.visible = this.conversationOpen || this.message.text.length > 0;
+    this.dialoguePanel.visible = !this.pushPad.visible && (this.conversationOpen || this.message.text.length > 0);
     this.dialoguePanel.setEmptyBackground(this.message.text.length === 0);
     this.dialoguePanel.portraitExitVisible = this.portraitExitVisible;
-    this.tabs.visible = !this.dialoguePanel.visible;
+    this.tabs.visible = !this.dialoguePanel.visible && !this.pushPad.visible;
+    this.pushPad.x = left + Math.floor((right - left - this.pushPad.width) / 2);
     super.render(buffer);
     this.dialoguePanel.drawPortrait(
       DrawContext.createFromBuffer(buffer),

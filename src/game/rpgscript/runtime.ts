@@ -988,6 +988,7 @@ export class ScriptRunner<Host> {
     const location = `${frame.script.file}:${line}`;
     return {
       location,
+      background: this.options.background,
       value: (value) => this.getScriptValue(value),
       interpolate: (text) => this.interpolate(text),
       setStorage: (key, value) => this.storage.set(key, value),

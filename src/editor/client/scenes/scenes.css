@@ -479,6 +479,16 @@
   border-top: 1px solid var(--line);
   margin-top: 12px;
 }
+.scene-slide-preview-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.scene-app .scene-slide-preview-row button {
+  padding: 2px;
+  font-size: 20px;
+  line-height: 1;
+}
 #scene-inspector input:disabled {
   background: color-mix(in srgb, var(--surface) 60%, #808080);
   border-color: var(--muted);
@@ -510,6 +520,10 @@
   overflow-wrap: anywhere;
   font-size: 12px;
   color: var(--muted);
+}
+#scene-inspector .scene-slide-issue,
+.scene-room-prop .scene-slide-issue {
+  color: #ffae95;
 }
 #scene-room-props {
   display: flex;
@@ -545,6 +559,8 @@
   width: auto;
   margin: 0;
 }
+#scene-travel-mode[aria-pressed="true"],
+#scene-inspector button[aria-pressed="true"],
 #scene-add-trigger[aria-pressed="true"] {
   border-color: var(--highlight);
   color: var(--highlight);

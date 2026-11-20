@@ -5,6 +5,7 @@ export type RuntimeValue = string | number | boolean | readonly RuntimeValue[] |
 // Only interpreter operations belong here. Host state is a separate generic argument.
 export type CommandContext = {
   location: string;
+  background?: boolean;
   value: (value: ScriptValue) => RuntimeValue;
   interpolate: (text: string) => string;
   setStorage: (key: string, value: RuntimeValue) => void;
@@ -59,6 +60,7 @@ export function defineCommand<T extends Record<string, unknown>, Host = unknown>
   } & (
     | { returnsValue?: false; execute: (step: T, context: CommandContext, host: Host) => void }
     | { returnsValue: true; execute: (step: T, context: CommandContext, host: Host) => RuntimeValue }
+    | { returnsValue: 'deferred'; execute: (step: T, context: CommandContext, host: Host, setResult: (value: RuntimeValue) => void) => void }
   ),
 ) {
   const { parse, targets } = definition;
@@ -89,10 +91,13 @@ export function defineCommand<T extends Record<string, unknown>, Host = unknown>
         definition.execute(step as T & CompiledCommand, context, host);
         return;
       }
-      const result = definition.execute(step as T & CompiledCommand, context, host);
-      if (!step.result) return;
-      if ('localName' in step.result) context.setLocal(step.result.localName, result);
-      else context.setGlobal(step.result.storageKey, result);
+      const setResult = (result: RuntimeValue): void => {
+        if (!step.result) return;
+        if ('localName' in step.result) context.setLocal(step.result.localName, result);
+        else context.setGlobal(step.result.storageKey, result);
+      };
+      if (definition.returnsValue === 'deferred') definition.execute(step as T & CompiledCommand, context, host, setResult);
+      else setResult(definition.execute(step as T & CompiledCommand, context, host));
     },
   });
 }

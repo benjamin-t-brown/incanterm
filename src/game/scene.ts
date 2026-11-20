@@ -3,6 +3,7 @@ import type { Sprite } from './sprite.js';
 import type { Character } from './character.js';
 import type { ItemAsset } from './items.js';
 import { compareSceneDrawRank, getSceneDepth, type DepthMode } from './scene-order.js';
+import type { PropSlideArea, Slidable, SlidePositions } from './prop-slide.js';
 
 export type { DepthMode } from './scene-order.js';
 
@@ -47,17 +48,22 @@ export class Prop extends Entity {
     readonly foreground = false,
     readonly instanceName?: string,
     readonly blockingOffsets: readonly { x: number; y: number }[] = [],
+    readonly slidable?: Slidable,
   ) {
     super(id, x, y, depthOffset, z);
   }
 
   clone(): Prop {
-    // Static props only share immutable sprite and footprint data.
+    // Instances share read-only sprite and mask data, not their positions.
     return Object.assign(new Prop(this.id, this.x, this.y, this.depthOffset, this.z, this.sprite), this);
   }
 
+  getDrawSprite(): Sprite | undefined {
+    return this.sprite;
+  }
+
   draw(buffer: CellBuffer, originX: number, originY: number): void {
-    this.sprite.draw(buffer, originX + this.x, originY + this.y);
+    this.getDrawSprite()?.draw(buffer, originX + this.x, originY + this.y);
   }
 }
 
@@ -91,18 +97,25 @@ export class Scene {
     readonly markers: readonly SceneMarker[] = [],
     readonly loadCharacter?: (reference: string) => Promise<Character>,
     readonly itemAssets: ReadonlyMap<string, ItemAsset> = new Map(),
+    readonly propSlide?: PropSlideArea,
   ) {
     this.entities = [...entities];
   }
 
   get blockedCells(): ReadonlySet<number> {
+    return this.getBlockedCellsAt();
+  }
+
+  /** Compute the walking map at prospective prop anchors without moving the room's props. */
+  getBlockedCellsAt(positions?: SlidePositions): ReadonlySet<number> {
     let cells: Set<number> | undefined;
     for (const entity of this.entities) {
       if (!(entity instanceof Prop) || !entity.blockingOffsets.length) continue;
       cells ??= new Set(this.staticBlockedCells);
+      const anchor = positions?.get(entity.id) ?? entity;
       for (const offset of entity.blockingOffsets) {
-        const x = entity.x + offset.x;
-        const y = entity.y + offset.y;
+        const x = anchor.x + offset.x;
+        const y = anchor.y + offset.y;
         if (x >= 0 && y >= 0 && x < this.width && y < this.height)
           cells.add(y * this.width + x);
       }
@@ -125,8 +138,7 @@ export class Scene {
     for (const entity of this.entities) entity.update(deltaMs, this);
   }
 
-  draw(buffer: CellBuffer, originX: number, originY: number): void {
-    const sceneBuffer = new CellBuffer(this.width, this.height, EMPTY);
+  getDrawOrder(): Entity[] {
     const ranked = this.entities.map((entity, index) => ({ entity, index }));
     ranked.sort((a, b) =>
       compareSceneDrawRank(
@@ -144,7 +156,20 @@ export class Scene {
         },
       ),
     );
-    for (const { entity } of ranked) entity.draw(sceneBuffer, 0, 0);
+    return ranked.map(({ entity }) => entity);
+  }
+
+  getVisiblePropAt(x: number, y: number, drawOrder = this.getDrawOrder()): Prop | undefined {
+    for (let i = drawOrder.length - 1; i >= 0; i--) {
+      const entity = drawOrder[i];
+      if (entity instanceof Prop && entity.getDrawSprite()?.hasVisibleCell(x - entity.x, y - entity.y))
+        return entity;
+    }
+  }
+
+  draw(buffer: CellBuffer, originX: number, originY: number): void {
+    const sceneBuffer = new CellBuffer(this.width, this.height, EMPTY);
+    for (const entity of this.getDrawOrder()) entity.draw(sceneBuffer, 0, 0);
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         buffer.set(originX + x, originY + y, sceneBuffer.get(x, y));

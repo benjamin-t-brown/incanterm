@@ -10,8 +10,25 @@
   },
   "width": 7,
   "height": 3,
-  "blockedCells": [],
+  "blockedCells": [
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
   "groundOffsetY": 0,
+  "slideCells": [
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
   "depthOffset": 0,
   "foreground": false,
   "customAnimations": {}

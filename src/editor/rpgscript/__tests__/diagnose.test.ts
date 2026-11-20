@@ -52,4 +52,28 @@ describe('RPGScript diagnose', () => {
 `;
     expect(diagnoseScript(source, ['check', 'start'])).toEqual([]);
   });
+
+  it('recognizes prop slide commands and reports invalid arguments', () => {
+    const source = `@push(instance)
++[ready] = approachSlideProp([instance])
++[available] = getPropPushes([instance])
++[direction] = choosePropPush([instance])
++[settled] = slideProp([instance], [direction])
++[reset] = resetPropSlides(safe)
++approachSlideProp()
++slideProp([instance])
++slideProp([instance], northeast)
++resetPropSlides(safe, other)
++resetPropSlides()`;
+    const diagnostics = diagnoseScript(source, ['push']);
+    expect(diagnostics.map(({ line, severity }) => ({ line, severity }))).toEqual([
+      { line: 7, severity: 'error' },
+      { line: 8, severity: 'error' },
+      { line: 9, severity: 'error' },
+      { line: 10, severity: 'error' },
+      { line: 11, severity: 'error' },
+    ]);
+    expect(diagnostics[2].message).toContain('direction must be left, right, up, or down');
+    expect(diagnostics[4].message).toContain('safe marker name');
+  });
 });

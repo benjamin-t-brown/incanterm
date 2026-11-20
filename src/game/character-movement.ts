@@ -53,7 +53,24 @@ function removePathEntry(heap: PathEntry[]): PathEntry | undefined {
 }
 
 export function findPath(scene: Scene, character: Character, target: Point): Point[] {
-  const blocked = new Set(scene.blockedCells);
+  return getWalkPath(scene, character, target, false) ?? [];
+}
+
+/** Unlike regular walking, a blocked/unreachable target (even the current cell) is a failure. */
+export function findExactPath(scene: Scene, character: Character, target: Point): Point[] | undefined {
+  return getWalkPath(scene, character, target, true);
+}
+
+/** Find the cheapest reachable walk anchor matching a condition using normal walking rules. */
+export function findNearestWalkAnchor(
+  scene: Scene, character: Character, isDestination: (point: Point) => boolean,
+): Point | undefined {
+  const path = getWalkPath(scene, character, isDestination, true);
+  if (path) return path.at(-1) ?? { x: character.x, y: character.bottomY };
+}
+
+function getWalkingBlockers(scene: Scene, character: Character, sceneBlockedCells: ReadonlySet<number>): Set<number> {
+  const blocked = new Set(sceneBlockedCells);
   for (const entity of scene.entities) {
     if (!(entity instanceof Character) || entity === character) continue;
     const left = entity.x - entity.sprite.originX;
@@ -61,56 +78,77 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
     for (let x = Math.max(0, left); x < Math.min(scene.width, left + entity.sprite.width); x++)
       blocked.add(entity.bottomY * scene.width + x);
   }
-  const isValid = (x: number, y: number): boolean => {
-    const left = x - character.sprite.originX;
-    if (
-      !Number.isInteger(x) ||
-      !Number.isInteger(y) ||
-      left < 0 ||
-      left + character.sprite.width > scene.width ||
-      y < 0 ||
-      y >= scene.height
-    )
-      return false;
-    for (let column = left; column < left + character.sprite.width; column++)
-      if (blocked.has(y * scene.width + column)) return false;
-    return true;
-  };
+  return blocked;
+}
+
+export function isWalkAnchorClear(
+  scene: Scene, character: Character, x: number, y: number, blocked: ReadonlySet<number>,
+): boolean {
+  const left = x - character.sprite.originX;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || left < 0 ||
+    left + character.sprite.width > scene.width || y < 0 || y >= scene.height)
+    return false;
+  for (let column = left; column < left + character.sprite.width; column++)
+    if (blocked.has(y * scene.width + column)) return false;
+  return true;
+}
+
+export function canStandAt(
+  scene: Scene, character: Character, point: Point, sceneBlockedCells: ReadonlySet<number>,
+): boolean {
+  return isWalkAnchorClear(scene, character, point.x, point.y, getWalkingBlockers(scene, character, sceneBlockedCells));
+}
+
+function getWalkPath(
+  scene: Scene, character: Character, destination: Point | ((point: Point) => boolean), exact: boolean,
+): Point[] | undefined {
+  const blocked = getWalkingBlockers(scene, character, scene.blockedCells);
+  const isValid = (x: number, y: number): boolean => isWalkAnchorClear(scene, character, x, y, blocked);
+  const target = typeof destination === 'function' ? undefined : destination;
   if (
-    !Number.isInteger(target.x) ||
+    target && (!Number.isInteger(target.x) ||
     !Number.isInteger(target.y) ||
     target.x < 0 ||
     target.y < 0 ||
     target.x >= scene.width ||
-    target.y >= scene.height
+    target.y >= scene.height)
   )
-    return [];
+    return undefined;
+  if (exact && ((target && !isValid(target.x, target.y)) || !Number.isInteger(character.x) ||
+    !Number.isInteger(character.bottomY) || character.x < 0 || character.x >= scene.width ||
+    character.bottomY < 0 || character.bottomY >= scene.height)) return undefined;
   const start = character.bottomY * scene.width + character.x;
-  const goal = target.y * scene.width + target.x;
+  const goal = target ? target.y * scene.width + target.x : undefined;
   const parents = new Map<number, number>([[start, start]]);
   const costs = new Map<number, number>([[start, 0]]);
   const queue: PathEntry[] = [{ cell: start, cost: 0, order: 0 }];
   let order = 0;
   let closest = start;
   let closestDistance = Infinity;
+  let reached = false;
   while (queue.length) {
     const entry = removePathEntry(queue);
     if (!entry || entry.cost !== costs.get(entry.cell)) continue;
     const { cell } = entry;
     const x = cell % scene.width,
       y = Math.floor(cell / scene.width);
-    const distance = (target.x - x) ** 2 + (target.y - y) ** 2;
-    // Dijkstra visits cheaper paths first, so equal-distance candidates keep that tie-break.
-    if (distance < closestDistance) {
+    if (cell === goal || (typeof destination === 'function' && isValid(x, y) && destination({ x, y }))) {
       closest = cell;
-      closestDistance = distance;
+      reached = true;
+      break;
     }
-    if (cell === goal) break;
+    if (target) {
+      const distance = (target.x - x) ** 2 + (target.y - y) ** 2;
+      // Dijkstra visits cheaper paths first, so equal-distance candidates keep that tie-break.
+      if (distance < closestDistance) {
+        closest = cell;
+        closestDistance = distance;
+      }
+    }
     const directions = [-1, 0, 1]
       .flatMap((dy) => [-1, 0, 1].map((dx) => ({ dx, dy })))
-      .filter(({ dx, dy }) => dx || dy)
-      .sort(
-        (a, b) =>
+      .filter(({ dx, dy }) => dx || dy);
+    if (target) directions.sort((a, b) =>
           (target.x - x - a.dx) ** 2 +
           (target.y - y - a.dy) ** 2 -
           ((target.x - x - b.dx) ** 2 + (target.y - y - b.dy) ** 2),
@@ -126,6 +164,7 @@ export function findPath(scene: Scene, character: Character, target: Point): Poi
       pushPathEntry(queue, { cell: next, cost, order: ++order });
     }
   }
+  if (exact && !reached) return undefined;
   const result: Point[] = [];
   for (let at = closest; at !== start; at = parents.get(at) ?? start)
     result.push({ x: at % scene.width, y: Math.floor(at / scene.width) });

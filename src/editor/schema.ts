@@ -1,3 +1,12 @@
+import {
+  getSceneSlideSetup,
+  getSlideLayoutError,
+  isSlideVector,
+  SLIDE_DIRECTIONS,
+  type PropSlideArea,
+  type SlideBinding,
+  type SlideCell,
+} from '../game/prop-slide.js';
 import { isSingleWidthGlyph } from './glyph.js';
 import {
   PALETTE_IDS,
@@ -91,6 +100,8 @@ export type PropDocument = {
   width: number;
   height: number;
   blockedCells: number[];
+  /** Independent slide contact cells, row-major in the reusable prop's grid. */
+  slideCells?: number[];
   groundOffsetY: number;
   /** Legacy fallback for scene instances without their own depthOffset. */
   depthOffset: number;
@@ -342,6 +353,7 @@ export type SceneEntity =
       name?: string;
       prop: string;
       state?: string;
+      slidable?: SlideBinding;
       depthOffset?: number;
       x: number;
       y: number;
@@ -368,6 +380,7 @@ export type SceneEntity =
       name?: string;
       sprite: string;
       state?: string;
+      slidable?: SlideBinding;
       x: number;
       y: number;
       depthOffset: number;
@@ -398,6 +411,7 @@ export type SceneDocument = {
   height: number;
   depthMode: 'bottom-up' | 'regular-z';
   blockedCells: number[];
+  propSlide?: PropSlideArea;
   clear: { ch: string; fg: string; bg: string };
   entities: SceneEntity[];
   triggers: SceneTrigger[];
@@ -539,6 +553,90 @@ export function createScene(
   };
 }
 
+/** Validate just the prop fields so the runtime can keep its legacy scene parser. */
+export function parseSceneSlides(
+  value: unknown,
+  rawEntities: readonly unknown[],
+  width: number,
+  height: number,
+): SchemaResult<{ propSlide?: PropSlideArea; slidableProps: ReadonlyMap<string, SlideBinding> }> {
+  let propSlide: PropSlideArea | undefined;
+  if (value !== undefined) {
+    const area = getObject(value);
+    if (!area || !Array.isArray(area.travelCells))
+      return fail('Scene propSlide needs a list of travelCells');
+    const travel = new Set<number>();
+    for (const cell of area.travelCells) {
+      if (!Number.isInteger(cell) || cell < 0 || cell >= width * height || travel.has(cell))
+        return fail('Scene propSlide travelCells must contain unique indexes inside the scene');
+      travel.add(cell);
+    }
+    const rawDirections = getObject(area.directions);
+    if (!rawDirections || Object.keys(rawDirections).length !== SLIDE_DIRECTIONS.length)
+      return fail('Scene propSlide must define left, right, up, and down directions');
+    const directions = {} as Record<(typeof SLIDE_DIRECTIONS)[number], SlideCell>;
+    for (const name of SLIDE_DIRECTIONS) {
+      const raw = getObject(rawDirections[name]);
+      const vector = { x: raw?.x, y: raw?.y };
+      if (!isSlideVector(vector))
+        return fail(`Scene propSlide direction ${name} must be a nonzero unit vector`);
+      directions[name] = vector;
+    }
+    propSlide = { travelCells: [...travel].sort((a, b) => a - b), directions };
+  }
+  const entities: { id: string; x: number; y: number; slidable: SlideBinding }[] = [];
+  for (const [index, raw] of rawEntities.entries()) {
+    const entry = getObject(raw);
+    if (entry?.slidable === undefined) continue;
+    const id = typeof entry.id === 'string' ? entry.id : `at entity ${index}`;
+    if (entry.type !== 'Prop') return fail(`Only scene props can be slidable (${id})`);
+    if (!propSlide) return fail(`Prop ${id} requires a scene propSlide travel area`);
+    const data = getObject(entry.slidable);
+    const usesAsset = entry.prop !== undefined && data?.footprint === undefined;
+    if (!data || (!usesAsset && (!Array.isArray(data.footprint) || !data.footprint.length)))
+      return fail(`Prop ${id} needs a nonempty slide footprint`);
+    if (typeof data.actionScript !== 'string' || !/^[A-Za-z_][\w-]*$/.test(data.actionScript))
+      return fail(`Prop ${id} actionScript must be an RPGScript name`);
+    const footprint: SlideCell[] = [];
+    for (const rawOffset of Array.isArray(data.footprint) ? data.footprint : []) {
+      const offset = getObject(rawOffset);
+      if (!offset || typeof offset.x !== 'number' || typeof offset.y !== 'number')
+        return fail(`Prop ${id} slide footprint offsets must be integers`);
+      footprint.push({ x: offset.x, y: offset.y });
+    }
+    let standOffsets: Partial<Record<(typeof SLIDE_DIRECTIONS)[number], SlideCell>> | undefined;
+    if (data.standOffsets !== undefined) {
+      const rawStandOffsets = getObject(data.standOffsets);
+      if (!rawStandOffsets || Object.keys(rawStandOffsets).some(
+        (key) => !SLIDE_DIRECTIONS.some((direction) => direction === key),
+      )) return fail(`Prop ${id} standOffsets must be keyed by left, right, up, or down`);
+      standOffsets = {};
+      for (const direction of SLIDE_DIRECTIONS) {
+        if (!Object.hasOwn(rawStandOffsets, direction)) continue;
+        const offset = getObject(rawStandOffsets[direction]);
+        if (!offset || typeof offset.x !== 'number' || typeof offset.y !== 'number' ||
+          !Number.isSafeInteger(offset.x) || !Number.isSafeInteger(offset.y))
+          return fail(`Prop ${id} stand offset for ${direction} must contain integer x and y`);
+        standOffsets[direction] = { x: offset.x, y: offset.y };
+      }
+    }
+    const x = readInt(entry.x, `Prop ${id} x`, 0, width - 1);
+    if (!x.ok) return x;
+    const y = readInt(entry.y, `Prop ${id} y`, 0, height - 1);
+    if (!y.ok) return y;
+    entities.push({
+      id, x: x.value, y: y.value,
+      slidable: { ...(usesAsset ? {} : { footprint }), actionScript: data.actionScript, ...(standOffsets ? { standOffsets } : {}) },
+    });
+  }
+  // Asset references are resolved and the complete layout checked by the loader.
+  const setup = getSceneSlideSetup({ width, height, propSlide, entities: entities.filter(e => e.slidable.footprint) });
+  if (!setup) return { ok: true, value: { slidableProps: new Map() } };
+  const error = getSlideLayoutError(setup.board, setup.positions);
+  if (error) return fail(error);
+  return { ok: true, value: { propSlide, slidableProps: new Map(entities.map(e => [e.id, e.slidable])) } };
+}
+
 export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   const scene = getObject(value);
   if (scene?.format !== 'incanterm-scene' || scene.version !== 1) {
@@ -586,6 +684,9 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
     return fail('Scene clear needs a single-width glyph and two #rrggbb colors');
   if (!Array.isArray(scene.entities) || scene.entities.length > 1024)
     return fail('Scene entities must contain at most 1024 entries');
+  const slides = parseSceneSlides(scene.propSlide === undefined ? scene.shelfSlide : scene.propSlide, scene.entities, width.value, height.value);
+  if (!slides.ok) return slides;
+  const { propSlide, slidableProps } = slides.value;
   if (
     scene.triggers !== undefined &&
     (!Array.isArray(scene.triggers) || scene.triggers.length > 1024)
@@ -697,6 +798,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       )
         return fail(`Scene prop ${index} state must be a valid state name`);
       const state = typeof entry.state === 'string' ? entry.state : undefined;
+      const slidable = slidableProps.get(entityId.value);
       const z = readInt(entry.z ?? 0, `Scene prop ${index} z`, -1000, 1000);
       if (!z.ok) return z;
       const depthOffset = readInt(
@@ -715,6 +817,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           ...(name !== undefined ? { name } : {}),
           prop: prop.value,
           ...(state !== undefined ? { state } : {}),
+          ...(slidable ? { slidable } : {}),
           ...(entry.depthOffset !== undefined ? { depthOffset: depthOffset.value } : {}),
           x: x.value,
           y: y.value,
@@ -729,6 +832,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           ...(name !== undefined ? { name } : {}),
           sprite: sprite.value,
           ...(state !== undefined ? { state } : {}),
+          ...(slidable ? { slidable } : {}),
           x: x.value,
           y: y.value,
           z: z.value,
@@ -799,6 +903,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
       height: height.value,
       depthMode: scene.depthMode,
       blockedCells,
+      ...(propSlide ? { propSlide } : {}),
       clear: { ch: clear.ch, fg: clear.fg.toLowerCase(), bg: clear.bg.toLowerCase() },
       entities,
       triggers,
@@ -1016,6 +1121,14 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       ? Array.from({ length: width.value * height.value }, (_, index) => index)
       : [];
   } else return fail('Prop blockedCells must be a list of cell indexes');
+  let slideCells: number[] | undefined;
+  if (record.slideCells !== undefined) {
+    const cells = record.slideCells;
+    if (!Array.isArray(cells) || cells.some(i => !Number.isInteger(i) || i < 0 || i >= width.value * height.value) ||
+      new Set(cells).size !== cells.length)
+      return fail('Prop slideCells must contain unique cell indexes inside the footprint');
+    slideCells = [...cells].sort((a, b) => a - b);
+  }
   const groundOffsetY = readInt(record.groundOffsetY, 'Prop groundOffsetY', -1024, 1024);
   if (!groundOffsetY.ok) return groundOffsetY;
   const depthOffset = readInt(record.depthOffset, 'Prop depthOffset', -1024, 1024);
@@ -1045,6 +1158,7 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       height: height.value,
       blockedCells,
       groundOffsetY: groundOffsetY.value,
+      ...(slideCells ? { slideCells } : {}),
       depthOffset: depthOffset.value,
       foreground: record.foreground === true,
       customAnimations,

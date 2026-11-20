@@ -2,7 +2,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { TerminalScreen } from '../../client/terminal-screen.js';
 import { Character } from '../../game/character.js';
 import { parseRpgScript } from '../../game/rpgscript/__tests__/test-support.js';
-import { Scene, type SceneMarker } from '../../game/scene.js';
+import { Prop, Scene, type SceneMarker } from '../../game/scene.js';
+import { getSceneSlideSetup, type PropSlideArea } from '../../game/prop-slide.js';
 import { Sprite } from '../../game/sprite.js';
 import { getPlainText } from '../../game/terminal.js';
 import { createGameSession } from '../game-session.js';
@@ -106,5 +107,52 @@ it('logs a failed scene load and continues the script in the original scene', as
     expect(text).toContain('Still in first');
   } finally {
     session.close();
+  }
+});
+
+it('keeps shelf data and clones its instance at session start and scene entry', async () => {
+  vi.useFakeTimers();
+  const { first, next } = createTransitionScenes([{ id: 'default', name: 'mPlayer', x: 4, y: 3 }]);
+  const propSlide: PropSlideArea = {
+    travelCells: [0, 1],
+    directions: {
+      left: { x: -1, y: 0 },
+      right: { x: 1, y: 0 },
+      up: { x: -1, y: -1 },
+      down: { x: 1, y: 1 },
+    },
+  };
+  const sprite = new Sprite('shelf-art', 1, 1, 0, 0, [clear]);
+  const slidable = { footprint: [{ x: 0, y: 0 }], actionScript: 'pushShelf' };
+  const startShelf = new Prop('start-shelf', 0, 0, 0, 0, sprite, false, 'Shelf', [], slidable);
+  const nextShelf = new Prop('next-shelf', 1, 0, 0, 0, sprite, false, 'Shelf', [], slidable);
+  const start = new Scene(first.id, 7, 7, first.depthMode, clear, [...first.entities, startShelf],
+    first.triggers, undefined, undefined, undefined, first.markers, undefined, undefined, propSlide);
+  const destination = new Scene(next.id, 7, 7, next.depthMode, clear, [nextShelf],
+    next.triggers, undefined, undefined, undefined, next.markers, undefined, undefined, {
+      ...propSlide, travelCells: [1, 2],
+    });
+  const scripts = parseRpgScript(
+    '#entry\nload,start\n@start\n+setPlayerWalkCh(hero)\n+changeScene(next)',
+    'transition.rpgscript',
+  );
+  const update = vi.spyOn(Scene.prototype, 'update');
+  const session = createGameSession(start, () => {}, scripts,
+    undefined, undefined, undefined, undefined, async () => destination);
+  try {
+    session.open();
+    await vi.advanceTimersByTimeAsync(100);
+    for (const [template, shelf] of [[start, startShelf], [destination, nextShelf]] as const) {
+      const active = update.mock.contexts.find(
+        (scene): scene is Scene => scene instanceof Scene && scene.id === template.id,
+      );
+      if (!active) throw new Error(`Scene ${template.id} was not updated in the session`);
+      expect(active).not.toBe(template);
+      expect(getSceneSlideSetup(active)).toEqual(getSceneSlideSetup(template));
+      expect(active.entities.find((entity) => entity.id === shelf.id)).not.toBe(shelf);
+    }
+  } finally {
+    session.close();
+    update.mockRestore();
   }
 });

@@ -55,3 +55,43 @@
 
 #step@library2_toLibrary1Up
   +changeScene(library1, FromLibrary2Up)
+
+@library2_pushShelf(instance)
+  +?is(+:library2_isUpstairs()):{
+    +:library2_ICantReachThat()
+    <
+  }
+  +setConv()
+  +[reached]=approachSlideProp([instance])
+  +?isnot([reached]):{
+    Johnathan: "I can't reach that."
+    +endConv()
+    <
+  }
+  +[direction]=choosePropPush([instance])
+  +?eq([direction], cancel):{
+    +endConv()
+    <
+  }
+  +[settled]=slideProp([instance], [direction])
+  +?isnot([settled]):{
+    +log("I can't push the shelf that way.")
+  }
+  +endConv()
+
+#@library2_resetShelves
+  +setConv()
+  +walkToMarker(player, ShelfResetSafe)
+  // The marker is at (47,20); Johnathan's walk anchor is one column left.
+  +[pos]=getChPos(player)
+  +?all(eq([pos]->0, 46), eq([pos]->1, 20)):{
+    +:ld(player, up)
+    +[reset]=resetPropSlides(ShelfResetSafe)
+    +?is([reset]):{
+      +log("The shelves are back in place.")
+    }
+    +endConv()
+    <
+  }
+  +log("I can't reach the shelf reset from here.")
+  +endConv()

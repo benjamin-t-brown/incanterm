@@ -23,32 +23,29 @@ function createWaitRunner(source: string) {
   const scene = new Scene('room', 8, 4, 'regular-z', ink, [hero]);
   const control = new PlayerControl(scene);
   control.setPlayerWalkCh('hero');
-  const storage = new Map<string, unknown>();
-  const runner = new ScriptRunner(parseRpgScript(source, 'wait.rpgscript', { commands }), {
+  return new ScriptRunner(parseRpgScript(source, 'wait.rpgscript', { commands }), {
     commands,
     context: { scene, playerControl: control },
   });
-  runner.storage = storage;
-  return { runner, storage };
 }
 
 it('waits the requested milliseconds before continuing', () => {
   vi.useFakeTimers();
   vi.setSystemTime(1_000);
-  const { runner, storage } = createWaitRunner('@start\n+waitMs(33)\n+done=true');
+  const runner = createWaitRunner('@start\n+waitMs(33)\n+done=true');
   runner.start('start');
-  expect(storage.get('global.done')).toBeUndefined();
+  expect(runner.getGlobal('done')).toBeUndefined();
   expect(runner.isIdle()).toBe(false);
   vi.setSystemTime(1_032);
   runner.update();
-  expect(storage.get('global.done')).toBeUndefined();
+  expect(runner.getGlobal('done')).toBeUndefined();
   vi.setSystemTime(1_033);
   runner.update();
-  expect(storage.get('global.done')).toBe(true);
+  expect(runner.getGlobal('done')).toBe(true);
   expect(runner.isIdle()).toBe(true);
 });
 
 it('rejects invalid wait durations', () => {
-  const { runner } = createWaitRunner('@start\n+waitMs(-1)');
+  const runner = createWaitRunner('@start\n+waitMs(-1)');
   expect(() => runner.start('start')).toThrow('waitMs requires a non-negative number of milliseconds');
 });

@@ -1,4 +1,9 @@
-import { commands, getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection, getPlayerCharacterName, getPositionCoordinates, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
+import { commands } from './scene-commands.js';
+import {
+  getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection,
+  getPlayerCharacterName, getPositionCoordinates, getPropInstanceName, getSkipWait,
+  getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset,
+} from './scene-command-support/arguments.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -13,9 +18,28 @@ const getCharacterPos = defineCommand({
   },
 });
 
+function throwPropSlideWithoutScene(_step: unknown, script: { location: string }): never {
+  throw new Error(`${script.location}: Prop slide commands require a game session`);
+}
+
 // A terminal has no player character. Validate the command without controlling a scene.
 export const sceneCommandsShim = {
   ...commands,
+  approachSlideProp: defineCommand({
+    returnsValue: true, parse: commands.approachSlideProp.parse, execute: throwPropSlideWithoutScene,
+  }),
+  getPropPushes: defineCommand({
+    returnsValue: true, parse: commands.getPropPushes.parse, execute: throwPropSlideWithoutScene,
+  }),
+  choosePropPush: defineCommand({
+    returnsValue: true, parse: commands.choosePropPush.parse, execute: throwPropSlideWithoutScene,
+  }),
+  slideProp: defineCommand({
+    returnsValue: true, parse: commands.slideProp.parse, execute: throwPropSlideWithoutScene,
+  }),
+  resetPropSlides: defineCommand({
+    returnsValue: true, parse: commands.resetPropSlides.parse, execute: throwPropSlideWithoutScene,
+  }),
   playDialogue: defineCommand({
     parse: commands.playDialogue.parse,
     execute: (step, script) =>

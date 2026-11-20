@@ -70,13 +70,17 @@ export class PlayerControl {
     return this.cancelledWalks.has(character);
   }
 
-  walkScripted(character: Character, destination: Point): void {
+  walkScripted(character: Character, destination: Point, exact = false): void {
     this.cancelledWalks.delete(character);
     if (character === this.playerWalkCh) {
       this.pendingTalk = undefined;
       this.scriptedWalker = character;
     }
-    character.walkTo(this.scene, destination);
+    character.walkTo(this.scene, destination, exact);
+  }
+
+  isScriptedWalking(): boolean {
+    return this.scriptedWalker?.isWalking() ?? false;
   }
 
   cancelTalk(): void {
@@ -168,7 +172,7 @@ export class PlayerControl {
 
   click(x: number, y: number, activate: (name: string, instanceId: string) => boolean,
     runTalk?: (script: string, target: Character) => void): void {
-    if (this.scriptedWalker?.isWalking()) return;
+    if (this.isScriptedWalking()) return;
     if (x < 0 || y < 0 || x >= this.scene.width || y >= this.scene.height) return;
     this.pendingTalk = undefined;
     for (const trigger of this.scene.actionTriggers) {

@@ -87,7 +87,7 @@ export function mountProps(root: HTMLElement): () => void {
           <div id="prop-custom" class="character-state-list"></div>
           <button id="add-prop-state" type="button">+ CUSTOM STATE</button>
         </div>
-        <div class="prop-preview"><h2>PREVIEW</h2><button id="play-prop-animation" type="button" aria-pressed="false" hidden>PLAY ANIMATION</button><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Show blocked cells, then click or drag on the preview to block or unblock them. Focus the preview and press Tab to toggle the overlay. Shift+Tab moves focus away.</p><p>Scene position and ordering are set in the Scene editor.</p></div>
+        <div class="prop-preview"><h2>PREVIEW</h2><button id="play-prop-animation" type="button" aria-pressed="false" hidden>PLAY ANIMATION</button><button id="prop-show-blocks" type="button" aria-pressed="false">SHOW BLOCKED CELLS</button><button id="prop-show-slide" type="button" aria-pressed="false">PAINT SLIDE FOOTPRINT</button><canvas id="prop-canvas" width="360" height="240" tabindex="0" aria-label="Prop visual preview; press Tab to toggle blocked cells"></canvas><p>Choose a mask, then click or drag to paint or erase. Red blocks walking. Gold marks contact cells used when this prop slides. Both masks are shared by placements of this asset.</p></div>
       </div>
     </section>
     <dialog id="prop-custom-state-dialog" aria-labelledby="prop-custom-state-title">
@@ -149,6 +149,7 @@ export function mountProps(root: HTMLElement): () => void {
   let playbackIndex = 0;
   let defaultSizeToken = 0;
   let showBlocked = false;
+  let maskKey: 'blockedCells' | 'slideCells' = 'blockedCells';
   let previewGrid: BlockPreviewGrid | null = null;
   let previewFrame: { key: string; pending: ReturnType<typeof loadVisualFrame> } | null = null;
   let previewProp: PropDocument | null = null;
@@ -446,9 +447,9 @@ export function mountProps(root: HTMLElement): () => void {
           Math.max(0, width - 1),
           Math.max(0, height - 1),
         );
-    ctx.fillStyle = 'rgba(235, 88, 79, 0.55)';
-    ctx.strokeStyle = '#ffae95';
-    for (const index of prop.blockedCells) {
+    ctx.fillStyle = maskKey === 'slideCells' ? 'rgba(240, 200, 50, 0.66)' : 'rgba(235, 88, 79, 0.55)';
+    ctx.strokeStyle = maskKey === 'slideCells' ? '#f0c832' : '#ffae95';
+    for (const index of prop[maskKey] ?? []) {
       const x = x0 + (index % prop.width) * width;
       const y = y0 + Math.floor(index / prop.width) * height;
       ctx.fillRect(x, y, width, height);
@@ -493,6 +494,7 @@ export function mountProps(root: HTMLElement): () => void {
       if (!alive || current !== prop || saving) return;
       prop.visual = selected;
       if (size) {
+        if (prop.slideCells) prop.slideCells = resizeBlockedCells(prop.slideCells, prop.width, size.width, size.height);
         prop.blockedCells = resizeBlockedCells(
           prop.blockedCells,
           prop.width,
@@ -674,9 +676,7 @@ export function mountProps(root: HTMLElement): () => void {
     get$<HTMLInputElement>('#prop-height').value = String(current.height);
     get$<HTMLElement>('#prop-block-count').textContent =
       `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
-    const showBlocksButton = get$<HTMLButtonElement>('#prop-show-blocks');
-    showBlocksButton.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
-    showBlocksButton.setAttribute('aria-pressed', String(showBlocked));
+    renderMaskControls();
     get$<HTMLInputElement>('#prop-ground').value = String(current.groundOffsetY);
     get$<HTMLInputElement>('#prop-foreground').checked = current.foreground === true;
     if (!current.customAnimations) current.customAnimations = {};
@@ -813,23 +813,33 @@ export function mountProps(root: HTMLElement): () => void {
   get$<HTMLButtonElement>('#choose-prop-visual').addEventListener('click', () => {
     if (current) void openPicker(current.visual.type);
   });
-  function toggleBlockedPreview(): void {
-    showBlocked = !showBlocked;
-    blockStroke = null;
-    previewGrid = null;
+  function renderMaskControls(): void {
+    const walking = showBlocked && maskKey === 'blockedCells';
+    const slide = showBlocked && maskKey === 'slideCells';
     const button = get$<HTMLButtonElement>('#prop-show-blocks');
-    button.textContent = showBlocked ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
-    button.setAttribute('aria-pressed', String(showBlocked));
+    button.textContent = walking ? 'HIDE BLOCKED CELLS' : 'SHOW BLOCKED CELLS';
+    button.setAttribute('aria-pressed', String(walking));
+    const slideButton = get$<HTMLButtonElement>('#prop-show-slide');
+    slideButton.textContent = slide ? 'HIDE SLIDE FOOTPRINT' : 'PAINT SLIDE FOOTPRINT';
+    slideButton.setAttribute('aria-pressed', String(slide));
     canvas.classList.toggle('editing-blocks', showBlocked);
     canvas.setAttribute(
       'aria-label',
       showBlocked
-        ? 'Prop preview; click or drag cells to block or unblock them; press Tab to hide blocked cells'
+        ? `Prop preview; click or drag to paint ${slide ? 'slide footprint' : 'blocked cells'}`
         : 'Prop visual preview; press Tab to show blocked cells',
     );
+  }
+  function toggleMaskPreview(key: typeof maskKey): void {
+    showBlocked = maskKey !== key || !showBlocked;
+    maskKey = key;
+    blockStroke = null;
+    previewGrid = null;
+    renderMaskControls();
     void drawPreview();
   }
-  get$<HTMLButtonElement>('#prop-show-blocks').addEventListener('click', toggleBlockedPreview);
+  get$<HTMLButtonElement>('#prop-show-blocks').addEventListener('click', () => toggleMaskPreview('blockedCells'));
+  get$<HTMLButtonElement>('#prop-show-slide').addEventListener('click', () => toggleMaskPreview('slideCells'));
   function previewPoint(event: PointerEvent): { x: number; y: number } | null {
     if (!current || !showBlocked || !previewGrid) return null;
     const rect = canvas.getBoundingClientRect();
@@ -851,12 +861,12 @@ export function mountProps(root: HTMLElement): () => void {
     blockStroke = {
       pointerId: event.pointerId,
       prop: current,
-      blocked: !current.blockedCells.includes(point.y * current.width + point.x),
+      blocked: !current[maskKey]?.includes(point.y * current.width + point.x),
       last: point,
     };
     canvas.setPointerCapture(event.pointerId);
-    current.blockedCells = paintPropBlockedCells(
-      current.blockedCells,
+    current[maskKey] = paintPropBlockedCells(
+      current[maskKey] ?? [],
       current.width,
       point,
       point,
@@ -873,8 +883,8 @@ export function mountProps(root: HTMLElement): () => void {
     if (!stroke || stroke.pointerId !== event.pointerId || current !== stroke.prop) return;
     const point = previewPoint(event);
     if (!point) return;
-    current.blockedCells = paintPropBlockedCells(
-      current.blockedCells,
+    current[maskKey] = paintPropBlockedCells(
+      current[maskKey] ?? [],
       current.width,
       stroke.last,
       point,
@@ -891,8 +901,8 @@ export function mountProps(root: HTMLElement): () => void {
     if (blockStroke?.pointerId !== event.pointerId) return;
     const point = previewPoint(event);
     if (point && current === blockStroke.prop) {
-      current.blockedCells = paintPropBlockedCells(
-        current.blockedCells,
+      current[maskKey] = paintPropBlockedCells(
+        current[maskKey] ?? [],
         current.width,
         blockStroke.last,
         point,
@@ -913,7 +923,7 @@ export function mountProps(root: HTMLElement): () => void {
   canvas.addEventListener('keydown', (event) => {
     if (event.key !== 'Tab' || event.shiftKey) return;
     event.preventDefault();
-    toggleBlockedPreview();
+    toggleMaskPreview(showBlocked ? maskKey : 'blockedCells');
   });
   get$<HTMLInputElement>('#prop-foreground').addEventListener('change', (event) => {
     if (!current) return;
@@ -936,6 +946,9 @@ export function mountProps(root: HTMLElement): () => void {
         return;
       }
       if (field === 'width' || field === 'height') {
+        if (current.slideCells) current.slideCells = resizeBlockedCells(
+          current.slideCells, current.width, field === 'width' ? value : current.width, field === 'height' ? value : current.height,
+        );
         current.blockedCells = resizeBlockedCells(
           current.blockedCells,
           current.width,

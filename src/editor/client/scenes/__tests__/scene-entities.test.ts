@@ -5,6 +5,8 @@ import { requestJson } from '../../api.js';
 import { promptModal } from '../../modal.js';
 import { mountScenes } from '../scenes.js';
 import { createItem } from '../../../items/item-schema.js';
+import { createPropSlideFixtureDocuments } from '../../../../game/__tests__/prop-slide-fixture.js';
+import { parseScene } from '../../../schema.js';
 
 vi.mock('../../project.js', () => ({
   projectStorage: { getItem: () => null, setItem: vi.fn() },
@@ -33,6 +35,7 @@ let storedScene: SceneDocument | null;
 const sprite = createSprite('test-sprite', 2, 1);
 const prop = createProp('test-prop', { type: 'sprite', id: sprite.id, index: 0 });
 const item = createItem('test-item', { type: 'sprite', id: sprite.id, index: 0 }, 'Office Key');
+const slideFixture = createPropSlideFixtureDocuments();
 
 // Only emulate DOM APIs needed by these interactions; all assets are test-owned.
 class SceneTestElement extends TestElement {
@@ -71,6 +74,8 @@ class SceneTestElement extends TestElement {
 
   setPointerCapture(): void {}
 
+  click(): void { this.dispatch('click'); }
+
   dispatchPointer(type: string, clientX: number, clientY: number, button = 0): void {
     const event = {
       type,
@@ -84,12 +89,14 @@ class SceneTestElement extends TestElement {
     for (const listener of this.listeners.get(type) ?? []) listener(event);
   }
 
-  getContext() {
-    return {
+  readonly context = {
       measureText: () => ({ width: 10 }),
       fillRect: vi.fn(),
-    };
-  }
+      resetTransform: vi.fn(), setTransform: vi.fn(), clearRect: vi.fn(),
+      save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(),
+      translate: vi.fn(), scale: vi.fn(), fillText: vi.fn(), strokeRect: vi.fn(),
+  };
+  getContext() { return this.context; }
 }
 
 function getElement(id: string): SceneTestElement {
@@ -166,6 +173,8 @@ beforeEach(() => {
         result = storedScene;
       } else if (url === '/api/scenes') {
         result = { files: storedScene ? [storedScene.id] : [], labels: {} };
+      } else if (storedScene && url === `/api/scenes/${storedScene.id}`) {
+        result = storedScene;
       } else if (url === '/api/props') {
         result = { files: [prop.id], labels: {} };
       } else if (url === '/api/items') {
@@ -178,6 +187,10 @@ beforeEach(() => {
         result = sprite;
       } else if (url === `/api/props/${prop.id}`) {
         result = prop;
+      } else if (url === `/api/props/${slideFixture.prop.id}`) {
+        result = { ...slideFixture.prop, slideCells: [0, 4] };
+      } else if (url === `/api/sprites/${slideFixture.sprite.id}`) {
+        result = slideFixture.sprite;
       } else if (url.endsWith('-folders')) {
         result = { folders: [], placements: {} };
       } else if (url === '/api/rpg-triggers') {
@@ -275,7 +288,7 @@ it('adds a prop after creating a scene, adding a background, enabling Show UI an
   ]);
 });
 
-it.each(['background', 'blocked'] as const)(
+it.each(['background', 'blocked', 'travel'] as const)(
   'keeps every Entities command available during %s editing and exits that mode on use',
   async (mode) => {
     await createSceneWithBackground();
@@ -339,6 +352,121 @@ function getInspectorInput(label: string): TestElement {
   }
   throw new Error(`Missing inspector field ${label}`);
 }
+
+function getPreviewButton(direction: string) {
+  const row = getElement('scene-inspector').children.find(e => e.className === 'scene-slide-preview-row');
+  const button = row?.children.find(e => e.attributes.get('aria-label') === `Preview slide ${direction}`);
+  if (!button) throw new Error(`Missing preview button: ${direction}`);
+  return button;
+}
+
+it('paints room travel and previews shared asset footprints without storing them on instances', async () => {
+  const { scene, prop: shelfAsset, sprite: shelfArt } = createPropSlideFixtureDocuments();
+  storedScene = scene;
+  for (const entry of scene.entities) entry.slidable = { actionScript: 'pushShelf' };
+  vi.stubGlobal('location', { search: `?id=${scene.id}` });
+  const loadEditor = async () => {
+    cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+    await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe(`Opened ${scene.id}`));
+    const viewport = getElement('scene-viewport');
+    viewport.clientWidth = 224;
+    viewport.clientHeight = 304;
+    clickElement('scene-fit');
+  };
+  const selectShelf = (index: number) => {
+    clickElement('scene-tab-props');
+    getElement('scene-room-props').children[index].dispatch('click');
+  };
+  const paintStroke = (x: number, y: number, endX = x, endY = y) => {
+    const canvas = getElement('scene-canvas');
+    canvas.dispatchPointer('pointerdown', 73 + x * 20, 93 + y * 40);
+    canvas.dispatchPointer('pointerup', 73 + endX * 20, 93 + endY * 40);
+  };
+  const checkPreviewButtons = () => {
+    for (const direction of ['left', 'right', 'up', 'down']) {
+      getPreviewButton(direction).dispatch('click');
+      expect(getPreviewButton(direction).attributes.get('aria-pressed')).toBe('true');
+      expect(getElement('scene-inspector').children.some(e => /steps? to|blocked at/.test(e.textContent))).toBe(false);
+    }
+  };
+  await loadEditor();
+  clickElement('scene-travel-mode');
+  paintStroke(7, 0);
+  clickElement('scene-travel-mode');
+  selectShelf(0);
+  const setSlidable = (checked: boolean) => {
+    const toggle = getInspectorInput('Slidable') as SceneTestElement;
+    toggle.checked = checked;
+    toggle.dispatch('change');
+  };
+  setSlidable(false);
+  setSlidable(true);
+  expect(getElement('scene-inspector').children.some(e => e.textContent === 'Preview Slide')).toBe(true);
+  const action = getInspectorInput('Slide action script');
+  action.value = 'pushShelf';
+  action.dispatch('change');
+  selectShelf(0);
+  await saveScene();
+  const authored = structuredClone(storedScene);
+  expect(authored?.entities.map(e => 'slidable' in e && e.slidable)).toEqual([{ actionScript: 'pushShelf' }, { actionScript: 'pushShelf' }]);
+  expect(authored?.propSlide?.travelCells).toEqual(scene.propSlide.travelCells.filter(i => i !== 7));
+  expect(authored?.blockedCells).toEqual(scene.blockedCells);
+  checkPreviewButtons();
+  await saveScene();
+  expect(storedScene).toEqual(authored);
+  const reopened = parseScene(JSON.parse(JSON.stringify(authored)));
+  if (!reopened.ok) throw new Error(reopened.error);
+  storedScene = reopened.value;
+  cleanup?.();
+  await loadEditor();
+  selectShelf(0);
+  checkPreviewButtons();
+  getPreviewButton('right').dispatch('click');
+  vi.mocked(requestAnimationFrame).mock.lastCall?.[0](0);
+  const context = getElement('scene-canvas').context;
+  await vi.waitFor(() => expect(context.fillText).toHaveBeenCalledWith('×', 0, expect.any(Number)));
+  // The ghost at (3,2) draws its glyph at (2,1); the other footprint stops it at (4,2).
+  expect(context.translate.mock.calls.slice(-2)).toEqual([[20, 20], [40, 40]]);
+  expect(getPreviewButton('right').attributes.get('aria-pressed')).toBe('true');
+  getPreviewButton('right').dispatch('click');
+  expect(getPreviewButton('right').attributes.get('aria-pressed')).toBe('false');
+  expect(getElement('scene-inspector').children.some(e => /steps? to/.test(e.textContent))).toBe(false);
+  expect(vi.mocked(requestJson).mock.calls.some(([url, options]) =>
+    [shelfAsset.id, shelfArt.id].some(id => url.endsWith(`/${id}`)) && options?.method === 'PUT')).toBe(false);
+});
+
+it('previews an immediately blocked crate without a text readout and still reports invalid placements', async () => {
+  const { scene } = createPropSlideFixtureDocuments();
+  storedScene = {
+    ...scene,
+    entities: ['crate-a', 'crate-b'].map((id, i) => ({
+      id, type: 'Prop', sprite: sprite.id, name: 'Crate', x: 2 + i, y: 2, z: 0, depthOffset: 0,
+      slidable: { footprint: [{ x: 0, y: 0 }], actionScript: 'pushCrate' },
+    })),
+  };
+  vi.stubGlobal('location', { search: `?id=${scene.id}` });
+  cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe(`Opened ${scene.id}`));
+  clickElement('scene-tab-props');
+  getElement('scene-room-props').children[0].dispatch('click');
+  getPreviewButton('right').dispatch('click');
+  expect(getPreviewButton('right').attributes.get('aria-pressed')).toBe('true');
+  expect(getElement('scene-inspector').children.some(e => /steps? to|blocked at/.test(e.textContent))).toBe(false);
+  const x = getInspectorInput('X');
+  x.value = '3';
+  x.dispatch('change');
+  expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Overlaps crate-b at (3, 2).');
+  clickElement('scene-tab-props');
+  getElement('scene-room-props').children[1].dispatch('click');
+  expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Overlaps crate-a at (3, 2).');
+  const nextX = getInspectorInput('X');
+  nextX.value = '4';
+  nextX.dispatch('change');
+  const y = getInspectorInput('Y');
+  y.value = '1';
+  y.dispatch('change');
+  expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Starts outside prop travel at (4, 1).');
+});
 
 it('disables world Z in Bottom Up and saves independent render-only Z offsets', async () => {
   await createSceneWithBackground();

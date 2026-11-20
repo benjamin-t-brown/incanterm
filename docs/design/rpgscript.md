@@ -387,6 +387,64 @@ prop whose instance name matches (case-insensitive). Prop assets define a built-
 editor. Scene instances pick a starting state in the scene inspector. A missing
 state logs a warning and falls back to `default` for each matching prop.
 
+### Slidable prop actions
+
+A scene prop with `slidable.actionScript` binds its visible moving art to a
+one-parameter foreground script. Click the prop, or press Enter to activate the
+nearest visible slidable prop. The script receives the **scene instance ID**, not
+the display name or an asset ID. Both reusable props and directly placed sprites
+can opt in.
+
+```rpgscript
+@pushProp(instance)
+  +approachSlideProp([instance])
+  +[direction] = choosePropPush([instance])
+  +?eq([direction], cancel):{
+    <
+  }
+  +[settled] = slideProp([instance], [direction])
+```
+
+- `approachSlideProp(id)` waits for an exact stand cell and returns `true` on
+  arrival, `false` without reaching it. This is optional staging: it isn't
+  required before choosing a push. Walking never falls back to a nearby cell.
+- `getPropPushes(id)` returns the list of unblocked push
+  direction keys (`left`, `right`, `up`, `down`).
+- `choosePropPush(id)` waits for a numbered key or a click on a direction-pad button and
+  returns a direction key or `cancel`. Call it outside dialogue. Buttons show
+  Up, Down, Left and Right; the scene vectors determine actual movement.
+  A direction is dimmed if the prop cannot slide that way, not if the player
+  cannot reach the pushing side. Cancel is in the center.
+- `slideProp(id, direction)` walks to the selected pushing side if reachable.
+  If the character cannot get there, it pushes from where the character is
+  when clear of the slide, or first walks to the nearest reachable spot clear
+  of the prop's swept footprints. If there is no safe spot, it returns `false`
+  without moving the prop. It rechecks the slide path and returns `true` only if the
+  slide completes. Forced cancellation aborts the action script and synchronously
+  restores the original anchor rather than leaving a partial slide.
+- `resetPropSlides(safeMarker)` restores all slidable props in the current room
+  and clears that room's settled overrides. It returns `true` on reset, or
+  `false` if the room has no slidable props. If the restored walking masks cover
+  the controlled character, the command places them at the named scene marker
+  using walk-marker coordinates. If that relocation is needed and the marker is
+  missing or not walkable after reset, the command reports an error and changes
+  neither the layout nor its overrides. After a successful reset, the script can
+  read prop positions and reevaluate any room-specific puzzle.
+
+Automatic stand positions are next to the prop's walking blockers, or next to
+its slide footprint if it has no walking blockers. The initial approach
+accepts any edge; a push prefers the edge opposite the selected direction.
+Optional `slidable.standOffsets` entries override individual
+directions: e.g. `"right": { "x": -3, "y": 0 }`. The spot follows the prop's
+current anchor. The player's entire bottom row must fit the walking mask, but
+any column of that row can cover the spot. For an authored offset, the engine
+prefers to align the player's origin column with the spot if it can. This does
+not change slide collision.
+
+Completed pushes survive leaving and re-entering rooms in the same session.
+The runtime can copy the settled anchors to and from JSON, but disk saves and
+automatic cross-session resume are not implemented.
+
 ### Command groups
 
 Replace game-specific command implementations with an Incanterm library. Candidate groups, not finalized signatures:

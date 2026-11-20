@@ -1,37 +1,25 @@
 // Keep this catalog and each `const name =` declaration together: the RPGScript
 // language extension reads this file to discover supported commands.
-import type { Command, ScriptValue } from './rpgscript/parser.js';
-import type { PlayerControl } from './player-control.js';
-import type { Scene } from './scene.js';
+import { PROP_DEFAULT_STATE } from '../editor/schema.js';
 import type { Character } from './character.js';
-import { findCharacter, findPath, getWalkAnchor, type Point } from './character-movement.js';
-import { findAnimatedProps, findProp } from './prop-lookup.js';
-import { CHARACTER_DIRECTIONS, PROP_DEFAULT_STATE, isCharacterVariantName, type CharacterDirection } from '../editor/schema.js';
-import { defineCommand, type CommandContext } from './rpgscript/command.js';
+import { findCharacter, getWalkAnchor } from './character-movement.js';
 import { getInventoryEntries, getItemAsset, getItemCombinationScript, WorldItem, type ItemTarget } from './items.js';
-
-export type GameScriptContext = {
-  scene: Scene;
-  playerControl: PlayerControl;
-  bark?: (character: Character, text: string, ms: number) => () => boolean;
-  clearBark?: (character: Character) => void;
-  clearCharacterSubscript?: (ownerId: string) => void;
-  resetConversationPortraits?: () => void;
-  changeScene?: (sceneId: string, markerName: string | undefined, location: string) => Promise<void>;
-};
-
-export type Choice = Readonly<{ text: string; target: string }>;
-
-function getScriptValue(value: Command['args'][number], location: string): ScriptValue {
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
-    return value;
-  if ('storageKey' in value || 'localName' in value || 'expression' in value || 'list' in value || 'indexed' in value) return Object.freeze({ ...value });
-  throw new Error(`${location}: Expected a scalar script argument`);
-}
-
-function checkChoiceCount(count: number, location: string): void {
-  if (count > 9) throw new Error(`${location}: At most 9 choices can be displayed`);
-}
+import { findAnimatedProps, findProp } from './prop-lookup.js';
+import { SLIDE_DIRECTIONS } from './prop-slide.js';
+import { defineCommand } from './rpgscript/command.js';
+import {
+  checkChoiceCount, getAnimationStateName, getBark, getBusyState, getCharacterVariantName,
+  getFacingDirection, getPlayerCharacterName, getPositionCoordinates, getPropInstanceName,
+  getScriptValue, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination,
+  getWalkOffset, parsePositionArgs,
+} from './scene-command-support/arguments.js';
+import type { Choice, GameScriptContext } from './scene-command-support/context.js';
+import { addInventoryItem, getInventory, getItemName } from './scene-command-support/inventory.js';
+import { setFacingToward, walkScriptedToDestination } from './scene-command-support/movement.js';
+import {
+  getPropSlideControl, getSlidePropId, isSlideCommandReference, parseSlidePropArgs,
+  parseSlidePropId, waitForPropSlideResult,
+} from './scene-command-support/prop-slide.js';
 
 const callScript = defineCommand({
   parse: (args, location) => {
@@ -182,20 +170,6 @@ const rand100 = defineCommand({
   execute: (_step, context) => context.setGlobal('vars.rand100', Math.floor(Math.random() * 100) + 1),
 });
 
-function getInventory(value: ReturnType<CommandContext['getStorage']>, location: string): readonly string[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string'))
-    throw new Error(`${location}: vars.inventory must contain item names`);
-  return value;
-}
-
-function getItemName(value: ScriptValue, context: CommandContext, command: string): string {
-  const item = context.value(value);
-  if (typeof item !== 'string' || !item.trim())
-    throw new Error(`${context.location}: ${command} requires an item name`);
-  return item;
-}
-
 const acquireItem = defineCommand({
   parse: (args, location) => args.length === 1
     ? { item: getScriptValue(args[0], location) } : undefined,
@@ -220,20 +194,6 @@ const addItem = defineCommand({
     addInventoryItem(item, context, game);
   },
 });
-
-export function addInventoryItem(
-  reference: string, script: Pick<CommandContext, 'getGlobal' | 'setGlobal' | 'location'>, game: GameScriptContext,
-): void {
-  const asset = getItemAsset(game.scene.itemAssets, reference);
-  const itemId = asset.definition.id;
-  const entries = getInventoryEntries(script.getGlobal('vars.inventory'), game.scene.itemAssets);
-  if (!entries.some((entry) => entry.itemId === itemId)) entries.push({ itemId });
-  script.setGlobal('vars.inventory', entries);
-  const acquired = getInventory(script.getGlobal('vars.acquiredItems'), script.location);
-  if (!acquired.includes(itemId)) script.setGlobal('vars.acquiredItems', [...acquired, itemId]);
-  for (const entity of [...game.scene.entities])
-    if (entity instanceof WorldItem && entity.asset.definition.id === itemId) game.scene.removeEntity(entity);
-}
 
 const removeItem = defineCommand({
   parse: (args, location) => args.length === 1
@@ -450,15 +410,6 @@ const getPropPos = defineCommand({
   },
 });
 
-function parsePositionArgs(args: Command['args'], location: string) {
-  if (args.length !== 3) return;
-  return {
-    entity: getScriptValue(args[0], location),
-    x: getScriptValue(args[1], location),
-    y: getScriptValue(args[2], location),
-  };
-}
-
 const setChPos = defineCommand({
   parse: parsePositionArgs,
   execute: (step, script, game: GameScriptContext) => {
@@ -545,37 +496,6 @@ const walkToOffset = defineCommand({
   },
 });
 
-function walkScriptedToDestination(
-  name: string, destination: Point, skipWait: boolean,
-  script: CommandContext, game: GameScriptContext,
-): void {
-  const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
-  if (character.x === destination.x && character.bottomY === destination.y) return;
-  const maxAttempts = 4;
-  const retryIntervalMs = 100;
-  let attempts = 0;
-  let retryAtMs = 0;
-  const startAttempt = (): void => {
-    attempts++;
-    const path = findPath(game.scene, character, destination);
-    const closest = path.at(-1);
-    if (closest) game.playerControl.walkScripted(character, closest);
-    retryAtMs = Date.now() + retryIntervalMs;
-  };
-  startAttempt();
-  if (skipWait) return;
-  script.waitUntil(() => {
-    if (character.x === destination.x && character.bottomY === destination.y) return true;
-    if (game.playerControl.wasWalkCancelled(character)) return true;
-    if (game.playerControl.isWalkPausedForConversation(character, destination)) return false;
-    if (character.isWalking()) return false;
-    if (attempts >= maxAttempts) return true;
-    if (Date.now() < retryAtMs) return false;
-    startAttempt();
-    return character.x === destination.x && character.bottomY === destination.y;
-  });
-}
-
 const stopCh = defineCommand({
   parse: (args, location) => {
     if (args.length !== 1) return;
@@ -656,13 +576,6 @@ const lookAtMarker = defineCommand({
     setFacingToward(character, marker.x, marker.y);
   },
 });
-
-function setFacingToward(character: Character, x: number, y: number): void {
-  const direction = getFacingToward(character.x, character.bottomY, x, y);
-  if (!direction) return;
-  character.facing = direction;
-  character.animate(0);
-}
 
 const bark = defineCommand({
   parse: (args, location) => {
@@ -796,6 +709,77 @@ const changeScene = defineCommand({
   },
 });
 
+const approachSlideProp = defineCommand({
+  returnsValue: 'deferred',
+  parse: parseSlidePropArgs,
+  execute: (step, script, game: GameScriptContext, setResult) => {
+    const id = getSlidePropId(step.prop, script);
+    waitForPropSlideResult(script, getPropSlideControl(game, script, true).startApproach(id), setResult);
+  },
+});
+
+const getPropPushes = defineCommand({
+  returnsValue: true,
+  parse: parseSlidePropArgs,
+  execute: (step, script, game: GameScriptContext) =>
+    getPropSlideControl(game, script).getPushes(getSlidePropId(step.prop, script)),
+});
+
+const choosePropPush = defineCommand({
+  returnsValue: 'deferred',
+  parse: parseSlidePropArgs,
+  execute: (step, script, game: GameScriptContext, setResult) => {
+    const id = getSlidePropId(step.prop, script);
+    const control = getPropSlideControl(game, script, true);
+    if (!control.canChoosePush(id)) {
+      setResult('cancel');
+      return;
+    }
+    const directions = control.getPushes(id);
+    if (!directions.length) script.writeLog('No pushes are available.');
+    game.revealPropPushChoices?.();
+    const labels = directions.map(direction => direction[0].toUpperCase() + direction.slice(1));
+    script.showChoices([...labels, 'Cancel'],
+      (index) => setResult(directions[index] ?? 'cancel'));
+  },
+});
+
+const slideProp = defineCommand({
+  returnsValue: 'deferred',
+  parse: (args, location) => {
+    if (args.length !== 2) throw new Error(`${location}: Expected a slidable prop instance ID and a direction`);
+    const direction = getScriptValue(args[1], location);
+    if (!SLIDE_DIRECTIONS.some((side) => side === direction) && !isSlideCommandReference(direction))
+      throw new Error(`${location}: Prop push direction must be left, right, up, or down`);
+    return { prop: parseSlidePropId(args[0], location), direction };
+  },
+  execute: (step, script, game: GameScriptContext, setResult) => {
+    const id = getSlidePropId(step.prop, script);
+    const value = script.value(step.direction);
+    const direction = SLIDE_DIRECTIONS.find((side) => side === value);
+    if (!direction) throw new Error(`${script.location}: Prop push direction must be left, right, up, or down`);
+    waitForPropSlideResult(script, getPropSlideControl(game, script, true).startSlide(id, direction), setResult);
+  },
+});
+
+const resetPropSlides = defineCommand({
+  returnsValue: true,
+  parse: (args, location) => {
+    if (args.length !== 1) throw new Error(`${location}: resetPropSlides requires one safe marker name`);
+    const marker = getScriptValue(args[0], location);
+    if (!(typeof marker === 'string' && marker.trim()) && !isSlideCommandReference(marker))
+      throw new Error(`${location}: resetPropSlides requires a safe marker name`);
+    return { marker };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const markerName = script.value(step.marker);
+    if (typeof markerName !== 'string' || !markerName.trim())
+      throw new Error(`${script.location}: resetPropSlides requires a safe marker name`);
+    if (!game.resetPropSlides) throw new Error(`${script.location}: resetPropSlides requires a game session`);
+    return game.resetPropSlides(markerName, script.background ?? false);
+  },
+});
+
 const awaitChoice = defineCommand({
   parse: (args, location) => {
     if (!args.length || !args.every((arg) => typeof arg === 'string')) return;
@@ -884,149 +868,11 @@ export const commands = {
   despawnCh,
   waitMs,
   changeScene,
+  approachSlideProp,
+  getPropPushes,
+  choosePropPush,
+  slideProp,
+  resetPropSlides,
   awaitChoice,
   showChoices,
 };
-
-export function getPlayerCharacterName(
-  value: ScriptValue,
-  context: CommandContext,
-  command = 'setPlayerWalkCh',
-): string {
-  const name = context.value(value);
-  if (typeof name !== 'string' || !name.trim())
-    throw new Error(`${context.location}: ${command} requires a character id or instance name`);
-  return name;
-}
-
-export function getWalkDestination(
-  step: { character: ScriptValue; x: ScriptValue; y: ScriptValue },
-  script: CommandContext,
-): { name: string; x: number; y: number } {
-  const name = getPlayerCharacterName(step.character, script, 'chWalkToCoord');
-  const x = script.value(step.x),
-    y = script.value(step.y);
-  if (
-    typeof x !== 'number' ||
-    typeof y !== 'number' ||
-    !Number.isInteger(x) ||
-    !Number.isInteger(y)
-  )
-    throw new Error(`${script.location}: chWalkToCoord requires integer coordinates`);
-  return { name, x, y };
-}
-
-export function getPositionCoordinates(
-  step: { x: ScriptValue; y: ScriptValue }, script: CommandContext, command: string,
-): Point {
-  const x = script.value(step.x);
-  const y = script.value(step.y);
-  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isSafeInteger(x) || !Number.isSafeInteger(y))
-    throw new Error(`${script.location}: ${command} requires integer coordinates`);
-  return { x, y };
-}
-
-export function getWalkOffset(
-  step: { x: ScriptValue; y: ScriptValue }, script: CommandContext,
-): Point {
-  const x = script.value(step.x);
-  const y = script.value(step.y);
-  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y))
-    throw new Error(`${script.location}: walkToOffset requires integer offsets`);
-  return { x, y };
-}
-
-export function getSkipWait(value: ScriptValue, script: CommandContext, command = 'walkToMarker'): boolean {
-  const resolved = script.value(value);
-  if (resolved === true || resolved === 'true') return true;
-  if (resolved === false || resolved === 'false') return false;
-  throw new Error(`${script.location}: ${command} skipWait must be a boolean`);
-}
-
-export function getBusyState(value: ScriptValue, script: CommandContext): boolean {
-  const resolved = script.value(value);
-  if (resolved === true || resolved === 'true') return true;
-  if (resolved === false || resolved === 'false') return false;
-  throw new Error(`${script.location}: setBusy requires true or false`);
-}
-
-export function getFacingDirection(value: ScriptValue, script: CommandContext): CharacterDirection {
-  const direction = script.value(value);
-  if (typeof direction !== 'string' || !CHARACTER_DIRECTIONS.includes(direction as CharacterDirection))
-    throw new Error(`${script.location}: setFacing direction must be up, down, left, or right`);
-  return direction as CharacterDirection;
-}
-
-export function getSpeedMultiplier(value: ScriptValue, script: CommandContext): number {
-  const mult = script.value(value);
-  if (typeof mult !== 'number' || !Number.isFinite(mult) || mult <= 0)
-    throw new Error(`${script.location}: setSpeedMult requires a positive number`);
-  return mult;
-}
-
-export function getFacingToward(
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-): CharacterDirection | undefined {
-  const dx = toX - fromX;
-  const dy = toY - fromY;
-  if (dx === 0 && dy === 0) return;
-  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'right' : 'left';
-  return dy > 0 ? 'down' : 'up';
-}
-
-export function getPropInstanceName(
-  value: ScriptValue,
-  context: CommandContext,
-  command = 'setPropAnimState',
-): string {
-  const name = context.value(value);
-  if (typeof name !== 'string' || !name.trim())
-    throw new Error(`${context.location}: ${command} requires a prop instance name or ID`);
-  return name;
-}
-
-export function getAnimationStateName(
-  value: ScriptValue,
-  script: CommandContext,
-  command = 'setAnimState',
-): string {
-  const state = script.value(value);
-  if (typeof state !== 'string' || !state.trim())
-    throw new Error(`${script.location}: ${command} requires an animation state name`);
-  return state;
-}
-
-export function getCharacterVariantName(
-  value: ScriptValue, script: CommandContext, command = 'setCharacterVariant',
-): string {
-  const variant = script.value(value);
-  if (typeof variant !== 'string' || !isCharacterVariantName(variant))
-    throw new Error(`${script.location}: ${command} requires a variant name`);
-  return variant;
-}
-
-export function getWaitMilliseconds(value: ScriptValue, script: CommandContext): number {
-  const ms = script.value(value);
-  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0)
-    throw new Error(`${script.location}: waitMs requires a non-negative number of milliseconds`);
-  return ms;
-}
-
-export const DEFAULT_BARK_MS = 2000;
-
-export function getBark(
-  step: { text: ScriptValue; ms?: ScriptValue; skipWait?: ScriptValue },
-  script: CommandContext,
-): { text: string; ms: number; skipWait: boolean } {
-  const text = script.value(step.text);
-  if (typeof text !== 'string' && typeof text !== 'number' && typeof text !== 'boolean')
-    throw new Error(`${script.location}: bark text must be a string`);
-  const ms = step.ms === undefined ? DEFAULT_BARK_MS : Number(script.value(step.ms));
-  if (!Number.isFinite(ms) || ms <= 0)
-    throw new Error(`${script.location}: bark ms must be a positive number`);
-  const skipWait = step.skipWait === undefined ? false : getSkipWait(step.skipWait, script);
-  return { text: String(text), ms, skipWait };
-}

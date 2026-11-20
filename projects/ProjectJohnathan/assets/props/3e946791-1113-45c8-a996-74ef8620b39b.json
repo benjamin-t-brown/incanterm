@@ -18,12 +18,28 @@
     31,
     32,
     33,
+    34,
+    35,
     38,
     39,
     40,
     41
   ],
   "groundOffsetY": 0,
+  "slideCells": [
+    24,
+    25,
+    26,
+    27,
+    31,
+    32,
+    33,
+    34,
+    38,
+    39,
+    40,
+    41
+  ],
   "depthOffset": 0,
   "foreground": false,
   "customAnimations": {}

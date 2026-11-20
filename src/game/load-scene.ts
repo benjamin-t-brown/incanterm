@@ -15,6 +15,7 @@ import {
   parseAnimation,
   parsePalette,
   parseProp,
+  parseSceneSlides,
   PROP_DEFAULT_STATE,
   type PropDocument,
 } from '../editor/schema.js';
@@ -34,6 +35,7 @@ import { Sprite } from './sprite.js';
 import { AnimatedProp, type PropClip } from './animated-prop.js';
 import { parseItem } from '../editor/items/item-schema.js';
 import { WorldItem, type ItemAsset } from './items.js';
+import { getPropSlideFootprint, getSceneSlideSetup, getSlideLayoutError, type SlideBinding, type SlideCell } from './prop-slide.js';
 
 export async function loadSceneByReference(assetsRoot: string, reference: string): Promise<Scene> {
   const scenesRoot = path.join(assetsRoot, 'scenes');
@@ -73,6 +75,9 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
   const depthMode = readDepthMode(record.depthMode, `${scenePath} depthMode`);
   const clear = readCell(record.clear, `${scenePath} clear`);
   if (!Array.isArray(record.entities)) throw new Error(`${scenePath} entities must be an array`);
+  const slides = parseSceneSlides(record.propSlide === undefined ? record.shelfSlide : record.propSlide, record.entities, width, height);
+  if (!slides.ok) throw new Error(`${scenePath}: ${slides.error}`);
+  const { propSlide, slidableProps } = slides.value;
   const triggers = readTriggers(record.triggers, scenePath);
   const blockedCells = new Set<number>();
   if (record.blockedCells !== undefined && !Array.isArray(record.blockedCells))
@@ -152,10 +157,11 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
         depthMode,
         sprites,
         seen,
+        slidableProps,
       ),
     );
   }
-  return new Scene(
+  const scene = new Scene(
     id,
     width,
     height,
@@ -169,7 +175,12 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
     markers,
     (reference) => loadCharacterByReference(assetsRoot, reference),
     itemAssets,
+    propSlide,
   );
+  const setup = getSceneSlideSetup(scene);
+  const error = setup && getSlideLayoutError(setup.board, setup.positions);
+  if (error) throw new Error(`${scenePath}: ${error}`);
+  return scene;
 }
 
 async function loadItemAssets(assetsRoot: string, sprites: Map<string, Sprite>): Promise<ReadonlyMap<string, ItemAsset>> {
@@ -270,6 +281,7 @@ async function readProp(
   depthMode: DepthMode,
   sprites: Map<string, Sprite>,
   seen: Set<string>,
+  slidableProps?: ReadonlyMap<string, SlideBinding>,
 ): Promise<Prop> {
   const label = `${scenePath} entity ${index}`;
   const record = readObject(value, label);
@@ -356,6 +368,7 @@ async function readProp(
   );
   let foreground = false;
   let blockingOffsets: Prop['blockingOffsets'] = [];
+  let assetFootprint: readonly SlideCell[] | undefined;
   let instanceName: string | undefined;
   let propId: string | undefined;
   let state = PROP_DEFAULT_STATE;
@@ -397,6 +410,7 @@ async function readProp(
           : `${label} animation state ${state} is missing`,
       );
     }
+    assetFootprint = getPropSlideFootprint(asset, sprite);
     blockingOffsets = asset.blockedCells.map((cell) => ({
       x: (cell % asset.width) - sprite.originX,
       y: Math.floor(cell / asset.width) - sprite.originY,
@@ -409,6 +423,8 @@ async function readProp(
   const x = readInt(record.x, `${label} x`, 0, width - 1);
   const y = readInt(record.y, `${label} y`, 0, height - 1);
   const z = readInt(record.z ?? 0, `${label} z`, -1000, 1000);
+  const binding = slidableProps?.get(id);
+  const slidable = binding && { ...binding, footprint: assetFootprint ?? binding.footprint ?? [] };
   if (clips)
     return new AnimatedProp(
       id,
@@ -423,8 +439,9 @@ async function readProp(
       propId,
       foreground,
       blockingOffsets,
+      slidable,
     );
-  return new Prop(id, x, y, depthOffset, z, sprite, foreground, instanceName);
+  return new Prop(id, x, y, depthOffset, z, sprite, foreground, instanceName, [], slidable);
 }
 
 async function loadPropClip(
