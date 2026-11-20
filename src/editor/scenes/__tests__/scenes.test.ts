@@ -154,12 +154,15 @@ describe('scene authoring', () => {
   it('lists RPGScript trigger names for the scene inspector', async () => {
     const { store } = await createFixture();
     await store.saveScript('first', '#door\n  action,open\n@open\n  +log("open")\n');
-    await store.saveScript('second', '#floor\n  step,walk\n#door\n  action,close\n');
+    await store.saveScript(
+      'second',
+      '#step@floor\n  +log("walk")\n#@door\n  +log("close")\n#timer@clock, 250\n  +log("tick")\n',
+    );
     const response = await dispatchAssetRequest(store, 'GET', '/api/rpg-triggers', '');
     expect(response.status).toBe(200);
     expect(JSON.parse(String(response.body))).toEqual({
-      names: ['door', 'floor'],
-      sources: { door: ['first', 'second'], floor: ['second'] },
+      names: ['clock', 'door', 'floor'],
+      sources: { clock: ['second'], door: ['first', 'second'], floor: ['second'] },
     });
     expect(
       (await dispatchAssetRequest(store, 'POST', '/api/scripts/missing/open', '')).status,

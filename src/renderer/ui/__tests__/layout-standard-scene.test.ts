@@ -16,6 +16,46 @@ import {
 import { renderStandardUiPreview } from '../standard-ui.js';
 
 describe('LayoutStandardScene', () => {
+  it('renders a log-only window over all UI and restores the previous view', () => {
+    const layout = new LayoutStandardScene(new Scene('room', 3, 3, 'regular-z', STANDARD_BACKGROUND, []));
+    layout.tabs.select('inventory');
+    layout.conversationOpen = true;
+    layout.message.text = 'Hidden dialogue';
+    layout.centerToast.visible = true;
+    layout.centerToast.setMessage('Hidden toast', 120, 40);
+    layout.appendLog('Normal entry');
+    layout.appendLog('Error entry', true);
+    const original = new CellBuffer(120, 40, STANDARD_BACKGROUND);
+    layout.render(original);
+    layout.toggleLogWindow();
+    const buffer = new CellBuffer(120, 40, STANDARD_BACKGROUND);
+    layout.render(buffer);
+    const text = getPlainText(buffer);
+    expect(text).toContain('Normal entry');
+    expect(text).toContain('Error entry');
+    expect(text).not.toContain('Hidden');
+    expect(text).not.toContain('Inventory');
+    expect(layout.getScenePoint(10, 10)).toBeUndefined();
+    expect(layout.getTabAt(10, 25)).toBeUndefined();
+    expect(layout.getLogSelectionRect()).toEqual({ x: 2, y: 2, width: 116, height: 36 });
+    const errorRow = text.split('\n').findIndex((line) => line.includes('Error entry'));
+    expect(buffer.get(3, errorRow).fg).toEqual(ERROR_LOG_FG);
+    layout.toggleLogWindow();
+    const restored = new CellBuffer(120, 40, STANDARD_BACKGROUND);
+    layout.render(restored);
+    expect(getPlainText(restored)).toBe(getPlainText(original));
+    expect(layout.tabs.selectedId).toBe('inventory');
+  });
+
+  it('shows an empty log window even when the terminal is below the scene minimum size', () => {
+    const layout = new LayoutStandardScene(new Scene('room', 1, 1, 'regular-z', STANDARD_BACKGROUND, []));
+    layout.toggleLogWindow();
+    const buffer = new CellBuffer(30, 12, STANDARD_BACKGROUND);
+    layout.render(buffer);
+    expect(getPlainText(buffer)).toContain('No log entries yet.');
+    expect(layout.getLogSelectionRect()).toEqual({ x: 2, y: 2, width: 26, height: 8 });
+  });
+
   it('uses black dialogue backgrounds only while no dialogue text is displayed', () => {
     const layout = new LayoutStandardScene(new Scene('room', 1, 1, 'regular-z', STANDARD_BACKGROUND, []));
     layout.conversationOpen = true;

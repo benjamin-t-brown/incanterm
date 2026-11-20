@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "8f12b659-2f04-46ec-a2ee-5139caf9fd9f",
+  "label": "fg_maintenance",
+  "visual": {
+    "type": "sprite",
+    "id": "88e3d559-2858-4ff5-845d-cd2619812fd0",
+    "index": 0
+  },
+  "width": 4,
+  "height": 7,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

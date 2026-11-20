@@ -1,5 +1,5 @@
 import { loadSceneByReference } from '../game/load-scene.js';
-import { loadRpgScripts } from '../game/rpgscript/index.js';
+import { loadRpgScripts, TriggerType } from '../game/rpgscript/index.js';
 import { commands } from '../game/scene-commands.js';
 import { loadPortraitAssets } from '../game/portrait-assets.js';
 import { getProjectSource, type ProjectSourceOptions } from '../project/project.js';
@@ -17,6 +17,13 @@ export async function loadGame(
   const settings = await loadSessionConfig(assetsRoot);
   const scene = await loadSceneByReference(assetsRoot, sceneId);
   const scripts = await loadRpgScripts(assetsRoot, { commands });
+  for (const name of settings.timerTriggers ?? []) {
+    const trigger = scripts.triggers.get(name);
+    if (!trigger)
+      throw new Error(`session-config.json: timerTriggers references unknown RPGScript trigger ${name}`);
+    if (!trigger.calls.some((call) => call.type === TriggerType.TIMER))
+      throw new Error(`session-config.json: RPGScript trigger ${name} has no timer bindings`);
+  }
   for (const { definition } of scene.itemAssets.values()) {
     for (const name of [definition.examineScript, definition.combineFailScript, ...definition.combinations.map((rule) => rule.script)]) {
       if (name && scripts.get(name)?.parameters.length !== 0)
@@ -33,6 +40,7 @@ export async function loadGame(
     portraits,
     dialogueAnimation: options.dialogueAnimation ?? settings.dialogueAnimation,
     portraitAnimation: options.portraitAnimation ?? settings.portraitAnimation,
+    sessionTimerTriggers: settings.timerTriggers,
     allowPlayerSpawn: options.allowPlayerSpawn,
     reloadPortraits: () => loadPortraitAssets(assetsRoot),
     loadSceneById: (reference: string) => loadSceneByReference(assetsRoot, reference),

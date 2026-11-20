@@ -31,6 +31,7 @@ export type CompiledCommand = Readonly<
     command: string;
     line: number;
     targets?: readonly Readonly<{ name: string; argumentCount: number }>[];
+    result?: Command['result'];
   }
 >;
 
@@ -51,26 +52,30 @@ export type CommandRegistry<Host = unknown> = Readonly<
   >
 >;
 
-export function defineCommand<T extends Record<string, unknown>, Host = unknown>({
-  parse,
-  execute,
-  targets,
-}: {
-  parse: (args: Command['args'], location: string, parameters: readonly string[]) => T | undefined;
-  execute: (step: T, context: CommandContext, host: Host) => void;
-  targets?: (step: T) => CompiledCommand['targets'];
-}) {
+export function defineCommand<T extends Record<string, unknown>, Host = unknown>(
+  definition: {
+    parse: (args: Command['args'], location: string, parameters: readonly string[]) => T | undefined;
+    targets?: (step: T) => CompiledCommand['targets'];
+  } & (
+    | { returnsValue?: false; execute: (step: T, context: CommandContext, host: Host) => void }
+    | { returnsValue: true; execute: (step: T, context: CommandContext, host: Host) => RuntimeValue }
+  ),
+) {
+  const { parse, targets } = definition;
   function compile(
     command: Command,
     location: string,
     parameters: readonly string[],
   ): Readonly<T & CompiledCommand> {
+    if (command.result && !definition.returnsValue)
+      throw new Error(`${location}: Command ${command.type} does not return a value`);
     const step = parse(command.args, location, parameters);
     if (!step) throw new Error(`${location}: Command ${command.type} is not supported yet`);
     return {
       ...step,
       command: command.type,
       line: command.i,
+      ...(command.result ? { result: Object.freeze(command.result) } : {}),
       targets: targets
         ? Object.freeze(targets(step)?.map((target) => Object.freeze(target)))
         : undefined,
@@ -79,7 +84,15 @@ export function defineCommand<T extends Record<string, unknown>, Host = unknown>
   return Object.assign(compile, {
     // The registry pairs a command's parser and implementation under the same name.
     parse,
-    run: (step: CompiledCommand, context: CommandContext, host: Host) =>
-      execute(step as T & CompiledCommand, context, host),
+    run: (step: CompiledCommand, context: CommandContext, host: Host) => {
+      if (!definition.returnsValue) {
+        definition.execute(step as T & CompiledCommand, context, host);
+        return;
+      }
+      const result = definition.execute(step as T & CompiledCommand, context, host);
+      if (!step.result) return;
+      if ('localName' in step.result) context.setLocal(step.result.localName, result);
+      else context.setGlobal(step.result.storageKey, result);
+    },
   });
 }

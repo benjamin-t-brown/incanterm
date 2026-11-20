@@ -42,6 +42,7 @@ export async function startHttpServer(options: {
   dialogueAnimation?: DialogueAnimationOptions;
   portraitAnimation?: PortraitAnimationOptions;
   allowPlayerSpawn?: boolean;
+  sessionTimerTriggers?: readonly string[];
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -58,7 +59,8 @@ export async function startHttpServer(options: {
 
   webSocketServer.on('connection', (socket) => {
     attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits,
-      options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn);
+      options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn,
+      options.sessionTimerTriggers);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -89,6 +91,7 @@ function attachSocket(
   dialogueAnimation?: DialogueAnimationOptions,
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
+  sessionTimerTriggers?: readonly string[],
 ): void {
   let sendingFrame = false;
   const session = createGameSession(
@@ -109,6 +112,7 @@ function attachSocket(
     dialogueAnimation,
     portraitAnimation,
     allowPlayerSpawn,
+    sessionTimerTriggers,
   );
   function handleSessionError(error: unknown): void {
     console.error('Game session failed:', error);

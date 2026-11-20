@@ -1,6 +1,6 @@
 # RPGScript extraction from regem-ludos
 
-Source snapshot for adapting the user's RPGScript language to Incanterm. These are reference sources, not the implemented Incanterm runtime. The extension's parser, TextMate grammar, and Iro source were updated to recognize and highlight `else()` and to color conditional and command-call parentheses as control flow; other copied files retain their original contents.
+Source snapshot for adapting the user's RPGScript language to Incanterm. These are reference sources, not the implemented Incanterm runtime. The language extension is now maintained in [rpgscript-vs](https://github.com/benjamin-t-brown/rpgscript-vs) and is no longer included in this snapshot.
 
 See [the adaptation design](../../docs/design/rpgscript.md) for the intended server implementation and [manifest.json](manifest.json) for source provenance and per-file SHA256 hashes. The snapshot captures working-tree contents, which may differ from the recorded Git commit.
 
@@ -16,20 +16,11 @@ See [the adaptation design](../../docs/design/rpgscript.md) for the intended ser
 | `scripts/get-rpgscript-collection.js` | Script collection generation |
 | `src/rpgscript/` | Original script corpus, examples, language tests, and gameplay usage |
 | `src/__tests__/` | Parser, conditionals, storage, scene-command tests, and test setup references |
-| `rpgscript-vs/` | VS Code extension, TextMate grammar, language configuration, language server, and build sources |
-| `rpgscript-format/` | Separate VS Code formatter extension and build sources |
+| `rpgscript-format/` | Legacy formatter reference; not required for editor integration |
 | Root package/config files | Original dependency and test configuration references, not an Incanterm package setup |
 
-## Editor features preserved
-
-The language extension includes `.rpgscript` registration, TextMate highlighting, language configuration, icon, syntax source, completion, lint/diagnostics, hover documentation, and definitions. Its language-server parser is customized for editor features and must not be blindly replaced by the runtime parser. The separate formatter is included too.
-
-Follow [Install RPGScript support in Cursor](../../docs/rpgscript-cursor-setup.md)
-to build and install the adapted extension from a fresh checkout. Configure
-`rpgscript.scriptsRoot` as `assets/scripts` and `rpgscript.sceneCommandsPath` as
-`src/game/scene-commands.ts`, relative to the workspace folder. Command
-discovery inspects the `commands` object and matching declarations; an arbitrary
-new registry format will require updating this discovery logic.
+Follow the [editor setup guide](../../docs/rpgscript-cursor-setup.md) to build and
+install the standalone extension for Incanterm.
 
 ## Extraction boundaries
 

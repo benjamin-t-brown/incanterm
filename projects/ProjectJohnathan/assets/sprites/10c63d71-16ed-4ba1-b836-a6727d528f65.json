@@ -1,0 +1,1 @@
+{"format":"incanterm-sprite","version":3,"id":"10c63d71-16ed-4ba1-b836-a6727d528f65","label":"pillar_1x5","width":1,"height":5,"originX":0,"originY":0,"font":"consolas","cellPalette":[["█","red","black"],["║","white","black"]],"sprites":[{"layers":[{"id":"layer-1","name":"Layer 1","visible":true,"locked":false,"cells":{"indices":[1,2,2,2,1]}}]}]}

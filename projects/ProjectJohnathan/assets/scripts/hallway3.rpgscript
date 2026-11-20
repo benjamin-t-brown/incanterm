@@ -1,48 +1,56 @@
-#hallway3Load
-  load,hallway3Load
-@hallway3Load
+#load@hallway3Load
   +setPlayerWalkCh(Johnathan, 3x3)
+  +?is(schoolPuzzle.bookReturned):{
+    +despawnCh(Ada)
+    +setAnimState(Skye, idle)
+  }
 
 #hallway3Update
   timer,hallway3Updater,2000
 @hallway3Updater
   // move stuff skip wait
 
-#hallway3_toHallway2
-  step,hallway3_toHallway2
-@hallway3_toHallway2
+#step@hallway3_toHallway2
   +changeScene(hallway2, FromHallway3)
 
-#hallway3_toOfficeLift
-  step,hallway3_toOfficeLift
-@hallway3_toOfficeLift
+#step@hallway3_toOfficeLift
   +changeScene(officeLift, FromHallway3)
 
-#hallway3_toRevirtualisEntrance
-  step,hallway3_toRevirtualisEntrance
-@hallway3_toRevirtualisEntrance
+#step@hallway3_toRevirtualisEntrance
   +changeScene(revirtualisEntrance, FromHallway3)
 
 @hallway3_SkyeAdaTalk
-  +:ld(Ada, left)
   +walkToMarker(Johnathan, MarkerAdaSkyeTalk)
   +:ld(Johnathan, up)
-  +^hallway3.skyeAdaTalk=0
-  +hallway3.skyeAdaTalk={hallway3.skyeAdaTalk}+1
-  +?switch(hallway3.skyeAdaTalk):{
-    1:{
-      +:hallway3_AdaSkye1()
+  +?isnot(schoolPuzzle.bookRequested):{
+    +:hallway3_AdaSkye1()
+    +schoolPuzzle.bookRequested=true
+  }
+  // if you know that you need the book
+  +?else:{
+    +?is(schoolPuzzle.otisToldJohnSkyeHasPass):{
+      +?once(schoolPuzzle_johnInterrupt1):{
+        +setConv()
+        Johnathan: "PLACEHOLDER John asks Ada to talk to Skye and she won't let him."
+        +endConv()
+      }
+      +?else:{
+        +setConv()
+        Johnathan: "Ada won't let me talk to Skye until she gets her physics book."
+        +endConv()
+      }
     }
-    *:{
-      +:hallway3_AdaSkye2()
+    +?else:{
+      +:hallway3_AdaSkyeDefault1()
     }
   }
 
 @hallway3_AdaSkye1
   +setConv2(Skye, Ada)
+  +:ld(Ada, left)
   Ada: "Did you find it yet?"
   +setAnimState(Skye, search look)
-  Skye: "I know it's in here somewhere... just let me keep looking."
+  Skye: "No! I know it's in here somewhere... just let me keep looking."
   Ada&sigh: "You really should consider being more organized. Your locker is starting to smell, and I do not want to have to endure that every time I come over here."
   Skye: "That's just my lunch."
   Ada&talking: "Are you perchance eating moldy bread with wet socks wrapped around it?"
@@ -51,13 +59,18 @@
   +setAnimState(Skye, idle)
   Skye: "I guess my gym clothes are in here too... But I need them for class!"
   +setConv()
-  Johnathan: "Hello! I see everything is normal with you today."
   +:ld(Ada, down)
-  Ada&sigh: "Unfortunately, yes it is."
-  Ada: "Skye has my physics text book and I need it for homework tonight."
+  +:ld(Skye, down)
+  Johnathan: "Oof, something smells rank."
+  Ada&sigh: "Indeed it does."
+  Ada&talking: "Why are you milling about here? I thought you had some sort of pizza endeavor or whatever."
+  Johnathan: "I do! I'm trying to get a job at Deliver's today, but I need to take something to the Office for Mr. Ralgo first."
+  Johnathan: "What about you? No wait, let me guess. You're going home to do homework right?"
+  Ada&sigh: "Well yes, I would be. Unfortunately Skye has my physics text book and I need it for tonights assignments."
   +setConv2(Skye, Ada)
   +walkToOffset(Skye, 1, 0)
   +:ld(Ada, left)
+  +:ld(Skye, right)
   Skye&angry: "Oh c'mon. You're always doing homework. That's like all you ever do. Can't you go one night without a stupid book?"
   Ada&sigh: "When I lend you something, I expect it back. It should be that simple."
   +walkToOffset(Skye, -1, 0)
@@ -65,11 +78,14 @@
   +setAnimState(Skye, search up)
   Skye&sigh: "Fiinne. I'll keep looking."
   +setConv()
+  +:ld(Ada, down)
+  Ada&sigh: "And so, you see, I must remain here."
   Johnathan: "I'll... uh... leave you to it."
+  +:ld(Ada, left)
   +endConv()
 
-@hallway3_AdaSkye2
-  +setConv2(Skye, Ada)
+@hallway3_AdaSkyeDefault1
+  +setConv()
   +:ld(Ada, left)
   Ada&talking: "I do not plan on leaving until you find that book."
   +setAnimState(Skye, search look)

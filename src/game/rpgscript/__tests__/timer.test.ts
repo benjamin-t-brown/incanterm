@@ -21,13 +21,13 @@ it('tracks independent repeating intervals and resets scene bindings', () => {
   expect(logs).toHaveLength(3);
 });
 
-it('defers timers during dialogue and coalesces missed ticks', () => {
+it.each(['scene', 'session'])('defers %s timers during dialogue and coalesces missed ticks', (scope) => {
   const logs: string[] = [];
   const runner = new ScriptRunner(parseRpgScript(
     '#clock\ntimer,this\n@clock\n+log("Tick!")\n@talk\nGuide: "Hello"',
     'timer.rpgscript',
   ), (message) => logs.push(message));
-  runner.restartTimers(['clock']);
+  runner.startTimers(scope === 'scene' ? ['clock'] : [], scope === 'session' ? ['clock'] : []);
   runner.start('talk');
   runner.updateTimers(3500);
   expect(logs).toEqual([]);
@@ -36,6 +36,23 @@ it('defers timers during dialogue and coalesces missed ticks', () => {
   expect(logs).toEqual([expect.stringContaining('Tick!')]);
   runner.updateTimers(500);
   expect(logs).toEqual([expect.stringContaining('Tick!'), expect.stringContaining('Tick!')]);
+});
+
+it('starts fresh session clocks for each runner and schedules duplicate names only once', () => {
+  const library = parseRpgScript('#clock\ntimer,this,100\n@clock\n+log("Tick!")', 'timer.rpgscript');
+  const firstLog: string[] = [];
+  const secondLog: string[] = [];
+  const first = new ScriptRunner(library, (message) => firstLog.push(message));
+  const second = new ScriptRunner(library, (message) => secondLog.push(message));
+  first.startTimers(['clock'], ['clock', 'clock']);
+  first.updateTimers(50);
+  second.startTimers([], ['clock']);
+  first.updateTimers(50);
+  second.updateTimers(50);
+  expect(firstLog).toHaveLength(1);
+  expect(secondLog).toHaveLength(0);
+  second.updateTimers(50);
+  expect(secondLog).toHaveLength(1);
 });
 
 it.each(['0', '-1', 'NaN', 'Infinity', '', '100,200,300'])('rejects invalid timer interval %s', (interval) => {

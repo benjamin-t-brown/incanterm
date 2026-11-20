@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "3dd110c0-a710-4513-99ff-4eb59081f21a",
+  "label": "terminal_post",
+  "visual": {
+    "type": "sprite",
+    "id": "dbff5af3-4aca-4b19-a17d-2db1558f8448",
+    "index": 0
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [
+    7
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

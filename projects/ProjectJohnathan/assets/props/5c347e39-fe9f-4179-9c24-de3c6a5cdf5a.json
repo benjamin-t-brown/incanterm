@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "5c347e39-fe9f-4179-9c24-de3c6a5cdf5a",
+  "label": "textArt_books",
+  "visual": {
+    "type": "sprite",
+    "id": "3def456d-568a-4634-8718-848b8b359dd3",
+    "index": 0
+  },
+  "width": 24,
+  "height": 4,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

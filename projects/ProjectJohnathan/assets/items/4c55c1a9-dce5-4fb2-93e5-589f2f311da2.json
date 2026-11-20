@@ -1,0 +1,12 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "4c55c1a9-dce5-4fb2-93e5-589f2f311da2",
+  "label": "Office Envelope",
+  "visual": {
+    "type": "sprite",
+    "id": "0034a331-c445-406c-a318-85555d1ed521",
+    "index": 0
+  },
+  "combinations": []
+}

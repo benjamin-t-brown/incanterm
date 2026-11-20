@@ -1,0 +1,188 @@
+#load@maintenanceLoad
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#maintenanceUpdate
+  timer,maintenanceUpdater,2000
+@maintenanceUpdater
+  // move stuff skip wait
+
+@maintenance_isUpstairs
+  +[chPos]=+getChPos(John)
+  +[result]=?lte([chPos]->1, 13)
+  <[result]
+
+@maintenance_ICantReachThat
+  +setConv()
+  Johnathan: "I can't reach that from here."
+  +endConv()
+
+#step@maintenance_toRevirtualisEntrance
+  +changeScene(revirtualisEntrance, FromMaintenance)
+
+#step@maintenance_toLibrary2
+  +changeScene(library2, FromMaintenance)
+
+#step@maintenance_toLib2Upstairs
+  +changeScene(library2, FromMaintenanceUp)
+
+#step@maintenance_toMusicUpstairs
+  +changeScene(music, FromMaintenanceUpstairs)
+
+#maintenance_nobodyHere
+  step,+?isnot(schoolPuzzle.seesNobodyIsInMaintenance):maintenance_nobodyHere
+@maintenance_nobodyHere
+  +schoolPuzzle.seesNobodyIsInMaintenance=true
+  +setConv()
+  +walkToOffset(John, -2, 0)
+  +:ld(Johnathan, down)
+  Johnathan: "What? There's nobody here?"
+  +endConv()
+
+#@maintenance_terminal
+  +?is(+:maintenance_isUpstairs()):{
+    +:maintenance_ICantReachThat()
+    <
+  }
+
+  +?isnot(schoolPuzzle.isTryingToGetPastBlueDoor):{
+    +setConv()
+    Johnathan: "I probably shouldn't touch that."
+    +endConv()
+    <
+  }
+
+  +setConv()
+  +walkToMarker(John, MarkerTerminal)
+  +?isnot(schoolPuzzle.seesNobodyIsInMaintenance):{
+    +:maintenance_nobodyHere()
+    +walkToMarker(John, MarkerTerminal)
+    +setConv()
+  }
+
+  +?isnot(schoolPuzzle.needsMaintenancePass):{
+    +:ld(John, up)
+    +setAnimState(Johnathan, interact up)
+    +:officeLift_JohnathanLearnsHeNeedsAPass(true)
+    +schoolPuzzle.needsMaintenancePass=true
+  }
+  +?else:{
+    +:ld(John, down)
+    +^maintenance.terminal=0
+    +maintenance.terminal={maintenance.terminal}+1
+    +?switch(maintenance.terminal):{
+      1: {
+        Johnathan: "It's a terminal. There's a bunch of functions on it that are locked behind Maintenance Mode."
+      }
+      *: {
+        Johnathan: "It's a terminal."
+      }
+    }
+  }
+  +setAnimState(Johnathan, idle)
+  +endConv()
+
+#@maintenance_desk1
+  +?is(+:maintenance_isUpstairs()):{
+    +:maintenance_ICantReachThat()
+    <
+  }
+  +setConv()
+  +walkToMarker(John, MarkerDesks)
+  +?isnot(schoolPuzzle.seesNobodyIsInMaintenance):{
+    +:maintenance_nobodyHere()
+    +setConv()
+    +walkToMarker(John, MarkerDesks)
+  }
+  +:ld(John, left)
+  +^maintenance.desk1=0
+  +maintenance.desk1={maintenance.desk1}+1
+  +?switch(maintenance.desk1):{
+    1: {
+      Johnathan: "There should be somebody here twiddling their thumbs and enjoying the sunlight."
+    }
+    2: {
+      Johnathan: "I wish the desks in our classroom were this nice."
+    }
+    *:{
+      Johnathan: "There's nobody here."
+    }
+  }
+  +endConv()
+
+#@maintenance_locker
+  +?is(+:maintenance_isUpstairs()):{
+    +:maintenance_ICantReachThat()
+    <
+  }
+  +setConv()
+  +walkToMarker(John, MarkerLocker)
+  +?isnot(schoolPuzzle.seesNobodyIsInMaintenance):{
+    +:maintenance_nobodyHere()
+    +setConv()
+    +walkToMarker(John, MarkerLocker)
+  }
+  +:ld(John, up)
+  +^maintenance.locker=0
+  +maintenance.locker={maintenance.locker}+1
+  +?switch(maintenance.locker):{
+    1: {
+      Johnathan: "That's where maintenance keeps their IT equipment. They double up tech and mechanics."
+    }
+    2: {
+      Johnathan: "I wonder how much computer components are worth nowadays..."
+    }
+    *:{
+      Johnathan: "I don't need anything from the maintenance locker."
+    }
+  }
+  +endConv()
+
+#@maintenance_sunlight
+  +setConv()
+  +lookAtMarker(Johnathan, MarkerWindows)
+  +^maintenance.sunlight=0
+  +maintenance.sunlight={maintenance.sunlight}+1
+  +?switch(maintenance.sunlight):{
+    1: {
+      Johnathan: "The natural sun in here is actually really nice."
+    }
+    *:{
+      Johnathan: "The natural sun in here is actually really nice."
+    }
+  }
+  +endConv()
+
+
+#@maintenance_plants1
+
+  +:maintenance_plants(1)
+#@maintenance_plants2
+  +:maintenance_plants(2)
+
+@maintenance_plants(id)
+  +?is(+:maintenance_isUpstairs()):{
+    +:maintenance_ICantReachThat()
+    <
+  }
+  +setConv()
+  +?eq([id], 1):{
+    +walkToMarker(John, PlantBox1)
+  }
+  +?eq([id], 2):{
+    +walkToMarker(John, PlantBox2)
+  }
+  +:ld(John, up)
+  +^maintenance.plants=0
+  +maintenance.plants={maintenance.plants}+1
+  +?switch(maintenance.plants):{
+    1: {
+      Johnathan: "Maintenance brought these in here last year, I guess because of the sunlight. It was a good idea!"
+    }
+    2: {
+      Johnathan: "These are blooming great."
+    }
+    *:{
+      Johnathan: "I don't see anything interesting among these flowers."
+    }
+  }
+  +endConv()

@@ -175,6 +175,8 @@
     1678,
     1679,
     1850,
+    1851,
+    1869,
     1870,
     2520,
     2521,
@@ -414,7 +416,7 @@
       "id": "marker-1",
       "type": "Marker",
       "name": "MarkerPlayer",
-      "x": 61,
+      "x": 60,
       "y": 20
     },
     {
@@ -427,8 +429,47 @@
     {
       "id": "4b66935e-bfc6-4b0b-a123-33f89e334843",
       "type": "Marker",
-      "name": "FromHallway4",
+      "name": "FromMaintenance",
       "x": 39,
+      "y": 18
+    },
+    {
+      "id": "poster_x-1",
+      "type": "Prop",
+      "name": "poster_x_1",
+      "prop": "poster_x",
+      "state": "default",
+      "depthOffset": 0,
+      "x": 75,
+      "y": 10,
+      "z": 0
+    },
+    {
+      "id": "8a8eb61a-8562-456f-a901-937bbab347e3",
+      "type": "Marker",
+      "name": "MarkerDoor",
+      "x": 60,
+      "y": 14
+    },
+    {
+      "id": "0451d9fa-6401-4ad8-bc98-bff2d7111779",
+      "type": "Marker",
+      "name": "MarkerTerminal",
+      "x": 52,
+      "y": 18
+    },
+    {
+      "id": "6ffcd49a-3354-4886-afc5-2b3497feb311",
+      "type": "Marker",
+      "name": "MarkerPoster",
+      "x": 76,
+      "y": 14
+    },
+    {
+      "id": "876e4dd0-5b6c-43a3-86de-7441be6a6074",
+      "type": "Marker",
+      "name": "MarkerDoorCentered",
+      "x": 60,
       "y": 18
     }
   ],
@@ -459,12 +500,132 @@
       "id": "20adb2ef-563b-452d-a6ef-44e8d9aa366a",
       "trigger": "revirtualisEntrance_toHallway3",
       "event": "action",
-      "x": 84,
-      "y": 16,
+      "x": 81,
+      "y": 20,
       "width": 4,
-      "height": 5,
+      "height": 2,
       "actionEnabled": false,
       "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "e80cc3bc-3f13-4996-a536-059969b134e0",
+      "trigger": "revirtualisEntrance_toMaintenance",
+      "event": "action",
+      "x": 36,
+      "y": 20,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "9785cc55-110c-45f4-a5f4-48354df16ec1",
+      "trigger": "revirtualisEntrance_toHallway3",
+      "event": "action",
+      "x": 83,
+      "y": 18,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "8cbba313-2f08-4f66-8e06-2a78e98c3ccb",
+      "trigger": "revirtualisEntrance_toHallway3",
+      "event": "action",
+      "x": 85,
+      "y": 16,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "a643ca99-3a53-431e-afed-cf2179737c3f",
+      "trigger": "revirtualisEntrance_toHallway3",
+      "event": "action",
+      "x": 87,
+      "y": 14,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "76ef584b-0dd3-46a8-be99-6f1e649636ee",
+      "trigger": "revirtualisEntrance_toMaintenance",
+      "event": "action",
+      "x": 34,
+      "y": 18,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "82a2a866-fa25-42a5-af29-138ef2d21054",
+      "trigger": "revirtualisEntrance_toMaintenance",
+      "event": "action",
+      "x": 32,
+      "y": 16,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "ee6a2076-10da-4d07-ae7d-6405787a03f4",
+      "trigger": "revirtualisEntrance_toMaintenance",
+      "event": "action",
+      "x": 30,
+      "y": 14,
+      "width": 4,
+      "height": 2,
+      "actionEnabled": false,
+      "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "ec98b485-f613-40bc-9dfd-c059dbd06d99",
+      "trigger": "revirtualisEntrance_door",
+      "event": "action",
+      "x": 57,
+      "y": 7,
+      "width": 6,
+      "height": 7,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "687fe41a-6425-48f9-92d1-5bbd99a6f16b",
+      "trigger": "revirtualisEntrance_terminal",
+      "event": "action",
+      "x": 52,
+      "y": 10,
+      "width": 3,
+      "height": 3,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "c83e4d86-98a3-4d42-94db-71be251c9ecf",
+      "trigger": "revirtualisEntrance_poster",
+      "event": "action",
+      "x": 75,
+      "y": 10,
+      "width": 3,
+      "height": 3,
+      "actionEnabled": true,
+      "stepEnabled": false,
       "description": ""
     }
   ]

@@ -9,6 +9,7 @@ import { createSprite, createCharacter } from '../../editor/schema.js';
 import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
 import { startLoopback, type Loopback } from '../start.js';
 import { loadSessionConfig } from '../../project/session-config.js';
+import { routeLoopbackInput } from '../input.js';
 
 describe('isolated loopback game', () => {
   let assetsRoot: string | undefined;
@@ -199,6 +200,36 @@ describe('isolated loopback game', () => {
     }
   });
 
+  it('runs configured timer bindings without binding them to the scene', async () => {
+    const root = await createFixture('');
+    await fs.appendFile(
+      path.join(root, 'scripts', 'greeting.rpgscript'),
+      '\n#clock\nload,greeting\ntimer,tick,50\n@tick\nGuide: "Session tick"\n',
+    );
+    await fs.writeFile(
+      path.join(root, 'session-config.json'),
+      JSON.stringify({ timerTriggers: ['clock'], dialogueAnimation: { enabled: false } }),
+    );
+    const received = getMessages();
+    const game = await startLoopback({
+      sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage,
+    });
+    running.push(game);
+    expect((await getFrameContaining(received, 'Session tick')).type).toBe('terminal-data');
+  });
+
+  it.each([
+    { timerTriggers: 'room-entry', error: 'timerTriggers must be an array' },
+    { timerTriggers: [' '], error: 'timerTriggers must be an array' },
+    { timerTriggers: ['missing'], error: 'unknown RPGScript trigger missing' },
+    { timerTriggers: ['room-entry'], error: 'room-entry has no timer bindings' },
+  ])('rejects invalid session timer triggers: $error', async ({ timerTriggers, error }) => {
+    const root = await createFixture();
+    await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({ timerTriggers }));
+    await expect(startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage() {} }))
+      .rejects.toThrow(error);
+  });
+
   it('reads dialogue animation settings from the selected assets folder', async () => {
     const root = await createFixture();
     await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({
@@ -318,6 +349,65 @@ describe('isolated loopback game', () => {
     game.sendInput(' ');
     const finished = await getFrameContaining(received, 'Inventory');
     if (finished.type === 'terminal-data') expect(finished.data).toContain('Inventory');
+  });
+
+  it.each(['\x00', '\x1e'])('opens an obscured error log through terminal input %j', async (key) => {
+    const root = await createFixture();
+    await fs.writeFile(
+      path.join(root, 'scripts', 'greeting.rpgscript'),
+      '#room-entry\nload,greeting\n@greeting\n+setConv()\n+bad={missing}+1\n+log("UNREACHABLE")',
+    );
+    const received = getMessages();
+    const game = await startLoopback({
+      sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage,
+    });
+    running.push(game);
+    expect((await received.next()).type).toBe('session-status');
+    const opening = await received.next();
+    expect(opening.type).toBe('terminal-data');
+    if (opening.type === 'terminal-data') {
+      expect(opening.logSelection).toBeUndefined();
+      expect(opening.data).not.toContain('[RPGSCRIPT ERROR]');
+    }
+    const routed = routeLoopbackInput(Buffer.from(key).toString('utf8'), 'client');
+    expect(routed.forward).toBe(key);
+    game.sendInput(routed.forward ?? '');
+    const frame = await getFrameContaining(received, '[RPGSCRIPT ERROR]');
+    if (frame.type === 'terminal-data') {
+      expect(frame.logSelection).toBeDefined();
+      expect(frame.data).not.toContain('UNREACHABLE');
+    }
+  });
+
+  it('toggles the large log window with a plain backtick through the real terminal client', async () => {
+    const root = await createFixture();
+    await fs.writeFile(
+      path.join(root, 'scripts', 'greeting.rpgscript'),
+      '#room-entry\nload,greeting\n@greeting\n+log("Diagnostic entry")\n+setConv()\nGuide: "First"\nGuide: "Second"',
+    );
+    const received = getMessages();
+    const game = await startLoopback({
+      sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage,
+    });
+    running.push(game);
+    await received.next(); // session status
+    await getFrameContaining(received, 'First');
+    const routed = routeLoopbackInput('`', 'client');
+    expect(routed.forward).toBe('`');
+    game.sendInput(routed.forward ?? '');
+    const log = await getFrameContaining(received, 'Diagnostic entry');
+    if (log.type === 'terminal-data') {
+      expect(log.data).toContain('Log | ` to return');
+      expect(log.data).not.toContain('First');
+      expect(log.logSelection?.height).toBe(20);
+    }
+    game.sendInput('`');
+    const restored = await getFrameContaining(received, 'First');
+    if (restored.type === 'terminal-data') {
+      expect(restored.data).not.toContain('Diagnostic entry');
+      expect(restored.data).not.toContain('Second');
+      expect(restored.logSelection).toBeUndefined();
+    }
   });
 
   it('loads a named sprite-sheet portrait through the server and shows it beside dialogue', async () => {

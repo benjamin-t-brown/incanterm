@@ -1,6 +1,4 @@
-#hallwayGymLoad
-  load,hallwayGymLoad
-@hallwayGymLoad
+#load@hallwayGymLoad
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #hallwayGymUpdate
@@ -8,12 +6,16 @@
 @hallwayGymUpdater
   // move stuff skip wait
 
-#hallwayGym_toHallway1
-  step,hallwayGym_toHallway1
-@hallwayGym_toHallway1
+#step@hallwayGym_toHallway1
   +changeScene(hallway1, FromGym)
 
 #@hallwayGym_vendEnergy
+  +?is(schoolPuzzle.drinkRequested):{
+    +walkToMarker(player, EnergyMarker)
+    +:ld(player, up)
+    +:schoolPuzzle_buyEnergyDrink()
+    <
+  }
   +setConv()
   +^tmp.hallwayGymEnergyTalk=0
   +walkToMarker(player, EnergyMarker)
@@ -54,11 +56,9 @@
   +endConv()
 
 #@hallwayGym_trash
-  +setConv()
   +walkToMarker(player, TrashMarker)
   +:ld(player, up)
-  Johnathan: "Just a trash can. Nothing useful in there, not even any spare change today."
-  +endConv()
+  +:schoolPuzzle_searchTrash(gym)
 
 #@hallwayGym_trianglePoster
   +^tmp.hallwayGymTriangleTalk=0

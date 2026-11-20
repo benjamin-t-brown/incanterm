@@ -67,8 +67,9 @@ my-game/
 
 Paths are relative to the manifest. `assets` must stay inside the project directory.
 The entry scene must exist. New projects include an empty, playable `start` scene.
-Optional `assets/session-config.json` controls dialogue and portrait animation settings
-for both standalone servers and local previews.
+Optional `assets/session-config.json` controls dialogue and portrait animation and
+can bind [session-wide RPGScript timers](docs/design/rpgscript.md#timer-triggers).
+These settings apply to standalone servers and local previews.
 
 Editor saves merge independent changes against the last loaded version and reject
 conflicts rather than overwriting newer disk content. Binary reference images use
@@ -124,6 +125,11 @@ Left-click a world item to collect it; right-click to examine it.
 Open Inventory by clicking its tab or pressing Tab, click **EXAMINE** to inspect an item,
 or select an item and click another inventory item or a world item/prop/character to
 combine them. Esc cancels the selection.
+
+Press **`** (backtick, without Ctrl) to open a large log-only window, even behind
+dialogue, choices, or a center toast. Press **`** again to return to the previous
+UI without cancelling or advancing the interaction. Use Up/Down or Page Up/Down
+to scroll the log; browser users can select and copy its text.
 
 ```text
 +addItem(OfficeKey)
@@ -245,5 +251,5 @@ legacy `assets/`, or `ed-ascii/data/`.
 Engine code remains in `src/`; the editor's own images live in `src/editor/resources/`.
 The old `ed-ascii/` painter remains an optional import tool, not a runtime dependency.
 
-See [RPGScript setup in Cursor](docs/rpgscript-cursor-setup.md) and the
+See [RPGScript setup in Cursor and VS Code](docs/rpgscript-cursor-setup.md) and the
 [design overview](docs/design/overview.md) for language tooling and design notes.

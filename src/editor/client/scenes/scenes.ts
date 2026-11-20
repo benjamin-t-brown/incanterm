@@ -112,7 +112,11 @@ export function mountScenes(root: HTMLElement): () => void {
       <div class="toolbar-row"><strong id="scene-title">NO SCENE</strong></div>
       <div id="scene-workspace" class="scene-workspace" hidden>
            <section class="scene-stage"><div class="scene-tools"><span>Box select · Ctrl+click to add · Ctrl+A all · Ctrl+C, then hover scene &amp; Ctrl+V · Hold Tab for names, triggers, markers &amp; blocked cells · Esc deselect</span><div class="scene-zoom-controls workspace-controls"><button type="button" id="scene-zoom-out" aria-label="Zoom out">−</button><span id="scene-zoom-label">100%</span><button type="button" id="scene-zoom-in" aria-label="Zoom in">+</button><button type="button" id="scene-fit">FIT</button></div></div>
-           <div class="scene-scroll" id="scene-viewport"><canvas id="scene-canvas" tabindex="0" aria-label="Scene placement canvas"></canvas><canvas id="scene-hover" aria-hidden="true"></canvas></div></section>
+           <div class="scene-scroll" id="scene-viewport">
+             <canvas id="scene-canvas" tabindex="0" aria-label="Scene placement canvas"></canvas>
+             <div id="scene-cell-outline" aria-hidden="true" hidden></div>
+             <canvas id="scene-hover" aria-hidden="true"></canvas>
+           </div></section>
         <aside class="scene-sidebar"><div class="scene-sidebar-tabs" role="tablist" aria-label="Scene controls"><button type="button" id="scene-tab-controls" role="tab" aria-controls="scene-panel-controls" aria-selected="true">SCENE</button><button type="button" id="scene-tab-scripts" role="tab" aria-controls="scene-panel-scripts" aria-selected="false">SCRIPTS</button><button type="button" id="scene-tab-props" role="tab" aria-controls="scene-panel-props" aria-selected="false">PROPS</button></div><section id="scene-panel-controls" role="tabpanel" aria-labelledby="scene-tab-controls"><label class="scene-overlay-toggle"><input id="scene-show-triggers" type="checkbox" checked>SHOW TRIGGERS</label><label class="scene-overlay-toggle"><input id="scene-show-markers" type="checkbox" checked>SHOW MARKERS</label><label class="scene-overlay-toggle"><input id="scene-show-blocked" type="checkbox">SHOW BLOCKED CELLS</label><label class="scene-overlay-toggle"><input id="scene-show-ui" type="checkbox">SHOW UI</label><div class="scene-pair"><label>WIDTH<input id="scene-width" type="number" min="1" max="256"></label><label>HEIGHT<input id="scene-height" type="number" min="1" max="128"></label></div>
           <label>DEPTH MODE<select id="scene-depth"><option value="bottom-up">BOTTOM UP</option><option value="regular-z">REGULAR Z</option></select></label>
           <div class="scene-background-controls"><h2>BACKGROUND</h2><div class="scene-background-actions-row">
@@ -209,7 +213,8 @@ export function mountScenes(root: HTMLElement): () => void {
   root.querySelector('.simple-main')?.before(menubar);
   const statusbar = document.createElement('footer');
   statusbar.className = 'scene-statusbar';
-  statusbar.innerHTML = `<div class="scene-status-row"><button id="scene-cancel-trigger" type="button" hidden>CANCEL</button><span id="scene-status" role="status">Create a scene or open one from the list.</span></div>`;
+  statusbar.innerHTML = `<div class="scene-status-row"><button id="scene-cancel-trigger" type="button" hidden>CANCEL</button><span id="scene-status" role="status">Create a scene or open one from the list.</span></div>
+    <span id="scene-cell-status">X: --  Y: --</span>`;
   root.querySelector('.simple-main')?.after(statusbar);
   const get$ = <T extends Element>(selector: string): T => {
     const node = root.querySelector<T>(selector);
@@ -226,6 +231,8 @@ export function mountScenes(root: HTMLElement): () => void {
   const list = get$<HTMLElement>('#scene-list');
   const inspector = get$<HTMLElement>('#scene-inspector');
   const status = get$<HTMLElement>('#scene-status');
+  const cellStatus = get$<HTMLElement>('#scene-cell-status');
+  const cellOutline = get$<HTMLElement>('#scene-cell-outline');
   const newDialog = get$<HTMLDialogElement>('#scene-new-dialog');
   const canvas = get$<HTMLCanvasElement>('#scene-canvas');
   const hoverCanvas = get$<HTMLCanvasElement>('#scene-hover');
@@ -286,6 +293,7 @@ export function mountScenes(root: HTMLElement): () => void {
   let selected: ObjectRef[] = [];
   let objectClipboard: SceneClipboard | null = null;
   let canvasMouse: { clientX: number; clientY: number } | null = null;
+  let viewportPointer: Pick<PointerEvent, 'clientX' | 'clientY'> | null = null;
   let hovered: ObjectRef | null = null;
   let showPropNames = false;
   let showTriggers = true;
@@ -639,6 +647,7 @@ export function mountScenes(root: HTMLElement): () => void {
 
   function applyView(): void {
     get$<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    syncHoveredCell();
     redraw();
   }
 
@@ -678,6 +687,32 @@ export function mountScenes(root: HTMLElement): () => void {
   } {
     const rect = viewport.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  function getHoveredCell(): { x: number; y: number } | null {
+    if (!current || !viewportPointer) return null;
+    const pixel = getViewportPixel(viewportPointer);
+    const px = pixel.x - viewport.clientLeft;
+    const py = pixel.y - viewport.clientTop;
+    if (px < 0 || py < 0 || px >= viewport.clientWidth || py >= viewport.clientHeight) return null;
+    const point = getSceneCellAt(view, px, py, cell.width, cell.height);
+    return point.x >= 0 && point.y >= 0 && point.x < current.width && point.y < current.height
+      ? point
+      : null;
+  }
+
+  function syncHoveredCell(): void {
+    const point = getHoveredCell();
+    const text = point ? `X: ${point.x}  Y: ${point.y}` : 'X: --  Y: --';
+    if (cellStatus.textContent !== text) cellStatus.textContent = text;
+    cellOutline.hidden = !point;
+    if (!point) return;
+    const width = cell.width * view.zoom;
+    const height = cell.height * view.zoom;
+    cellOutline.style.left = `${view.x + point.x * width}px`;
+    cellOutline.style.top = `${view.y + point.y * height}px`;
+    cellOutline.style.width = `${width}px`;
+    cellOutline.style.height = `${height}px`;
   }
 
   function syncCursor(event?: MouseEvent): void {
@@ -1497,6 +1532,7 @@ export function mountScenes(root: HTMLElement): () => void {
     if (!scene) return;
     if (autoFit) fitView(false);
     get$<HTMLElement>('#scene-zoom-label').textContent = `${Math.round(view.zoom * 100)}%`;
+    syncHoveredCell();
     const composed = Array.from({ length: scene.width * scene.height }, () => ({
       ch: ' ',
       fg: '#000000',
@@ -1788,6 +1824,7 @@ export function mountScenes(root: HTMLElement): () => void {
     get$<HTMLButtonElement>('#scene-add-character').disabled = !current;
     get$<HTMLButtonElement>('#scene-add-marker').disabled = !current;
     get$<HTMLButtonElement>('#scene-add-trigger').disabled = !current;
+    syncHoveredCell();
     if (!current) return;
     const bg = getBackground();
     const backgroundLink = get$<HTMLAnchorElement>('#scene-background-link');
@@ -2700,12 +2737,22 @@ export function mountScenes(root: HTMLElement): () => void {
     viewport.setPointerCapture(event.pointerId);
     syncCursor();
   });
-  viewport.addEventListener('pointermove', (event) => {
-    if (!pan || pan.pointerId !== event.pointerId) return;
-    const pixel = getViewportPixel(event);
-    view = { ...view, x: pan.startX + pixel.x - pan.x, y: pan.startY + pixel.y - pan.y };
-    applyView();
-  });
+  function updateViewportPointer(event: PointerEvent): void {
+    viewportPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (event.type === 'pointermove' && pan && pan.pointerId === event.pointerId) {
+      const pixel = getViewportPixel(event);
+      view = { ...view, x: pan.startX + pixel.x - pan.x, y: pan.startY + pixel.y - pan.y };
+      applyView();
+    } else syncHoveredCell();
+  }
+  function clearViewportPointer(): void {
+    viewportPointer = null;
+    syncHoveredCell();
+  }
+  viewport.addEventListener('pointerenter', updateViewportPointer);
+  viewport.addEventListener('pointermove', updateViewportPointer);
+  viewport.addEventListener('pointerleave', clearViewportPointer);
+  viewport.addEventListener('pointercancel', clearViewportPointer);
   const endPan = () => {
     pan = null;
     syncCursor();

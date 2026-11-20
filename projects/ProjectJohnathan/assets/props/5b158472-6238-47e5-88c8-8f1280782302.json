@@ -1,0 +1,33 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "5b158472-6238-47e5-88c8-8f1280782302",
+  "label": "ldesk2",
+  "visual": {
+    "type": "sprite",
+    "id": "1b4310e2-e099-4d6a-8fd8-0efecbaea786",
+    "index": 0
+  },
+  "width": 10,
+  "height": 4,
+  "blockedCells": [
+    0,
+    1,
+    10,
+    11,
+    12,
+    22,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

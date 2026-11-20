@@ -1,0 +1,16 @@
+#load@library1Load
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#library1Update
+  timer,library1Updater,2000
+@library1Updater
+  // move stuff skip wait
+
+#step@library1_toLibrary2
+  +changeScene(library2, FromLibrary1)
+
+#step@library1_toLibrary2Up
+  +changeScene(library2, FromLibrary1Up)
+
+#step@library1_toSouthLifts
+  +changeScene(southLifts, FromLibrary)

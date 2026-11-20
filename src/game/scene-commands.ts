@@ -5,7 +5,7 @@ import type { PlayerControl } from './player-control.js';
 import type { Scene } from './scene.js';
 import type { Character } from './character.js';
 import { findCharacter, findPath, getWalkAnchor, type Point } from './character-movement.js';
-import { findAnimatedProps } from './prop-lookup.js';
+import { findAnimatedProps, findProp } from './prop-lookup.js';
 import { CHARACTER_DIRECTIONS, PROP_DEFAULT_STATE, isCharacterVariantName, type CharacterDirection } from '../editor/schema.js';
 import { defineCommand, type CommandContext } from './rpgscript/command.js';
 import { getInventoryEntries, getItemAsset, getItemCombinationScript, WorldItem, type ItemTarget } from './items.js';
@@ -426,6 +426,62 @@ const setIndex = defineCommand({
   },
 });
 
+const getCharacterPos = defineCommand({
+  returnsValue: true,
+  parse: (args, location) => args.length === 1
+    ? { character: getScriptValue(args[0], location) } : undefined,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'getCharacterPos');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    return [character.x, character.bottomY];
+  },
+});
+
+const getChPos = getCharacterPos;
+
+const getPropPos = defineCommand({
+  returnsValue: true,
+  parse: (args, location) => args.length === 1
+    ? { prop: getScriptValue(args[0], location) } : undefined,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPropInstanceName(step.prop, script, 'getPropPos');
+    const prop = findProp(game.scene, name);
+    return [prop.x, prop.y];
+  },
+});
+
+function parsePositionArgs(args: Command['args'], location: string) {
+  if (args.length !== 3) return;
+  return {
+    entity: getScriptValue(args[0], location),
+    x: getScriptValue(args[1], location),
+    y: getScriptValue(args[2], location),
+  };
+}
+
+const setChPos = defineCommand({
+  parse: parsePositionArgs,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.entity, script, 'setChPos');
+    const { x, y } = getPositionCoordinates(step, script, 'setChPos');
+    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+    game.playerControl.stopCharacter(character);
+    character.x = x;
+    character.y = y - character.bottomOffset;
+  },
+});
+
+const setPropPos = defineCommand({
+  parse: parsePositionArgs,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPropInstanceName(step.entity, script, 'setPropPos');
+    const { x, y } = getPositionCoordinates(step, script, 'setPropPos');
+    const prop = findProp(game.scene, name);
+    prop.x = x;
+    prop.y = y;
+  },
+});
+
 const chWalkToCoord = defineCommand({
   parse: (args, location) => {
     if (args.length !== 3) return;
@@ -808,6 +864,11 @@ export const commands = {
   endConv,
   endConvNR,
   setPlayerWalkCh,
+  getCharacterPos,
+  getChPos,
+  getPropPos,
+  setChPos,
+  setPropPos,
   chWalkToCoord,
   walkToMarker,
   walkToOffset,
@@ -853,6 +914,16 @@ export function getWalkDestination(
   )
     throw new Error(`${script.location}: chWalkToCoord requires integer coordinates`);
   return { name, x, y };
+}
+
+export function getPositionCoordinates(
+  step: { x: ScriptValue; y: ScriptValue }, script: CommandContext, command: string,
+): Point {
+  const x = script.value(step.x);
+  const y = script.value(step.y);
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isSafeInteger(x) || !Number.isSafeInteger(y))
+    throw new Error(`${script.location}: ${command} requires integer coordinates`);
+  return { x, y };
 }
 
 export function getWalkOffset(
@@ -913,7 +984,7 @@ export function getPropInstanceName(
 ): string {
   const name = context.value(value);
   if (typeof name !== 'string' || !name.trim())
-    throw new Error(`${context.location}: ${command} requires a prop instance name`);
+    throw new Error(`${context.location}: ${command} requires a prop instance name or ID`);
   return name;
 }
 

@@ -92,6 +92,16 @@ it('cleans up an interrupted line when another script starts', () => {
   expect(skye.state).toBe('idle');
 });
 
+it('cleans up the talking animation when dialogue is cancelled without advancing', () => {
+  const { ada, runner } = createDialogueRunner('@start\nAda: "Hello"\n+continued=true');
+  runner.start('start');
+  expect(ada.state).toBe('talking');
+  runner.cancel();
+  expect(ada.state).toBe('idle');
+  expect(runner.isIdle()).toBe(true);
+  expect(runner.getGlobal('continued')).toBeUndefined();
+});
+
 it('returns to idle before choices and supports consecutive lines from the same speaker', () => {
   const { ada, runner } = createDialogueRunner(
     '@start\nAda: "First"\nAda: "Second"\n+awaitChoice("Continue")',

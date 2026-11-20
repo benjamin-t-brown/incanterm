@@ -1,0 +1,33 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "026cbb90-7613-4b5b-88bf-ff5fad124b83",
+  "label": "plant_box",
+  "visual": {
+    "type": "sprite",
+    "id": "c9f4ca9c-ee8e-499a-a5cc-f6ce39d3a798",
+    "index": 0
+  },
+  "width": 7,
+  "height": 3,
+  "blockedCells": [
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

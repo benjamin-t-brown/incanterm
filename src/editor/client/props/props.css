@@ -305,7 +305,7 @@
   width: 100%;
   margin-bottom: 8px;
 }
-#prop-picker-sheets {
+.visual-picker-sheets {
   min-width: 0;
   overflow-y: auto;
 }

@@ -1,6 +1,4 @@
-#southLiftsLoad
-  load,southLiftsLoad
-@southLiftsLoad
+#load@southLiftsLoad
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #southLiftsUpdate
@@ -8,7 +6,15 @@
 @southLiftsUpdater
   // move stuff skip wait
 
-#southLifts_toHallway2
-  step,southLifts_toHallway2
-@southLifts_toHallway2
+#step@southLifts_toHallway2
   +changeScene(hallway2, FromSouthLifts)
+
+#step@southLifts_toLibrary1
+  +changeScene(library1, FromSouthLifts)
+
+// Assign these talk scripts to the future repair crew and nearby Haddy.
+@southLifts_MaintenanceTalk
+  +:schoolPuzzle_talkMaintenance()
+
+@southLifts_HaddyTalk
+  +:schoolPuzzle_talkHaddy()

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getCharacterScriptNames } from '../editor/schema.js';
-import { Scene, Prop } from '../game/scene.js';
+import { Background, Scene, Prop } from '../game/scene.js';
 import { Character } from '../game/character.js';
 import { AnimatedProp } from '../game/animated-prop.js';
 import { findCharacter } from '../game/character-movement.js';
@@ -15,6 +15,7 @@ import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createTextColorFi
 import type { Rect } from '../renderer/ui/element.js';
 import { CellBuffer } from '../game/cell-buffer.js';
 import type { SelectionRect } from '../protocol/messages.js';
+import { hasCancelUiAndOpenLogInput, TOGGLE_LOG_WINDOW_INPUT } from '../protocol/input.js';
 import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type PortraitAsset, type PortraitAssets, type PortraitFrame } from '../game/portrait-assets.js';
 
 const MAX_AXIS = 1000;
@@ -61,17 +62,18 @@ export function createGameSession(
   dialogueAnimation?: DialogueAnimationOptions,
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
+  sessionTimerTriggers: readonly string[] = [],
 ): GameSession {
-  // Each connection owns its character positions, animation clocks and walking path.
+  // Each connection owns its movable entities and their animation and walking state.
   scene = new Scene(
     scene.id,
     scene.width,
     scene.height,
     scene.depthMode,
     scene.clear,
-    scene.entities.map((entity) => (entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity)),
+    scene.entities.map((entity) => entity instanceof Prop && !(entity instanceof Background) ? entity.clone() : entity),
     scene.triggers,
-    scene.blockedCells,
+    scene.staticBlockedCells,
     scene.actionTriggers,
     scene.stepTriggers,
     scene.markers,
@@ -346,8 +348,8 @@ export function createGameSession(
     player.y = (marker?.y ?? 0) - player.bottomOffset;
     scene = new Scene(loaded.id, loaded.width, loaded.height, loaded.depthMode, loaded.clear,
       [...loaded.entities.filter((entity) => entity.id !== player.id).map((entity) =>
-        entity instanceof Character || entity instanceof AnimatedProp ? entity.clone() : entity), player],
-      loaded.triggers, loaded.blockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter, loaded.itemAssets);
+        entity instanceof Prop && !(entity instanceof Background) ? entity.clone() : entity), player],
+      loaded.triggers, loaded.staticBlockedCells, loaded.actionTriggers, loaded.stepTriggers, loaded.markers, loaded.loadCharacter, loaded.itemAssets);
     const acquired = runner?.getGlobal('vars.acquiredItems');
     if (Array.isArray(acquired)) scene.entities = scene.entities.filter((entity) =>
       !(entity instanceof WorldItem) || !acquired.includes(entity.asset.definition.id));
@@ -361,6 +363,27 @@ export function createGameSession(
     previousFrame = undefined;
     attachStepTriggers();
   }
+
+  function cancelUiAndOpenLog(): void {
+    runner?.cancel();
+    runner?.setStorage('dialogue.active', false);
+    runner?.setStorage('dialogue.leftActor', undefined);
+    runner?.setStorage('dialogue.rightActor', undefined);
+    control.stop();
+    control.endConversation(true);
+    selectedItemId = undefined;
+    mouseInput = '';
+    finishPortraitReveals();
+    clearPortraitExit();
+    // Emergency cancellation must not play the normal portrait exit animation.
+    layout.conversationOpen = false;
+    layout.message.clearText();
+    layout.clearBarks();
+    layout.tabs.select('log');
+    layout.tabs.getContent('log').scrollToEnd();
+    paint(true);
+  }
+
   const session: GameSession = {
     filters,
     getPortraitScreenRect: (side) => layout.getPortraitScreenRect(side),
@@ -372,7 +395,7 @@ export function createGameSession(
       opened = true;
       previousFrame = undefined;
       lastUpdate = Date.now();
-      runner?.restartTimers(scene.triggers);
+      runner?.startTimers(scene.triggers, sessionTimerTriggers);
       dispatchLoadTriggers();
       scene.update(0);
       paint();
@@ -382,6 +405,26 @@ export function createGameSession(
     },
     input(data: string) {
       if (!opened || !data) return;
+      if (data === TOGGLE_LOG_WINDOW_INPUT) {
+        mouseInput = '';
+        layout.toggleLogWindow();
+        paint(true);
+        return;
+      }
+      // Handle this before every modal input path, including partial mouse packets.
+      if (hasCancelUiAndOpenLogInput(data)) {
+        cancelUiAndOpenLog();
+        return;
+      }
+      if (layout.logWindow.visible) {
+        const pane = layout.logWindow;
+        if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[5~' || data === '\x1b[6~') {
+          pane.scrollY += data === '\x1b[A' ? -1 : data === '\x1b[B' ? 1
+            : data === '\x1b[5~' ? -pane.innerHeight : pane.innerHeight;
+          paint();
+        }
+        return;
+      }
       if (mouseInput || data.startsWith('\x1b[<')) {
         mouseInput += data;
         while (mouseInput) {
@@ -635,7 +678,7 @@ export function createGameSession(
       portraitExit?.right?.frame ?? (rightPortrait ? getPortraitFrameAt(rightPortrait, elapsed) : undefined),
     );
     layout.render(buffer);
-    filters.applyFilters(buffer);
+    if (!layout.logWindow.visible) filters.applyFilters(buffer);
     const frame = encodeTerminalDiff(buffer, previousFrame);
     if (frame || needsFrame) {
       send(

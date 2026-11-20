@@ -1,6 +1,4 @@
-#classroom1Load
-  load,classroom1Load
-@classroom1Load
+#load@classroom1Load
   +setPlayerWalkCh(johnathan-1, 3x3)
   +tmp.ralgoMoveVar=0
   +^vars.hasEnvelopeQuest=0
@@ -244,6 +242,7 @@
       Mr Ralgo: "It won't take you five minutes. Then you can go make your bag or whatever."
       Johnathan: "Okay, okay, fine."
       Mr Ralgo: "Hop to it, then!"
+      +vars.hasEnvelopeQuest=1
     }
     1: {
       +?func(hasItem, OfficeEnvelope):{
@@ -276,7 +275,6 @@
     }
   }
   +endConv()
-  +vars.hasEnvelopeQuest=1
 
 @classroom1_RalgoTalkWhiteBoard
   +setConv2(Mr Ralgo, Johnathan)

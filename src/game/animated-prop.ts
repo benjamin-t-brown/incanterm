@@ -18,11 +18,12 @@ export class AnimatedProp extends Prop {
     sprite: Sprite,
     readonly clips: ReadonlyMap<string, PropClip>,
     public state: string,
-    readonly instanceName?: string,
+    instanceName?: string,
     readonly propId?: string,
     foreground = false,
+    blockingOffsets: Prop['blockingOffsets'] = [],
   ) {
-    super(id, x, y, depthOffset, z, sprite, foreground);
+    super(id, x, y, depthOffset, z, sprite, foreground, instanceName, blockingOffsets);
   }
 
   /** Active clip for the current state (falls back to default, then a static sprite frame). */
@@ -49,7 +50,7 @@ export class AnimatedProp extends Prop {
     this.elapsed += deltaMs;
   }
 
-  clone(): AnimatedProp {
+  override clone(): AnimatedProp {
     return new AnimatedProp(
       this.id,
       this.x,
@@ -62,6 +63,7 @@ export class AnimatedProp extends Prop {
       this.instanceName,
       this.propId,
       this.foreground,
+      this.blockingOffsets,
     );
   }
 

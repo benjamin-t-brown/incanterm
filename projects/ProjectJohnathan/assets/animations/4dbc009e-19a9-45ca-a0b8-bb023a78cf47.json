@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "4dbc009e-19a9-45ca-a0b8-bb023a78cf47",
+  "label": "lady3x3 interact up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "d18865c0-ada0-4c0b-a381-289ddfeb27ac",
+      "index": 18,
+      "durationMs": 135
+    }
+  ]
+}

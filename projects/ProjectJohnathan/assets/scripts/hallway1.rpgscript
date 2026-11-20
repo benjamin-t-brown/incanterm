@@ -1,9 +1,7 @@
-#hallway1Load
-  load,hallway1Load
-@hallway1Load
+#load@hallway1Load
   +setPlayerWalkCh(Johnathan, 3x3)
   +^hallway1.enableChMove=false
-  +?is(vars.hallway1RemoveOtis):{
+  +?all(is(vars.hallway1RemoveOtis), isnot(schoolPuzzle.missingPassKnown)):{
     +despawnCh(Otis)
   }
 
@@ -47,21 +45,25 @@
   Johnathan: "Bring her here. I'll run to the office with this envelope and be right back."
   Otis: "You got it!"
   +callChSubscript(Otis, hallway1_OtisRunOff)
+  +schoolPuzzle.otisIntroduced=true
   +endConv()
+
+// Bind these talk scripts when placing Otis and Vivi for the return visit.
+@hallway1_OtisTalk
+  +:schoolPuzzle_talkOtis()
+
+@hallway1_ViviTalk
+  +:schoolPuzzle_talkVivi()
 
 @hallway1_OtisRunOff(ch)
   +setSpeedMult(Otis, 2)
   +walkToMarker([ch], FromGym)
   +despawnCh([ch])
 
-#hallway1_toHallwayGym
-  step,hallway1_toHallwayGym
-@hallway1_toHallwayGym
+#step@hallway1_toHallwayGym
   +changeScene(hallwayGym, FromHallway1)
 
-#hallway1_toHallway2
-  step,hallway1_toHallway2
-@hallway1_toHallway2
+#step@hallway1_toHallway2
   +changeScene(hallway2, FromHallway1)
 
 #@classroom1_toClassroom1

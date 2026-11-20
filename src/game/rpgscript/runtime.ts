@@ -6,8 +6,6 @@ import {
   TriggerType,
   type Command,
   type Conditional,
-  type StorageReference,
-  type LocalReference,
   type ScriptValue,
 } from './parser.js';
 import type {
@@ -17,12 +15,13 @@ import type {
   CommandRegistry,
   CommandCatalog,
 } from './command.js';
-export type ScriptStep = CompiledCommand;
+export type ScriptStep = CompiledCommand & Readonly<{ condition?: Condition }>;
 export type Condition =
   | boolean
   | Readonly<{ type: string; args: readonly (Condition | ScriptValue)[] }>;
 export type ScriptBlock = Readonly<{
   condition: Condition;
+  conditionLine?: number;
   steps: readonly ScriptStep[];
   loopTo?: number;
   loopLine?: number;
@@ -75,19 +74,24 @@ export function parseRpgScript(
   for (const script of Object.values(parsed.scripts)) {
     const locals = [...new Set([
       ...script.parameters,
-      ...script.blocks.flatMap((block) => block.commands.flatMap((command) =>
-        (command.type === 'setLocal' || (command.type === 'callScriptResult' && command.args[1] === true)) && typeof command.args[0] === 'string' &&
-        /^[A-Za-z_][\w-]*$/.test(command.args[0]) ? [command.args[0]] : [])),
+      ...script.blocks.flatMap((block) => block.commands.flatMap((command) => {
+        if (command.result && 'localName' in command.result) return [command.result.localName];
+        return (command.type === 'setLocal' || (command.type === 'callScriptResult' && command.args[1] === true)) &&
+          typeof command.args[0] === 'string' && /^[A-Za-z_][\w-]*$/.test(command.args[0])
+          ? [command.args[0]] : [];
+      })),
     ])];
     // Preserve empty branch headers: an else may refer to their evaluated result.
     const blocks = script.blocks.map((block) => {
-      const line = block.commands[0]?.i ?? script.lineNum;
+      const line = block.conditionLine ?? block.commands[0]?.i ?? script.lineNum;
       validateLocals(block.conditional, locals, file, line);
       for (const command of block.commands) {
         validateLocals(command.args, locals, file, command.i);
+        validateLocals(command.condition, locals, file, command.i);
       }
       return Object.freeze({
         condition: convertToCondition(block.conditional, file, line),
+        ...(block.conditionLine === undefined ? {} : { conditionLine: block.conditionLine }),
         loopTo: block.loopTo,
         loopLine: block.loopLine,
         steps: Object.freeze(
@@ -121,9 +125,12 @@ export function parseRpgScript(
           `${file}:${call.line}: Trigger target ${call.scriptName} is not supported (use a script name without arguments)`,
         );
       }
+      const condition = convertToCondition(call.condition, file, call.line);
+      if (getConditionTargets(condition).length)
+        throw new Error(`${file}:${call.line}: Script calls are not supported in trigger conditions`);
       return Object.freeze({
         type: call.type as TriggerType,
-        condition: convertToCondition(call.condition, file, call.line),
+        condition,
         target: call.scriptName,
         line: call.line,
         ...(call.intervalMs === undefined ? {} : { intervalMs: call.intervalMs }),
@@ -148,7 +155,9 @@ const conditionTypes = new Set([
   'isnot',
   'eq',
   'gt',
+  'gte',
   'lt',
+  'lte',
   'any',
   'all',
   'else',
@@ -157,6 +166,7 @@ const conditionTypes = new Set([
   'oncePerInstance',
   'func',
   'in',
+  'scriptResult',
   'switchValue',
   'switchCase',
   'switchDefault',
@@ -168,18 +178,21 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
   const args = value.args.map((arg) => {
     if (typeof arg === 'object' && arg !== null && 'type' in arg)
       return convertToCondition(arg as Conditional, file, line);
-    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg || 'expression' in arg || 'literal' in arg || 'list' in arg || 'indexed' in arg))
-      return Object.freeze({ ...(arg as StorageReference | LocalReference) });
+    if (typeof arg === 'object' && arg !== null && ('storageKey' in arg || 'localName' in arg || 'expression' in arg || 'literal' in arg || 'quoted' in arg || 'list' in arg || 'indexed' in arg))
+      return Object.freeze({ ...(arg as Exclude<ScriptValue, string | number | boolean>) });
     if (typeof arg === 'string') {
       return arg;
     }
     if (typeof arg === 'number' || typeof arg === 'boolean') return arg;
     throw new Error(`${file}:${line}: Invalid argument for condition ${value.type}`);
   });
+  const isComparison = ['eq', 'gt', 'gte', 'lt', 'lte', 'in'].includes(value.type);
   const arity =
     value.type === 'switchValue' ? args.length === 2 && Number.isInteger(args[1])
       : value.type === 'switchCase' ? args.length >= 2 && Number.isInteger(args[0]) && args.slice(2).every(Number.isInteger)
       : value.type === 'switchDefault' ? args.length >= 1 && args.every(Number.isInteger)
+      : value.type === 'scriptResult'
+        ? typeof args[0] === 'string' && /^[\w-]+$/.test(args[0])
       : value.type === 'any' || value.type === 'all'
       ? args.length > 0
       : value.type === 'func'
@@ -191,23 +204,22 @@ function convertToCondition(value: Conditional | boolean, file: string, line: nu
           args.every((arg) => Number.isInteger(arg) && (arg as number) >= 0)
         : value.type === 'once' || value.type === 'oncePerInstance'
           ? args.length <= 1
-      : value.type === 'eq' || value.type === 'gt' || value.type === 'lt' || value.type === 'in'
-            ? args.length === 2
-            : args.length === 1;
-  const nested = args.some((arg) => typeof arg === 'object' && 'type' in arg);
+      : isComparison
+             ? args.length === 2
+             : args.length === 1;
+  const nested = args.filter((arg) => typeof arg === 'object' && 'type' in arg) as Exclude<Condition, boolean>[];
   if (
     !arity ||
     ((value.type === 'once' || value.type === 'oncePerInstance') &&
       args.length === 1 &&
       typeof args[0] !== 'string') ||
-    ((value.type === 'eq' ||
-      value.type === 'gt' ||
-      value.type === 'lt' ||
-      value.type === 'else' ||
-      value.type === 'branch' ||
-      value.type === 'once' ||
-      value.type === 'oncePerInstance') &&
-      nested) ||
+    (isComparison && nested.some((arg) => arg.type !== 'scriptResult')) ||
+    ((value.type === 'else' ||
+       value.type === 'branch' ||
+       value.type === 'once' ||
+       value.type === 'oncePerInstance' ||
+       value.type === 'scriptResult') &&
+       nested.length > 0) ||
     ((value.type === 'all' || value.type === 'any') &&
       args.some((arg) => typeof arg !== 'object' && typeof arg !== 'boolean'))
   ) {
@@ -222,10 +234,24 @@ function toStep(
   catalog: CommandCatalog,
   parameters: readonly string[],
 ): ScriptStep {
+  if (command.condition !== undefined && command.result) {
+    const condition = convertToCondition(command.condition, file, command.i);
+    return {
+      command: command.type, line: command.i, condition, result: Object.freeze(command.result),
+      targets: Object.freeze(getConditionTargets(condition)),
+    };
+  }
   if (!Object.hasOwn(catalog, command.type)) {
     throw new Error(`${file}:${command.i}: Unknown command ${command.type}`);
   }
   return catalog[command.type](command, `${file}:${command.i}`, parameters);
+}
+
+function getConditionTargets(condition: Condition | ScriptValue): { name: string; argumentCount: number }[] {
+  if (typeof condition !== 'object' || !('type' in condition)) return [];
+  if (condition.type === 'scriptResult')
+    return [{ name: condition.args[0] as string, argumentCount: condition.args.length - 1 }];
+  return condition.args.flatMap(getConditionTargets);
 }
 
 function requireLocal(
@@ -291,22 +317,23 @@ export async function loadRpgScripts(root: string, options: ScriptOptions): Prom
       triggers.set(name, definition);
     }
   }
-  for (const script of scripts.values())
-    for (const block of script.blocks)
-      for (const step of block.steps) {
-        for (const target of step.targets ?? []) {
-          const definition = scripts.get(target.name);
-          if (!definition)
-            throw new Error(`${script.file}:${step.line}: Unknown script ${target.name}`);
-          checkArgumentCount(definition, target.argumentCount, `${script.file}:${step.line}`);
-        }
-      }
+  function validateTarget(name: string, argumentCount: number, location: string): void {
+    const definition = scripts.get(name);
+    if (!definition) throw new Error(`${location}: Unknown script ${name}`);
+    checkArgumentCount(definition, argumentCount, location);
+  }
+  for (const script of scripts.values()) {
+    for (const block of script.blocks) {
+      for (const target of getConditionTargets(block.condition))
+        validateTarget(target.name, target.argumentCount, `${script.file}:${block.conditionLine ?? 1}`);
+      for (const step of block.steps)
+        for (const target of step.targets ?? [])
+          validateTarget(target.name, target.argumentCount, `${script.file}:${step.line}`);
+    }
+  }
   for (const trigger of triggers.values())
     for (const call of trigger.calls) {
-      const definition = scripts.get(call.target);
-      if (!definition)
-        throw new Error(`${trigger.file}:${call.line}: Unknown script ${call.target}`);
-      checkArgumentCount(definition, call.character === undefined ? 0 : 1, `${trigger.file}:${call.line}`);
+      validateTarget(call.target, call.character === undefined ? 0 : 1, `${trigger.file}:${call.line}`);
     }
   return libraryWithTriggers(scripts, triggers);
 }
@@ -319,6 +346,22 @@ export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string 
 export type ChoicePrompt = Readonly<{ options: readonly string[] }>;
 const maxLoopPasses = 1000;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
+type ConditionCall = { target: string; args: readonly RuntimeValue[] };
+type ConditionEvaluation = Generator<ConditionCall, boolean, RuntimeValue>;
+type ConditionScope = {
+  key: string;
+  pendingOnce: Set<string>;
+  instanceId?: string;
+  results?: ReadonlyMap<number, boolean>;
+  switchValues?: Map<number, RuntimeValue>;
+};
+type PendingCondition = {
+  evaluation: ConditionEvaluation;
+  scope: ConditionScope;
+  location: string;
+  complete: (passed: boolean) => void;
+  returned?: RuntimeValue;
+};
 type Frame = {
   onReturn?: (value: RuntimeValue) => void;
   script: ScriptDefinition;
@@ -326,6 +369,7 @@ type Frame = {
   block: number;
   next: number;
   passed?: boolean;
+  pendingCondition?: PendingCondition;
   instanceId?: string;
   results?: Map<number, boolean>;
   switchValues?: Map<number, RuntimeValue>;
@@ -344,6 +388,13 @@ export type RunnerOptions<Host> = {
   background?: boolean;
 };
 
+type TimerBinding = {
+  trigger: TriggerDefinition;
+  index: number;
+  elapsed: number;
+  scope: 'scene' | 'session';
+};
+
 export class ScriptRunner<Host> {
   private stack: Frame[] = [];
   private storage = new Map<string, RuntimeValue>();
@@ -356,7 +407,7 @@ export class ScriptRunner<Host> {
   private onChoose: ((index: number) => void) | undefined;
   private isWaitComplete: (() => boolean) | undefined;
   private waitLocation: string | undefined;
-  private timers: { trigger: TriggerDefinition; index: number; elapsed: number }[] = [];
+  private timers: TimerBinding[] = [];
 
   constructor(
     private readonly library: ScriptLibrary,
@@ -390,6 +441,17 @@ export class ScriptRunner<Host> {
     this.isWaitComplete = undefined;
     this.waitLocation = undefined;
     this.run();
+  }
+
+  /** Abort the foreground interaction without advancing dialogue, choices, or waits. */
+  cancel(): void {
+    this.stack = [];
+    this.clearDialogue();
+    this.choice = undefined;
+    this.centerToast = undefined;
+    this.onChoose = undefined;
+    this.isWaitComplete = undefined;
+    this.waitLocation = undefined;
   }
 
   update(): void {
@@ -442,14 +504,30 @@ export class ScriptRunner<Host> {
     }
   }
 
+  startTimers(sceneNames: readonly string[], sessionNames: readonly string[]): void {
+    this.timers = this.getTimerBindings(sessionNames, 'session');
+    this.restartTimers(sceneNames);
+  }
+
+  /** Replace only the scene timers; session timers keep their elapsed time. */
   restartTimers(names: readonly string[]): void {
-    this.timers = [];
+    const sessionTimers = this.timers.filter((timer) => timer.scope === 'session');
+    const sessionNames = new Set(sessionTimers.map((timer) => timer.trigger.name));
+    this.timers = [
+      ...sessionTimers,
+      ...this.getTimerBindings(names.filter((name) => !sessionNames.has(name)), 'scene'),
+    ];
+  }
+
+  private getTimerBindings(names: readonly string[], scope: TimerBinding['scope']): TimerBinding[] {
+    const timers: TimerBinding[] = [];
     for (const name of new Set(names)) {
       const trigger = this.library.triggers.get(name);
       trigger?.calls.forEach((call, index) => {
-        if (call.type === TriggerType.TIMER) this.timers.push({ trigger, index, elapsed: 0 });
+        if (call.type === TriggerType.TIMER) timers.push({ trigger, index, elapsed: 0, scope });
       });
     }
+    return timers;
   }
 
   updateTimers(elapsedMs: number): void {
@@ -478,7 +556,9 @@ export class ScriptRunner<Host> {
       if (!this.isIdle()) continue;
       const pending = new Set<string>();
       try {
-        if (!this.evaluate(call.condition, `${trigger.name}:${event}:${index}`, pending, instanceId))
+        if (!this.getTriggerConditionResult(call.condition, {
+          key: `${trigger.name}:${event}:${index}`, pendingOnce: pending, instanceId,
+        }))
           continue;
       } catch (error) {
         if (!(error instanceof ScriptExpressionError)) throw error;
@@ -503,7 +583,9 @@ export class ScriptRunner<Host> {
       const ownerId = this.options.getCharacterId(call.character);
       if (this.subscripts.has(ownerId) || this.options.isCharacterBusy?.(ownerId)) return false;
       const pending = new Set<string>();
-      if (!this.evaluate(call.condition, `${trigger.name}:${TriggerType.TIMER}:${index}`, pending, ownerId)) return false;
+      if (!this.getTriggerConditionResult(call.condition, {
+        key: `${trigger.name}:${TriggerType.TIMER}:${index}`, pendingOnce: pending, instanceId: ownerId,
+      })) return false;
       checkArgumentCount(this.requireScript(call.target), 1, location);
       for (const key of pending) this.usedOnce.add(key);
       this.callSubscript(ownerId, call.target, location);
@@ -586,6 +668,7 @@ export class ScriptRunner<Host> {
   private getScriptValue(value: ScriptValue): RuntimeValue {
     if (typeof value === 'object') {
       if ('literal' in value) return value.literal;
+      if ('quoted' in value) return this.interpolate(value.quoted);
       if ('list' in value) return value.list.map((item) => this.getScriptValue(item));
       if ('indexed' in value) {
         const list = this.getScriptValue(value.indexed.list);
@@ -626,7 +709,7 @@ export class ScriptRunner<Host> {
     }
     if (typeof value === 'object') {
       if ('literal' in value) return value.literal;
-      if ('list' in value || 'indexed' in value) return this.getScriptValue(value);
+      if ('list' in value || 'indexed' in value || 'quoted' in value) return this.getScriptValue(value);
       if ('expression' in value) return this.getScriptValue(value);
       if ('storageKey' in value) return this.getGlobal(value.storageKey);
       if ('localName' in value) return this.getLocalValue(value.localName);
@@ -635,19 +718,30 @@ export class ScriptRunner<Host> {
     return value;
   }
 
-  private evaluate(
-    condition: Condition,
-    scope: string,
-    pending: Set<string>,
-    instanceId?: string,
-    results?: ReadonlyMap<number, boolean>,
-    switchValues?: Map<number, RuntimeValue>,
-  ): boolean {
+  private getTriggerConditionResult(condition: Condition, scope: ConditionScope): boolean {
+    const result = this.evaluate(condition, scope).next();
+    if (!result.done) throw new Error('Script calls are not supported in trigger conditions');
+    return result.value;
+  }
+
+  private *getConditionValue(value: Condition | ScriptValue): Generator<ConditionCall, RuntimeValue, RuntimeValue> {
+    if (typeof value === 'object' && 'type' in value && value.type === 'scriptResult') {
+      return yield {
+        target: value.args[0] as string,
+        args: value.args.slice(1).map((arg) => this.getScriptValue(arg as ScriptValue)),
+      };
+    }
+    return this.resolve(value);
+  }
+
+  private *evaluate(condition: Condition, scope: ConditionScope): ConditionEvaluation {
     if (typeof condition === 'boolean') return condition;
+    const { pendingOnce, instanceId, results, switchValues } = scope;
     const { type, args } = condition;
+    if (type === 'scriptResult') return Boolean(yield* this.getConditionValue(condition));
     if (type === 'switchValue') {
       if (!switchValues) throw new Error('switch requires a script frame');
-      switchValues.set(args[1] as number, this.resolve(args[0]));
+      switchValues.set(args[1] as number, yield* this.getConditionValue(args[0]));
       return true;
     }
     if (type === 'switchCase' || type === 'switchDefault') {
@@ -658,9 +752,9 @@ export class ScriptRunner<Host> {
       if (type === 'switchDefault') return true;
       const label = args[1];
       const selected = switchValues.get(header);
-      const candidate = typeof label === 'object' && 'type' in label
-        ? this.evaluate(label as Condition, scope, pending, instanceId, results, switchValues)
-        : this.resolve(label);
+      const candidate = typeof label === 'object' && 'type' in label && label.type !== 'scriptResult'
+        ? yield* this.evaluate(label, scope)
+        : yield* this.getConditionValue(label);
       return selected === candidate || (typeof label === 'number' && selected === String(label));
     }
     if (type === 'branch') {
@@ -675,15 +769,16 @@ export class ScriptRunner<Host> {
         return !previous;
       });
     }
-    if (type === 'all')
-      return args.every((arg) =>
-        this.evaluate(arg as Condition, scope, pending, instanceId, results, switchValues),
-      );
+    if (type === 'all') {
+      for (const arg of args)
+        if (!(yield* this.evaluate(arg as Condition, scope))) return false;
+      return true;
+    }
     if (type === 'any') {
       for (const arg of args) {
-        const branch = new Set(pending);
-        if (this.evaluate(arg as Condition, scope, branch, instanceId, results, switchValues)) {
-          for (const key of branch) pending.add(key);
+        const branch = new Set(pendingOnce);
+        if (yield* this.evaluate(arg as Condition, { ...scope, pendingOnce: branch })) {
+          for (const key of branch) pendingOnce.add(key);
           return true;
         }
       }
@@ -693,9 +788,9 @@ export class ScriptRunner<Host> {
       if (type === 'oncePerInstance' && !instanceId)
         throw new Error('oncePerInstance requires an explicit instanceId');
       const name = typeof args[0] === 'string' ? this.interpolate(args[0]) : undefined;
-      const key = `${type}:${name || scope}${type === 'oncePerInstance' ? `:${instanceId}` : ''}`;
+      const key = `${type}:${name || scope.key}${type === 'oncePerInstance' ? `:${instanceId}` : ''}`;
       if (this.usedOnce.has(key)) return false;
-      pending.add(key);
+      pendingOnce.add(key);
       return true;
     }
     if (type === 'func') {
@@ -709,14 +804,10 @@ export class ScriptRunner<Host> {
     const first = args[0];
     if (type === 'is' || type === 'isnot') {
       const result =
-        typeof first === 'object'
-          ? 'storageKey' in first
-            ? Boolean(this.getGlobal(first.storageKey))
-            : 'expression' in first
-              ? Boolean(this.getScriptValue(first))
-            : 'localName' in first
-              ? Boolean(this.getLocalValue(first.localName))
-               : this.evaluate(first as Condition, scope, pending, instanceId, results, switchValues)
+         typeof first === 'object'
+           ? 'type' in first && first.type !== 'scriptResult'
+             ? yield* this.evaluate(first, scope)
+             : Boolean(yield* this.getConditionValue(first))
           : first === 'true'
             ? true
             : first === 'false'
@@ -726,19 +817,48 @@ export class ScriptRunner<Host> {
                 : Boolean(first);
       return type === 'is' ? result : !result;
     }
-    const left = this.resolve(first);
-    const right = this.resolve(args[1]);
+    const left = yield* this.getConditionValue(first);
+    const right = yield* this.getConditionValue(args[1]);
     if (type === 'in') return Array.isArray(right) && typeof left === 'number' && Number.isInteger(left) && left >= 0 && left < right.length;
     if (type === 'eq') return left !== undefined && right !== undefined && left === right;
-    if (type === 'gt' || type === 'lt') {
+    if (type === 'gt' || type === 'gte' || type === 'lt' || type === 'lte') {
       const leftNumber = typeof left === 'string' && left.trim() !== '' ? Number(left) : left;
       const rightNumber = typeof right === 'string' && right.trim() !== '' ? Number(right) : right;
       if (typeof leftNumber !== 'number' || !Number.isFinite(leftNumber) ||
         typeof rightNumber !== 'number' || !Number.isFinite(rightNumber))
         throw new Error(`${type} requires numeric values`);
-      return type === 'gt' ? leftNumber > rightNumber : leftNumber < rightNumber;
+      if (type === 'gt') return leftNumber > rightNumber;
+      if (type === 'gte') return leftNumber >= rightNumber;
+      if (type === 'lt') return leftNumber < rightNumber;
+      return leftNumber <= rightNumber;
     }
     throw new Error(`Condition ${type} is not supported`);
+  }
+
+  private setPendingCondition(
+    frame: Frame, condition: Condition, key: string, location: string, complete: (passed: boolean) => void,
+  ): void {
+    frame.switchValues ??= new Map();
+    const scope: ConditionScope = {
+      key, pendingOnce: new Set(), instanceId: frame.instanceId,
+      results: frame.results, switchValues: frame.switchValues,
+    };
+    frame.pendingCondition = { scope, location, complete, evaluation: this.evaluate(condition, scope) };
+  }
+
+  private advanceCondition(frame: Frame, pending: PendingCondition): boolean {
+    const result = pending.evaluation.next(pending.returned);
+    if (!result.done) {
+      const { target, args } = result.value;
+      const child = this.createFrame(target, args, frame.instanceId, pending.location);
+      child.onReturn = (value) => { pending.returned = value; };
+      this.stack.push(child);
+      return false;
+    }
+    frame.pendingCondition = undefined;
+    if (result.value) for (const key of pending.scope.pendingOnce) this.usedOnce.add(key);
+    pending.complete(result.value);
+    return true;
   }
 
   private run(): void {
@@ -760,28 +880,30 @@ export class ScriptRunner<Host> {
         frame.onReturn?.(undefined);
         continue;
       }
-      if (frame.passed === undefined) {
-        const pending = new Set<string>();
-        frame.switchValues ??= new Map();
+      if (frame.passed === undefined && !frame.pendingCondition) {
+        frame.results ??= new Map();
+        const evaluatedBlock = frame.block;
+        const setBlockResult = (passed: boolean) => {
+          frame.passed = passed;
+          frame.results?.set(evaluatedBlock, passed);
+          // A failed header ends its loop; a later re-entry starts counting again.
+          if (!passed) frame.loopPasses?.delete(evaluatedBlock);
+        };
+        if (block.condition === true) setBlockResult(true);
+        else this.setPendingCondition(
+          frame, block.condition, `${frame.script.name}:${frame.block}`,
+          `${frame.script.file}:${block.conditionLine ?? block.steps[0]?.line ?? 1}`, setBlockResult,
+        );
+      }
+      if (frame.pendingCondition) {
+        const pending = frame.pendingCondition;
         try {
-          frame.passed = this.evaluate(
-            block.condition,
-            `${frame.script.name}:${frame.block}`,
-            pending,
-            frame.instanceId,
-            frame.results,
-            frame.switchValues,
-          );
+          if (!this.advanceCondition(frame, pending)) continue;
         } catch (error) {
           if (!(error instanceof ScriptExpressionError)) throw error;
-          this.stopForExpressionError(error, `${frame.script.file}:${block.steps[0]?.line ?? 1} (condition)`);
+          this.stopForExpressionError(error, `${pending.location} (condition)`);
           return;
         }
-        if (!frame.results) frame.results = new Map();
-        frame.results.set(frame.block, frame.passed);
-        if (frame.passed) for (const key of pending) this.usedOnce.add(key);
-        // A failed header ends its loop; a later re-entry starts counting again.
-        else frame.loopPasses?.delete(frame.block);
       }
       const step = frame.passed ? block.steps[frame.next++] : undefined;
       if (!step) {
@@ -799,6 +921,17 @@ export class ScriptRunner<Host> {
         frame.block++;
         frame.next = 0;
         frame.passed = undefined;
+        continue;
+      }
+      if (step.condition !== undefined && step.result) {
+        const destination = step.result;
+        this.setPendingCondition(
+          frame, step.condition, `${frame.script.name}:condition:${step.line}`,
+          `${frame.script.file}:${step.line}`, (passed) => {
+            if ('localName' in destination) frame.locals.set(destination.localName, passed);
+            else this.setGlobal(destination.storageKey, passed);
+          },
+        );
         continue;
       }
       if (!Object.hasOwn(this.options.commands, step.command))
@@ -840,6 +973,7 @@ export class ScriptRunner<Host> {
     frame.block = target;
     frame.next = 0;
     frame.passed = undefined;
+    frame.pendingCondition = undefined;
   }
 
   private stopForExpressionError(error: ScriptExpressionError, location: string): void {

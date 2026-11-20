@@ -2,15 +2,20 @@
   "rpgscript.scriptsRoot": "${workspaceFolder}/projects/ProjectJohnathan/assets/scripts",
   "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/scene-commands.ts",
   "rpgscript.debug": false,
+  "[rpgscript]": {
+    "editor.defaultFormatter": "incanterm.rpgscript-vs"
+  },
   "cSpell.words": [
     "Conv",
     "Cutscene",
     "despawn",
     "hadassah",
     "Incanterm",
+    "Iroha",
     "isnot",
     "jackwagons",
     "keypress",
+    "Laddy",
     "Mult",
     "Ralgo",
     "returnempty",

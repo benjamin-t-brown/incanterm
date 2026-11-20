@@ -10,6 +10,7 @@ import type { DialogueMessage } from './dialogue-message.js';
 import type { SelectionRect } from '../../protocol/messages.js';
 import { CenterToast } from './center-toast.js';
 import { InventoryPanel } from './inventory-panel.js';
+import { BorderBox } from './border-box.js';
 import {
   MIN_STANDARD_WIDTH,
   STANDARD_TABS,
@@ -44,6 +45,12 @@ export class LayoutStandardScene extends UIElement {
   readonly choiceMessage: ParagraphWrapped;
   readonly scriptLog: ParagraphWrapped;
   readonly inventory = new InventoryPanel();
+  readonly logWindow = new BorderBox('log-window', 1, 1, 2, 2, {
+    fg: UI_INK.fg, bg: UI_INK.bg, visible: false,
+  });
+  private readonly logWindowText = new ParagraphWrapped('log-window-text', 1, 0, 1, '', {
+    fg: UI_INK.fg, bg: UI_INK.bg,
+  });
   conversationOpen = false;
   portraitExitVisible = false;
   private readonly logEntries: { message: string; error: boolean }[] = [];
@@ -106,6 +113,7 @@ export class LayoutStandardScene extends UIElement {
     const rightPortrait = this.dialoguePanel.rightPortraitBox;
     if (
       !this.canClick ||
+      this.logWindow.visible ||
       this.centerToast.visible ||
       x < 0 ||
       y < 0 ||
@@ -170,6 +178,12 @@ export class LayoutStandardScene extends UIElement {
     this.ui.addChild(this.tabs);
     this.ui.addChild(this.dialoguePanel);
     this.addChild(this.ui);
+    this.logWindow.addChild(this.logWindowText);
+  }
+
+  toggleLogWindow(): void {
+    this.logWindow.visible = !this.logWindow.visible;
+    if (this.logWindow.visible) this.logWindow.scrollToEnd();
   }
 
   appendLog(message: string, error = false): void {
@@ -180,6 +194,11 @@ export class LayoutStandardScene extends UIElement {
   }
 
   getLogSelectionRect(): SelectionRect | undefined {
+    if (this.logWindow.visible) return {
+      x: this.logWindow.x + 1, y: this.logWindow.y + 1,
+      width: Math.max(0, Math.min(this.logWindow.innerWidth, this.viewportWidth - this.logWindow.x - 1)),
+      height: Math.max(0, Math.min(this.logWindow.innerHeight, this.viewportHeight - this.logWindow.y - 1)),
+    };
     if (!this.canClick || !this.ui.visible || !this.tabs.visible ||
       this.tabs.selectedId !== 'log' || this.centerToast.visible) return;
     const content = this.tabs.getContent('log');
@@ -196,7 +215,7 @@ export class LayoutStandardScene extends UIElement {
   }
 
   getInventoryActionAt(x: number, y: number): ReturnType<InventoryPanel['getActionAt']> {
-    if (!this.canClick || !this.ui.visible || !this.tabs.visible ||
+    if (this.logWindow.visible || !this.canClick || !this.ui.visible || !this.tabs.visible ||
       this.tabs.selectedId !== 'inventory' || this.centerToast.visible ||
       x < 0 || y < 0 || x >= this.viewportWidth || y >= this.viewportHeight) return;
     const pane = this.tabs.getContent('inventory');
@@ -210,7 +229,7 @@ export class LayoutStandardScene extends UIElement {
   }
 
   getTabAt(x: number, y: number): string | undefined {
-    if (!this.canClick || !this.ui.visible || !this.tabs.visible || this.centerToast.visible ||
+    if (this.logWindow.visible || !this.canClick || !this.ui.visible || !this.tabs.visible || this.centerToast.visible ||
       x < 0 || y < 0 || x >= this.viewportWidth || y >= this.viewportHeight) return;
     return this.tabs.getTabAt(x - this.x - this.ui.x - this.tabs.x, y - this.y - this.ui.y - this.tabs.y);
   }
@@ -218,13 +237,13 @@ export class LayoutStandardScene extends UIElement {
   /** The portrait image cells, excluding the rounded frame; coordinates are on the final screen. */
   getPortraitScreenRect(side: 'left' | 'right' = 'left'): Rect | undefined {
     const box = side === 'left' ? this.dialoguePanel.portraitBox : this.dialoguePanel.rightPortraitBox;
-    if (!this.canClick || (!this.dialoguePanel.visible && !this.portraitExitVisible) || !box.visible) return;
+    if (this.logWindow.visible || !this.canClick || (!this.dialoguePanel.visible && !this.portraitExitVisible) || !box.visible) return;
     return { x: box.x + 1, y: box.y + 1, width: box.width - 2, height: box.height - 2 };
   }
 
   /** Convert a scene-local rectangle to final screen coordinates, including viewport centering. */
   getSceneScreenRect(area: Readonly<Rect> = { x: 0, y: 0, width: this.scene.width, height: this.scene.height }): Rect | undefined {
-    if (!this.canClick) return;
+    if (this.logWindow.visible || !this.canClick) return;
     return {
       x: this.x + Math.floor((STANDARD_WIDTH - this.scene.width) / 2) + area.x,
       y: this.y + Math.floor((STANDARD_WORLD_HEIGHT - this.scene.height) / 2) + area.y,
@@ -237,6 +256,10 @@ export class LayoutStandardScene extends UIElement {
     this.viewportWidth = buffer.width;
     this.viewportHeight = buffer.height;
     this.canClick = buffer.width >= MIN_STANDARD_WIDTH && buffer.height >= MIN_STANDARD_HEIGHT;
+    if (this.logWindow.visible) {
+      this.renderLogWindow(buffer);
+      return;
+    }
     if (buffer.width < MIN_STANDARD_WIDTH || buffer.height < MIN_STANDARD_HEIGHT) {
       const warning = `Terminal needs at least ${MIN_STANDARD_WIDTH}x${MIN_STANDARD_HEIGHT} cells`;
       for (let x = 0; x < Math.min(buffer.width, warning.length); x++) {
@@ -307,6 +330,28 @@ export class LayoutStandardScene extends UIElement {
     );
     this.renderBarks(buffer);
     if (this.centerToast.visible) this.centerToast.render(buffer);
+  }
+
+  private renderLogWindow(buffer: CellBuffer): void {
+    const followsLog = this.logWindow.scrollY === this.logWindow.maxScrollY();
+    this.logWindow.x = buffer.width >= 4 ? 1 : 0;
+    this.logWindow.y = buffer.height >= 4 ? 1 : 0;
+    this.logWindow.width = Math.max(2, buffer.width - 2);
+    this.logWindow.height = Math.max(2, buffer.height - 2);
+    this.logWindowText.width = Math.max(1, this.logWindow.innerWidth - 2);
+    this.logWindowText.text = this.logEntries.length
+      ? this.logEntries.map((entry) => entry.message).join('\n') : 'No log entries yet.';
+    this.logWindowText.lineColors = this.logEntries.flatMap((entry) =>
+      wrapParagraph(entry.message, this.logWindowText.width).map(() =>
+        entry.error ? ERROR_LOG_FG : this.logWindowText.fg,
+      ),
+    );
+    this.logWindowText.height = this.logWindowText.lines.length;
+    if (followsLog) this.logWindow.scrollToEnd();
+    this.logWindow.render(buffer);
+    const title = ' Log | ` to return ';
+    for (let i = 0; i < Math.min(title.length, this.logWindow.innerWidth); i++)
+      buffer.set(this.logWindow.x + 1 + i, this.logWindow.y, { ...UI_INK, ch: title[i] });
   }
 
   protected paint(ctx: DrawContext): void {

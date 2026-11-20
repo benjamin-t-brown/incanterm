@@ -1,6 +1,4 @@
-#testRoomEntry
-  load,testRoomEntry
-@testRoomEntry
+#load@testRoomEntry
   +setConv()
   Guide: "Welcome to Incanterm."
   Guide: "The crate is waiting for you."
@@ -52,9 +50,7 @@
 @lint_receiver(value)
   +log("[value]")
 
-#trigger1
-  action,trigger1
-@trigger1
+#@trigger1
   +log("Clicked trigger1")
 
 #trigger2
@@ -104,14 +100,10 @@
   Guide: "The crate is waiting for you."
   +endConv()
 
-#trigger4
-  action,trigger4
-@trigger4
+#@trigger4
   +log("Clicked trigger4")
 
-#trigger5
-  action,trigger5
-@trigger5
+#@trigger5
   +log("Clicked trigger5")
 
 #trigger6
@@ -119,9 +111,7 @@
 @trigger6
   +log("Clicked trigger6")
 
-#trigger7
-  step,trigger7
-@trigger7
+#step@trigger7
   +log("Clicked trigger6")
 
 @testTextHighlight

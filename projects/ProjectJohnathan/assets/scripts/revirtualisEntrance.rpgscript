@@ -1,14 +1,66 @@
-#revirtualisEntranceLoad
-  load,revirtualisEntranceLoad
-@revirtualisEntranceLoad
+#load@revirtualisEntranceLoad
   +setPlayerWalkCh(Johnathan, 5x5)
 
-#revirtualisEntranceUpdate
-  timer,revirtualisEntranceUpdate,2000
-@revirtualisEntranceUpdate
+#timer@revirtualisEntranceUpdate,2000
   // move stuff skip wait
 
-#revirtualisEntrance_toHallway3
-  step,revirtualisEntrance_toHallway3
-@revirtualisEntrance_toHallway3
+#step@revirtualisEntrance_toHallway3
   +changeScene(hallway3, FromRevirtualisEntrance)
+
+#step@revirtualisEntrance_toMaintenance
+  +changeScene(maintenance, FromREvirtualisHallway)
+
+#@revirtualisEntrance_door
+  +setConv()
+  +:ld(John, up)
+  +walkToMarker(Johnathan, MarkerDoorCentered)
+  +lookAtMarker(John, MarkerDoor)
+  +^revirtualisEntrance.door=0
+  +revirtualisEntrance.door={revirtualisEntrance.door}+1
+  +?switch(revirtualisEntrance.door):{
+    1: {
+      Johnathan: "That door is off limits on account of construction. Mr. Ralgo mentioned it earlier."
+    }
+    2: {
+      Johnathan: "I'm not sure what they're building in there, but it involves a lot of electrical equipment. I saw them moving some of it in there after school last week."
+    }
+    *:{
+      Johnathan: "It's off limits!"
+    }
+  }
+  +endConv()
+
+#@revirtualisEntrance_terminal
+  +setConv()
+  +walkToMarker(Johnathan, MarkerTerminal)
+  +:ld(Johnathan, up)
+  +^revirtualisEntrance.terminal=0
+  +revirtualisEntrance.terminal={revirtualisEntrance.terminal}+1
+  +?switch(revirtualisEntrance.terminal):{
+    1:{
+      Johnathan: "That's the terminal that opens the door. It's beefier than the other ones in the school. Maybe it has more security or something."
+    }
+    *:{
+      Johnathan: "I don't want to touch that right now."
+    }
+  }
+  +endConv()
+
+#@revirtualisEntrance_poster
+  +setConv()
+  +walkToMarker(Johnathan, MarkerPoster)
+  +:ld(Johnathan, up)
+  +^revirtualisEntrance.poster=0
+  +revirtualisEntrance.poster={revirtualisEntrance.poster}+1
+  +?switch(revirtualisEntrance.poster):{
+    1:{
+      Johnathan: "STUDENTS STAY OUT. 'This area is under construction.  We kindly ask students to avoid this room as we work to improve the school'."
+    }
+    2:{
+      Johnathan: "They really make it seem like it's super dangerous or something. They wouldn't put something dangerous in a school, would they?"
+    }
+    *:{
+      Johnathan: "It says STUDENTS STAY OUT."
+    }
+  }
+  +endConv()

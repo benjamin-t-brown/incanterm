@@ -152,7 +152,6 @@ export async function loadScene(assetsRoot: string, sceneId: string): Promise<Sc
         depthMode,
         sprites,
         seen,
-        blockedCells,
       ),
     );
   }
@@ -222,7 +221,7 @@ export async function loadCharacterByReference(assetsRoot: string, reference: st
   const character = await readProp(assetsRoot, 'spawn player', {
     id: matches[0], type: 'Character', character: matches[0], name: reference,
     state: 'idle', facing: 'down', x: 0, y: 0,
-  }, 0, 256, 128, 'bottom-up', new Map(), new Set(), new Set());
+  }, 0, 256, 128, 'bottom-up', new Map(), new Set());
   if (!(character instanceof Character)) throw new Error(`Cannot load character ${reference}`);
   return character;
 }
@@ -271,7 +270,6 @@ async function readProp(
   depthMode: DepthMode,
   sprites: Map<string, Sprite>,
   seen: Set<string>,
-  blockedCells: Set<number>,
 ): Promise<Prop> {
   const label = `${scenePath} entity ${index}`;
   const record = readObject(value, label);
@@ -357,6 +355,7 @@ async function readProp(
     1024,
   );
   let foreground = false;
+  let blockingOffsets: Prop['blockingOffsets'] = [];
   let instanceName: string | undefined;
   let propId: string | undefined;
   let state = PROP_DEFAULT_STATE;
@@ -398,11 +397,10 @@ async function readProp(
           : `${label} animation state ${state} is missing`,
       );
     }
-    for (const cell of asset.blockedCells) {
-      const x = Number(record.x) - sprite.originX + (cell % asset.width);
-      const y = Number(record.y) - sprite.originY + Math.floor(cell / asset.width);
-      if (x >= 0 && y >= 0 && x < width && y < height) blockedCells.add(y * width + x);
-    }
+    blockingOffsets = asset.blockedCells.map((cell) => ({
+      x: (cell % asset.width) - sprite.originX,
+      y: Math.floor(cell / asset.width) - sprite.originY,
+    }));
     depthOffset =
       (record.depthOffset === undefined ? asset.depthOffset : depthOffset) +
       (depthMode === 'bottom-up' ? asset.groundOffsetY : 0);
@@ -424,8 +422,9 @@ async function readProp(
       instanceName,
       propId,
       foreground,
+      blockingOffsets,
     );
-  return new Prop(id, x, y, depthOffset, z, sprite, foreground);
+  return new Prop(id, x, y, depthOffset, z, sprite, foreground, instanceName);
 }
 
 async function loadPropClip(

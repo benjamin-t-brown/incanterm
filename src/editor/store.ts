@@ -6,7 +6,12 @@ import {
   removeMissingSceneCharacters,
 } from './scenes/scene-characters.js';
 import { getDefaultPalette, type PaletteDocument } from './palette.js';
-import { diagnoseScript, getScriptNames, type ScriptDiagnostic } from './rpgscript/diagnose.js';
+import {
+  diagnoseScript,
+  getScriptNames,
+  getTriggerNames,
+  type ScriptDiagnostic,
+} from './rpgscript/diagnose.js';
 import {
   CHARACTER_STATES,
   getCharacterAnimation,
@@ -1032,13 +1037,10 @@ export class AssetStore {
     const sources = new Map<string, string[]>();
     for (const id of await this.listScripts()) {
       const { source } = await this.readScript(id);
-      for (const line of source.split(/\r?\n/)) {
-        const match = /^\s*#([\w-]+)\s*$/.exec(line);
-        if (match) {
-          const files = sources.get(match[1]) ?? [];
-          if (!files.includes(id)) files.push(id);
-          sources.set(match[1], files);
-        }
+      for (const name of getTriggerNames(source)) {
+        const files = sources.get(name) ?? [];
+        if (!files.includes(id)) files.push(id);
+        sources.set(name, files);
       }
     }
     return Object.fromEntries(sources);

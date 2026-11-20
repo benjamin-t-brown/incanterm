@@ -1,83 +1,63 @@
-# Install RPGScript support in Cursor
+# Install RPGScript support in Cursor or VS Code
 
-The repository includes the RPGScript language extension under
-`reference/rpgscript-regem-ludos/rpgscript-vs`. Build it into a local VSIX file and
-install that file in Cursor. It provides highlighting, diagnostics, completion,
-hover help, and go-to-definition, including script parameters and local variables.
+The [standalone RPGScript extension](https://github.com/benjamin-t-brown/rpgscript-vs)
+provides highlighting, formatting, diagnostics, completion, hover help, and
+go-to-definition. Incanterm builds the VSIX from a pinned upstream revision;
+the extension is not needed to build or run the game.
 
 ## 1. Prerequisites
 
-- Install Cursor.
-- Install Node.js 24 LTS with npm 11.10 or newer. Check with `node --version` and
-  `npm --version` in a new terminal.
-- Clone or download this repository and extract it to a regular folder.
-- Open the **repository root** (the folder containing `assets`, `src`, and the
-  root `package.json`) using Cursor's **File → Open Folder**. Enable workspace
-  trust when prompted; this extension requires a trusted workspace.
-
-The commands below work in PowerShell, Command Prompt, and bash. Start in the
-repository root. Internet access is needed to download the build dependencies.
+- Install Cursor or VS Code, Git, and Node.js 22 or newer with npm 11.10 or newer.
+- Open the Incanterm repository root (the folder containing `projects/`, `src/`,
+  and `package.json`). The extension requires workspace trust.
 
 ## 2. Build the extension package
 
+Run this from the Incanterm root. It fetches the pinned commit from GitHub,
+applies the inline trigger header update, installs the extension's locked
+dependencies in a temporary checkout, and writes `dist/rpgscript-vs.vsix`.
+You don't need to install Incanterm's npm dependencies for this step.
+
 ```sh
-cd reference/rpgscript-regem-ludos/rpgscript-vs
-npm install --legacy-peer-deps --package-lock=false
-npx --yes @vscode/vsce package --no-yarn --allow-missing-repository --no-rewrite-relative-links --skip-license --out dist/rpgscript-vs.vsix
+npm run build:rpgscript-vs
 ```
 
-The extension has its own dependencies, separate from the game's root package.
-`--legacy-peer-deps` accommodates the extension's older lint-tool dependencies;
-`--package-lock=false` avoids creating an additional lockfile alongside its Yarn
-lockfile. Yarn is not required for these instructions.
-
-The packaging command automatically runs `vscode:prepublish`, which builds both
-the extension client and language server. The VSIX includes the server's runtime
-dependencies. `--allow-missing-repository` and `--skip-license` allow local
-packaging of this extracted extension, whose manifest lacks those metadata fields.
-`--no-rewrite-relative-links` keeps repository-relative documentation links as-is;
-read those links from the checkout rather than Cursor's extension details page.
-
-The resulting file is:
-
-```text
-reference/rpgscript-regem-ludos/rpgscript-vs/dist/rpgscript-vs.vsix
-```
-
-## 3. Install in Cursor
+## 3. Install in your editor
 
 1. Open the Command Palette: **Ctrl+Shift+P** (Windows/Linux) or **Cmd+Shift+P**
    (macOS).
 2. Run **Extensions: Install from VSIX...** and select the generated file.
 3. Run **Developer: Reload Window**.
 
-Alternatively, if the `cursor` command is on your PATH, run this from the
-extension directory:
+Alternatively, run this from the Incanterm root (use `code` for VS Code):
 
 ```sh
 cursor --install-extension dist/rpgscript-vs.vsix --force
 ```
 
-Then reload the Cursor window. The installed extension ID is
-`incanterm.rpgscript-vs`. If you previously installed another copy of RPGScript
-(for example `undefined_publisher.rpgscript-vs` linked to a separate checkout),
-disable or uninstall that copy so only this language extension is active.
+Then reload the editor window. The extension keeps the ID
+`incanterm.rpgscript-vs` and replaces the old vendored build. Disable any copies
+installed under a different publisher and the legacy `revirtualis.rpgscript-format`
+extension to avoid duplicate language or formatting providers.
 
 ## 4. Configure the workspace
 
-In Cursor's Command Palette, run **Preferences: Open Workspace Settings (JSON)**.
-Merge these settings into the workspace's `.vscode/settings.json`:
+Incanterm already ships these settings in `.vscode/settings.json`. If you open a
+different workspace, add or adjust them via **Preferences: Open Workspace Settings (JSON)**:
 
 ```json
 {
   "rpgscript.scriptsRoot": "${workspaceFolder}/projects/ProjectJohnathan/assets/scripts",
   "rpgscript.sceneCommandsPath": "${workspaceFolder}/src/game/scene-commands.ts",
-  "rpgscript.debug": false
+  "rpgscript.debug": false,
+  "[rpgscript]": {
+    "editor.defaultFormatter": "incanterm.rpgscript-vs"
+  }
 }
 ```
 
-These settings select the bundled ProjectJohnathan game while the engine repository
-is open in Cursor. `${workspaceFolder}` resolves to that repository.
+These settings select the bundled ProjectJohnathan game. `${workspaceFolder}`
+resolves to the Incanterm repository.
 For another project, change `scriptsRoot` to its script directory. If you open the
 project folder itself as the workspace, use `${workspaceFolder}/assets/scripts`
 and point `sceneCommandsPath` to your Incanterm installation's command catalog.
@@ -90,7 +70,7 @@ Open an `.rpgscript` file under `projects/ProjectJohnathan/assets/scripts`. The 
 should say **RPGScript**. For a quick check, create a temporary file there:
 
 ```rpgscript
-@cursor_setup_check
+#load@cursor_setup_check
   +:cursor_setup_echo("hello")
 
 @cursor_setup_echo(message)
@@ -98,10 +78,16 @@ should say **RPGScript**. For a quick check, create a temporary file there:
 ```
 
 - The script should have syntax highlighting and no diagnostics.
+- `#load` should use the same color as other triggers; `@cursor_setup_check`
+  should use the script declaration color.
 - Run **Format Document** on a line such as `Guide: "Hello  there"`; it should become `Guide: "Hello there"`.
 - Change `[message]` to `{message}`: expect a warning suggesting `[message]`.
-- Change it to `[missing]`: expect an unknown-local error.
-- Remove `"hello"` from the call: expect an argument-count error.
+- Change it to `[missing]`: expect an unknown-local warning.
+- Remove `"hello"` from the call: expect an argument-count warning.
+
+The standalone extension treats unknown locals and argument-count mismatches as
+warnings for compatibility with other RPGScript games. Incanterm's runtime still
+rejects both.
 
 Restore the example or delete the temporary file when finished. Invalid scripts
 under the selected project's `assets/scripts` also prevent normal game loading.
@@ -117,18 +103,17 @@ npm run run-rpgscript -- --project projects/ProjectJohnathan "testArgs()"
 The included sample logs `Args a b`. Installing the extension enables editor
 features; the game runs scripts using its own runtime.
 
-## Updating after a Git pull
+## Updating the extension
 
-Repeat the dependency-install and packaging commands in step 2, reinstall the
-VSIX, and reload Cursor. Use the CLI's `--force` option when reinstalling the same
-extension version (`0.0.1`). Editing extension source in the checkout does not
-update an already installed VSIX.
-If an older standalone `rpgscript-format` extension is installed, disable it so
-Cursor uses the formatter bundled with `rpgscript-vs`.
+When the pinned revision in `scripts/build-rpgscript-vs.mjs` changes, rebuild the
+VSIX, reinstall it, and reload the editor. Make language-server or grammar changes
+in the [standalone repository](https://github.com/benjamin-t-brown/rpgscript-vs),
+not in Incanterm. Once the pinned revision includes inline trigger headers,
+remove the build's `rpgscript-vs-trigger-headers.patch`.
 
 ## Troubleshooting
 
-- **`cursor` is not recognized:** use **Extensions: Install from VSIX...** instead.
+- **`cursor` or `code` is not recognized:** use **Extensions: Install from VSIX...** instead.
 - **Plain Text language mode:** click the language indicator and select
   **RPGScript**; verify that the file ends in `.rpgscript` and the extension is enabled.
 - **Highlighting works but diagnostics or completion do not:** check workspace
@@ -137,7 +122,7 @@ Cursor uses the formatter bundled with `rpgscript-vs`.
   `rpgscript.debug` to `true` temporarily for additional logging.
 - **Old diagnostics persist after installing:** check for a second RPGScript
   extension, reinstall the newly built VSIX, and reload the window.
-- **Missing `src/server/dist/server.js` or server dependencies:** rebuild and
-  install the VSIX using step 2. `npm run build:client` alone only builds the client.
+- **Missing `dist/server.js`:** rebuild and reinstall the VSIX. It bundles the
+  client and language server together.
 
 See [RPGScript integration](design/rpgscript.md) for language and runtime details.

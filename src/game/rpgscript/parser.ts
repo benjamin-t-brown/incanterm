@@ -1,6 +1,10 @@
 // Adapted from reference/rpgscript-regem-ludos/src/lib/rpgscript.ts.
 // Keep RPGScript syntax here; no browser globals, fetch, or original Scene runtime.
-import { parseScriptSignature } from './signature.js';
+import {
+  getTriggerScriptPrefix,
+  parseScriptSignature,
+  parseTriggerScriptHeader,
+} from './signature.js';
 import { isNumericExpression, validateNumericExpression } from './expression.js';
 
 const DIALOGUE_LINE = /^_?[A-Za-z_][\w. -]*(?:&[\w-]+)?:\s*["']/;
@@ -134,7 +138,7 @@ export interface Conditional {
 
 export type StorageReference = Readonly<{ storageKey: string }>;
 export type LocalReference = Readonly<{ localName: string }>;
-export type ScriptValue = string | number | boolean | StorageReference | LocalReference | Readonly<{ expression: string }> | Readonly<{ literal: string }> | Readonly<{ list: readonly ScriptValue[] }> | Readonly<{ indexed: { list: StorageReference | LocalReference; index: ScriptValue } }>;
+export type ScriptValue = string | number | boolean | StorageReference | LocalReference | Readonly<{ expression: string }> | Readonly<{ literal: string }> | Readonly<{ quoted: string }> | Readonly<{ list: readonly ScriptValue[] }> | Readonly<{ indexed: { list: StorageReference | LocalReference; index: ScriptValue } }>;
 
 export type CommandArg =
   | ScriptValue
@@ -145,11 +149,14 @@ export interface Command {
   i: number;
   type: string;
   args: CommandArg[];
+  result?: StorageReference | LocalReference;
+  condition?: Conditional | boolean;
 }
 
 export interface CommandBlock {
   conditional: Conditional | boolean;
   commands: Command[];
+  conditionLine?: number;
   /** Marks a loop's closing block: when it runs, execution jumps back to this block index. */
   loopTo?: number;
   /** Source line of the `while` that this closing block belongs to. */
@@ -194,7 +201,7 @@ function hasOnceCondition(condition: Conditional | boolean): boolean {
 export class ScriptParser {
   constructor(readonly name: string) {}
 
-  throwParsingError(err: string, lineNum: number, lineContents: string) {
+  throwParsingError(err: string, lineNum: number, lineContents: string): never {
     throw new Error(`${this.name}:${lineNum}: ${err} (${lineContents})`);
   }
 
@@ -240,6 +247,21 @@ export class ScriptParser {
         this.throwParsingError('Set-if-undefined assignments cannot target local variables', lineNum, commandSrc);
       }
       const value = assignment[2].replace(/;$/, '').trim();
+      const commandValue = /^\+?[A-Za-z_][\w-]*\s*\(.*\)$/.test(value);
+      if (commandValue || value.startsWith('?')) {
+        if (ifUndefined || assignment[1].startsWith('{'))
+          this.throwParsingError('Command and condition results require a direct local or global assignment', lineNum, commandSrc);
+        const destination = assignment[1];
+        const result = destination.startsWith('[')
+          ? { localName: destination.slice(1, -1) }
+          : { storageKey: destination };
+        if (commandValue)
+          return { ...this.parseCommand(value.replace(/^\+/, ''), lineNum, script), result };
+        return {
+          i: lineNum, type: 'evaluateCondition', args: [], result,
+          condition: this.parseConditional(value.slice(1), lineNum, script),
+        };
+      }
       if (!value.startsWith('|') && !value.startsWith('[') && !/^(?:\[[A-Za-z_][\w-]*\]|\{[A-Za-z_][\w.-]*\})\s*->/.test(value) && isNumericExpression(value)) {
         try {
           validateNumericExpression(value);
@@ -324,7 +346,7 @@ export class ScriptParser {
       }
     });
 
-    const type = commandSrc.substr(0, firstParenIndex);
+    const type = commandSrc.slice(0, firstParenIndex).trim();
     const formattedArgs: CommandArg[] = formatArgs(args);
     if (type === 'callScript' || type === 'setLocal' || type === 'returnValue') {
       for (let index = type === 'returnValue' ? 0 : 1; index < args.length; index++) {
@@ -405,6 +427,13 @@ export class ScriptParser {
     lineNum: number,
     script?: ParsedScript,
   ): Conditional | boolean {
+    conditionalSrc = conditionalSrc.trim();
+    if (conditionalSrc.startsWith('+:')) {
+      const target = /^\+:([\w-]+)\s*\(.*\)$/.exec(conditionalSrc);
+      if (!target) this.throwParsingError('Invalid script call in condition', lineNum, conditionalSrc);
+      const { args } = this.parseCommand(conditionalSrc.slice(1), lineNum, script);
+      return { type: 'scriptResult', args: [target[1], ...args.slice(1)] };
+    }
     if (conditionalSrc.trim() === 'else') conditionalSrc = 'else()';
     const whileLoop = /^while\s+(.+)$/s.exec(conditionalSrc.trim());
     if (whileLoop) {
@@ -429,7 +458,9 @@ export class ScriptParser {
       'is',
       'isnot',
       'gt',
+      'gte',
       'lt',
+      'lte',
       'eq',
       'in',
       'any',
@@ -451,10 +482,17 @@ export class ScriptParser {
       );
     }
 
+    const rawArgs = splitNotInParens(conditionalSrc.slice(
+      conditionalSrc.indexOf('(') + 1, conditionalSrc.lastIndexOf(')'),
+    ), ',');
     return {
-      type: type,
-      args: args.map((arg) => {
-        if (typeof arg === 'string' && type !== 'func' && arg.indexOf('(') !== -1) {
+      type,
+      args: args.map((arg, index) => {
+        const raw = rawArgs[index].trim();
+        const isQuoted = raw.startsWith('"') || raw.startsWith("'");
+        if (type === 'eq' && isQuoted) return { quoted: raw.slice(1, -1) };
+        if (type === 'eq' && (raw === 'true' || raw === 'false')) return raw === 'true';
+        if (typeof arg === 'string' && type !== 'func' && arg.includes('(') && !isQuoted) {
           return this.parseConditional(arg, lineNum, script);
         } else {
           return arg;
@@ -504,13 +542,16 @@ export class ScriptParser {
     conditional: Conditional | boolean;
     endIndex: number;
   } {
-    const conditionalStartIndex = indexOfNotInParens(line, '?');
-    if (conditionalStartIndex > -1) {
-      const colonIndex = indexOfNotInParens(line, ':');
-      if (colonIndex === -1) {
+    const prefix = /^\s*\+?\?\s*/.exec(line);
+    if (prefix) {
+      const start = prefix[0].length;
+      const searchFrom = line.startsWith('+:', start) ? start + 2 : start;
+      const colonOffset = indexOfNotInParens(line.slice(searchFrom), ':');
+      if (colonOffset === -1) {
         this.throwParsingError(`Invalid conditional, no ending ':'`, lineNum, line);
       }
-      const conditionalSrc = line.slice(conditionalStartIndex + 1, colonIndex);
+      const colonIndex = searchFrom + colonOffset;
+      const conditionalSrc = line.slice(start, colonIndex);
       const conditional = this.parseConditional(conditionalSrc.trim(), lineNum, script);
       return { conditional, endIndex: colonIndex + 1 };
     } else {
@@ -609,6 +650,7 @@ export class ScriptParser {
         return;
       }
       const firstCh = line[0];
+      const triggerPrefix = isCodeBlock ? undefined : getTriggerScriptPrefix(line);
       if (line === '{') {
         previousBranch.delete(conditionalStack.length);
         isCodeBlock = true;
@@ -639,24 +681,18 @@ export class ScriptParser {
         }
         isCodeBlock = conditionalStack.length > 0;
         currentBlock = null;
-      } else if ((firstCh === '@' || line.startsWith('#@')) && !isCodeBlock) {
-        const isActionHeader = line.startsWith('#@');
+      } else if (!isCodeBlock && (firstCh === '@' || triggerPrefix)) {
         let signature: ReturnType<typeof parseScriptSignature>;
+        let triggerHeader: ReturnType<typeof parseTriggerScriptHeader> | undefined;
         try {
-          signature = parseScriptSignature(line.slice(isActionHeader ? 2 : 1));
+          triggerHeader = triggerPrefix ? parseTriggerScriptHeader(line, triggerPrefix) : undefined;
+          signature = triggerHeader?.signature ?? parseScriptSignature(line.slice(1));
         } catch (error) {
           this.throwParsingError((error as Error).message, lineNum, line);
-          return;
         }
         let scriptName = signature.name;
-        if (isActionHeader) {
-          if (signature.parameters.length > 0) {
-            this.throwParsingError(
-              'Action shorthand scripts cannot have parameters',
-              lineNum,
-              line,
-            );
-          }
+        if (triggerHeader) {
+          const { type, intervalMs } = triggerHeader;
           if (Object.hasOwn(triggers, scriptName)) {
             this.throwParsingError(`Duplicate trigger ${scriptName}`, lineNum, line);
           }
@@ -665,7 +701,15 @@ export class ScriptParser {
             name: scriptName,
             filename: this.name,
             lineNum,
-            scriptCalls: [{ type: TriggerType.ACTION, condition: true, scriptName, line: lineNum }],
+            scriptCalls: [
+              {
+                type,
+                condition: true,
+                scriptName,
+                line: lineNum,
+                ...(intervalMs === undefined ? {} : { intervalMs }),
+              },
+            ],
             x: 0,
             y: 0,
           };
@@ -748,8 +792,9 @@ export class ScriptParser {
             if (/^(["']).*\1$/.test(switchHeader[1].trim()))
               selector[0] = { literal: switchHeader[1].trim().slice(1, -1) };
             const header = currentScript.blocks.length;
-            const block = addCommandBlock(currentScript);
-            block.conditional = this.createAllConditional(
+             const block = addCommandBlock(currentScript);
+            block.conditionLine = lineNum;
+             block.conditional = this.createAllConditional(
               ...conditionalStack, { type: 'switchValue', args: [selector[0], header] },
             );
             switches.set(conditionalStack.length, { header, cases: [], hasDefault: false });
@@ -779,6 +824,7 @@ export class ScriptParser {
             }
             const blockIndex = currentScript.blocks.length;
             const block = addCommandBlock(currentScript);
+            block.conditionLine = lineNum;
             block.conditional = this.createAllConditional(
               ...conditionalStack,
               { type: isDefault ? 'switchDefault' : 'switchCase', args: isDefault ? [activeSwitch.header, ...activeSwitch.cases] : [activeSwitch.header, value, ...activeSwitch.cases] },
@@ -803,6 +849,7 @@ export class ScriptParser {
             }
             previousBranch.delete(conditionalStack.length);
             const block = addCommandBlock(currentScript);
+            block.conditionLine = lineNum;
             block.conditional = this.createAllConditional(
               ...conditionalStack,
               conditional.args[0] as Conditional,
@@ -852,6 +899,7 @@ export class ScriptParser {
           if (typeof conditional === 'object') {
             if (commandContents.slice(endIndex).trim() === '{') {
               const block = addCommandBlock(currentScript);
+              block.conditionLine = lineNum;
               setPreviousBranch();
               block.conditional = this.createAllConditional(...conditionalStack, conditional);
               conditionalStack.push({
@@ -863,6 +911,7 @@ export class ScriptParser {
               return;
             } else if (endIndex === commandContents.length) {
               currentBlock = addCommandBlock(currentScript);
+              currentBlock.conditionLine = lineNum;
               setPreviousBranch();
               currentBlock.conditional = this.createAllConditional(
                 ...conditionalStack,
@@ -872,6 +921,7 @@ export class ScriptParser {
             }
             // An inline conditional is a separate block even inside a braced parent.
             const block = addCommandBlock(currentScript);
+            block.conditionLine = lineNum;
             setPreviousBranch();
             block.conditional = this.createAllConditional(...conditionalStack, conditional);
             let commandSrc = commandContents.slice(endIndex);

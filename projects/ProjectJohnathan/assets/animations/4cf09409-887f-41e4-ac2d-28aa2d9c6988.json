@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "4cf09409-887f-41e4-ac2d-28aa2d9c6988",
+  "label": "sunlight",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "71c17d7c-b2ce-4aca-8a62-72d223e865e4",
+      "index": 0,
+      "durationMs": 500
+    },
+    {
+      "sprite": "71c17d7c-b2ce-4aca-8a62-72d223e865e4",
+      "index": 1,
+      "durationMs": 500
+    }
+  ]
+}

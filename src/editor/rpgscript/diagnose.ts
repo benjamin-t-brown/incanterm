@@ -1,4 +1,6 @@
 import { isKnownCommand } from './commands.js';
+import { ScriptParser } from '../../game/rpgscript/parser.js';
+import { getTriggerScriptPrefix, parseTriggerScriptHeader } from '../../game/rpgscript/signature.js';
 
 export type ScriptDiagnostic = {
   line: number;
@@ -16,6 +18,7 @@ export function diagnoseScript(
   const known = new Set(knownScripts);
   const diagnostics: ScriptDiagnostic[] = [];
   const lines = source.split(/\r?\n/);
+  const parser = new ScriptParser('<editor>');
   let depth = 0;
   const switchDepths: number[] = [];
   lines.forEach((raw, index) => {
@@ -33,8 +36,18 @@ export function diagnoseScript(
       return;
     }
     if (switchDepths.includes(atDepth) && /^.+:\s*\{$/.test(line)) return;
+    const triggerPrefix = getTriggerScriptPrefix(line);
+    if (triggerPrefix) {
+      try {
+        parseTriggerScriptHeader(line, triggerPrefix);
+      } catch (error) {
+        diagnostics.push(reportError(lineNumber, (error as Error).message));
+      }
+      return;
+    }
     if (line.startsWith('@') || line.startsWith('#') || line.startsWith('$')) return;
     if (line === '{' || line === '}') return;
+    if (line.startsWith('<')) return;
     if (isDialogue(line)) {
       if (!hasClosedQuote(line)) {
         diagnostics.push(reportError(lineNumber, 'Dialogue string is missing its closing quote'));
@@ -42,7 +55,19 @@ export function diagnoseScript(
       return;
     }
     if (line.startsWith('+')) {
-      const parsed = parseCommand(line.slice(1).trim());
+      let body = line.slice(1).trim();
+      const assignment = /^(?:\[[A-Za-z_][\w-]*\]|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\s*=\s*(?=[+?]?[A-Za-z_][\w-]*\s*\()/.exec(body);
+      if (assignment) body = body.slice(assignment[0].length);
+      if (body.startsWith('?')) {
+        try {
+          if (assignment) parser.parseConditional(body.slice(1).replace(/;$/, ''), lineNumber);
+          else parser.getConditionalFromLine(body, lineNumber);
+        } catch (error) {
+          diagnostics.push(reportError(lineNumber, String(error instanceof Error ? error.message : error)));
+        }
+        return;
+      }
+      const parsed = parseCommand(body.replace(/^\+/, ''));
       if ('error' in parsed) {
         diagnostics.push(reportError(lineNumber, parsed.error));
         return;
@@ -74,12 +99,37 @@ export function diagnoseScript(
 export function getScriptNames(source: string): string[] {
   const names: string[] = [];
   for (const raw of source.split(/\r?\n/)) {
-    const line = raw.trim().replace(/^#@/, '@');
-    if (!line.startsWith('@')) continue;
-    const name = line.slice(1).trim().split(/\s+/)[0] ?? '';
-    if (name && name !== 'this') names.push(name);
+    const line = raw.trim();
+    const triggerScript = getInlineTriggerScriptName(line);
+    if (triggerScript) {
+      names.push(triggerScript);
+    } else if (line.startsWith('@')) {
+      const name = line.slice(1).trim().split(/\s+/)[0] ?? '';
+      if (name && name !== 'this') names.push(name);
+    }
   }
   return names;
+}
+
+export function getTriggerNames(source: string): string[] {
+  const names: string[] = [];
+  for (const raw of source.split(/\r?\n/)) {
+    const line = raw.trim();
+    const name = /^#([\w-]+)$/.exec(line)?.[1] ?? getInlineTriggerScriptName(line);
+    if (name) names.push(name);
+  }
+  return names;
+}
+
+function getInlineTriggerScriptName(line: string): string | undefined {
+  const prefix = getTriggerScriptPrefix(line);
+  if (!prefix) return undefined;
+  try {
+    return parseTriggerScriptHeader(line, prefix).signature.name;
+  } catch {
+    // Invalid headers are handled by diagnostics.
+    return undefined;
+  }
 }
 
 function isDialogue(line: string): boolean {
@@ -94,10 +144,9 @@ function hasClosedQuote(line: string): boolean {
 
 function parseCommand(body: string): { name: string; target?: string } | { error: string } {
   let source = body.trim();
-  if (source.startsWith('?')) source = source.slice(1).trim();
-  const conditional = source.indexOf(':{');
-  if (conditional !== -1) source = source.slice(0, conditional).trim();
   if (source.endsWith(';')) source = source.slice(0, -1).trim();
+  const assignment = /^(?:\[[A-Za-z_][\w-]*\]|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\s*=\s*(?=[A-Za-z_][\w-]*\s*\()/.exec(source);
+  if (assignment) source = source.slice(assignment[0].length);
   const open = source.indexOf('(');
   const close = source.lastIndexOf(')');
   if (open <= 0 || close < open || close !== source.length - 1) {

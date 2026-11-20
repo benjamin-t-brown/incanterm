@@ -108,7 +108,7 @@ export function askSaveAs(currentLabel: string): Promise<string | null> {
 }
 
 export function askAssetMeta(
-  kind: 'SPRITESHEET' | 'ANIMATION' | 'CHARACTER',
+  kind: 'SPRITESHEET' | 'ANIMATION' | 'CHARACTER' | 'PROP',
   label: string,
   id: string,
 ): Promise<string | null> {

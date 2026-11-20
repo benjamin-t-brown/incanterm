@@ -6,7 +6,7 @@
 
 Use the user's RPGScript language from regem-ludos for server-side Script assets. Preserve its stage-play/movie-script authoring style. Rewrite loading and ScriptRunner to fit Incanterm's server and per-player sessions, and supply an Incanterm-specific scene command library.
 
-The [extracted sources and editor tooling](../../reference/rpgscript-regem-ludos/README.md) are a reference snapshot, not integrated runtime code. This replaces the previously open script-language choice in [Scenes, entities, and scripts](scenes-entities-and-scripts.md). It does not introduce scripting in any client.
+The [extracted sources](../../reference/rpgscript-regem-ludos/README.md) are a reference snapshot, not integrated runtime code. This replaces the previously open script-language choice in [Scenes, entities, and scripts](scenes-entities-and-scripts.md). It does not introduce scripting in any client.
 
 ## Language to preserve
 
@@ -62,6 +62,29 @@ its timers; entering a scene resets them. Timers defer while the runner is busy,
 coalescing missed ticks into one firing rather than replaying a backlog. Timer
 conditions are evaluated when due, using the usual trigger condition syntax.
 
+For a timer that runs in every scene, list the **trigger name** (the name after
+`#`) in the project's `assets/session-config.json`:
+
+```json
+{
+  "timerTriggers": ["sessionClock"]
+}
+```
+
+```rpgscript
+#sessionClock
+  timer,updateSession,1000
+@updateSession
+  +log("Session tick!")
+```
+
+No scene needs to list `sessionClock`. Each player session starts its own clock
+on open, keeps it across scene changes, and stops it on close. Only `timer`
+bindings are picked up by `timerTriggers`; existing scene events such as `load`
+are unchanged. If a scene also lists the trigger, its timer runs only once per
+interval. Like a scene timer, a regular session timer defers while the foreground
+runner is busy. Its script uses the session's existing globals and current scene.
+
 To run the timer on a character's independent subscript runner, use
 `timer,scriptName,characterNameOrId,intervalMs`:
 
@@ -78,13 +101,37 @@ character already has a subscript running, the tick is skipped without queuing o
 restarting it. Conditions run with the character's instance ID, and ordinary calls
 inside the timer script stay on that character's runner. The scene editor uses the
 same TIMER option for both forms; the RPGScript binding selects the behavior.
+For character timers bound to the session, the character reference is resolved in
+the current scene at each tick, and any running character task is still cleared
+on scene changes.
 
-`#@name` defines a trigger with an unconditional `action,name` binding and opens
-the script `@name`. Write its body immediately below the header. For example,
-`#@classroom1_smileyPoster` replaces `#classroom1_smileyPoster`,
-`action,classroom1_smileyPoster`, and `@classroom1_smileyPoster`.
-Action shorthand scripts take no parameters. The editor highlights `#` as a
-trigger and `@name` as a script declaration.
+### Inline trigger scripts
+
+An inline header defines an unconditional trigger and opens a script with the
+same name. Write the script body immediately below it.
+
+| Header | Binding |
+| --- | --- |
+| `#@name` or `#action@name` | `action,name` |
+| `#step@name` | `step,name` |
+| `#load@name` | `load,name` |
+| `#timer@name,2000` | `timer,name,2000` |
+
+For example, `#step@maintenance_toLibrary2` replaces the separate trigger
+header, `step,maintenance_toLibrary2` binding, and script header:
+
+```rpgscript
+#step@maintenance_toLibrary2
+  +changeScene(library2, FromMaintenance)
+```
+
+Configure the trigger by its name (`maintenance_toLibrary2`) as usual. Inline
+scripts take no parameters. Inline timers require an explicit positive interval
+in milliseconds. Use a separate trigger and script for conditional bindings,
+character timers, or different trigger and script names.
+
+The Cursor/VS Code extension colors the `#step` (or other trigger prefix) like a
+regular trigger and `@name` like a script declaration.
 
 Existing authoring example:
 
@@ -120,6 +167,22 @@ position by integer scene-cell offsets (positive x moves right, positive y
 moves down). Like `walkToMarker`, it waits for arrival by default; pass `true`
 as the fourth argument to continue the script while the character walks.
 For example, `+walkToOffset(player, 2, -1)` moves two cells right and one up.
+
+`getCharacterPos(character)` (also `getChPos(character)`) and `getPropPos(prop)` return a two-element
+`[x, y]` list. Use `setChPos(character, x, y)` or `setPropPos(prop, x, y)` to
+move an instance immediately to integer scene coordinates, without pathfinding.
+For characters, `y` is the feet row used by walking; for props, it is the sprite
+origin row. `setChPos` cancels an active walk, and a moved prop's blocking
+footprint moves with it. Use `player` for the controlled character or identify a
+prop by its instance ID or unique instance name.
+
+```rpgscript
+  +[saved]=getCharacterPos(player)
+  +cratePos=getPropPos(crate)
+  +setChPos(player, 12, 5)
+  +setPropPos(crate, 18, 5)
+  +setChPos(player, [saved]->0, [saved]->1)
+```
 
 ### Switch blocks
 
@@ -199,6 +262,32 @@ between calls or character tasks.
 ```
 
 Here `[local]` receives 2, then 3, and so on on successive calls to `testReturn1`.
+
+### Using return values in conditions
+
+Use `+:script(args)` inside a script condition to read its returned value.
+The condition waits for the called script to finish. `is(...)` and `isnot(...)`
+use truthiness: all lists (even empty ones) and nonempty strings (even `"false"`)
+are true; an empty string, `0`, `false`, and no return value are false. Use
+`eq(+:script(), "0")` to match a returned string, or `eq(+:script(), 0)` to
+match a returned number. Numeric comparisons require two operands, for example
+`lt(+:script(), 0)`. Calls inside trigger conditions are not supported.
+
+Assign a condition's boolean result with `+name=?condition(...)` or
+`+[local]=?condition(...)`. `lte` and `gte` compare numbers inclusively.
+
+```rpgscript
+@isUpstairs(character)
+  +[pos]=+getChPos([character])
+  +[upstairs]=?lte([pos]->1, 1)
+  <[upstairs]
+
+@useTerminal
+  +?is(+:isUpstairs(player)):{
+    <
+  }
+  +log("Using terminal")
+```
 
 ### Script parameters and locals
 
@@ -321,12 +410,7 @@ Keep original commands and skip implementations as references, not required feat
 
 Prefer underscores (`_`) over hyphens (`-`) in RPGScript script and trigger names and other author-defined identifiers—for example, `test_goodbye` rather than `test-goodbye`. Underscores make it easier to select the whole name with a double-click or word-selection shortcut in the editor.
 
-Preserve and adapt both extracted extensions:
-
-- `rpgscript-vs`: TextMate syntax highlighting, language configuration, extension entry point, and language server providing diagnostics, completion, hover help, and definitions.
-- `rpgscript-format`: document formatter.
-
-The editor-side parser has extra reference tracking and adaptations. Keep that behavior when consolidating or sharing parser code. Runtime and editor diagnostics should agree on supported syntax and command names.
+The standalone [rpgscript-vs extension](https://github.com/benjamin-t-brown/rpgscript-vs) provides syntax highlighting, formatting, diagnostics, completion, hover help, and definitions. Its editor-side parser has extra reference tracking and supports legacy RPGScript used by other games. Editor diagnostics are advisory; Incanterm still validates scripts with its own runtime parser. See the [editor setup guide](../rpgscript-cursor-setup.md).
 
 The workspace config points the existing language extension at `src/game/scene-commands.ts`. Its `commands = { ... }` export and matching `const` declarations are deliberately shaped for the extension's command discovery, completion, signatures, hover, and definitions. The game supplies this catalog when loading scripts, then constructs `ScriptRunner` with `{ commands, context: game }`. Each command defines `parse`, `execute`, and optional script `targets`; execution receives `(step, script, game)`. RPGScript only knows the generic registry and passes the host context through unchanged. The terminal uses `src/game/scene-commands-shim.ts` with terminal IO as its context. The `showChoices` entry is needed because the editor parser emits that command for `$` blocks; authors should use `$` choice syntax, not call `showChoices` directly.
 
@@ -379,7 +463,7 @@ Control keywords are line prefixes written with `!`, like `<` for return, and wo
 - `!continue` skips to the next pass of the innermost `while`, re-testing its condition. It counts toward the 1000-pass cap.
 - `!returnempty` exits the current script and returns undefined, the same as a bare `<`.
 
-Write them without a leading `+`; `+!break` is an error, in both the runtime and the editor. `!break` and `!continue` outside a `while` are errors, in both the runtime and the editor. A called script's loops are independent, so neither keyword can leave the caller's loop. `<value` and `!returnempty` leave the whole script, not just the loop.
+Write them without a leading `+`; Incanterm rejects `+!break` even though the standalone extension accepts that legacy spelling. `!break` and `!continue` outside a `while` are errors. A called script's loops are independent, so neither keyword can leave the caller's loop. `<value` and `!returnempty` leave the whole script, not just the loop.
 
 ## Adaptation outline
 
@@ -394,7 +478,7 @@ The adapted parser runs without its original browser globals or Scene runtime. A
 
 For scene-free smoke tests, `npm run run-rpgscript -- "testRoomEntry()"` loads every RPGScript under `assets/scripts`, creates a temporary inline call, and runs it through the same session runner. `--assets path` selects a different asset root. The terminal shim clones the command catalog, printing dialogue and logs, retaining storage and script-call semantics, and prompting for numbered `$` and `awaitChoice` options. Unknown commands are errors in both loaded assets and inline snippets, with a file/line location and a nonzero CLI exit status. Use `+:testArgs()` to call a script inside a snippet; `+testArgs()` instead names a command and errors if that command is unknown. Unsupported conditions and unresolved script calls also report errors.
 
-Incanterm also supports `+?else():{ ... }` and inline `+?else():+command(...)` after a conditional at the same block depth. `else()` uses the prior branch's **cached result**, not its condition re-evaluated after commands change storage. A second `else`, an orphan `else`, or an `else` separated from its `if` by an unconditional command is an error. Parent branches likewise keep their cached result across nested blocks. The existing Cursor extension's hard-coded condition list was updated in `C:/progs/regem-ludos/rpgscript-vs`; its language server was rebuilt, and the installed `incanterm.rpgscript-vs-0.0.1` parser was patched without replacing its other local changes. Its TextMate and Iro grammars and the bundled reference were also updated so `else` and conditional and command-call parentheses receive the control-flow scope. Both parsers lint a braced example without diagnostics. Reload Cursor to pick up changes to the installed grammar or language server. Runtime validation of orphan/duplicate `else` branches is stricter than the editor parser's syntax validation.
+Incanterm also supports `+?else():{ ... }` and inline `+?else():+command(...)` after a conditional at the same block depth. `else()` uses the prior branch's **cached result**, not its condition re-evaluated after commands change storage. A second `else`, an orphan `else`, or an `else` separated from its `if` by an unconditional command is an error. Parent branches likewise keep their cached result across nested blocks.
 
 Triggers are loaded and validated with shared definitions and dispatched with `runner.dispatchTrigger(name, TriggerType.ACTION)` (or another **explicit RPGScript event type**). A scene asset's `triggers` array binds RPGScript `#name` definitions to that scene; session entry dispatches the `load` event for each bound trigger. For example, `"triggers": ["room-entry"]` and `#room-entry` followed by `load,intro` run `@intro` when the scene opens. Missing references fail server startup. Entry triggers run in scene order as the runner becomes idle; later ones wait for an earlier dialogue to finish. The first matching, passing call for a trigger runs only when the runner is idle. `oncePerInstance` needs an explicit third `instanceId` argument, which carries into scripts called from that trigger. Other scene-to-event mappings (`action`, item, region) remain unconnected. Storage and once keys are session-local and not yet persisted. Trigger targets with arguments, waits, inventory, effects, and other scene commands are not implemented. See [Development and build](development-and-build.md).
 

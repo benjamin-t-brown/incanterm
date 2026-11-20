@@ -1,0 +1,75 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "f6ede972-ea6d-4af7-a589-a0407c791ea8",
+  "label": "textAnim_returnBooksAnim",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 0,
+      "durationMs": 700
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 1,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 2,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 3,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 4,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 5,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 6,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 7,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 8,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 9,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 10,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 11,
+      "durationMs": 50
+    },
+    {
+      "sprite": "9f8b9eca-e077-42b0-b538-227a66b868ea",
+      "index": 12,
+      "durationMs": 50
+    }
+  ]
+}

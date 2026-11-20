@@ -1,6 +1,11 @@
 export const COMMAND_NAMES = [
   'callChSubscript',
   'setBusy',
+  'getCharacterPos',
+  'getChPos',
+  'getPropPos',
+  'setChPos',
+  'setPropPos',
   'walkTo',
   'walkToMarker',
   'walkToOffset',

@@ -1,29 +1,33 @@
-#officeLiftLoad
-  load,officeLiftLoad
-@officeLiftLoad
+#load@officeLiftLoad
   +setPlayerWalkCh(Johnathan, 3x3)
+  +^schoolPuzzle.officeEntryMarker="fromOfficeLift"
 
 #officeLiftUpdate
   timer,officeLiftUpdater,2000
 @officeLiftUpdater
   // move stuff skip wait
 
-#officeLift_toHallway3
-  step,officeLift_toHallway3
-@officeLift_toHallway3
+#step@officeLift_toHallway3
   +changeScene(hallway3, FromOffice)
 
 #@officeLift_trash
-  +setConv()
   +walkToMarker(John, MarkerTrash)
   +:ld(John, up)
-  Johnathan: "Nope, nothing in there. Must have just been cleared."
-  +endConv()
+  +:schoolPuzzle_searchTrash(officeLift)
 
 #@officeLift_blueDoor
-  +setConv()
   +walkToMarker(John, MarkerBlueDoor)
   +:ld(John, right)
+  // +?is(schoolPuzzle.officeReset):{
+  //   +:officeLift_enterOffice()
+  //   <
+  // }
+  +:officeLift_interactWithBlueDoor()
+
+
+@officeLift_interactWithBlueDoor
+  +setConv()
+  +schoolPuzzle.officeBlocked=true
   +^officeLift.blueDoor=0
   +officeLift.blueDoor={officeLift.blueDoor}+1
   +?switch(officeLift.blueDoor):{
@@ -37,23 +41,138 @@
       Johnathan: "I can't get past it."
     }
   }
-
-
   +endConv()
+
+@officeLift_walkLadyToTerminal
+  +setPropAnimState(office_door_terminal2, ringing)
+  +walkToMarker(lady, MarkerTerminal2)
+  +setAnimState(lady, interact up)
+  +setPropAnimState(office_door_terminal2, default)
+
+@officeLift_walkLadyToDesk
+  +walkToMarker(lady, MarkerLadyDesk)
+  +walkToOffset(lady, 0, -2)
+  +setAnimState(lady, sit office)
 
 #@officeLift_terminal1
   +setConv()
-  +walkToMarker(John, MarkerTerminal1)
-  +:ld(John, up)
-  +^officeLift.terminal1=0
-  +officeLift.terminal1={officeLift.terminal1}+1
-  +?switch(officeLift.terminal1):{
-    1:{
-      +setAnimState(John, interact up)
-      Johnathan: "It's a terminal."
+  +^schoolPuzzle.isSeekingMaintenancePass=false
+  +^schoolPuzzle.isTryingToGetPastBlueDoor=false
+  // +?isnot(func(hasItem, OfficeEnvelope)):{
+  //   Johnathan: "I don't have the envelope... Why am I even here?"
+  //   <
+  // }
+  +?if isnot(schoolPuzzle.isTryingToGetPastBlueDoor):{
+    +schoolPuzzle.isTryingToGetPastBlueDoor=true
+    +walkToMarker(Johnathan, MarkerTerminal1)
+    +:ld(Johnathan, up)
+    +setAnimState(Johnathan, interact up)
+    +:officeLift_JohnathanTalksToLadyFirstTime()
+    +setAnimState(Johnathan, idle)
+  }
+  +?elseif is(schoolPuzzle.seesNobodyIsInMaintenance):{
+    +?isnot(schoolPuzzle.needsMaintenancePass):{
+      +schoolPuzzle.needsMaintenancePass=true
+      +:officeLift_JohnathanLearnsHeNeedsAPass(false)
     }
-    *:{
-      Johnathan: "It's a terminal."
+    +?else:{
+      +:ld(Johnathan, down)
+      Johnathan: "Mrs. Laddy told me I need a Maintenance Pass before I'll be able to fix the lift to the Main Office."
     }
   }
+  // default cases
+  +?else:{
+    +:ld(Johnathan, down)
+    Johnathan: "The Main Office is blocked off. I'll need to fix it before I can deliver Mr. Ralgo's Office Envelope1."
+  }
   +endConv()
+
+
+@officeLift_OfficeTalk
+  +:schoolPuzzle_callOffice()
+
+@officeLift_JohnathanTalksToLadyFirstTime
+  +setPropAnimState(office_door_terminal2, ringing)
+  Johnathan: "Hello? Anybody there?"
+  +:officeLift_walkLadyToTerminal()
+  Mrs Laddy: "Hello? This is Mrs. Laddy. Who is this?"
+  Johnathan: "I'm Johnathan. I'm a student. What's up with this barrier blocking the lift to the Main Office?"
+  Mrs Laddy: "Oh that thing's been acting up all day."
+  Mrs Laddy: "Did you need to visit the office, young man?"
+  Johnathan: "Yes! I have an envelope from Mr. Ralgo."
+  Mrs Laddy: "Oh yes. Yes of course."
+  Mrs Laddy: "Unfortunately you'll have to wait until Maintenance can get here to fix the... uh... lift."
+  Johnathan: "What? Is that why this barrier is here? Don't you have stairs or something I can use?"
+  Mrs Laddy: "Well of course we do, but we've been instructed not to use them as they are wired to the fire alarm."
+  Mrs Laddy: "So using the stairs will set off the anti-fire system and the whole school will be soaked in water after 30 seconds."
+  Johnathan: "That sounds like a terrible design... Is this place really at that high of risk for fire?"
+  Mrs Laddy: "I don't think so... The system has something to do with insurance... Really, it hasn't been a problem. Usually the lift works."
+  Johnathan: "Of course not! Of all days it has to be this day."
+  Johnathan: "Is there any way you can call Maintenance to come up here right now?"
+  Mrs Laddy: "I already have. But they're busy fixing the elevators."
+  Johnathan: "Something else is broken in the school today?"
+  Mrs Laddy: "Mmhmm! The elevators are down. Some students are stranded upstairs so they're working on getting them down."
+  Johnathan: "And I'm guessing they can't use the stairs because of the anti-fire system?"
+  Mrs Laddy: "Yes that's correct."
+  Johnathan: "Awesome. That's so awesome."
+  Mrs Laddy: "If you wan't, you can go to the Maintenance Office and badger them to come up here to fix the lift."
+  +?is(schoolPuzzle.seesNobodyIsInMaintenance):{
+    +schoolPuzzle.needsMaintenancePass=true
+    Johnathan: "I was just over there... nobody's in the office!"
+    +:officeLift_JohnathanLearnsHeNeedsAPass2(false)
+  }
+  +?else:{
+    Johnathan: "Fine. I'll go over there now."
+    Mrs Laddy: "Mind the construction dear. I wouldn't want you to get injured."
+    +:officeLift_walkLadyToDesk()
+  }
+
+@officeLift_JohnathanLearnsHeNeedsAPass(isFromMaintenance)
+  +?isnot([isFromMaintenance]):{
+    +setPropAnimState(office_door_terminal2, ringing)
+  }
+  Johnathan: "Hello? You there Mrs. Laddy?"
+  +?isnot([isFromMaintenance]):{
+    +:officeLift_walkLadyToTerminal()
+  }
+  Mrs Laddy: "Hello? Is that you again Johnathan?"
+  +?is([isFromMaintenance]):{
+    Johnathan: "Yes. I'm over at the Maintenance Office, but there's nobody here."
+  }
+  +?else:{
+    Johnathan: "Yes. I checked the Maintenance Office, but there's nobody there."
+  }
+  +:officeLift_JohnathanLearnsHeNeedsAPass2([isFromMaintenance])
+
+@officeLift_JohnathanLearnsHeNeedsAPass2(isFromMaintenance)
+  Mrs Laddy: "Really? They're always supposed to have at least somebody there..."
+  Mrs Laddy: "Maybe the elevator problem is worse than I thought."
+  Johnathan: "So what do I do now? Is there any way we can fix the Main Office lift?"
+  Mrs Laddy: "Hmm let me think...."
+  Mrs Laddy: "Maybe we could try to reset it?"
+  Johnathan: "How do I do that?"
+  Mrs Laddy: "Honestly, it seems like you just press a button on the terminal next to it."
+  Johnathan: "Why didn't you say that before?"
+  Mrs Laddy: "Well, you need to have the Maintenance Pass. All the maintenance workers have one."
+  Mrs Laddy: "But I have seen that they let other people borrow them if they need special access to the school."
+  Johnathan: "How do I get a Maintenance Pass?"
+  Mrs Laddy: "Normally they have to do it, but let me see check something real quick."
+  +?is([isFromMaintenance]):{
+    +waitMs(1000)
+  }
+  +?else:{
+    +:officeLift_walkLadyToDesk()
+    +waitMs(1000)
+    +:officeLift_walkLadyToTerminal()
+  }
+  Mrs Laddy: "I just checked ledger, and it seems like there's already a student who has an authorized Maintenance Pass."
+  Mrs Laddy: "Maybe you can find them to come help with the lift?"
+  Johnathan: "Who has the pass?"
+  Mrs Laddy: "Somebody named Iroha? I don't know if I'd recognize them."
+  Johnathan: "Iroha? Hmm. Me either."
+  Johnathan: "Maybe Otis would know. He seems to know everybody."
+  Johnathan: "Okay, I'll go see if I can find Iroha."
+  Mrs Laddy: "Good luck!"
+  +?isnot([isFromMaintenance]):{
+    +:officeLift_walkLadyToDesk()
+  }

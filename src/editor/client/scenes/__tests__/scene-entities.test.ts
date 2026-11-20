@@ -39,6 +39,8 @@ class SceneTestElement extends TestElement {
   checked = false;
   clientWidth = 0;
   clientHeight = 0;
+  clientLeft = 1;
+  clientTop = 1;
   isConnected = true;
 
   set innerHTML(html: string) {
@@ -61,6 +63,25 @@ class SceneTestElement extends TestElement {
       if (item.id) elements.set(`#${item.id}`, item);
       this.insertElements(...(item.children as SceneTestElement[]));
     }
+  }
+
+  getBoundingClientRect() {
+    return { left: 40, top: 60 };
+  }
+
+  setPointerCapture(): void {}
+
+  dispatchPointer(type: string, clientX: number, clientY: number, button = 0): void {
+    const event = {
+      type,
+      target: this,
+      clientX,
+      clientY,
+      button,
+      pointerId: 1,
+      preventDefault: function handlePreventDefault() {},
+    };
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
   }
 
   getContext() {
@@ -181,6 +202,51 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+});
+
+it('outlines the hovered cell and shows its coordinates without replacing the status message', async () => {
+  cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('scene-add-prop').disabled).toBe(true));
+  const viewport = getElement('scene-viewport');
+  viewport.clientWidth = 264;
+  viewport.clientHeight = 224;
+  const coordinates = getElement('scene-cell-status');
+  const outline = getElement('scene-cell-outline');
+  viewport.dispatchPointer('pointerenter', 73, 93);
+  expect(coordinates.textContent).toBe('X: --  Y: --');
+  expect(outline.hidden).toBe(true);
+
+  clickElement('scene-new');
+  getElement('scene-new-label').value = 'Test room';
+  getElement('scene-new-width').value = '10';
+  getElement('scene-new-height').value = '4';
+  getElement('scene-new-form').dispatch('submit');
+  // The fitted scene starts 32 px inside the viewport and has 20 × 40 px cells.
+  viewport.dispatchPointer('pointermove', 113, 133);
+  expect(coordinates.textContent).toBe('X: 2  Y: 1');
+  expect(outline.hidden).toBe(false);
+  expect(outline.style).toMatchObject({ left: '72px', top: '72px', width: '20px', height: '40px' });
+  expect(getElement('scene-status').textContent).toBe('New scene Test room');
+
+  viewport.dispatchPointer('pointermove', 72, 133);
+  expect(coordinates.textContent).toBe('X: --  Y: --');
+  expect(outline.hidden).toBe(true);
+  viewport.dispatchPointer('pointermove', 73, 133);
+  expect(coordinates.textContent).toBe('X: 0  Y: 1');
+  clickElement('scene-zoom-in');
+  expect(coordinates.textContent).toBe('X: 1  Y: 1');
+  expect(outline.style).toMatchObject({ left: '32px', top: '62px', width: '25px', height: '50px' });
+
+  viewport.dispatchPointer('pointerdown', 73, 133, 1);
+  viewport.dispatchPointer('pointermove', 103, 153);
+  expect(coordinates.textContent).toBe('X: 1  Y: 1');
+  expect(outline.style).toMatchObject({ left: '62px', top: '82px' });
+  viewport.dispatchPointer('pointerup', 103, 153, 1);
+  viewport.dispatchPointer('pointermove', 128, 153);
+  expect(coordinates.textContent).toBe('X: 2  Y: 1');
+  viewport.dispatchPointer('pointerleave', 128, 153);
+  expect(coordinates.textContent).toBe('X: --  Y: --');
+  expect(outline.hidden).toBe(true);
 });
 
 it('adds a prop after creating a scene, adding a background, enabling Show UI and saving', async () => {

@@ -1,0 +1,57 @@
+#load@library2Load
+  +setPlayerWalkCh(Johnathan, 3x3)
+
+#library2Update
+  timer,library2Updater,2000
+@library2Updater
+  // move stuff skip wait
+
+@library2_isUpstairs
+  +[chPos]=+getChPos(John)
+  +[result]=?all(gte([chPos]->0, 84), lte([chPos]->1, 13))
+  <[result]
+
+@library2_ICantReachThat
+  +setConv()
+  Johnathan: "I can't reach that from here."
+  +endConv()
+
+#@library2_toMaintenance
+  +setConv()
+  +?is(+:library2_isUpstairs()):{
+    +:library2_ICantReachThat()
+    <
+  }
+  +walkToMarker(player, FromMaintenancePanel)
+  +:ld(player, up)
+  +setAnimState(player, interact up)
+  +setPropAnimState(doorDownstairs, open)
+  +waitMs(400)
+  +walkToMarker(player, FromMaintenance)
+  +:ld(player, up)
+  +waitMs(100)
+  +changeScene(maintenance, FromLibrary2)
+  +endConv()
+
+#@library2_toMaintenanceUp
+  +setConv()
+  +?isnot(+:library2_isUpstairs()):{
+    +:library2_ICantReachThat()
+    <
+  }
+  +walkToMarker(player, FromMaintenanceUpPanel)
+  +:ld(player, up)
+  +setAnimState(player, interact up)
+  +setPropAnimState(doorUpstairs, open)
+  +waitMs(400)
+  +walkToMarker(player, FromMaintenance)
+  +:ld(player, up)
+  +waitMs(100)
+  +changeScene(maintenance, FromLibrary2Up)
+  +endConv()
+
+#step@library2_toLibrary1
+  +changeScene(library1, FromLibrary2)
+
+#step@library2_toLibrary1Up
+  +changeScene(library1, FromLibrary2Up)

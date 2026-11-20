@@ -1,0 +1,272 @@
+// School envelope puzzle. These hooks do not assume unfinished scenes exist.
+// Existing room scripts own movement; this file owns story and inventory state.
+// Unset story flags are false. Only counters need explicit initialization.
+
+@schoolPuzzle_callOffice
+  +setConv()
+  +?isnot(func(hasItem, OfficeEnvelope)):{
+    Office PA: "PLACEHOLDER: Collect Mr. Ralgo's office envelope before continuing this errand."
+  }
+  +?elseif is(schoolPuzzle.officeReset):{
+    Office PA: "PLACEHOLDER: The office lift security system is reset. You can enter the office with the envelope."
+  }
+  +?elseif is(schoolPuzzle.passLocationKnown):{
+    Johnathan: "PLACEHOLDER: Iroha says items left in classroom 8 go to the office lost and found. Please check there for the maintenance pass."
+    Office PA: "PLACEHOLDER: I have found the missing access card in lost and found. I can use it from this side."
+    +showCenterToast("PLACEHOLDER CUTSCENE: The office worker uses the recovered pass to reset the lift security system.")
+    Office PA: "PLACEHOLDER: The security barrier is now reset. Bring the envelope through the office lift."
+    +schoolPuzzle.officeReset=true
+  }
+  +?elseif is(schoolPuzzle.maintenanceVisited):{
+    Office PA: "PLACEHOLDER: Maintenance is absent. Please reset the office security system yourself. A maintenance access card is required."
+    Office PA: "PLACEHOLDER: Cards are issued on request. Every maintenance worker has one, and our records show that one card is missing."
+    Office PA: "PLACEHOLDER: The maintenance team is repairing the south elevator. Ask them about access."
+    +schoolPuzzle.missingPassKnown=true
+  }
+  +?else:{
+    Office PA: "PLACEHOLDER: The office lift is blocked by a malfunctioning automatic security barrier."
+    Office PA: "PLACEHOLDER: We called maintenance, but nobody arrived. Please check the maintenance post."
+    +schoolPuzzle.officeBlocked=true
+  }
+  +endConv()
+
+#@schoolPuzzle_inspectMaintenancePost
+  +setConv()
+  +?isnot(schoolPuzzle.officeBlocked):{
+    Johnathan: "PLACEHOLDER: This is the maintenance post. Nobody is here. I should try delivering the envelope first."
+  }
+  +?else:{
+    Johnathan: "PLACEHOLDER: Nobody is at the maintenance post. I can call the office using the phone here or the terminal by the office lift."
+    +schoolPuzzle.maintenanceVisited=true
+  }
+  +endConv()
+
+#@schoolPuzzle_useMaintenancePhone
+  +?isnot(schoolPuzzle.maintenanceVisited):{
+    +setConv()
+    Johnathan: "PLACEHOLDER: I should inspect the maintenance post before making a report."
+    +endConv()
+  }
+  +?else:{
+    +:schoolPuzzle_callOffice()
+  }
+
+@schoolPuzzle_talkMaintenance
+  +setConv()
+  +?isnot(schoolPuzzle.missingPassKnown):{
+    Maintenance: "PLACEHOLDER: We are repairing the broken south elevator. Report the office barrier problem to the office and check our post."
+  }
+  +?else:{
+    Maintenance: "PLACEHOLDER: Every maintenance worker is occupied with this broken elevator. We do not have time to arrange another access card."
+    Maintenance: "PLACEHOLDER: You will have to locate the missing pass. Haddy is nearby and may have noticed something."
+    +schoolPuzzle.maintenanceBusyKnown=true
+  }
+  +endConv()
+
+@schoolPuzzle_talkHaddy
+  +setConv2(Haddy, Johnathan)
+  +?isnot(schoolPuzzle.maintenanceBusyKnown):{
+    Haddy: "PLACEHOLDER: The maintenance team is working on the south elevator. Speak to them if you need help."
+  }
+  +?else:{
+    Haddy: "PLACEHOLDER: Otis was acting suspiciously near maintenance. He may know about the missing pass."
+    +schoolPuzzle.otisSuspected=true
+  }
+  +endConv()
+
+@schoolPuzzle_talkOtis
+  +?all(is(schoolPuzzle.viviRejected), isnot(schoolPuzzle.otisArgumentSeen)):{
+    +:schoolPuzzle_playOtisViviArgument()
+  }
+  +setConv2(Otis, Johnathan)
+  +?isnot(schoolPuzzle.otisIntroduced):{
+    Otis: "PLACEHOLDER: Our hallway introduction needs to happen before this conversation."
+  }
+  +?elseif isnot(schoolPuzzle.otisSuspected):{
+    Otis: "PLACEHOLDER: Ask Vivi out when you can. If you are still trying to reach the office, investigate the barrier and follow the maintenance lead."
+  }
+  +?elseif isnot(schoolPuzzle.viviRejected):{
+    Otis: "PLACEHOLDER: I will not discuss the maintenance pass until you ask Vivi out. Go talk to her, then report back to me."
+  }
+  +?else:{
+    Otis: "PLACEHOLDER: I am sorry about pushing you and arguing with Vivi."
+    Johnathan: "PLACEHOLDER: I need the missing maintenance pass. Haddy thought you might know about it."
+    Otis: "PLACEHOLDER: I took the pass, then gave it to Skye. She is talking with Ada at her locker."
+    +schoolPuzzle.otisPassClueKnown=true
+  }
+  +endConv()
+
+@schoolPuzzle_talkVivi
+  +setConv2(Vivi, Johnathan)
+  +?isnot(schoolPuzzle.otisIntroduced):{
+    Vivi: "PLACEHOLDER: There is no date conversation to resolve yet. Speak with Otis first."
+  }
+  +?elseif is(schoolPuzzle.otisArgumentSeen):{
+    Johnathan: "PLACEHOLDER: Vivi has stormed off after the argument. I should speak with Otis."
+  }
+  +?elseif is(schoolPuzzle.viviRejected):{
+    Vivi: "PLACEHOLDER: My answer is still no. You can tell Otis we have spoken."
+  }
+  +?else:{
+    Johnathan: "PLACEHOLDER: Otis encouraged me to ask you out on a date. Would you like to go?"
+    Vivi: "PLACEHOLDER: No. I am declining awkwardly, and this conversation is uncomfortable."
+    Johnathan: "PLACEHOLDER: I understand. I will tell Otis that I asked."
+    +schoolPuzzle.viviRejected=true
+  }
+  +endConv()
+
+@schoolPuzzle_playOtisViviArgument
+  +showCenterToast("PLACEHOLDER CUTSCENE: Johnathan reports the rejection. Otis goes to confront Vivi.")
+  +setConv2(Otis, Vivi)
+  Otis: "PLACEHOLDER: I am angry that you rejected Johnathan after I encouraged him to ask you."
+  Vivi: "PLACEHOLDER: You cannot decide who I date. Stop arranging this for me."
+  Otis: "PLACEHOLDER: I insist, and the disagreement becomes a larger argument."
+  Vivi: "PLACEHOLDER: I am upset and leaving this conversation."
+  +showCenterToast("PLACEHOLDER CUTSCENE: Vivi storms off. Otis stays behind, embarrassed and apologetic.")
+  +schoolPuzzle.otisArgumentSeen=true
+  +endConv()
+
+
+
+#@schoolPuzzle_searchReturnedBooks
+  +setConv()
+  +?is(schoolPuzzle.bookReturned):{
+    Johnathan: "PLACEHOLDER: Ada already has her book. There is nothing else I need from this bin."
+  }
+  +?elseif func(hasItem, AdaBook):{
+    Johnathan: "PLACEHOLDER: I already have Ada's physics textbook. I should return it."
+  }
+  +?elseif is(schoolPuzzle.bookRequested):{
+    Johnathan: "PLACEHOLDER: Ada's physics textbook is in the library returned-books bin."
+    +acquireItem(AdaBook)
+    +showCenterToast("Got item: Ada's Physics Textbook.")
+  }
+  +?else:{
+    Johnathan: "PLACEHOLDER: These are returned library books. I do not yet know which book I need."
+  }
+  +endConv()
+
+@schoolPuzzle_returnBook
+  +setConv2(Ada, Johnathan)
+  Johnathan: "PLACEHOLDER: I found your physics textbook in the library returned-books bin."
+  Ada: "PLACEHOLDER: Thank you. I will take my book and leave. You can speak with Skye now."
+  +removeItem(AdaBook)
+  +schoolPuzzle.bookReturned=true
+  +showCenterToast("PLACEHOLDER CUTSCENE: Ada leaves the lockers with her book.")
+  +endConvNR()
+  +:schoolPuzzle_talkSkye()
+
+@schoolPuzzle_talkSkye
+  +setConv2(Skye, Johnathan)
+  +?isnot(schoolPuzzle.bookReturned):{
+    Skye: "PLACEHOLDER: Ada needs her book before I can talk. Check the library returned-books bin."
+  }
+  +?elseif isnot(schoolPuzzle.otisPassClueKnown):{
+    Skye: "PLACEHOLDER: I can talk now, but you do not yet have a reason to ask me about a maintenance pass. Follow the missing-pass lead through Otis."
+  }
+  +?elseif is(schoolPuzzle.drinkDelivered):{
+    Skye: "PLACEHOLDER: I may have left the pass in classroom 8 after my last class. Ask Iroha there."
+  }
+  +?elseif func(hasItem, EnergyDrink):{
+    Johnathan: "PLACEHOLDER: Here is the energy drink you requested."
+    +removeItem(EnergyDrink)
+    Skye: "PLACEHOLDER: I have consumed the drink and remembered why Otis gave me the pass. I wanted it to get out of detention."
+    Skye: "PLACEHOLDER: I still do not have it. I may have left it in classroom 8 after my last class."
+    +schoolPuzzle.drinkDelivered=true
+  }
+  +?else:{
+    Skye: "PLACEHOLDER: Otis gave me the pass, but I cannot remember where I put it. An energy drink might help."
+    Johnathan: "PLACEHOLDER: I have no money for the vending machine."
+    Skye: "PLACEHOLDER: Ask around for loose change. You could also search the school trash cans."
+    +schoolPuzzle.drinkRequested=true
+  }
+  +endConv()
+
+// One ID per searchable can. Currently the school has two: gym and officeLift.
+// Repeated searches do not count twice. Searches before Skye's request do not count.
+@schoolPuzzle_searchTrash(canId)
+  +setConv()
+  +?isnot(schoolPuzzle.drinkRequested):{
+    Johnathan: "PLACEHOLDER: Nothing I need from this trash can right now."
+  }
+  +?elseif is(schoolPuzzle.changeFound):{
+    Johnathan: "PLACEHOLDER: I already found the spare change. There is no more money to collect."
+  }
+  +?else:{
+    +^schoolPuzzle.trashSearched=||
+    +[i]=0
+    +[alreadySearched]=false
+    +?while in([i], {schoolPuzzle.trashSearched}):{
+      +?eq({schoolPuzzle.trashSearched}->[i], [canId]):{
+        +[alreadySearched]=true
+      }
+      +[i]=[i]+1
+    }
+    +?is([alreadySearched]):{
+      Johnathan: "PLACEHOLDER: I have already searched this can. I need to search the other one."
+    }
+    +?else:{
+      // There are only two cans, so a fixed two-slot list avoids append commands.
+      +?eq([i], 0):{
+        +schoolPuzzle.trashSearched=|[canId], ""|
+        Johnathan: "PLACEHOLDER: No spare change in this can. I should search the other school trash can."
+      }
+      +?else:{
+        +{schoolPuzzle.trashSearched}->1=[canId]
+        +acquireItem(SpareChange)
+        +schoolPuzzle.changeFound=true
+        +showCenterToast("Got item: Spare Change. It was in the last unsearched trash can.")
+      }
+    }
+  }
+  +endConv()
+
+@schoolPuzzle_buyEnergyDrink
+  +setConv()
+  +?is(schoolPuzzle.drinkDelivered):{
+    Johnathan: "PLACEHOLDER: Skye already drank an energy drink. I do not need another."
+  }
+  +?elseif func(hasItem, EnergyDrink):{
+    Johnathan: "PLACEHOLDER: I already have an energy drink for Skye."
+  }
+  +?elseif isnot(schoolPuzzle.drinkRequested):{
+    Johnathan: "PLACEHOLDER: This machine sells energy drinks. I have no reason to buy one yet."
+  }
+  +?elseif func(hasItem, SpareChange):{
+    +removeItem(SpareChange)
+    +acquireItem(EnergyDrink)
+    +showCenterToast("Spent Spare Change. Got item: Energy Drink.")
+    Johnathan: "PLACEHOLDER: I should take this energy drink to Skye."
+  }
+  +?else:{
+    Johnathan: "PLACEHOLDER: I need spare change to buy Skye an energy drink. Search both school trash cans."
+  }
+  +endConv()
+
+@schoolPuzzle_talkIroha
+  +setConv2(Iroha, Johnathan)
+  +?isnot(schoolPuzzle.drinkDelivered):{
+    Iroha: "PLACEHOLDER: This is classroom 8. Follow your current lead before searching here."
+  }
+  +?else:{
+    Johnathan: "PLACEHOLDER: Skye may have left a maintenance pass here after her last class."
+    Iroha: "PLACEHOLDER: Anything left in this classroom after class goes to lost and found in the office."
+    Johnathan: "PLACEHOLDER: The office already has the pass. I should contact the office PA and ask them to check lost and found."
+    +schoolPuzzle.passLocationKnown=true
+  }
+  +endConv()
+
+// Call from the future office scene's load script. Completion is arrival, not
+// envelope delivery: the Overseer / Dedrick sequence belongs to the next section.
+#schoolPuzzle_officeLoad
+  load,schoolPuzzle_enterOffice
+@schoolPuzzle_enterOffice
+  +?all(is(schoolPuzzle.officeReset), func(hasItem, OfficeEnvelope)):{
+    +?isnot(schoolPuzzle.reachedOffice):{
+      +setConv()
+      +showCenterToast("PLACEHOLDER CUTSCENE: Johnathan rides the reset lift and arrives at the office with Mr. Ralgo's envelope.")
+      Johnathan: "PLACEHOLDER: I have reached the office. The envelope is still ready to hand over."
+      +schoolPuzzle.reachedOffice=true
+      +endConv()
+    }
+  }

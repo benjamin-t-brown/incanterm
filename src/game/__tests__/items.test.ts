@@ -56,6 +56,43 @@ function createItemRunner() {
 }
 
 describe('item assets and inventory', () => {
+  it('uses labels for script references without requiring a script name', () => {
+    const scene = createItemScene();
+    const key = getItemAsset(scene.itemAssets, 'key');
+    key.definition.label = 'Brass key';
+    delete key.definition.scriptName;
+    expect(getItemAsset(scene.itemAssets, 'Brass key')).toBe(key);
+    expect(getInventoryEntries(['Brass key', 'key'], scene.itemAssets)).toEqual([
+      { itemId: 'key' },
+    ]);
+    expect(hasInventoryItem([{ itemId: 'key' }], scene.itemAssets, 'Brass key')).toBe(true);
+    const runner = new ScriptRunner(
+      parseRpgScript(
+        '@give\n+addItem(Brass key)\n+?func(hasItem, Brass key):+setStorage(owned, true)',
+        'labels.rpgscript',
+        { commands },
+      ),
+      {
+        commands,
+        context: { scene, playerControl: new PlayerControl(scene) },
+        hasItem: (inventory, reference) => hasInventoryItem(inventory, scene.itemAssets, reference),
+      },
+    );
+    runner.start('give');
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }]);
+    expect(runner.getGlobal('owned')).toBe(true);
+  });
+
+  it('rejects ambiguous labels rather than arbitrarily choosing an item', () => {
+    const scene = createItemScene();
+    const key = getItemAsset(scene.itemAssets, 'key');
+    const coin = getItemAsset(scene.itemAssets, 'coin');
+    key.definition.label = coin.definition.label = 'Same label';
+    expect(() => getItemAsset(scene.itemAssets, 'Same label')).toThrow('ambiguous');
+    expect(hasInventoryItem([{ itemId: 'key' }], scene.itemAssets, 'Same label')).toBe(false);
+    expect(getItemAsset(scene.itemAssets, 'key')).toBe(key);
+  });
+
   it('checks canonical inventory references even without a host alias resolver', () => {
     const scene = createItemScene();
     const library = parseRpgScript(

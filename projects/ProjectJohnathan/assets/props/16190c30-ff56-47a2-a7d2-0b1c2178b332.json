@@ -1,0 +1,17 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "16190c30-ff56-47a2-a7d2-0b1c2178b332",
+  "label": "textArt_returnHere",
+  "visual": {
+    "type": "animation",
+    "id": "f6ede972-ea6d-4af7-a589-a0407c791ea8"
+  },
+  "width": 12,
+  "height": 1,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

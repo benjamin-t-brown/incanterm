@@ -36,7 +36,7 @@ export class Character extends Prop {
     z: number,
     sprite: Sprite,
     readonly characterId: string,
-    readonly instanceName: string | undefined,
+    instanceName: string | undefined,
     public state: string,
     public facing: CharacterDirection,
     public speed = 150,
@@ -46,7 +46,7 @@ export class Character extends Prop {
     public variant = 'default',
     readonly variants: ReadonlyMap<string, CharacterAppearance> = new Map(),
   ) {
-    super(id, x, y, 0, z, sprite);
+    super(id, x, y, 0, z, sprite, false, instanceName);
   }
 
   get bottomOffset(): number {
@@ -169,7 +169,7 @@ export class Character extends Prop {
     this.animate(deltaMs);
   }
 
-  clone(): Character {
+  override clone(): Character {
     const character = new Character(
       this.id,
       this.x,

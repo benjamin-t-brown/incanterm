@@ -1,0 +1,17 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "c8b2b186-ecff-4392-a84f-753817a4da0c",
+  "label": "sunlight",
+  "visual": {
+    "type": "animation",
+    "id": "4cf09409-887f-41e4-ac2d-28aa2d9c6988"
+  },
+  "width": 3,
+  "height": 3,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

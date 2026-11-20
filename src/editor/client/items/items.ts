@@ -14,6 +14,13 @@ import {
 import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import { createAssetTree } from '../asset-tree.js';
+import { FOLDER_ICON } from '../asset-tree-icons.js';
+import { createPanelResizer } from '../panel-resizer.js';
+import { createVisualAssetPicker } from '../visual-asset-picker.js';
+import { renderTabCloseActions } from '../tab-close-actions.js';
+import { renderTabReordering } from '../tab-reordering.js';
+import { OPEN_ITEMS_KEY, readItemTabs, type ItemTabSession } from '../../items/item-tabs.js';
+import { addOpenTab } from '../../tab-order.js';
 import { jsonRequest, requestJson } from '../api.js';
 import { confirmModal } from '../modal.js';
 import { projectStorage } from '../project.js';
@@ -30,17 +37,20 @@ export function mountItems(root: HTMLElement): () => void {
   root.innerHTML = createPageShell(
     'Items',
     `
-    <aside class="item-library"><input id="item-search" class="text-input" type="search" placeholder="SEARCH ITEMS" aria-label="Search items">
-      <button id="item-new-folder" type="button">NEW FOLDER</button><div id="item-list"></div></aside>
-    <section class="item-app"><h1>ITEMS</h1>
-      <div class="toolbar-row"><button id="item-new" type="button">NEW</button><button id="item-save" type="button" disabled>SAVE</button><button id="item-delete" type="button" disabled>DELETE</button></div>
+    <aside class="anim-library item-library" aria-label="Items"><input id="item-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search items" autocomplete="off" spellcheck="false">
+      <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="item-new-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
+      <div id="item-list" class="anim-library-list"></div></aside>
+    <div id="item-library-resizer" class="panel-resizer" role="separator" aria-label="Resize item folders" aria-orientation="vertical" aria-controls="item-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
+    <section class="item-app prop-app" aria-label="Item editor">
+      <div class="toolbar-row asset-create-header"><button id="item-new" type="button">NEW</button></div>
+      <div id="item-tabs" class="prop-tabs" role="tablist" aria-label="Open items"></div>
+      <div class="toolbar-row"><button id="item-save" type="button" disabled>SAVE</button><button id="item-delete" type="button" disabled>DELETE</button></div>
       <p id="item-status" role="status">Create or open an item.</p>
       <div id="item-fields" hidden><div class="item-form">
         <label>LABEL<input id="item-label" class="text-input" maxlength="80"></label>
-        <label>SCRIPT NAME<input id="item-script-name" class="text-input" placeholder="OfficeEnvelope"></label>
-        <small>Scripts can use the stable asset ID or this unique name.</small>
+        <small>Scripts can reference this item by its label or stable asset ID.</small>
         <h2>APPEARANCE</h2><label>VISUAL TYPE<select id="item-visual-type" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
-        <label>ASSET<span id="item-visual"></span></label><label id="item-frame-label">SPRITE FRAME (ZERO BASED)<input id="item-frame" class="text-input" type="number" min="0" max="255"></label>
+        <div class="prop-asset-field"><span>ASSET</span><span id="item-visual"></span><button id="item-choose-visual" type="button">CHOOSE ASSET…</button></div>
         <canvas id="item-preview" width="360" height="180" aria-label="Item visual preview"></canvas>
         <h2>SCRIPTS</h2><label>EXAMINE<span id="item-examine"></span></label><label>COMBINATION FAILED<span id="item-fail"></span></label>
         <small>Scripts are zero-argument @scripts. They control consuming ingredients and granting results.</small>
@@ -54,6 +64,13 @@ export function mountItems(root: HTMLElement): () => void {
     if (!node) throw new Error(`Missing ${selector}`);
     return node;
   };
+  const disposeResizer = createPanelResizer({
+    container: get$<HTMLElement>('.item-main'),
+    panel: get$<HTMLElement>('.item-library'),
+    handle: get$<HTMLElement>('#item-library-resizer'),
+    storageKey: 'incanterm-item-library-width',
+    defaultWidth: 200,
+  });
   let alive = true;
   let token = 0;
   let saving = false;
@@ -75,6 +92,14 @@ export function mountItems(root: HTMLElement): () => void {
   let previewStarted = Date.now();
   let previewToken = 0;
   let newFolder = '';
+  const storedTabs = readItemTabs(projectStorage);
+  let openTabs = storedTabs.tabs;
+  const sessions = new Map<string, ItemTabSession>(Object.entries(storedTabs.drafts));
+  const assetPicker = createVisualAssetPicker({
+    root,
+    loadSheet: (id) => requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`),
+    paintSprite,
+  });
 
   function isDirty(): boolean {
     return JSON.stringify(current) !== JSON.stringify(base);
@@ -84,25 +109,118 @@ export function mountItems(root: HTMLElement): () => void {
   }
   function persistDraft(): void {
     try {
-      if (current && isDirty())
-        projectStorage.setItem(DRAFT_KEY, JSON.stringify({ doc: current, base }));
-      else projectStorage.removeItem(DRAFT_KEY);
+      const drafts: Record<string, ItemTabSession> = {};
+      for (const id of openTabs) {
+        const session = getSession(id);
+        if (session && (isTabDirty(id) || session.folder)) drafts[id] = session;
+      }
+      projectStorage.setItem(
+        OPEN_ITEMS_KEY,
+        JSON.stringify({
+          version: 1,
+          tabs: openTabs,
+          active: current?.id ?? null,
+          drafts,
+        }),
+      );
     } catch {
       /* A full browser store must not prevent editing. */
     }
   }
   function updateDirty(): void {
     persistDraft();
-    get$<HTMLButtonElement>('#item-save').disabled = !current || saving || !isDirty();
+    renderTabs();
+    get$<HTMLButtonElement>('#item-save').disabled =
+      !current || saving || (!isDirty() && !newFolder);
   }
-  async function canLeave(): Promise<boolean> {
-    if (!isDirty()) return true;
-    if (saving || !(await confirmModal('Discard unsaved item changes?', 'DISCARD'))) return false;
-    current = base ? structuredClone(base) : null;
-    persistDraft();
-    return true;
+  function getSession(id: string): ItemTabSession | undefined {
+    return id === current?.id && current
+      ? { doc: current, base, folder: newFolder }
+      : sessions.get(id);
   }
-  setDirtyGuard(canLeave);
+  function isTabDirty(id: string): boolean {
+    const session = getSession(id);
+    return !!session && JSON.stringify(session.doc) !== JSON.stringify(session.base);
+  }
+  setDirtyGuard(
+    async () =>
+      !openTabs.some(isTabDirty) ||
+      (!saving && (await confirmModal('Discard unsaved item changes?', 'DISCARD'))),
+  );
+  function renderTabs(): void {
+    const host = get$<HTMLElement>('#item-tabs');
+    renderTabCloseActions(host, { tabs: openTabs, active: current?.id ?? null, closeTab });
+    host.replaceChildren();
+    if (!openTabs.length) {
+      const empty = document.createElement('span');
+      empty.className = 'prop-tabs-empty';
+      empty.textContent = 'NO ITEM';
+      host.append(empty);
+    }
+    for (const id of openTabs) {
+      const tab = document.createElement('div');
+      tab.className = 'prop-tab editor-document-tab';
+      tab.dataset.tabId = id;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(current?.id === id));
+      tab.classList.toggle('current', current?.id === id);
+      tab.classList.toggle('dirty', isTabDirty(id));
+      const label = document.createElement('button');
+      label.type = 'button';
+      label.className = 'prop-tab-label';
+      label.textContent = getSession(id)?.doc.label ?? files.labels[id] ?? id;
+      const mark = document.createElement('span');
+      mark.className = 'prop-dirty-mark';
+      mark.textContent = ' ●';
+      label.append(mark);
+      label.addEventListener('click', () => void openItem(id).catch(showError));
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'prop-tab-close';
+      close.setAttribute('aria-label', `Close ${id}`);
+      close.textContent = '×';
+      close.addEventListener('click', () => void closeTab(id).catch(showError));
+      tab.addEventListener('auxclick', (event) => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        void closeTab(id).catch(showError);
+      });
+      tab.append(label, close);
+      host.append(tab);
+    }
+    renderTabReordering(host, {
+      tabs: openTabs,
+      onReorder: (tabs) => {
+        openTabs = tabs;
+        persistDraft();
+        renderTabs();
+      },
+    });
+  }
+  function activateItem(session: ItemTabSession): void {
+    if (current) sessions.set(current.id, { doc: current, base, folder: newFolder });
+    current = session.doc;
+    base = session.base;
+    newFolder = session.folder;
+    sessions.delete(current.id);
+    openTabs = addOpenTab(openTabs, current.id);
+    renderFields();
+  }
+  async function closeTab(id: string): Promise<void> {
+    if (saving || !openTabs.includes(id)) return;
+    if (isTabDirty(id) && !(await confirmModal('Discard unsaved item changes?', 'DISCARD'))) return;
+    const index = openTabs.indexOf(id);
+    const next = openTabs[index + 1] ?? openTabs[index - 1];
+    openTabs = openTabs.filter((tab) => tab !== id);
+    sessions.delete(id);
+    if (current?.id === id) {
+      ++token;
+      current = base = null;
+      newFolder = '';
+      renderFields();
+      if (next) await openItem(next);
+    } else updateDirty();
+  }
   const tree = createAssetTree({
     list: get$<HTMLElement>('#item-list'),
     search: get$<HTMLInputElement>('#item-search'),
@@ -114,13 +232,32 @@ export function mountItems(root: HTMLElement): () => void {
       void createNewItem(folder).catch(showError);
     },
     onChange: async (change) => {
-      if (change.action === 'delete' && current && change.expectedIds.includes(current.id))
-        throw new Error('Close the open item before deleting its folder');
+      if (
+        change.action === 'delete' &&
+        (change.expectedIds.some(isTabDirty) ||
+          openTabs.some((id) => {
+            const folder = getSession(id)?.folder;
+            return folder && (folder === change.folder || folder.startsWith(`${change.folder}/`));
+          }))
+      )
+        throw new Error('Save or close unsaved item drafts before deleting this folder');
       const folders = await requestJson<AssetFolders>(
         '/api/item-folders',
         jsonRequest('POST', change),
       );
-      if (change.action === 'delete') await refreshLibrary();
+      if (change.action === 'delete') {
+        for (const id of change.expectedIds) sessions.delete(id);
+        openTabs = openTabs.filter((id) => !change.expectedIds.includes(id));
+        if (current && change.expectedIds.includes(current.id)) {
+          ++token;
+          current = base = null;
+          newFolder = '';
+        }
+        renderFields();
+        await refreshLibrary();
+        const next = openTabs[openTabs.length - 1];
+        if (!current && next) await openItem(next);
+      }
       return folders;
     },
     askName: askId,
@@ -141,33 +278,33 @@ export function mountItems(root: HTMLElement): () => void {
     tree.select(current?.id ?? null);
   }
   async function openItem(id: string): Promise<void> {
-    if (saving || id === current?.id || !(await canLeave())) return;
+    if (saving || id === current?.id) return;
     const requestToken = ++token;
+    const session = sessions.get(id);
+    if (session) {
+      activateItem(session);
+      return;
+    }
     const item = await requestJson<ItemDocument>(`/api/items/${encodeURIComponent(id)}`);
     if (!alive || requestToken !== token) return;
-    current = item;
-    base = structuredClone(item);
-    newFolder = '';
-    renderFields();
+    activateItem({ doc: item, base: structuredClone(item), folder: '' });
   }
   async function createNewItem(folder = ''): Promise<void> {
-    if (saving || !(await canLeave())) return;
+    if (saving) return;
     const label = await askId('Item label');
-    if (!alive || !label) return;
+    if (!alive || saving || !label) return;
     const sprite = assets.sprite?.files[0];
     const animation = assets.animation?.files[0];
     if (!sprite && !animation) throw new Error('Create a sprite or animation first');
     ++token;
-    current = createItem(
+    const item = createItem(
       crypto.randomUUID(),
       sprite
         ? { type: 'sprite', id: sprite, index: 0 }
         : { type: 'animation', id: animation ?? '' },
       label,
     );
-    base = null;
-    newFolder = folder;
-    renderFields();
+    activateItem({ doc: item, base: null, folder });
   }
   function renderScriptPicker(
     host: HTMLElement,
@@ -245,21 +382,20 @@ export function mountItems(root: HTMLElement): () => void {
     const item = current;
     if (!item) return;
     const list = assets[item.visual.type];
-    get$<HTMLElement>('#item-frame-label').hidden = item.visual.type !== 'sprite';
-    get$<HTMLElement>('#item-visual').replaceChildren(
-      createSearchSelect({
-        value: item.visual.id,
-        choices: list?.files ?? [],
-        labels: list?.labels,
-        placeholder: 'Choose appearance…',
-        ariaLabel: 'Item visual asset',
-        onInput: (value) => {
-          item.visual.id = value.trim();
-          updateDirty();
-          void loadPreview().catch(showError);
-        },
-      }),
-    );
+    get$<HTMLSelectElement>('#item-visual-type').value = item.visual.type;
+    get$<HTMLElement>('#item-visual').textContent =
+      (list?.labels[item.visual.id] ?? item.visual.id) +
+      (item.visual.type === 'sprite' ? ` · FRAME ${item.visual.index + 1}` : '');
+  }
+  async function chooseVisual(type: ItemDocument['visual']['type']): Promise<void> {
+    const item = current;
+    if (!item || saving) return;
+    const visual = await assetPicker.open(type, item.visual);
+    if (!visual || !alive || current !== item || saving) return;
+    item.visual = visual;
+    renderVisualPicker();
+    updateDirty();
+    void loadPreview().catch(showError);
   }
   function renderFields(): void {
     get$<HTMLElement>('#item-fields').hidden = !current;
@@ -268,16 +404,13 @@ export function mountItems(root: HTMLElement): () => void {
     tree.select(current?.id ?? null);
     if (!current) {
       preview = [];
+      ++previewToken;
+      status.textContent = 'Create or open an item.';
       updateDirty();
       return;
     }
     status.textContent = current.id;
     get$<HTMLInputElement>('#item-label').value = current.label;
-    get$<HTMLInputElement>('#item-script-name').value = current.scriptName ?? '';
-    get$<HTMLSelectElement>('#item-visual-type').value = current.visual.type;
-    get$<HTMLInputElement>('#item-frame').value = String(
-      current.visual.type === 'sprite' ? current.visual.index : 0,
-    );
     renderVisualPicker();
     renderScriptPicker(get$('#item-examine'), current.examineScript ?? '', (value) => {
       if (current) current.examineScript = value || undefined;
@@ -333,21 +466,34 @@ export function mountItems(root: HTMLElement): () => void {
     while (frameIndex < durations.length - 1 && elapsed >= durations[frameIndex])
       elapsed -= durations[frameIndex++];
     const frame = preview[frameIndex];
-    if (!frame || !palette || !frame.sprite.sprites[frame.index]) return;
-    const { sprite } = frame;
+    if (frame) paintSprite(canvas, frame.sprite, frame.index, frame);
+  }
+  function paintSprite(
+    target: HTMLCanvasElement,
+    sprite: SpriteDocument,
+    index: number,
+    flips?: { flipH: boolean; flipV: boolean },
+  ): void {
+    const context = target.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, target.width, target.height);
+    if (!palette || !sprite.sprites[index]) return;
     const cell = terminalCellAtZoom(
       context,
-      Math.max(0.25, Math.min(2, 30 / sprite.width, 10 / sprite.height)),
+      Math.max(
+        0.1,
+        Math.min(2, target.width / (sprite.width * 12), target.height / (sprite.height * 24)),
+      ),
       sprite.font,
     );
-    const cells = flattenSprite(sprite, frame.index);
+    const cells = flattenSprite(sprite, index);
     for (let y = 0; y < sprite.height; y++)
       for (let x = 0; x < sprite.width; x++) {
-        const sourceX = frame.flipH ? sprite.width - x - 1 : x;
-        const sourceY = frame.flipV ? sprite.height - y - 1 : y;
+        const sourceX = flips?.flipH ? sprite.width - x - 1 : x;
+        const sourceY = flips?.flipV ? sprite.height - y - 1 : y;
         const value = cells[sourceY * sprite.width + sourceX];
-        const px = (canvas.width - sprite.width * cell.width) / 2 + x * cell.width;
-        const py = (canvas.height - sprite.height * cell.height) / 2 + y * cell.height;
+        const px = (target.width - sprite.width * cell.width) / 2 + x * cell.width;
+        const py = (target.height - sprite.height * cell.height) / 2 + y * cell.height;
         context.fillStyle = getPaletteRgb(palette, value.bg) ?? '#000000';
         fillTerminalCell(context, cell, px, py);
         context.fillStyle = getPaletteRgb(palette, value.fg) ?? '#ffffff';
@@ -355,10 +501,11 @@ export function mountItems(root: HTMLElement): () => void {
       }
   }
   async function saveItem(): Promise<void> {
-    if (!current || saving) return;
+    if (!current || saving || (!isDirty() && !newFolder)) return;
     const parsed = parseItem(current);
     if (!parsed.ok) throw new Error(parsed.error);
     saving = true;
+    ++token;
     get$<HTMLElement>('#item-fields').inert = true;
     updateDirty();
     const draft = structuredClone(parsed.value);
@@ -380,12 +527,12 @@ export function mountItems(root: HTMLElement): () => void {
         newFolder = '';
       }
       await refreshLibrary();
-      status.textContent = `Saved ${result.label}`;
     } finally {
       saving = false;
       if (alive) {
         get$<HTMLElement>('#item-fields').inert = false;
         renderFields();
+        if (!isDirty()) status.textContent = `Saved ${current?.label}`;
       }
     }
   }
@@ -409,34 +556,30 @@ export function mountItems(root: HTMLElement): () => void {
         await requestJson(`/api/items/${encodeURIComponent(current.id)}`, { method: 'DELETE' });
         if (!alive) return;
         ++token;
+        const deletedId = current.id;
+        const index = openTabs.indexOf(deletedId);
+        const next = openTabs[index + 1] ?? openTabs[index - 1];
+        openTabs = openTabs.filter((id) => id !== deletedId);
+        sessions.delete(deletedId);
         current = base = null;
+        newFolder = '';
         renderFields();
         await refreshLibrary();
+        if (next) await openItem(next);
       })().catch(showError),
   );
   get$<HTMLInputElement>('#item-label').addEventListener('input', (event) => {
     if (current) current.label = (event.target as HTMLInputElement).value;
     updateDirty();
   });
-  get$<HTMLInputElement>('#item-script-name').addEventListener('input', (event) => {
-    if (current) current.scriptName = (event.target as HTMLInputElement).value.trim() || undefined;
-    updateDirty();
-  });
   get$<HTMLSelectElement>('#item-visual-type').addEventListener('change', (event) => {
     if (!current) return;
-    current.visual =
-      (event.target as HTMLSelectElement).value === 'sprite'
-        ? { type: 'sprite', id: assets.sprite?.files[0] ?? '', index: 0 }
-        : { type: 'animation', id: assets.animation?.files[0] ?? '' };
-    renderVisualPicker();
-    updateDirty();
-    void loadPreview().catch(showError);
+    const type = (event.target as HTMLSelectElement).value === 'animation' ? 'animation' : 'sprite';
+    get$<HTMLSelectElement>('#item-visual-type').value = current.visual.type;
+    void chooseVisual(type).catch(showError);
   });
-  get$<HTMLInputElement>('#item-frame').addEventListener('change', (event) => {
-    if (current?.visual.type === 'sprite')
-      current.visual.index = Number((event.target as HTMLInputElement).value);
-    updateDirty();
-    void loadPreview().catch(showError);
+  get$<HTMLButtonElement>('#item-choose-visual').addEventListener('click', () => {
+    if (current) void chooseVisual(current.visual.type).catch(showError);
   });
   get$<HTMLButtonElement>('#item-add-rule').addEventListener('click', () => {
     current?.combinations.push({ targetType: 'item', target: '', script: '' });
@@ -464,27 +607,44 @@ export function mountItems(root: HTMLElement): () => void {
     palette = colors;
     await refreshLibrary();
     if (!alive) return;
+    openTabs = openTabs.filter((id) => files.files.includes(id) || sessions.has(id));
     let restored = false;
     try {
-      const draft = JSON.parse(projectStorage.getItem(DRAFT_KEY) ?? 'null');
+      const draft = openTabs.length
+        ? null
+        : JSON.parse(projectStorage.getItem(DRAFT_KEY) ?? 'null');
       if (draft?.doc) {
         const parsed = parseItem(draft.doc);
         const saved = draft.base === null ? null : parseItem(draft.base);
         if (parsed.ok && (saved === null || saved.ok)) {
-          current = parsed.value;
-          base = saved?.value ?? null;
+          activateItem({ doc: parsed.value, base: saved?.value ?? null, folder: '' });
+          projectStorage.removeItem(DRAFT_KEY);
           restored = true;
         }
       }
     } catch {
       /* Ignore corrupt local drafts. */
     }
-    if (restored) renderFields();
-    else {
+    if (!restored) {
       const id = new URLSearchParams(location.search).get('id');
-      if (id && files.files.includes(id)) await openItem(id);
+      const preferred =
+        id && (files.files.includes(id) || sessions.has(id))
+          ? id
+          : storedTabs.active && openTabs.includes(storedTabs.active)
+            ? storedTabs.active
+            : openTabs[openTabs.length - 1];
+      if (preferred) await openItem(preferred);
+      else renderFields();
     }
   }
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 's')
+      return;
+    event.preventDefault();
+    if (!assetPicker.isOpen()) void saveItem().catch(showError);
+  }
+  document.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('pagehide', persistDraft);
   void loadItemEditorAssets().catch(showError);
   const timer = setInterval(drawPreview, 50);
   return () => {
@@ -493,6 +653,10 @@ export function mountItems(root: HTMLElement): () => void {
     ++token;
     ++previewToken;
     clearInterval(timer);
+    disposeResizer();
+    assetPicker.dispose();
+    document.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('pagehide', persistDraft);
     setDirtyGuard(null);
   };
 }

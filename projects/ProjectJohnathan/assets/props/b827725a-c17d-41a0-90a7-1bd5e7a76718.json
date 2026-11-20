@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "b827725a-c17d-41a0-90a7-1bd5e7a76718",
+  "label": "bannister2",
+  "visual": {
+    "type": "sprite",
+    "id": "6b5dafec-2311-4c21-8a29-d4cac83615fc",
+    "index": 0
+  },
+  "width": 8,
+  "height": 9,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

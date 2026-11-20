@@ -13,7 +13,9 @@
   "blockedCells": [],
   "groundOffsetY": 0,
   "depthOffset": 0,
+  "foreground": false,
   "customAnimations": {
-    "flashing": "d77c2087-2817-46fd-a9e2-02965ecd4370"
+    "flashing": "d77c2087-2817-46fd-a9e2-02965ecd4370",
+    "ringing": "d77c2087-2817-46fd-a9e2-02965ecd4370"
   }
 }

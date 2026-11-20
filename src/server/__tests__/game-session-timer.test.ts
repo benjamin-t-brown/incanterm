@@ -54,3 +54,57 @@ it('fires scene-bound timers repeatedly and stops on close', () => {
     session.close();
   }
 });
+
+it('keeps the session clock across a scene change without duplicating scene bindings', async () => {
+  vi.useFakeTimers();
+  const log = vi.spyOn(LayoutStandardScene.prototype, 'appendLog');
+  const ink = { ch: '@', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
+  const sprite = new Sprite('actor', 1, 1, 0, 0, [ink]);
+  const hero = new Character('hero', 0, 0, 0, sprite, 'actor', 'Hero', 'idle', 'right', 100);
+  const first = new Scene('first', 4, 4, 'bottom-up', ink, [hero], ['entry', 'clock', 'local']);
+  const next = new Scene('next', 4, 4, 'bottom-up', ink, [], ['local'], new Set(), [], [], [
+    { id: 'spawn', name: 'mPlayer', x: 1, y: 1 },
+  ]);
+  const scripts = parseRpgScript(
+    `#entry
+load,prepare
+timer,leave,170
+#clock
+timer,tick,250
+#local
+timer,localTick,136
+@prepare
++setPlayerWalkCh(hero)
+@leave
++changeScene(next)
++log("Moved")
+@tick
++log("Session tick")
+@localTick
++log("Scene tick")`,
+    'timer.rpgscript',
+  );
+  const session = createGameSession(
+    first, () => {}, scripts, undefined, undefined, undefined, undefined, async () => next,
+    undefined, undefined, false, ['clock'],
+  );
+  try {
+    session.open();
+    await vi.advanceTimersByTimeAsync(238);
+    expect(log.mock.calls.map(([message]) => message)).toEqual([
+      expect.stringContaining('Scene tick'),
+      expect.stringContaining('Moved'),
+    ]);
+    await vi.advanceTimersByTimeAsync(34);
+    expect(log).toHaveBeenCalledTimes(3);
+    expect(log).toHaveBeenLastCalledWith(expect.stringContaining('Session tick'));
+    await vi.advanceTimersByTimeAsync(34);
+    expect(log).toHaveBeenCalledTimes(4);
+    expect(log).toHaveBeenLastCalledWith(expect.stringContaining('Scene tick'));
+    session.close();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(log).toHaveBeenCalledTimes(4);
+  } finally {
+    session.close();
+  }
+});

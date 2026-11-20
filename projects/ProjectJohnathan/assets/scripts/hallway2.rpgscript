@@ -1,6 +1,4 @@
-#hallway2Load
-  load,hallway2Load
-@hallway2Load
+#load@hallway2Load
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #hallway2Update
@@ -8,17 +6,11 @@
 @hallway2Updater
   // move stuff skip wait
 
-#hallway2_toHallway1
-  step,hallway2_toHallway1
-@hallway2_toHallway1
+#step@hallway2_toHallway1
   +changeScene(hallway1, FromHallway2)
 
-#hallway2_toHallway3
-  step,hallway2_toHallway3
-@hallway2_toHallway3
+#step@hallway2_toHallway3
   +changeScene(hallway3, FromHallway2)
 
-#hallway2_toSouthLifts
-  step,hallway2_toSouthLifts
-@hallway2_toSouthLifts
+#step@hallway2_toSouthLifts
   +changeScene(southLifts, FromHallway2)

@@ -16,6 +16,7 @@ import { createSpriteFromBrush, getBrushValue, type BrushStamp as Stamp } from '
 import { applyBlackWhiteInversionToFrame } from '../../art/invert-black-white.js';
 import { applyFrameFlip } from '../../art/flip-frame.js';
 import { createSpriteProp } from '../../art/create-sprite-prop.js';
+import { createSpriteFromText } from '../../art/create-sprite-from-text.js';
 import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
 import { fillCells } from '../../art/art-fill.js';
 import { moveSelectedCells, type SelectionRect } from '../../art/art-move.js';
@@ -251,6 +252,13 @@ export function mountArt(root: HTMLElement): () => void {
   if (!drawing) throw new Error('Canvas is unavailable');
   const context: CanvasRenderingContext2D = drawing;
   const wrap = get$<HTMLElement>('#canvas-wrap');
+  const textArtDialog = get$<HTMLDialogElement>('#text-art-dialog');
+  const textArtForm = get$<HTMLFormElement>('#text-art-form');
+  const textArtLabel = get$<HTMLInputElement>('#text-art-label');
+  const textArtInput = get$<HTMLTextAreaElement>('#text-art-input');
+  const textArtError = get$<HTMLElement>('#text-art-error');
+  const textArtSubmit = get$<HTMLButtonElement>('#text-art-submit');
+  const textArtCancel = get$<HTMLButtonElement>('#text-art-cancel');
 
   let palette: PaletteDocument = { format: 'incanterm-palette', version: 1, colors: [] };
   let doc: SpriteDocument | null = null;
@@ -2174,6 +2182,36 @@ export function mountArt(root: HTMLElement): () => void {
       toast(message, true);
     }
   }
+  function openCreateFromTextDialog(): void {
+    textArtForm.reset();
+    textArtError.textContent = '';
+    textArtDialog.showModal();
+    textArtInput.focus();
+  }
+  async function createFromText(): Promise<void> {
+    if (textArtSubmit.disabled) return;
+    const result = createSpriteFromText(crypto.randomUUID(), textArtLabel.value, textArtInput.value);
+    if (!result.ok) {
+      textArtError.textContent = result.error;
+      return;
+    }
+    const sprite = result.value;
+    textArtSubmit.disabled = true;
+    textArtCancel.disabled = true;
+    textArtError.textContent = '';
+    try {
+      const saved = await saveDraft(`/api/sprites/${encodeURIComponent(sprite.id)}`, sprite, null);
+      if (!alive) return;
+      textArtDialog.close();
+      loadSprite(saved);
+      announce(`Created ${saved.label} from text`);
+    } catch (error) {
+      textArtError.textContent = error instanceof Error ? error.message : 'Create from text failed';
+    } finally {
+      textArtSubmit.disabled = false;
+      textArtCancel.disabled = false;
+    }
+  }
   async function createPropFromCurrentFrame(): Promise<void> {
     if (!doc || !spriteId || creatingSpriteProp) return;
     stopPlayback();
@@ -3059,6 +3097,7 @@ export function mountArt(root: HTMLElement): () => void {
 
   const actions: Record<string, () => void> = {
     new: () => void createNewSprite(),
+    'create-from-text': openCreateFromTextDialog,
     'create-from-brush': () => void createFromBrush(),
     'create-sprite-prop': () => void createPropFromCurrentFrame(),
     save: () => void save(),
@@ -3355,6 +3394,14 @@ export function mountArt(root: HTMLElement): () => void {
   get$<HTMLButtonElement>('#cancel-size').addEventListener('click', () =>
     get$<HTMLDialogElement>('#size-dialog').close(),
   );
+  textArtCancel.addEventListener('click', () => textArtDialog.close());
+  textArtDialog.addEventListener('cancel', (event) => {
+    if (textArtSubmit.disabled) event.preventDefault();
+  });
+  textArtForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void createFromText();
+  });
   get$<HTMLButtonElement>('#close-generate-character').addEventListener('click', () =>
     get$<HTMLDialogElement>('#generate-character-dialog').close(),
   );
@@ -3779,7 +3826,7 @@ export function mountArt(root: HTMLElement): () => void {
     document,
     'keydown',
     (event) => {
-      if (!root.isConnected) return;
+      if (!root.isConnected || textArtDialog.open) return;
       const keyEvent = event as KeyboardEvent;
       const key = keyEvent.key.toLowerCase();
       const ctrl = keyEvent.ctrlKey || keyEvent.metaKey;
@@ -4057,6 +4104,7 @@ function getArtMarkup(): string {
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
+        <button type="button" data-action="create-from-text">Create From Text…</button>
         <button type="button" data-action="create-from-brush">Create From Brush…</button>
         <button type="button" data-action="save">Save <kbd>Ctrl+S</kbd></button>
         <button type="button" data-action="save-as">Save as… <kbd>Ctrl+Shift+S</kbd></button>
@@ -4222,6 +4270,15 @@ function getArtMarkup(): string {
     <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>
+    <dialog id="text-art-dialog" aria-labelledby="text-art-title">
+      <div class="dialog-heading"><span id="text-art-title">CREATE FROM TEXT</span></div>
+      <form id="text-art-form">
+        <label>SPRITESHEET LABEL<input id="text-art-label" type="text" value="Text Art" maxlength="80" required></label>
+        <label>ASCII ART<textarea id="text-art-input" rows="10" spellcheck="false" placeholder="Paste or type ASCII art here" required></textarea></label>
+        <p id="text-art-error" role="alert"></p>
+        <div class="size-dialog-actions"><button id="text-art-submit" type="submit">CREATE</button><button id="text-art-cancel" type="button">CANCEL</button></div>
+      </form>
+    </dialog>
     <dialog id="generate-character-dialog">
       <div class="dialog-heading"><span>GENERATE · CHARACTER</span><button id="close-generate-character" type="button">×</button></div>
       <form id="generate-character-form">

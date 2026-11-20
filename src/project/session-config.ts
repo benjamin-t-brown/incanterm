@@ -5,6 +5,7 @@ import type { DialogueAnimationOptions, PortraitAnimationOptions } from '../serv
 export type SessionConfig = {
   dialogueAnimation?: DialogueAnimationOptions;
   portraitAnimation?: PortraitAnimationOptions;
+  timerTriggers?: readonly string[];
 };
 
 /** Reads project-owned runtime settings shared by server and local previews. */
@@ -27,11 +28,20 @@ export async function loadSessionConfig(assetsRoot: string): Promise<SessionConf
     throw new Error(`${file}: Expected an object`);
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
-    if (key !== 'dialogueAnimation' && key !== 'portraitAnimation')
+    if (!['dialogueAnimation', 'portraitAnimation', 'timerTriggers'].includes(key))
       throw new Error(`${file}: Unknown setting ${key}`);
   }
+  const config: SessionConfig = {};
+  const timerTriggers = record.timerTriggers;
+  if (timerTriggers !== undefined) {
+    if (
+      !Array.isArray(timerTriggers) ||
+      timerTriggers.some((name: unknown) => typeof name !== 'string' || !name.trim())
+    )
+      throw new Error(`${file}: timerTriggers must be an array of RPGScript trigger names`);
+    config.timerTriggers = timerTriggers;
+  }
   const portrait = record.portraitAnimation;
-  let portraitSettings: PortraitAnimationOptions | undefined;
   if (portrait !== undefined) {
     if (portrait === null || typeof portrait !== 'object' || Array.isArray(portrait))
       throw new Error(`${file}: portraitAnimation must be an object`);
@@ -56,11 +66,10 @@ export async function loadSessionConfig(assetsRoot: string): Promise<SessionConf
         settings.rowDelayMs < 0)
     )
       throw new Error(`${file}: portraitAnimation.rowDelayMs must be a nonnegative number`);
-    portraitSettings = settings as PortraitAnimationOptions;
+    config.portraitAnimation = settings as PortraitAnimationOptions;
   }
   const animation = record.dialogueAnimation;
-  if (animation === undefined)
-    return portraitSettings ? { portraitAnimation: portraitSettings } : {};
+  if (animation === undefined) return config;
   if (animation === null || typeof animation !== 'object' || Array.isArray(animation))
     throw new Error(`${file}: dialogueAnimation must be an object`);
   const settings = animation as Record<string, unknown>;
@@ -114,8 +123,6 @@ export async function loadSessionConfig(assetsRoot: string): Promise<SessionConf
     throw new Error(
       `${file}: dialogueAnimation.shortGrowthSequences must contain four-character strings`,
     );
-  return {
-    dialogueAnimation: settings as DialogueAnimationOptions,
-    ...(portraitSettings ? { portraitAnimation: portraitSettings } : {}),
-  };
+  config.dialogueAnimation = settings as DialogueAnimationOptions;
+  return config;
 }

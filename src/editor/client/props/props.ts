@@ -3,6 +3,7 @@ import { getPaletteRgb, type PaletteDocument } from '../../palette.js';
 import {
   createProp,
   flattenSprite,
+  getPropLabelError,
   isAssetId,
   isInvisibleFrame,
   getAnimationFrameFlips,
@@ -10,7 +11,6 @@ import {
   type PropDocument,
   type PropVisual,
   type SpriteDocument,
-  type VisibleAnimationFrame,
 } from '../../schema.js';
 import { createSearchSelect } from '../search-select.js';
 import {
@@ -35,18 +35,15 @@ import {
   resizeBlockedCells,
   type BlockPreviewGrid,
 } from '../../props/prop-blocking.js';
-import {
-  getAnimationsUsingSheet,
-  propVisualEditHref,
-  getPropVisualSize,
-} from '../../props/prop-picker.js';
+import { propVisualEditHref, getPropVisualSize } from '../../props/prop-picker.js';
 import { updatePropCustomState } from '../../props/prop-custom-states.js';
 import { ApiError, jsonRequest, requestJson } from '../api.js';
-import { alertModal, confirmModal } from '../modal.js';
+import { alertModal, askAssetMeta, confirmModal, isModalOpen } from '../modal.js';
 import type { AssetFolders } from '../../asset-folders.js';
 import { createAssetTree } from '../asset-tree.js';
 import { FOLDER_ICON } from '../asset-tree-icons.js';
 import { createPanelResizer } from '../panel-resizer.js';
+import { createVisualAssetPicker } from '../visual-asset-picker.js';
 import { saveDraft } from '../save.js';
 import { askId, createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
 
@@ -64,6 +61,7 @@ export function mountProps(root: HTMLElement): () => void {
       <div id="prop-tabs" class="prop-tabs" role="tablist" aria-label="Open props"></div>
       <div class="toolbar-row">
         <button id="save-prop" type="button" disabled>SAVE</button>
+        <button id="rename-prop" type="button" disabled>RENAME</button>
         <button id="delete-prop" type="button" disabled>DELETE</button>
         <strong id="prop-id">NO PROP</strong>
       </div>
@@ -100,15 +98,6 @@ export function mountProps(root: HTMLElement): () => void {
         <p id="prop-custom-state-error" class="page-copy" role="alert" hidden></p>
         <div class="character-from-folder-actions"><button id="submit-prop-custom-state" type="submit">ADD STATE</button><button id="cancel-prop-custom-state" type="button">CANCEL</button></div>
       </form>
-    </dialog>
-    <dialog id="prop-asset-dialog" class="prop-asset-dialog" aria-labelledby="prop-picker-title">
-      <div class="dialog-heading"><span id="prop-picker-title">CHOOSE SPRITE</span><button id="prop-picker-close" type="button" aria-label="Close">×</button></div>
-      <div class="prop-picker-body">
-        <section class="prop-picker-sheets" aria-label="Sprite sheets"><label for="prop-picker-search">SPRITE SHEETS</label><input id="prop-picker-search" class="text-input" type="search" placeholder="SEARCH" autocomplete="off"><div id="prop-picker-sheets" class="asset-list"></div></section>
-        <section class="prop-picker-results" aria-label="Assets"><h3 id="prop-picker-results-title">SPRITES</h3><div id="prop-picker-results" class="prop-picker-grid"></div></section>
-      </div>
-      <p id="prop-picker-status" class="prop-picker-status" role="status"></p>
-      <div class="prop-picker-actions"><button id="prop-picker-ok" type="button" disabled>OK</button><button id="prop-picker-cancel" type="button">CANCEL</button></div>
     </dialog>`,
   );
   root.querySelector('.simple-main')?.classList.add('prop-main');
@@ -130,12 +119,6 @@ export function mountProps(root: HTMLElement): () => void {
   const fields = get$<HTMLElement>('#prop-fields');
   const visualType = get$<HTMLSelectElement>('#prop-visual-type');
   const playButton = get$<HTMLButtonElement>('#play-prop-animation');
-  const picker = get$<HTMLDialogElement>('#prop-asset-dialog');
-  const pickerSearch = get$<HTMLInputElement>('#prop-picker-search');
-  const pickerSheets = get$<HTMLElement>('#prop-picker-sheets');
-  const pickerResults = get$<HTMLElement>('#prop-picker-results');
-  const pickerStatus = get$<HTMLElement>('#prop-picker-status');
-  const pickerOk = get$<HTMLButtonElement>('#prop-picker-ok');
   const canvas = get$<HTMLCanvasElement>('#prop-canvas');
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('Canvas is unavailable');
@@ -165,11 +148,6 @@ export function mountProps(root: HTMLElement): () => void {
   let playbackVisualId: string | null = null;
   let playbackIndex = 0;
   let defaultSizeToken = 0;
-  let pickerToken = 0;
-  let pickerType: PropVisual['type'] = 'sprite';
-  let pickerSheet: string | null = null;
-  let pickerChoice: PropVisual | null = null;
-  let pickerClips: AnimationDocument[] = [];
   let showBlocked = false;
   let previewGrid: BlockPreviewGrid | null = null;
   let previewFrame: { key: string; pending: ReturnType<typeof loadVisualFrame> } | null = null;
@@ -181,6 +159,12 @@ export function mountProps(root: HTMLElement): () => void {
     last: { x: number; y: number };
   } | null = null;
   const sheetCache = new Map<string, Promise<SpriteDocument>>();
+  const assetPicker = createVisualAssetPicker({
+    root,
+    loadSheet,
+    paintSprite: (canvas, sprite, index, flips) =>
+      paintSprite(canvas, sprite, index, undefined, false, flips),
+  });
 
   const isTabDirty = (id: string) => {
     const session = id === current?.id ? { doc: current, saved } : sessions.get(id);
@@ -214,7 +198,10 @@ export function mountProps(root: HTMLElement): () => void {
           ))
       )
         throw new Error('Save or close unsaved prop drafts before deleting this folder');
-      const folders = await requestJson<AssetFolders>('/api/prop-folders', jsonRequest('POST', change));
+      const folders = await requestJson<AssetFolders>(
+        '/api/prop-folders',
+        jsonRequest('POST', change),
+      );
       if (change.action === 'delete') {
         for (const id of change.expectedIds) sessions.delete(id);
         openTabs = openTabs.filter((id) => !change.expectedIds.includes(id));
@@ -383,7 +370,9 @@ export function mountProps(root: HTMLElement): () => void {
     const pending = requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`)
       .then(async (sprite) => {
         await document.fonts
-          .load(getTerminalFont(getSpriteFontNativePx(sprite.font), getSpriteFontFamily(sprite.font)))
+          .load(
+            getTerminalFont(getSpriteFontNativePx(sprite.font), getSpriteFontFamily(sprite.font)),
+          )
           .catch(() => undefined);
         return sprite;
       })
@@ -397,10 +386,7 @@ export function mountProps(root: HTMLElement): () => void {
 
   function getVisualSize(visual: PropVisual): Promise<{ width: number; height: number } | null> {
     return getPropVisualSize(visual, loadSheet, (id) => {
-      const clip = pickerClips.find((animation) => animation.id === id);
-      return clip
-        ? Promise.resolve(clip)
-        : requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`);
+      return requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`);
     });
   }
 
@@ -481,12 +467,13 @@ export function mountProps(root: HTMLElement): () => void {
   } | null> {
     if (visual.type === 'sprite')
       return { sprite: await loadSheet(visual.id), index: visual.index };
-    const animation = clip ?? await requestJson<AnimationDocument>(
-      `/api/animations/${encodeURIComponent(visual.id)}`,
-    );
-    const first = frameIndex === undefined
-      ? animation.frames.find((frame) => !isInvisibleFrame(frame))
-      : animation.frames[frameIndex];
+    const animation =
+      clip ??
+      (await requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(visual.id)}`));
+    const first =
+      frameIndex === undefined
+        ? animation.frames.find((frame) => !isInvisibleFrame(frame))
+        : animation.frames[frameIndex];
     if (!first || isInvisibleFrame(first)) return null;
     return {
       sprite: await loadSheet(first.sprite),
@@ -495,169 +482,31 @@ export function mountProps(root: HTMLElement): () => void {
     };
   }
 
-  function renderPickerSheets(): void {
-    pickerSheets.replaceChildren();
-    const query = pickerSearch.value.trim().toLowerCase();
-    const visible = sprites.filter((id) => (spriteLabels[id] ?? id).toLowerCase().includes(query));
-    if (!visible.length) {
-      const empty = document.createElement('p');
-      empty.textContent = sprites.length ? 'No matches.' : 'No sprite sheets.';
-      pickerSheets.append(empty);
-    }
-    for (const id of visible) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = spriteLabels[id] ?? id;
-      button.classList.toggle('active', pickerSheet === id);
-      button.addEventListener('click', () => {
-        if (pickerSheet === id) return;
-        pickerSheet = id;
-        pickerChoice = null;
-        renderPickerSheets();
-        void renderPickerResults();
-      });
-      pickerSheets.append(button);
-    }
-  }
-
-  async function renderPickerResults(): Promise<void> {
-    const token = ++pickerToken;
-    pickerResults.replaceChildren();
-    pickerOk.disabled = true;
-    if (!pickerSheet) return;
-    const sheetId = pickerSheet;
-    pickerStatus.textContent = 'Loading previews…';
-    const entries = pickerType === 'animation' ? getAnimationsUsingSheet(pickerClips, sheetId) : [];
-    if (pickerType === 'animation' && entries.length === 0) {
-      pickerStatus.textContent = 'No animations use this sprite sheet.';
-      return;
-    }
-    try {
-      const sheet = await loadSheet(sheetId);
-      if (!alive || !picker.open || token !== pickerToken) return;
-      pickerStatus.textContent = '';
-      const items: {
-        visual: PropVisual;
-        frame: number;
-        title: string;
-        flips?: { flipH: boolean; flipV: boolean };
-      }[] =
-        pickerType === 'sprite'
-          ? sheet.sprites.map((_frame, index) => ({
-              visual: { type: 'sprite', id: sheetId, index },
-              frame: index,
-              title: `FRAME ${index + 1}`,
-            }))
-          : entries.map(({ animation, frame }) => ({
-              visual: { type: 'animation', id: animation.id },
-              frame: frame.index,
-              flips: getAnimationFrameFlips(animation, frame),
-              title: animation.label,
-            }));
-      for (const item of items) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'prop-picker-card';
-        button.title = item.title;
-        const thumb = document.createElement('canvas');
-        thumb.width = 144;
-        thumb.height = 100;
-        paintSprite(thumb, sheet, item.frame, undefined, false, item.flips);
-        const label = document.createElement('span');
-        label.textContent = item.title;
-        button.append(thumb, label);
-        button.classList.toggle(
-          'active',
-          JSON.stringify(pickerChoice) === JSON.stringify(item.visual),
-        );
-        button.addEventListener('click', () => {
-          pickerChoice = item.visual;
-          pickerResults.querySelectorAll('.prop-picker-card').forEach((card) => {
-            card.classList.toggle('active', card === button);
-          });
-          pickerOk.disabled = false;
-        });
-        pickerResults.append(button);
-      }
-      pickerOk.disabled =
-        !pickerChoice ||
-        !items.some((item) => JSON.stringify(item.visual) === JSON.stringify(pickerChoice));
-      if (items.length === 0) pickerStatus.textContent = 'No sprites in this sheet.';
-    } catch (error) {
-      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = showMessage(error);
-    }
-  }
-
   async function openPicker(type: PropVisual['type']): Promise<void> {
-    if (!current || picker.open) return;
-    pickerType = type;
-    pickerChoice = null;
-    pickerSheet = null;
-    pickerClips = [];
-    pickerSearch.value = '';
-    get$<HTMLElement>('#prop-picker-title').textContent =
-      type === 'sprite' ? 'CHOOSE SPRITE' : 'CHOOSE ANIMATION';
-    get$<HTMLElement>('#prop-picker-results-title').textContent =
-      type === 'sprite' ? 'SPRITES' : 'ANIMATIONS';
-    pickerStatus.textContent = 'Loading assets…';
-    pickerResults.replaceChildren();
-    pickerSheets.replaceChildren();
-    pickerOk.disabled = true;
-    picker.showModal();
-    const token = ++pickerToken;
+    const prop = current;
+    if (!prop || saving) return;
     try {
-      const [sheets, clips] = await Promise.all([
-        requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
-        type === 'animation'
-          ? requestJson<{ files: string[]; labels: Record<string, string> }>('/api/animations')
-          : Promise.resolve({ files: [], labels: {} }),
-      ]);
-      if (!alive || !picker.open || token !== pickerToken) return;
-      sprites = sheets.files;
-      spriteLabels = sheets.labels;
-      animations = type === 'animation' ? clips.files : animations;
-      if (type === 'animation') animationLabels = clips.labels;
-      if (type === 'animation') {
-        const results = await Promise.allSettled(
-          clips.files.map((id) =>
-            requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`),
-          ),
+      const selected = await assetPicker.open(type, prop.visual);
+      if (!selected || !alive || current !== prop || saving) return;
+      const changed = JSON.stringify(prop.visual) !== JSON.stringify(selected);
+      const size = changed ? await getVisualSize(selected) : null;
+      if (!alive || current !== prop || saving) return;
+      prop.visual = selected;
+      if (size) {
+        prop.blockedCells = resizeBlockedCells(
+          prop.blockedCells,
+          prop.width,
+          size.width,
+          size.height,
         );
-        if (!alive || !picker.open || token !== pickerToken) return;
-        pickerClips = results.flatMap((result) =>
-          result.status === 'fulfilled' ? [result.value] : [],
-        );
+        prop.width = size.width;
+        prop.height = size.height;
+      } else if (changed) {
+        status.textContent = 'Animation has no visible frame; kept the current footprint.';
       }
-      const existing = current?.visual;
-      pickerSheet =
-        existing?.type === 'sprite' && type === 'sprite' && sprites.includes(existing.id)
-          ? existing.id
-          : type === 'animation' && existing?.type === 'animation'
-            ? (pickerClips
-                .find((clip) => clip.id === existing.id)
-                ?.frames.find(
-                  (frame): frame is VisibleAnimationFrame =>
-                    !isInvisibleFrame(frame) && sprites.includes(frame.sprite),
-                )?.sprite ??
-              sprites[0] ??
-              null)
-            : (sprites[0] ?? null);
-      if (
-        existing?.type === type &&
-        (type === 'sprite'
-          ? pickerSheet === existing.id
-          : pickerClips.some(
-              (clip) =>
-                clip.id === existing.id &&
-                getAnimationsUsingSheet([clip], pickerSheet ?? '').length > 0,
-            ))
-      )
-        pickerChoice = { ...existing };
-      renderPickerSheets();
-      if (!pickerSheet) pickerStatus.textContent = 'Create a sprite sheet first.';
-      else void renderPickerResults();
+      render();
     } catch (error) {
-      if (alive && picker.open && token === pickerToken) pickerStatus.textContent = showMessage(error);
+      if (alive) status.textContent = showMessage(error);
     }
   }
 
@@ -682,7 +531,9 @@ export function mountProps(root: HTMLElement): () => void {
     playButton.textContent = 'STOP ANIMATION';
     playButton.setAttribute('aria-pressed', 'true');
     try {
-      const clip = await requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(animationId)}`);
+      const clip = await requestJson<AnimationDocument>(
+        `/api/animations/${encodeURIComponent(animationId)}`,
+      );
       if (!alive || token !== playbackToken) return;
       if (!clip.frames.length) {
         stopPreviewPlayback();
@@ -803,6 +654,7 @@ export function mountProps(root: HTMLElement): () => void {
     scheduleTabs();
     fields.hidden = !current;
     get$<HTMLButtonElement>('#save-prop').disabled = !current;
+    get$<HTMLButtonElement>('#rename-prop').disabled = !current;
     get$<HTMLButtonElement>('#delete-prop').disabled = !current;
     get$<HTMLElement>('#prop-id').textContent = current?.label ?? current?.id ?? 'NO PROP';
     if (!current) {
@@ -924,9 +776,14 @@ export function mountProps(root: HTMLElement): () => void {
       const pendingFolder = pendingPropFolders.get(sent.id);
       if (pendingFolder) {
         try {
-          await requestJson<AssetFolders>('/api/prop-folders', jsonRequest('POST', {
-            action: 'move', id: sent.id, folder: pendingFolder,
-          }));
+          await requestJson<AssetFolders>(
+            '/api/prop-folders',
+            jsonRequest('POST', {
+              action: 'move',
+              id: sent.id,
+              folder: pendingFolder,
+            }),
+          );
         } catch (error) {
           const message = `Saved ${sent.id}, but could not place it in ${pendingFolder}: ${showMessage(error)}`;
           status.textContent = message;
@@ -955,49 +812,6 @@ export function mountProps(root: HTMLElement): () => void {
   });
   get$<HTMLButtonElement>('#choose-prop-visual').addEventListener('click', () => {
     if (current) void openPicker(current.visual.type);
-  });
-  pickerSearch.addEventListener('input', renderPickerSheets);
-  const closePicker = () => picker.close();
-  get$<HTMLButtonElement>('#prop-picker-close').addEventListener('click', closePicker);
-  get$<HTMLButtonElement>('#prop-picker-cancel').addEventListener('click', closePicker);
-  picker.addEventListener('close', () => {
-    ++pickerToken;
-    pickerChoice = null;
-    visualType.value = current?.visual.type ?? 'sprite';
-  });
-  pickerOk.addEventListener('click', () => {
-    if (!current || !pickerChoice || pickerOk.disabled) return;
-    const selected = pickerChoice;
-    const prop = current;
-    const changed = JSON.stringify(prop.visual) !== JSON.stringify(selected);
-    const token = ++pickerToken;
-    pickerOk.disabled = true;
-    void (async () => {
-      try {
-        const size = changed ? await getVisualSize(selected) : null;
-        if (!alive || !picker.open || token !== pickerToken || current !== prop) return;
-        prop.visual = selected;
-        if (size) {
-          prop.blockedCells = resizeBlockedCells(
-            prop.blockedCells,
-            prop.width,
-            size.width,
-            size.height,
-          );
-          prop.width = size.width;
-          prop.height = size.height;
-        } else if (changed) {
-          status.textContent = 'Animation has no visible frame; kept the current footprint.';
-        }
-        picker.close();
-        render();
-      } catch (error) {
-        if (alive && picker.open && token === pickerToken) {
-          pickerStatus.textContent = showMessage(error);
-          pickerOk.disabled = false;
-        }
-      }
-    })();
   });
   function toggleBlockedPreview(): void {
     showBlocked = !showBlocked;
@@ -1138,6 +952,21 @@ export function mountProps(root: HTMLElement): () => void {
     });
   }
   get$<HTMLButtonElement>('#save-prop').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#rename-prop').addEventListener('click', () => void renameProp());
+  async function renameProp(): Promise<void> {
+    const prop = current;
+    if (!prop || saving) return;
+    const previousLabel = prop.label ?? prop.id;
+    const entered = await askAssetMeta('PROP', previousLabel, prop.id);
+    if (entered === null || !alive || current !== prop || saving) return;
+    const error = getPropLabelError(entered);
+    if (error) return void alertModal(error);
+    const label = entered.trim();
+    if (label === previousLabel) return;
+    prop.label = label;
+    render();
+    status.textContent = 'Prop renamed. Save to keep the change.';
+  }
   get$<HTMLButtonElement>('#new-prop').addEventListener('click', () => {
     void (async () => {
       const folder = newPropFolder;
@@ -1266,7 +1095,8 @@ export function mountProps(root: HTMLElement): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
     if (
       !root.isConnected ||
-      picker.open ||
+      isModalOpen() ||
+      assetPicker.isOpen() ||
       customStateDialog.open ||
       !(event.ctrlKey || event.metaKey) ||
       event.key.toLowerCase() !== 's'
@@ -1303,10 +1133,9 @@ export function mountProps(root: HTMLElement): () => void {
     disposeResizer();
     persistTabs();
     ++loading;
-    ++pickerToken;
     ++previewToken;
     ++defaultSizeToken;
-    if (picker.open) picker.close();
+    assetPicker.dispose();
     if (customStateDialog.open) customStateDialog.close();
     document.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('pagehide', persistTabs);

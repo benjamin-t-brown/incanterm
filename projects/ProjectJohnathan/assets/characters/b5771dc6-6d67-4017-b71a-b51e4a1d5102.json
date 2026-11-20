@@ -3,6 +3,7 @@
   "version": 1,
   "id": "b5771dc6-6d67-4017-b71a-b51e4a1d5102",
   "label": "lady3x3",
+  "scriptName": "Mrs Laddy,lady",
   "defaultFacing": "down",
   "animations": {
     "idle-up": "bd3f2d03-cc39-4d36-8796-12eda86115e5",
@@ -19,6 +20,7 @@
     "talking-right": "eb4f7982-1b8d-4ffd-9c5b-cea6939fa7fc"
   },
   "customAnimations": {
-    "sit office": "2e4e342a-661b-4c96-8e65-248f30fedef5"
+    "sit office": "2e4e342a-661b-4c96-8e65-248f30fedef5",
+    "interact up": "4dbc009e-19a9-45ca-a0b8-bb023a78cf47"
   }
 }

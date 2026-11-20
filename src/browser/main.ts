@@ -1,5 +1,6 @@
 import { parseServerMessage, type SelectionRect } from '../protocol/messages.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
+import { getKeyboardInput } from './keyboard-input.js';
 
 const screen = getRequiredElement('#screen');
 const status = getRequiredElement('#status');
@@ -103,7 +104,7 @@ function renderRows(dirty: Set<number>): void {
 
 window.addEventListener('keydown', (event) => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  const data = keyToInput(event);
+  const data = getKeyboardInput(event);
   if (data === null) return;
   window.getSelection()?.removeAllRanges();
   renderDeferredFrame();
@@ -169,17 +170,4 @@ function scheduleReconnect(): void {
     retry = undefined;
     connect();
   }, 1000);
-}
-
-function keyToInput(event: KeyboardEvent): string | null {
-  if (event.ctrlKey || event.metaKey || event.altKey) return null;
-  if (event.key === 'Enter') return '\r';
-  if (event.key === 'Backspace') return '\x7f';
-  if (event.key === 'Tab') return '\t';
-  if (event.key === 'ArrowUp') return '\x1b[A';
-  if (event.key === 'ArrowDown') return '\x1b[B';
-  if (event.key === 'ArrowRight') return '\x1b[C';
-  if (event.key === 'ArrowLeft') return '\x1b[D';
-  if (event.key.length === 1) return event.key;
-  return null;
 }

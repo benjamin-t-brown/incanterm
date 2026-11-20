@@ -45,8 +45,15 @@ export class Prop extends Entity {
     z: number,
     readonly sprite: Sprite,
     readonly foreground = false,
+    readonly instanceName?: string,
+    readonly blockingOffsets: readonly { x: number; y: number }[] = [],
   ) {
     super(id, x, y, depthOffset, z);
+  }
+
+  clone(): Prop {
+    // Static props only share immutable sprite and footprint data.
+    return Object.assign(new Prop(this.id, this.x, this.y, this.depthOffset, this.z, this.sprite), this);
   }
 
   draw(buffer: CellBuffer, originX: number, originY: number): void {
@@ -78,7 +85,7 @@ export class Scene {
     readonly clear: Cell,
     entities: readonly Entity[],
     readonly triggers: readonly string[] = [],
-    readonly blockedCells: ReadonlySet<number> = new Set(),
+    readonly staticBlockedCells: ReadonlySet<number> = new Set(),
     readonly actionTriggers: readonly ActionTrigger[] = [],
     readonly stepTriggers: readonly StepTrigger[] = [],
     readonly markers: readonly SceneMarker[] = [],
@@ -86,6 +93,21 @@ export class Scene {
     readonly itemAssets: ReadonlyMap<string, ItemAsset> = new Map(),
   ) {
     this.entities = [...entities];
+  }
+
+  get blockedCells(): ReadonlySet<number> {
+    let cells: Set<number> | undefined;
+    for (const entity of this.entities) {
+      if (!(entity instanceof Prop) || !entity.blockingOffsets.length) continue;
+      cells ??= new Set(this.staticBlockedCells);
+      for (const offset of entity.blockingOffsets) {
+        const x = entity.x + offset.x;
+        const y = entity.y + offset.y;
+        if (x >= 0 && y >= 0 && x < this.width && y < this.height)
+          cells.add(y * this.width + x);
+      }
+    }
+    return cells ?? this.staticBlockedCells;
   }
 
   getMarker(name: string): SceneMarker | undefined {

@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "d8f36445-e782-4c3a-be25-ff15881453af",
+  "label": "pillar_1x5",
+  "visual": {
+    "type": "sprite",
+    "id": "10c63d71-16ed-4ba1-b836-a6727d528f65",
+    "index": 0
+  },
+  "width": 1,
+  "height": 5,
+  "blockedCells": [
+    4
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

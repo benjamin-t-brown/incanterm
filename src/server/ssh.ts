@@ -25,6 +25,7 @@ export async function startSshServer(options: {
   dialogueAnimation?: DialogueAnimationOptions;
   portraitAnimation?: PortraitAnimationOptions;
   allowPlayerSpawn?: boolean;
+  sessionTimerTriggers?: readonly string[];
 }): Promise<SshListener> {
   const clients = new Set<Connection>();
   const server = new Server({ hostKeys: [options.hostKey] }, (client) => {
@@ -39,7 +40,8 @@ export async function startSshServer(options: {
     client.on('ready', () => {
       client.on('session', (acceptSession) => {
         attachSession(acceptSession(), options.scene, options.scripts, options.portraits,
-          options.reloadPortraits, options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn);
+          options.reloadPortraits, options.loadSceneById, options.dialogueAnimation, options.portraitAnimation,
+          options.allowPlayerSpawn, options.sessionTimerTriggers);
       });
     });
   });
@@ -68,6 +70,7 @@ function attachSession(
   dialogueAnimation?: DialogueAnimationOptions,
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
+  sessionTimerTriggers?: readonly string[],
 ): void {
   let game: GameSession | undefined;
   let cols = 80;
@@ -87,7 +90,7 @@ function attachSession(
   session.on('shell', (accept) => {
     const stream = accept();
     game = bindSession(stream, scene, scripts, cols, rows, portraits, reloadPortraits,
-      loadSceneById, dialogueAnimation, portraitAnimation, allowPlayerSpawn);
+      loadSceneById, dialogueAnimation, portraitAnimation, allowPlayerSpawn, sessionTimerTriggers);
   });
 }
 
@@ -103,6 +106,7 @@ function bindSession(
   dialogueAnimation?: DialogueAnimationOptions,
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
+  sessionTimerTriggers?: readonly string[],
 ): GameSession {
   let writable = true;
   function handleSessionError(error: unknown): void {
@@ -129,6 +133,7 @@ function bindSession(
     dialogueAnimation,
     portraitAnimation,
     allowPlayerSpawn,
+    sessionTimerTriggers,
   );
   game.resize(cols, rows);
   stream.write(`\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);

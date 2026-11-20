@@ -1,8 +1,17 @@
-import { commands, getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection, getPlayerCharacterName, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
+import { commands, getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection, getPlayerCharacterName, getPositionCoordinates, getPropInstanceName, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset } from './scene-commands.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
 import { defineCommand } from './rpgscript/command.js';
+
+const getCharacterPos = defineCommand({
+  returnsValue: true,
+  parse: commands.getCharacterPos.parse,
+  execute: (step, script) => {
+    getPlayerCharacterName(step.character, script, 'getCharacterPos');
+    throw new Error(`${script.location}: getCharacterPos requires a world scene`);
+  },
+});
 
 // A terminal has no player character. Validate the command without controlling a scene.
 export const sceneCommandsShim = {
@@ -11,6 +20,14 @@ export const sceneCommandsShim = {
     parse: commands.playDialogue.parse,
     execute: (step, script) =>
       script.showDialogue(script.interpolate(step.actor), script.interpolate(step.text), step.emotion),
+  }),
+  setConv: defineCommand({
+    parse: commands.setConv.parse,
+    execute: (step, script) => commands.setConv.run({ ...step, command: 'setConv', line: 0 }, script, undefined),
+  }),
+  setConv2: defineCommand({
+    parse: commands.setConv2.parse,
+    execute: (step, script) => commands.setConv2.run({ ...step, command: 'setConv2', line: 0 }, script, undefined),
   }),
   setCharacterVariant: defineCommand({
     parse: commands.setCharacterVariant.parse,
@@ -53,6 +70,30 @@ export const sceneCommandsShim = {
       script.callSubscript(name, step.target);
     },
     targets: (step) => [{ name: step.target, argumentCount: 1 }],
+  }),
+  getCharacterPos,
+  getChPos: getCharacterPos,
+  getPropPos: defineCommand({
+    returnsValue: true,
+    parse: commands.getPropPos.parse,
+    execute: (step, script) => {
+      getPropInstanceName(step.prop, script, 'getPropPos');
+      throw new Error(`${script.location}: getPropPos requires a world scene`);
+    },
+  }),
+  setChPos: defineCommand({
+    parse: commands.setChPos.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.entity, script, 'setChPos');
+      getPositionCoordinates(step, script, 'setChPos');
+    },
+  }),
+  setPropPos: defineCommand({
+    parse: commands.setPropPos.parse,
+    execute: (step, script) => {
+      getPropInstanceName(step.entity, script, 'setPropPos');
+      getPositionCoordinates(step, script, 'setPropPos');
+    },
   }),
   chWalkToCoord: defineCommand({
     parse: commands.chWalkToCoord.parse,

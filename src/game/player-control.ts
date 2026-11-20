@@ -59,6 +59,10 @@ export class PlayerControl {
     this.cancelledWalks.add(character);
     if (this.scriptedWalker === character) this.scriptedWalker = undefined;
     if (this.playerWalkCh === character) this.pendingTalk = undefined;
+    if (this.conversation?.target === character && this.conversation.activity.destination) {
+      const activity = this.conversation.activity;
+      this.conversation.activity = { ...activity, destination: undefined, state: 'idle', walkElapsed: 0 };
+    }
     character.stopWalking();
   }
 

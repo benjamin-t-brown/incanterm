@@ -1,0 +1,35 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "1f9b687a-a89a-490e-b78f-9de71e329f7f",
+  "label": "bookshelf_6x11_left",
+  "visual": {
+    "type": "sprite",
+    "id": "04165c6c-a969-49ae-8454-294403acf650",
+    "index": 0
+  },
+  "width": 6,
+  "height": 11,
+  "blockedCells": [
+    36,
+    42,
+    43,
+    48,
+    49,
+    50,
+    51,
+    55,
+    56,
+    57,
+    58,
+    59,
+    62,
+    63,
+    64,
+    65
+  ],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}
