@@ -13,6 +13,37 @@ const directions = {
 } satisfies Record<SlideDirection, { x: number; y: number }>;
 
 it.each([
+  { direction: 'left', vector: { x: -1, y: 0 }, stepMs: 60 },
+  { direction: 'right', vector: { x: 1, y: 0 }, stepMs: 60 },
+  { direction: 'up', vector: { x: -1, y: -1 }, stepMs: 120 },
+  { direction: 'down', vector: { x: 0, y: 1 }, stepMs: 120 },
+] as const)('advances a $direction slide every $stepMs ms', ({ direction, vector, stepMs }) => {
+  const art = new Sprite('test-art', 1, 1, 0, 0, [ink]);
+  const player = new Character('player', 4 - vector.x, 4 - vector.y, 0, art, 'player', undefined, 'idle', 'up');
+  const shelf = new Prop('shelf', 4, 4, 0, 0, art, false, undefined, [{ x: 0, y: 0 }], {
+    footprint: [{ x: 0, y: 0 }],
+    actionScript: 'push',
+  });
+  const scene = new Scene('speed', 9, 9, 'bottom-up', ink, [player, shelf], [],
+    undefined, [], [], [], undefined, undefined, {
+      travelCells: Array.from({ length: 81 }, (_, index) => index),
+      directions: { ...directions, [direction]: vector },
+    });
+  const control = new PlayerControl(scene);
+  control.setPlayerWalkCh(player.id);
+  const slide = new PropSlideControl(control);
+  const getResult = slide.startSlide(shelf.id, direction);
+
+  slide.update(stepMs - 1);
+  expect(shelf).toMatchObject({ x: 4, y: 4 });
+  slide.update(1);
+  expect(shelf).toMatchObject({ x: 4 + vector.x, y: 4 + vector.y });
+  slide.update(stepMs * 3);
+  expect(shelf).toMatchObject({ x: 4 + vector.x * 4, y: 4 + vector.y * 4 });
+  expect(getResult()).toBe(true);
+});
+
+it.each([
   { direction: 'right', start: 2, spot: 4, anchor: 3, authored: false },
   { direction: 'left', start: 8, spot: 6, anchor: 7, authored: false },
   { direction: 'right', start: 2, spot: 4, anchor: 3, authored: true },

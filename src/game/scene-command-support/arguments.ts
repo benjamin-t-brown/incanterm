@@ -78,11 +78,11 @@ export function getSkipWait(value: ScriptValue, script: CommandContext, command 
   throw new Error(`${script.location}: ${command} skipWait must be a boolean`);
 }
 
-export function getBusyState(value: ScriptValue, script: CommandContext): boolean {
+export function getBusyState(value: ScriptValue, script: CommandContext, command = 'setBusy'): boolean {
   const resolved = script.value(value);
   if (resolved === true || resolved === 'true') return true;
   if (resolved === false || resolved === 'false') return false;
-  throw new Error(`${script.location}: setBusy requires true or false`);
+  throw new Error(`${script.location}: ${command} requires true or false`);
 }
 
 export function getFacingDirection(value: ScriptValue, script: CommandContext): CharacterDirection {
@@ -130,25 +130,36 @@ export function getCharacterVariantName(
   return variant;
 }
 
-export function getWaitMilliseconds(value: ScriptValue, script: CommandContext): number {
+export function getWaitMilliseconds(value: ScriptValue, script: CommandContext, command = 'waitMs'): number {
   const ms = script.value(value);
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0)
-    throw new Error(`${script.location}: waitMs requires a non-negative number of milliseconds`);
+    throw new Error(`${script.location}: ${command} requires a non-negative number of milliseconds`);
   return ms;
 }
 
 export const DEFAULT_BARK_MS = 2000;
 
+export function parseBarkArgs(args: Command['args'], location: string) {
+  if (args.length < 2 || args.length > 4) return;
+  return {
+    target: getScriptValue(args[0], location),
+    text: getScriptValue(args[1], location),
+    ms: args.length >= 3 ? getScriptValue(args[2], location) : undefined,
+    skipWait: args.length === 4 ? getScriptValue(args[3], location) : undefined,
+  };
+}
+
 export function getBark(
   step: { text: ScriptValue; ms?: ScriptValue; skipWait?: ScriptValue },
   script: CommandContext,
+  command = 'bark',
 ): { text: string; ms: number; skipWait: boolean } {
   const text = script.value(step.text);
   if (typeof text !== 'string' && typeof text !== 'number' && typeof text !== 'boolean')
-    throw new Error(`${script.location}: bark text must be a string`);
+    throw new Error(`${script.location}: ${command} text must be a string`);
   const ms = step.ms === undefined ? DEFAULT_BARK_MS : Number(script.value(step.ms));
   if (!Number.isFinite(ms) || ms <= 0)
-    throw new Error(`${script.location}: bark ms must be a positive number`);
-  const skipWait = step.skipWait === undefined ? false : getSkipWait(step.skipWait, script);
+    throw new Error(`${script.location}: ${command} ms must be a positive number`);
+  const skipWait = step.skipWait === undefined ? false : getSkipWait(step.skipWait, script, command);
   return { text: String(text), ms, skipWait };
 }

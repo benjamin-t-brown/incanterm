@@ -17,6 +17,9 @@ export async function loadGame(
   const settings = await loadSessionConfig(assetsRoot);
   const scene = await loadSceneByReference(assetsRoot, sceneId);
   const scripts = await loadRpgScripts(assetsRoot, { commands });
+  const propUnreachable = settings.scriptHooks?.propUnreachable;
+  if (propUnreachable !== undefined && scripts.get(propUnreachable)?.parameters.length !== 1)
+    throw new Error(`session-config.json: scriptHooks.propUnreachable must reference a one-argument RPGScript function: ${propUnreachable}`);
   for (const name of settings.timerTriggers ?? []) {
     const trigger = scripts.triggers.get(name);
     if (!trigger)
@@ -41,6 +44,7 @@ export async function loadGame(
     dialogueAnimation: options.dialogueAnimation ?? settings.dialogueAnimation,
     portraitAnimation: options.portraitAnimation ?? settings.portraitAnimation,
     sessionTimerTriggers: settings.timerTriggers,
+    scriptHooks: settings.scriptHooks,
     allowPlayerSpawn: options.allowPlayerSpawn,
     reloadPortraits: () => loadPortraitAssets(assetsRoot),
     loadSceneById: (reference: string) => loadSceneByReference(assetsRoot, reference),

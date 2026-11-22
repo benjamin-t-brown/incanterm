@@ -237,6 +237,37 @@
       "name": "FromLibrary",
       "x": 45,
       "y": 13
+    },
+    {
+      "id": "trash-1",
+      "type": "Prop",
+      "name": "trash_1",
+      "prop": "trash",
+      "state": "default",
+      "actionScript": "items_searchTrash",
+      "depthOffset": 0,
+      "x": 49,
+      "y": 18,
+      "z": 0
+    },
+    {
+      "id": "d2c9ef60-d631-49d3-9fb6-86463e049338-1",
+      "type": "Character",
+      "name": "hadassah3x3",
+      "character": "d2c9ef60-d631-49d3-9fb6-86463e049338",
+      "talkScript": "southLifts_HaddyTalk",
+      "facing": "left",
+      "state": "impatient left",
+      "x": 70,
+      "y": 14,
+      "z": 0
+    },
+    {
+      "id": "3b710d21-907a-4998-9575-8ddb276619d4",
+      "type": "Marker",
+      "name": "MarkerLifts",
+      "x": 63,
+      "y": 18
     }
   ],
   "triggers": [
@@ -278,10 +309,10 @@
       "id": "0fed0e4a-6cf3-4a9d-9c79-7a517e09cda8",
       "trigger": "southLifts_toLibrary1",
       "event": "action",
-      "x": 43,
-      "y": 11,
-      "width": 1,
-      "height": 5,
+      "x": 42,
+      "y": 15,
+      "width": 2,
+      "height": 1,
       "actionEnabled": false,
       "stepEnabled": true,
       "description": ""
@@ -290,10 +321,10 @@
       "id": "890618ea-25ea-4d2d-8097-7c8238f114ff",
       "trigger": "southLifts_toLibrary1",
       "event": "action",
-      "x": 42,
-      "y": 10,
-      "width": 1,
-      "height": 5,
+      "x": 41,
+      "y": 14,
+      "width": 2,
+      "height": 1,
       "actionEnabled": false,
       "stepEnabled": true,
       "description": ""
@@ -302,12 +333,60 @@
       "id": "7200caf7-f9ed-4e46-aab0-9ccd397998b8",
       "trigger": "southLifts_toLibrary1",
       "event": "action",
-      "x": 41,
-      "y": 9,
-      "width": 1,
-      "height": 5,
+      "x": 40,
+      "y": 13,
+      "width": 2,
+      "height": 1,
       "actionEnabled": false,
       "stepEnabled": true,
+      "description": ""
+    },
+    {
+      "id": "6666b32d-1cee-41ae-8531-63b86b417b3d",
+      "trigger": "southLifts_elevatorsButton",
+      "event": "action",
+      "x": 63,
+      "y": 21,
+      "width": 1,
+      "height": 1,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "acb633ab-4b85-4ee5-950e-df22cc82c179",
+      "trigger": "southLifts_elevatorsButton",
+      "event": "action",
+      "x": 73,
+      "y": 21,
+      "width": 1,
+      "height": 1,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "52379316-d3d7-457d-b3b3-8fc68acea260",
+      "trigger": "southLifts_elevators",
+      "event": "action",
+      "x": 56,
+      "y": 19,
+      "width": 5,
+      "height": 4,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "3e5893fc-5b6f-4f71-93ef-4f960b86a1c5",
+      "trigger": "southLifts_elevators",
+      "event": "action",
+      "x": 66,
+      "y": 19,
+      "width": 5,
+      "height": 4,
+      "actionEnabled": true,
+      "stepEnabled": false,
       "description": ""
     }
   ]

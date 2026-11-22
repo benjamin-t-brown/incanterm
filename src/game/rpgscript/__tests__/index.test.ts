@@ -689,17 +689,26 @@ describe('RPGScript execution', () => {
     expect(runner.getGlobal('lastChoiceIndex')).toBe(1);
   });
 
-  it('supports awaitChoice without a branch', () => {
+  it('shows the awaitChoice question without counting it as an option', () => {
     const runner = new ScriptRunner(
       parseRpgScript(
-        '@start\n+awaitChoice("A", "B")\n+?eq(lastChoiceIndex, 0):A: "A chosen"',
+        '@start\n+awaitChoice("Which one?", "A", "B")\n+?eq(lastChoiceIndex, 0):A: "A chosen"',
         'choice.rpgscript',
       ),
     );
     runner.start('start');
-    expect(runner.choice?.options).toEqual(['A', 'B']);
+    expect(runner.choice).toEqual({ question: 'Which one?', options: ['A', 'B'] });
     runner.choose(0);
     expect(runner.dialogue?.text).toBe('A chosen');
+  });
+
+  it('requires a question and allows up to nine answers', () => {
+    expect(() => parseRpgScript('@start\n+awaitChoice("Which one?")', 'choice.rpgscript'))
+      .toThrow('choice.rpgscript:2: awaitChoice requires a question followed by at least one option');
+    const options = Array.from({ length: 9 }, (_, index) => `"Option ${index + 1}"`).join(', ');
+    const script = `@start\n+awaitChoice("Which one?", ${options}`;
+    expect(() => parseRpgScript(`${script})`, 'choice.rpgscript')).not.toThrow();
+    expect(() => parseRpgScript(`${script}, "Extra")`, 'choice.rpgscript')).toThrow('At most 9 choices');
   });
 
   it('rejects unsupported condition functions and invalid trigger targets with locations', () => {
@@ -743,7 +752,7 @@ describe('RPGScript execution', () => {
 
   it('accepts numbered choices from input without advancing on unrelated keys', () => {
     const scripts = parseRpgScript(
-      '#room-entry\nload,test-dialogue\n@test-dialogue\n+awaitChoice("First", "Second")\n+?eq(lastChoiceIndex, 1):A: "Selected second"',
+      '#room-entry\nload,test-dialogue\n@test-dialogue\n+awaitChoice("Which one?", "First", "Second")\n+?eq(lastChoiceIndex, 1):A: "Selected second"',
       'session.rpgscript',
     );
     const scene = new Scene(
@@ -762,20 +771,26 @@ describe('RPGScript execution', () => {
     const first: string[] = [];
     const second: string[] = [];
     const screen = new TerminalScreen();
+    const animation = { enabled: false };
     const a = createGameSession(scene, (text, cols, rows) => {
       first.push(text);
       screen.apply(text, cols, rows);
-    }, scripts);
-    const b = createGameSession(scene, (text) => second.push(text), scripts);
+    }, scripts, undefined, undefined, undefined, undefined, undefined, animation, animation);
+    const b = createGameSession(scene, (text) => second.push(text), scripts,
+      undefined, undefined, undefined, undefined, undefined, animation, animation);
     a.open();
     b.open();
-    expect(first.at(-1)).toContain('2. Second');
-    a.input(' ');
-    a.input('3');
-    expect(first).toHaveLength(1);
-    a.input('2');
-    a.input(' '); // Finish the newly displayed dialogue without advancing it.
-    expect(getPlainText(screen.buffer)).toContain('Selected second');
-    expect(second.at(-1)).toContain('2. Second');
+    try {
+      expect(first.at(-1)).toContain('2. Second');
+      a.input(' ');
+      a.input('3');
+      expect(first).toHaveLength(1);
+      a.input('2');
+      expect(getPlainText(screen.buffer)).toContain('Selected second');
+      expect(second.at(-1)).toContain('2. Second');
+    } finally {
+      a.close();
+      b.close();
+    }
   });
 });

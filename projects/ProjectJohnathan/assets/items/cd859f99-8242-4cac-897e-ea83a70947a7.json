@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "cd859f99-8242-4cac-897e-ea83a70947a7",
+  "label": "Spare Change",
+  "scriptName": "SpareChange",
+  "examineScript": "items_spareChange_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "cacb7fce-7d1a-46ea-b5bd-854e0187b077",
+    "index": 0
+  },
+  "combinations": []
+}

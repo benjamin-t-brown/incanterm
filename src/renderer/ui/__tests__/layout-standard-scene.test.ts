@@ -16,6 +16,23 @@ import {
 import { renderStandardUiPreview } from '../standard-ui.js';
 
 describe('LayoutStandardScene', () => {
+  it('centers a 60-column choice panel above the conversation', () => {
+    const layout = new LayoutStandardScene(new Scene('room', 1, 1, 'regular-z', STANDARD_BACKGROUND, []));
+    layout.conversationOpen = true;
+    layout.message.text = 'Existing conversation';
+    layout.choicePanel.setChoices({ question: 'Choose now?', options: ['Yes', 'No'] });
+    const buffer = new CellBuffer(100, 40, STANDARD_BACKGROUND);
+    layout.render(buffer);
+
+    const rows = getPlainText(buffer).split('\n');
+    const top = rows.findIndex((row) => row.slice(20, 80) === `┌${'─'.repeat(58)}┐`);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(rows[top + 1].indexOf('Choose now?')).toBe(22);
+    const buttonRow = rows.findIndex((row) => row.includes('1. Yes'));
+    expect(layout.getChoiceAt(rows[buttonRow].indexOf('1. Yes'), buttonRow)).toBe(0);
+    expect(rows.findIndex((row) => row.includes('Existing conversation'))).toBeGreaterThan(top + 8);
+  });
+
   it('renders a log-only window over all UI and restores the previous view', () => {
     const layout = new LayoutStandardScene(new Scene('room', 3, 3, 'regular-z', STANDARD_BACKGROUND, []));
     layout.tabs.select('inventory');

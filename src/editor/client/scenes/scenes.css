@@ -1,12 +1,23 @@
 .simple-main.scene-main {
+  --scene-issue-color: #ffae95;
   display: flex;
   gap: 12px;
   overflow: hidden;
   padding: 12px 16px;
 }
-.scene-library {
+.light .simple-main.scene-main {
+  --scene-issue-color: #a22d24;
+}
+.scene-left-sidebar {
   flex: none;
   width: 190px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 3fr) minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+}
+.scene-library {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -19,6 +30,64 @@
 .scene-library .scene-library-list {
   overflow: auto;
   min-height: 0;
+}
+.scene-problems {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.scene-problems h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.scene-problems-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.scene-problems-body p,
+.scene-problems-body ul {
+  margin: 0;
+  padding: 6px 8px;
+}
+.scene-problems-body p {
+  color: var(--muted);
+}
+.scene-problems-body ul {
+  color: var(--scene-issue-color);
+  list-style: none;
+}
+.scene-problems-body li + li {
+  border-top: 1px solid var(--line);
+  margin-top: 5px;
+  padding-top: 5px;
+}
+.scene-problem-target {
+  display: inline;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.scene-problem-target:hover,
+.scene-problem-target:focus-visible {
+  background: var(--surface-2);
 }
 .scene-app {
   flex: 1;
@@ -523,7 +592,7 @@
 }
 #scene-inspector .scene-slide-issue,
 .scene-room-prop .scene-slide-issue {
-  color: #ffae95;
+  color: var(--scene-issue-color);
 }
 #scene-room-props {
   display: flex;

@@ -1,0 +1,14 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "af4bbe17-906d-4c29-8f73-16f942da201c",
+  "label": "Book: In the Seeing Mirror by Allison Vonderland",
+  "examineScript": "items_SeeingMirror_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 3
+  },
+  "combinations": []
+}

@@ -6,6 +6,7 @@ import { parseRpgScript } from '../../game/rpgscript/__tests__/test-support.js';
 import { Prop, Scene, type ActionTrigger } from '../../game/scene.js';
 import { Sprite } from '../../game/sprite.js';
 import { getPlainText } from '../../game/terminal.js';
+import { CANCEL_UI_AND_OPEN_LOG_INPUT } from '../../protocol/input.js';
 import { createGameSession, type GameSession } from '../game-session.js';
 
 const ink = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
@@ -50,6 +51,17 @@ action,tryUnsafeReset
   }
 @tryUnsafeReset
   +resetPropSlides(unsafe)
+#@confirm
+  +setConv()
+  Hero: "These shelves can move."
+  +awaitChoice("Reset the shelves in this room?", "Yes", "No")
+  +endConv()
+  +?eq(lastChoiceIndex, 0):{
+    +fadeOut(300)
+    +resetPropSlides(safe)
+    +waitMs(100)
+    +fadeIn(300)
+  }
 `;
 
 function createActionTrigger(trigger: string, x: number): ActionTrigger {
@@ -76,6 +88,7 @@ function createSlideRoom(id: string, { edited = false, interrupt = false } = {})
     [
       createActionTrigger(id === 'studio' ? 'exit' : 'return', 11),
       createActionTrigger('reset', 10), createActionTrigger('undo', 9), createActionTrigger('resetUnsafe', 8),
+      createActionTrigger('confirm', 7),
     ], [],
     [
       { id: 'entry-marker', name: 'mPlayer', x: 0, y: 1 },
@@ -119,6 +132,13 @@ function clickScene(session: GameSession, x: number, y: number): void {
   session.input(`\x1b[<0;${rect.x + x + 1};${rect.y + y + 1}M`);
 }
 
+function getChoiceClick(screen: TerminalScreen, label: string, button = 0): string {
+  const rows = getPlainText(screen.buffer).split('\n');
+  const y = rows.findIndex((row) => row.includes(label));
+  if (y < 0) throw new Error(`Expected button ${label}`);
+  return `\x1b[<${button};${rows[y].indexOf(label) + 1};${y + 1}M`;
+}
+
 function getAnchor(scene: Scene, id: string) {
   const entity = scene.entities.find((entry) => entry.id === id);
   return { x: entity?.x, y: entity instanceof Character ? entity.bottomY : entity?.y };
@@ -132,6 +152,82 @@ async function advanceUntil(predicate: () => boolean): Promise<void> {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+});
+
+it.each(['keyboard', 'click', 'cancel fade'] as const)('confirms or cancels a shelf reset via %s', (via) => {
+  vi.useFakeTimers();
+  const atrium = { statue: { x: 7, y: 4 } };
+  const initialState = { studio: { crate: { x: 7, y: 2 } }, atrium };
+  const { session, screen, initialRoom } = openSlideSession(createSlideRoom('studio'), createSlideRoom('atrium'), {
+    initialState,
+  });
+  const getScreenText = () => getPlainText(screen.buffer);
+  const normalColor = screen.buffer.get(0, 0).bg;
+  try {
+    clickScene(session, 7, 0);
+    // Let the typewriter effect finish so Enter advances directly to the choices.
+    vi.advanceTimersByTime(2000);
+    session.input('\r');
+    session.resize(40, 16);
+    vi.advanceTimersByTime(200);
+    const rows = getScreenText().split('\n');
+    const questionRow = rows.findIndex((row) => row.includes('Reset the shelves in this room?'));
+    const yesRow = rows.findIndex((row) => row.includes('1. Yes'));
+    const noRow = rows.findIndex((row) => row.includes('2. No'));
+    const dialogueRow = rows.findIndex((row) => row.includes('These shelves can move.'));
+    expect(questionRow).toBeGreaterThanOrEqual(0);
+    expect(yesRow).toBeGreaterThan(questionRow);
+    expect(noRow).toBeGreaterThan(yesRow);
+    expect(dialogueRow).toBeGreaterThan(noRow);
+    expect(getScreenText()).not.toContain('[Space/Enter]');
+
+    session.input('\x1b[<0;1;1M');
+    session.input(getChoiceClick(screen, '1. Yes', 2));
+    session.input('\r');
+    session.input('3');
+    expect(getScreenText()).toContain('1. Yes');
+    expect(session.getPropSlideState()).toEqual(initialState);
+    // Leave space to inspect the scene beyond the edges of the exiting panel.
+    session.resize(80, 24);
+    if (via === 'keyboard') {
+      session.input('2');
+      expect(screen.buffer.get(0, 0).bg).toEqual(normalColor);
+      vi.advanceTimersByTime(800);
+      expect(getScreenText()).not.toContain('2. No');
+      expect(session.getPropSlideState()).toEqual(initialState);
+      expect(getAnchor(initialRoom, 'crate').x).toBe(7);
+      expect(screen.buffer.get(0, 0).bg).toEqual(normalColor);
+    } else {
+      session.input(getChoiceClick(screen, '1. Yes'));
+      vi.advanceTimersByTime(136);
+      expect(session.getPropSlideState()).toEqual(initialState);
+      // The first pass has reached the left edge, but not yet the right.
+      expect(screen.buffer.get(0, 0)).toMatchObject({
+        fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 },
+      });
+      expect(screen.buffer.get(79, 0).bg).toEqual(normalColor);
+      if (via === 'cancel fade') {
+        session.input(CANCEL_UI_AND_OPEN_LOG_INPUT);
+        vi.advanceTimersByTime(800);
+        expect(session.getPropSlideState()).toEqual(initialState);
+      } else {
+        vi.advanceTimersByTime(204);
+        expect(session.getPropSlideState()).toEqual({ atrium });
+        expect(getAnchor(initialRoom, 'crate').x).toBe(1);
+        expect(getScreenText().trim()).toBe('');
+        expect(screen.buffer.get(0, 0).bg).toEqual({ r: 0, g: 0, b: 0 });
+        vi.advanceTimersByTime(136);
+        // Glyphs are back on the way in, before their original colors return.
+        expect(getScreenText().trim()).not.toBe('');
+        expect(screen.buffer.get(0, 0).bg).toEqual({ r: 0, g: 0, b: 0 });
+        vi.advanceTimersByTime(374);
+      }
+      expect(screen.buffer.get(0, 0).bg).toEqual(normalColor);
+    }
+    expect(getScreenText()).not.toContain('1. Yes');
+  } finally {
+    session.close();
+  }
 });
 
 it('preserves settled anchors across room changes, restores before entry scripts, and resets just the current room', async () => {

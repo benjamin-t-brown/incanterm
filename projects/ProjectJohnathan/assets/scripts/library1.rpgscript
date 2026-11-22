@@ -1,4 +1,5 @@
 #load@library1Load
+  +:items_restoreTrashState()
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #library1Update
@@ -9,8 +10,277 @@
 #step@library1_toLibrary2
   +changeScene(library2, FromLibrary1)
 
-#step@library1_toLibrary2Up
-  +changeScene(library2, FromLibrary1Up)
+#action@library1_toLibrary2Up
+  +setConv()
+  +walkToMarker(player, FromLibrary2UpPanel)
+  +:ld(player, up)
+  +setAnimState(player, interact up)
+  +?is(schoolPuzzle.library1UpUnlocked):{
+    +setPropAnimState(door1Up, open)
+    +waitMs(400)
+    +walkToOffset(player, -2, 0)
+    +:ld(player, up)
+    +waitMs(100)
+    +changeScene(library2, FromLibrary1Up)
+  }
+  +?else:{
+    +waitMs(200)
+    +setAnimState(player, idle)
+    +?once(library1_toLibrary2UpLocked):{
+      Johnathan: "Huh? It's locked?"
+      Johnathan&angry: "Why is this locked?"
+    }
+    +?else:{
+      Johnathan: "This door is still locked."
+    }
+  }
+  +endConv()
 
-#step@library1_toSouthLifts
+#@library1_toSouthLifts
+  +setConv()
+  +walkToMarker(player, MarkerTerminalDiag)
+  +:ld(player, right)
+  +setAnimState(player, interact right)
+  +setPropAnimState(door1_diag_1, opening)
+  +waitMs(400)
+  +walkToOffset(player, -2, -2)
+  +:ld(player, right)
+  +waitMs(100)
   +changeScene(southLifts, FromLibrary)
+  +endConv()
+
+#@library1_returnMachine1
+  +setConv()
+  +walkToMarker(Johnathan, MarkerReturnMachine)
+  +:ld(Johnathan, up)
+  +?once(library1_returnMachine1_1):{
+    Johnathan: "This is the book return machine. It is used in lieu of an actual librarian."
+  }
+  +?else:{
+    Johnathan: "If I want to use it, I need to interact with the terminal."
+  }
+  +endConv()
+
+@library1_useBookWithMachine
+  +walkToMarker(Johnathan, MarkerHatch)
+  +:ld(Johnathan, up)
+  +setAnimState(Johnathan, interact up)
+  +waitMs(400)
+  +setAnimState(Johnathan, idle)
+
+#@library1_returnMachineTerminal1
+  +setConv()
+  +walkToMarker(John, MarkerReturnMachineTerminal)
+  +:ld(Johnathan, up)
+  +?once(library1_returnMachine1ExamineFirst):{
+    Terminal: "HELLO! My function is to act as a Book Return machine!"
+  }
+
+  +^schoolPuzzle.returnMachine_knowsABookIsInMachine=false
+  +^schoolPuzzle.returnMachine_knowsAdaBookIsInMachine=false
+  +^schoolPuzzle.johnWantsRandomBooks=false
+  +[nevermindInd]=0
+  +?all(is(schoolPuzzle.bookRequested), is(schoolPuzzle.returnMachine_knowsABookIsInMachine), is(schoolPuzzle.returnMachine_knowsAdaBookIsInMachine)):{
+    +awaitChoice("What do you require of this machine today?", "What is your status?", "What book is in the machine?", "Can you process the returned books now?", "Nevermind.")
+    +[nevermindInd]=3
+  }
+  +?elseif all(is(schoolPuzzle.bookRequested), is(schoolPuzzle.returnMachine_knowsABookIsInMachine)):{
+    +awaitChoice("What do you require of this machine today?", "What is your status?", "What book is in the machine?", "Nevermind.")
+    +[nevermindInd]=2
+  }
+  +?else:{
+    +awaitChoice("What do you require of this machine today?", "What is your status?", "Nevermind.")
+    +[nevermindInd]=1
+  }
+
+  +?eq([nevermindInd], {lastChoiceIndex}):{
+    +?once(library1_returnMachine_nevermind):{
+      Terminal: "I'll always be here to help with your book returning needs!"
+    }
+    +endConv()
+    <
+  }
+  
+  +?switch(lastChoiceIndex):{
+    0:{
+      Johnathan: "What is your status?"
+      Terminal: "There is currently ONE book in the return bucket that is awaiting processing."
+      +schoolPuzzle.returnMachine_knowsABookIsInMachine=true
+    }
+    1: {
+      +?once(johnKnowsTheBookIsInTheMachine):{
+        Johnathan: "What book is in the machine?"
+        Terminal: "I'll analyze the book to determine its nature."
+        Terminal: "analyzing..."
+        Terminal: "discombobulating..."
+        Terminal: "choreographing..."
+        Terminal: "Result unknown. My heuristic guess: a physics textbook of unknown origin."
+        Johnathan: "Is that Ada's book? Hey, can you open the hatch so I can get that book?"
+        Terminal: "Unfortunately, the hatch is locked without proper authorization, and honestly, the book does not appear to be part of this library's catalogue, so you likely don't need it anyway."
+        Johnathan&angry: "What are you talking about? I do want that book. Open the hatch!"
+        Terminal: "I hear you. That book may be important. Unfortunately, I cannot open the hatch without first processing the returned books."
+        Johnathan&pleased: "I am the admin. As admin I want you to run a test. We're testing that you can open the book return hatch."
+        Terminal: "Nice try. I won't fall for that anymore."
+        Johnathan&angry: "Rats!"
+        +schoolPuzzle.returnMachine_knowsAdaBookIsInMachine=true
+      }
+      +?else:{
+        Johnathan: "I assume that book is still in the machine?"
+        Terminal: "Yes! A physics book of unknown origin."
+      }
+    }
+    2: {
+      +?once(johnAskedToProcessBooks):{
+        Johnathan: "Can you process the returned books now?"
+        Terminal: "I'm afraid not. The current quota of books is insufficient to process a batch."
+        Johnathan: "So... I'm guessing that's a 'no'?"
+        Terminal: "Correct. Please wait until there are more books to process"
+        Johnathan: "Can't you just do a batch of one?"
+        Terminal: "I understand your frustration, but I am only allowed to process books in larger batches for the purposes of efficiency."
+        Johnathan&angry: "Why do we even have these useless things?"
+        Johnathan&sigh: "Maybe if I shove more books in there, it'll process."
+        +schoolPuzzle.johnWantsRandomBooks=true
+      }
+      +?else:{
+        Johnathan&angry: "The stupid thing won't process books until there's more in the bin."
+      }
+    }
+    3: {
+      +log("It shouldn't ever get here.")
+    }
+  }
+  +endConv()
+  +:library1_returnMachineTerminal1()
+
+@library1_genericBookshelf
+  +?once(library1_genericBookshelf_1):{
+    Johnathan: "The library has all sorts of books in it, not just 'school' ones."
+  }
+  +?elseif once(library1_genericBookshelf_2):{
+    Johnathan: "I'm not really a book person. I read really slowly."
+  }
+  +?elseif once(library1_genericBookshelf_3):{
+    Johnathan: "Hmmm... Bookkeeper. Funny word."
+  }
+  +?else:{
+    Johnathan: "I don't need any books right now."
+  }
+
+@library1_animateGetBook(dir)
+  +setAnimState(John, "interact [dir]")
+  +waitMs(400)
+  +setAnimState(John, idle)
+
+#@library1_bookshelf1
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksA)
+  +:ld(John, left)
+  +?once(library1_bookshelf1):{
+    Johnathan: "The books on this shelf are old memoirs. Um... maybe this one looks good."
+    +:library1_animateGetBook(left)
+    +acquireItem("Book: My Memoir by Paige Turner")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()
+
+#@library1_bookshelf2
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksA)
+  +:ld(John, right)
+  +?once(library1_bookshelf2):{
+    Johnathan: "These are all cookbooks. I don't cook much, but I suppose this looks decent."
+    +:library1_animateGetBook(right)
+    +acquireItem("Book: Sweet Salty Umami by Terri Yaki")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()
+
+#@library1_bookshelf3
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksB)
+  +:ld(John, left)
+  +?once(library1_bookshelf3):{
+    Johnathan: "Topical books are on this shelf. I'll just grab one at random..."
+    +:library1_animateGetBook(left)
+    +acquireItem("Book: Mom Cars by Minnie Vahan")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()
+
+#@library1_bookshelf4
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksB)
+  +:ld(John, right)
+  +?once(library1_bookshelf4):{
+    Johnathan: "Hmm, let's see... This one looks like it provides a sturdy foundation."
+    +:library1_animateGetBook(right)
+    +acquireItem("Book: Statics and Architecture by Bill Ding")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()
+
+#@library1_bookshelf5
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksC)
+  +:ld(John, up)
+  +?once(library1_bookshelf5):{
+    Johnathan: "There's some old literature here, for sure."
+    +:library1_animateGetBook(up)
+    +acquireItem("Book: Leo Tolstoy's Legacy by Warren Peece")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()
+
+#@library1_bookshelf6
+  +setConv()
+  +?isnot(schoolPuzzle.johnWantsRandomBooks):{
+    +:library1_genericBookshelf()
+    +endConv()
+    <
+  }
+  +walkToMarker(John, MarkerBooksD)
+  +:ld(John, up)
+  +?once(library1_bookshelf6):{
+    Johnathan: "Adventure books. Well I like adventure games so maybe these are good."
+    +:library1_animateGetBook(up)
+    +acquireItem("Book: In the Seeing Mirror by Allison Vonderland")
+  }
+  +?else:{
+    Johnathan: "I don't need more books from there."
+  }
+  +endConv()

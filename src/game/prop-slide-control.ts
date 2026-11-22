@@ -8,6 +8,7 @@ import {
 } from './prop-slide.js';
 
 export const PROP_SLIDE_STEP_MS = 120;
+const HORIZONTAL_PROP_SLIDE_STEP_MS = PROP_SLIDE_STEP_MS / 2;
 
 export type PropSlideSettle = Readonly<{
   sceneId: string;
@@ -25,9 +26,18 @@ type PropSlideOperation = {
   stand?: Stand;
   dodging?: boolean;
   direction?: SlideDirection;
-  finish: (settled: boolean) => void;
-  motion?: { positions: SlidePositions; path: SlideCell[]; playerAnchor: Point; index: number; elapsedMs: number };
+  finish: (result: ApproachResult) => void;
+  motion?: {
+    positions: SlidePositions;
+    path: SlideCell[];
+    playerAnchor: Point;
+    index: number;
+    elapsedMs: number;
+    stepMs: number;
+  };
 };
+type ApproachResult = boolean | 'cancelled';
+type GetApproachResult = () => ApproachResult | undefined;
 type GetSlideResult = () => boolean | undefined;
 type SlideSetup = NonNullable<ReturnType<typeof getSceneSlideSetup>>;
 const APPROACH_VECTORS = [-1, 0, 1].flatMap(y =>
@@ -78,10 +88,8 @@ function getAuthoredStand(
 
 function getAutomaticStand(
   scene: Scene, player: Character, prop: Prop, vectors: readonly SlideCell[],
+  offsets: readonly SlideCell[] = prop.blockingOffsets.length ? prop.blockingOffsets : prop.slidable?.footprint ?? [],
 ): Stand | undefined {
-  // Use the walking boundary for character staging. Props with no walking
-  // blockers can still be approached using their slide footprint.
-  const offsets = prop.blockingOffsets.length ? prop.blockingOffsets : prop.slidable?.footprint ?? [];
   const occupied = new Set(offsets.map(({ x, y }) => `${x},${y}`));
   const candidates = new Map<string, { cell: Point; contact: Point; distance: number }>();
   for (const offset of offsets) {
@@ -119,6 +127,23 @@ function getReachableStand(scene: Scene, player: Character, prop: Prop, directio
     if (stand && (!best || stand.length < best.length)) best = stand;
   }
   return best;
+}
+
+function getVisibleBaseOffsets(scene: Scene, prop: Prop): Point[] {
+  const sprite = prop.getDrawSprite();
+  if (!sprite) return [];
+  const left = Math.max(-sprite.originX, -prop.x);
+  const right = Math.min(sprite.width - sprite.originX, scene.width - prop.x);
+  const top = Math.max(-sprite.originY, -prop.y);
+  const bottom = Math.min(sprite.height - sprite.originY, scene.height - prop.y);
+  for (let y = bottom - 1; y >= top; y--) {
+    const row: Point[] = [];
+    for (let x = left; x < right; x++) {
+      if (sprite.hasVisibleCell(x, y)) row.push({ x, y });
+    }
+    if (row.length) return row;
+  }
+  return [];
 }
 
 function setFacingTowardProp(player: Character, stand: Stand): void {
@@ -177,6 +202,18 @@ export class PropSlideControl {
     return this.startWalk(instanceId);
   }
 
+  /** Walk to a prop's reachable edge without requiring it to be slidable. */
+  startActionApproach(prop: Prop): GetApproachResult {
+    const { scene, playerWalkCh: player } = this.control;
+    if (this.operation || !player || !scene.entities.includes(player) || !scene.entities.includes(prop))
+      return () => 'cancelled';
+    const stand = prop.blockingOffsets.length || prop.slidable?.footprint.length
+      ? getReachableStand(scene, player, prop)
+      : getAutomaticStand(scene, player, prop, APPROACH_VECTORS, getVisibleBaseOffsets(scene, prop));
+    if (!stand) return () => false;
+    return this.beginWalk({ scene, prop, player }, stand);
+  }
+
   startSlide(instanceId: string, direction: SlideDirection): GetSlideResult {
     return this.startWalk(instanceId, direction);
   }
@@ -189,7 +226,18 @@ export class PropSlideControl {
     if (!setup || (direction && !this.getPushPath(setup, instanceId, direction))) return () => false;
     const stand = getReachableStand(scene, player, prop, direction);
     if (!stand && !direction) return () => false;
-    let result: boolean | undefined;
+    const getResult = this.beginWalk(target, stand, direction);
+    return () => {
+      const result = getResult();
+      return result === 'cancelled' ? false : result;
+    };
+  }
+
+  private beginWalk(
+    target: { scene: Scene; prop: Prop; player: Character }, stand?: Stand, direction?: SlideDirection,
+  ): GetApproachResult {
+    const { prop, player } = target;
+    let result: ApproachResult | undefined;
     const operation: PropSlideOperation = {
       ...target, from: { x: prop.x, y: prop.y }, stand, direction,
       finish: (settled) => { result = settled; },
@@ -210,7 +258,7 @@ export class PropSlideControl {
       operation.prop.y = operation.from.y;
     }
     this.control.stopCharacter(operation.player);
-    operation.finish(false);
+    operation.finish('cancelled');
     return true;
   }
 
@@ -260,7 +308,10 @@ export class PropSlideControl {
         return;
       }
     }
-    operation.motion = { positions: setup.positions, path, playerAnchor, index: 0, elapsedMs: 0 };
+    const stepMs = setup.board.area.directions[direction].y === 0
+      ? HORIZONTAL_PROP_SLIDE_STEP_MS
+      : PROP_SLIDE_STEP_MS;
+    operation.motion = { positions: setup.positions, path, playerAnchor, index: 0, elapsedMs: 0, stepMs };
   }
 
   private advanceSlide(operation: PropSlideOperation, motion: NonNullable<PropSlideOperation['motion']>, deltaMs: number): void {
@@ -270,7 +321,7 @@ export class PropSlideControl {
       return;
     }
     motion.elapsedMs += deltaMs;
-    if (motion.elapsedMs < PROP_SLIDE_STEP_MS) return;
+    if (motion.elapsedMs < motion.stepMs) return;
     const positions = getSceneSlideSetup(scene)?.positions;
     if (!positions || positions.size !== motion.positions.size ||
       [...positions].some(([id, anchor]) => {
@@ -280,8 +331,8 @@ export class PropSlideControl {
       this.cancel();
       return;
     }
-    while (motion.elapsedMs >= PROP_SLIDE_STEP_MS && motion.index < motion.path.length) {
-      motion.elapsedMs -= PROP_SLIDE_STEP_MS;
+    while (motion.elapsedMs >= motion.stepMs && motion.index < motion.path.length) {
+      motion.elapsedMs -= motion.stepMs;
       const anchor = motion.path[motion.index++];
       prop.x = anchor.x;
       prop.y = anchor.y;

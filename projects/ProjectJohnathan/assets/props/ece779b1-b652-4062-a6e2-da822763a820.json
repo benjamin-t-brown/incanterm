@@ -36,6 +36,16 @@
     33,
     34
   ],
+  "climbCells": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "climbHeight": 5,
   "depthOffset": 0,
   "foreground": false,
   "customAnimations": {}

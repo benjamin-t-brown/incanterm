@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AnimatedProp } from '../../../game/animated-prop.js';
 import { CellBuffer } from '../../../game/cell-buffer.js';
 import { Character } from '../../../game/character.js';
 import { Scene } from '../../../game/scene.js';
@@ -33,5 +34,30 @@ describe('bark', () => {
     layout.updateBarks(2000);
     expect(isDone()).toBe(true);
     expect(getLines(layout).join('\n')).not.toContain('hello');
+  });
+
+  it('follows a prop and anchors above its current frame, replacing its previous bark', () => {
+    const fallback = new Sprite('base', 1, 1, 0, 0, [STANDARD_BACKGROUND]);
+    const frame = new Sprite('frame', 3, 3, 0, 2, Array(9).fill({ ...STANDARD_BACKGROUND, ch: '#' }));
+    const clips = new Map([['default', { frames: [{ sprite: frame, durationMs: 100 }], loop: true }]]);
+    const prop = new AnimatedProp('prop', 10, 12, 0, 0, fallback, clips, 'default');
+    const scene = new Scene('room', 40, 30, 'regular-z', STANDARD_BACKGROUND, [prop]);
+    const layout = new LayoutStandardScene(scene);
+
+    const isFirstDone = layout.addBark(prop, 'beep', 2000);
+    expect(getLines(layout)[14].indexOf('beep')).toBe(49);
+
+    prop.x += 4;
+    prop.y += 2;
+    expect(getLines(layout)[16].indexOf('beep')).toBe(53);
+    expect(getLines(layout)[17].indexOf('###')).toBe(54);
+
+    const isSecondDone = layout.addBark(prop, 'boop', 2000);
+    expect(isFirstDone()).toBe(true);
+    expect(isSecondDone()).toBe(false);
+    expect(getLines(layout)[16]).toContain('boop');
+    expect(getLines(layout).join('\n')).not.toContain('beep');
+    layout.clearBarks();
+    expect(isSecondDone()).toBe(true);
   });
 });

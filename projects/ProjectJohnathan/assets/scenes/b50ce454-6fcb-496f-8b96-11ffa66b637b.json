@@ -490,6 +490,17 @@
       "x": 83,
       "y": 6,
       "z": 0
+    },
+    {
+      "id": "760769cd-c07e-41f2-a269-61756d06ec89-1",
+      "type": "Prop",
+      "name": "music_notes",
+      "prop": "760769cd-c07e-41f2-a269-61756d06ec89",
+      "state": "default",
+      "depthOffset": 0,
+      "x": 88,
+      "y": 3,
+      "z": 0
     }
   ],
   "triggers": [

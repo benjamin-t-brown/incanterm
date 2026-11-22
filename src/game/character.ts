@@ -27,6 +27,7 @@ export class Character extends Prop {
   private busy = false;
   private conversationBusy = false;
   declare sprite: Sprite;
+  declare foreground: boolean;
   /** Multiplier on walking pace; higher values move faster. Default 1. */
   speedMult = 1;
 
@@ -194,6 +195,7 @@ export class Character extends Prop {
       this.variants,
     );
     character.speedMult = this.speedMult;
+    character.foreground = this.foreground;
     character.setBusy(this.busy);
     return character;
   }

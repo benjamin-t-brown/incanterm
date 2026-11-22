@@ -7,7 +7,7 @@ import { parseRpgScript, ScriptRunner } from '../runtime.js';
 it.each([
   'Guide: "Interrupted line"',
   '+showCenterToast("Interrupted toast")',
-  '+awaitChoice("First", "Second")',
+  '+awaitChoice("Which one?", "First", "Second")',
   '+waitMs(1000)',
 ])('cancels %s without continuing and allows a new script', (command) => {
   const ink = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };

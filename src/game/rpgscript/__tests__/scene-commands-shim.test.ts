@@ -26,7 +26,7 @@ describe('scene-free RPGScript shim', () => {
     );
     await fs.writeFile(
       path.join(root, 'scripts', 'two.rpgscript'),
-      '@next\nGuide: "Hello {name}"\n+log("done {name}")\n+awaitChoice("Go", "Stay")\n+?eq(lastChoiceIndex, 0):+callScript(pick)',
+      '@next\nGuide: "Hello {name}"\n+log("done {name}")\n+awaitChoice("What now, {name}?", "Go", "Stay")\n+?eq(lastChoiceIndex, 0):+callScript(pick)',
     );
     return root;
   }
@@ -58,6 +58,7 @@ describe('scene-free RPGScript shim', () => {
       'Guide: First',
       'Guide: Hello Ada',
       '[RPGSCRIPT] done Ada (two.rpgscript:3)',
+      'What now, Ada?',
       'Guide: Yes',
     ]);
     expect(prompts).toEqual([
@@ -115,12 +116,32 @@ describe('scene-free RPGScript shim', () => {
       .rejects.toThrow('setPropAnimState requires an animation state name');
   });
 
+  it('validates barkProp without needing a scene', async () => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    const runner = await runRpgScriptSnippet(scripts, '+barkProp(speaker, "Beep")', io);
+    expect(runner.isIdle()).toBe(true);
+    await expect(runRpgScriptSnippet(scripts, '+barkProp(3, "Beep")', io))
+      .rejects.toThrow('barkProp requires a prop instance name or ID');
+    await expect(runRpgScriptSnippet(scripts, '+barkProp(speaker, "Beep", 100, maybe)', io))
+      .rejects.toThrow('barkProp skipWait must be a boolean');
+  });
+
   it('validates changeScene arguments without loading a scene in the terminal shim', async () => {
     const scripts = await loadRpgScripts(await createFixture(), { shim: true });
     const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
     await expect(runRpgScriptSnippet(scripts, '+changeScene(room, doorway)', io)).resolves.toBeDefined();
     await expect(runRpgScriptSnippet(scripts, '+changeScene(room, "")', io))
       .rejects.toThrow('changeScene requires a marker name');
+  });
+
+  it.each(['getSceneId', 'getSceneName'])('reports that %s needs a scene', async (command) => {
+    const scripts = await loadRpgScripts(await createFixture(), { shim: true });
+    const io: ShimIO = { writeLine: () => {}, promptChoice: async () => 0 };
+    await expect(runRpgScriptSnippet(scripts, `+scene=${command}()`, io))
+      .rejects.toThrow(`${command} requires a world scene`);
+    await expect(runRpgScriptSnippet(scripts, `+scene=${command}(unexpected)`, io))
+      .rejects.toThrow(`Command ${command}`);
   });
 
   it('prints the speaking character portrait for each dialogue line', async () => {

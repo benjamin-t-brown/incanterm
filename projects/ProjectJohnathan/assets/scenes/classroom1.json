@@ -457,6 +457,18 @@
       "x": 28,
       "y": 8,
       "z": 0
+    },
+    {
+      "id": "trash-1",
+      "type": "Prop",
+      "name": "trash_1",
+      "prop": "trash",
+      "state": "default",
+      "actionScript": "items_searchTrash",
+      "depthOffset": 0,
+      "x": 88,
+      "y": 10,
+      "z": 0
     }
   ],
   "triggers": [

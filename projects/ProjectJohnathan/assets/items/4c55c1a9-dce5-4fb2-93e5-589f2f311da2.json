@@ -3,10 +3,13 @@
   "version": 1,
   "id": "4c55c1a9-dce5-4fb2-93e5-589f2f311da2",
   "label": "Office Envelope",
+  "scriptName": "OfficeEnvelope,OffEnv",
+  "examineScript": "items_OfficeNote_examine",
+  "combineFailScript": "items_comboFailed",
   "visual": {
     "type": "sprite",
-    "id": "0034a331-c445-406c-a318-85555d1ed521",
-    "index": 0
+    "id": "cacb7fce-7d1a-46ea-b5bd-854e0187b077",
+    "index": 1
   },
   "combinations": []
 }

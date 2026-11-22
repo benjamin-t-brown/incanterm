@@ -1,0 +1,4 @@
+@reportUnreachableProp(instance)
+  +setConv()
+  player: "I can't reach that."
+  +endConv()

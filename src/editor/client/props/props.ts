@@ -4,9 +4,12 @@ import {
   createProp,
   flattenSprite,
   getPropLabelError,
+  getPropStateVisuals,
   isAssetId,
   isInvisibleFrame,
   getAnimationFrameFlips,
+  PROP_DEFAULT_STATE,
+  MAX_SPRITE_HEIGHT,
   type AnimationDocument,
   type PropDocument,
   type PropVisual,
@@ -78,6 +81,8 @@ export function mountProps(root: HTMLElement): () => void {
             <label>HEIGHT <input id="prop-height" class="text-input" type="number" min="1" max="128"></label>
           </div>
           <div class="prop-block-field"><span>BLOCKED CELLS</span><span id="prop-block-count"></span></div>
+          <label>CLIMB HEIGHT <input id="prop-climb-height" class="text-input" type="number" min="1" max="${MAX_SPRITE_HEIGHT}" placeholder="Auto" aria-describedby="prop-climb-height-help"></label>
+          <small id="prop-climb-height-help">Cells above the slide base. Leave blank to use the painted roof.</small>
           <label>GROUND OFFSET Y <input id="prop-ground" class="text-input" type="number" min="-1024" max="1024"></label>
           <small>Z offset is set per instance in the Scene editor.</small>
           <label class="prop-checkbox"><input id="prop-foreground" type="checkbox" aria-describedby="prop-foreground-help"> FOREGROUND</label>
@@ -94,7 +99,9 @@ export function mountProps(root: HTMLElement): () => void {
       <form id="prop-custom-state-form">
         <h2 id="prop-custom-state-title">NEW CUSTOM STATE</h2>
         <label class="character-label">STATE NAME<input id="prop-custom-state-name" class="text-input" type="text" autocomplete="off" spellcheck="false" required></label>
-        <label class="character-label">ANIMATION<span id="prop-custom-state-picker"></span></label>
+        <label class="character-label">VISUAL TYPE<select id="prop-custom-state-type" class="text-input"><option value="animation">ANIMATION</option><option value="sprite">SPRITE</option></select></label>
+        <div id="prop-custom-state-animation"><label class="character-label">ANIMATION<span id="prop-custom-state-picker"></span></label></div>
+        <div id="prop-custom-state-sprite" hidden><div class="prop-asset-field"><span id="prop-custom-state-sprite-label"></span><button id="choose-prop-state-sprite" type="button">CHOOSE SPRITE FRAME…</button></div></div>
         <p id="prop-custom-state-error" class="page-copy" role="alert" hidden></p>
         <div class="character-from-folder-actions"><button id="submit-prop-custom-state" type="submit">ADD STATE</button><button id="cancel-prop-custom-state" type="button">CANCEL</button></div>
       </form>
@@ -495,6 +502,7 @@ export function mountProps(root: HTMLElement): () => void {
       prop.visual = selected;
       if (size) {
         if (prop.slideCells) prop.slideCells = resizeBlockedCells(prop.slideCells, prop.width, size.width, size.height);
+        if (prop.climbCells) prop.climbCells = resizeBlockedCells(prop.climbCells, prop.width, size.width, size.height);
         prop.blockedCells = resizeBlockedCells(
           prop.blockedCells,
           prop.width,
@@ -664,16 +672,14 @@ export function mountProps(root: HTMLElement): () => void {
       return;
     }
     visualType.value = current.visual.type;
-    get$<HTMLElement>('#prop-visual-label').textContent =
-      current.visual.type === 'sprite'
-        ? `${spriteLabels[current.visual.id] ?? current.visual.id} · frame ${current.visual.index + 1}`
-        : (animationLabels[current.visual.id] ?? current.visual.id);
+    get$<HTMLElement>('#prop-visual-label').textContent = getVisualLabel(current.visual);
     const editLink = get$<HTMLAnchorElement>('#edit-prop-visual');
     editLink.href = propVisualEditHref(current.visual);
     editLink.textContent =
       current.visual.type === 'sprite' ? 'EDIT SPRITESHEET ↗' : 'EDIT ANIMATION ↗';
     get$<HTMLInputElement>('#prop-width').value = String(current.width);
     get$<HTMLInputElement>('#prop-height').value = String(current.height);
+    get$<HTMLInputElement>('#prop-climb-height').value = String(current.climbHeight ?? '');
     get$<HTMLElement>('#prop-block-count').textContent =
       `${current.blockedCells.length} of ${current.width * current.height} cells blocked`;
     renderMaskControls();
@@ -682,12 +688,13 @@ export function mountProps(root: HTMLElement): () => void {
     if (!current.customAnimations) current.customAnimations = {};
     const custom = get$<HTMLElement>('#prop-custom');
     custom.replaceChildren();
-    for (const [name, id] of Object.entries(current.customAnimations)) {
+    for (const [name, visual] of getPropStateVisuals(current)) {
+      if (name === PROP_DEFAULT_STATE) continue;
       const row = document.createElement('div');
       row.className = 'character-state-row prop-custom-state-row';
       const label = document.createElement('span');
       label.className = 'prop-custom-state-label';
-      label.textContent = `${name} · ${animationLabels[id] ?? id}`;
+      label.textContent = `${name} · ${getVisualLabel(visual)}`;
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.textContent = 'EDIT';
@@ -708,6 +715,12 @@ export function mountProps(root: HTMLElement): () => void {
     }
     void renderDefaultSize();
     void drawPreview();
+  }
+
+  function getVisualLabel(visual: PropVisual): string {
+    return visual.type === 'sprite'
+      ? `${spriteLabels[visual.id] ?? visual.id} · frame ${visual.index + 1}`
+      : (animationLabels[visual.id] ?? visual.id);
   }
 
   async function refresh(): Promise<void> {
@@ -931,6 +944,21 @@ export function mountProps(root: HTMLElement): () => void {
     renderTabs();
     scheduleTabs();
   });
+  get$<HTMLInputElement>('#prop-climb-height').addEventListener('change', (event) => {
+    if (!current) return;
+    const input = event.target as HTMLInputElement;
+    const value = Number(input.value);
+    if (input.value === '' && !input.validity?.badInput) delete current.climbHeight;
+    else if (Number.isInteger(value) && value >= 1 && value <= MAX_SPRITE_HEIGHT)
+      current.climbHeight = value;
+    else {
+      input.value = String(current.climbHeight ?? '');
+      status.textContent = `Climb height must be a whole number from 1 to ${MAX_SPRITE_HEIGHT}, or blank.`;
+      return;
+    }
+    renderTabs();
+    scheduleTabs();
+  });
   for (const [selector, field] of [
     ['#prop-width', 'width'],
     ['#prop-height', 'height'],
@@ -948,6 +976,9 @@ export function mountProps(root: HTMLElement): () => void {
       if (field === 'width' || field === 'height') {
         if (current.slideCells) current.slideCells = resizeBlockedCells(
           current.slideCells, current.width, field === 'width' ? value : current.width, field === 'height' ? value : current.height,
+        );
+        if (current.climbCells) current.climbCells = resizeBlockedCells(
+          current.climbCells, current.width, field === 'width' ? value : current.width, field === 'height' ? value : current.height,
         );
         current.blockedCells = resizeBlockedCells(
           current.blockedCells,
@@ -1039,11 +1070,36 @@ export function mountProps(root: HTMLElement): () => void {
   });
   const customStateDialog = get$<HTMLDialogElement>('#prop-custom-state-dialog');
   const customStateName = get$<HTMLInputElement>('#prop-custom-state-name');
+  const customStateType = get$<HTMLSelectElement>('#prop-custom-state-type');
   const customStatePicker = get$<HTMLElement>('#prop-custom-state-picker');
   const customStateError = get$<HTMLElement>('#prop-custom-state-error');
-  let customStateChoices = new Map<string, string>();
+  const chooseCustomStateSprite = get$<HTMLButtonElement>('#choose-prop-state-sprite');
+  let customStateAnimation = '';
+  let customStateSprite: Extract<PropVisual, { type: 'sprite' }> | null = null;
   let editingCustomState: string | null = null;
   let customStatePropId: string | null = null;
+
+  function renderCustomStateVisual(): void {
+    const sprite = customStateType.value === 'sprite';
+    get$<HTMLElement>('#prop-custom-state-animation').hidden = sprite;
+    get$<HTMLElement>('#prop-custom-state-sprite').hidden = !sprite;
+    get$<HTMLElement>('#prop-custom-state-sprite-label').textContent = customStateSprite
+      ? getVisualLabel(customStateSprite)
+      : 'No sprite frame selected';
+  }
+
+  function setCustomStateAnimation(value: string): void {
+    customStateAnimation = value;
+  }
+
+  function getCustomStateVisual(): PropVisual | null {
+    if (customStateType.value === 'sprite') return customStateSprite;
+    const value = customStateAnimation.trim();
+    if (animations.includes(value)) return { type: 'animation', id: value };
+    const matches = animations.filter((id) => animationLabels[id] === value);
+    return matches.length === 1 ? { type: 'animation', id: matches[0] } : null;
+  }
+
   function openCustomStateDialog(name: string | null = null): void {
     if (!current || saving) return;
     editingCustomState = name;
@@ -1054,27 +1110,40 @@ export function mountProps(root: HTMLElement): () => void {
       name === null ? 'NEW CUSTOM STATE' : 'EDIT CUSTOM STATE';
     get$<HTMLButtonElement>('#submit-prop-custom-state').textContent =
       name === null ? 'ADD STATE' : 'SAVE STATE';
-    const animation = name === null ? null : current.customAnimations[name];
-    customStateChoices = new Map(
-      animations.map((animation) => [animationLabels[animation] ?? animation, animation]),
-    );
+    const visual = name === null ? undefined : getPropStateVisuals(current).get(name);
+    customStateType.value = visual?.type ?? 'animation';
+    customStateSprite = visual?.type === 'sprite' ? visual : null;
+    customStateAnimation =
+      visual?.type === 'animation' ? visual.id : name === null ? (current.label ?? '') : '';
     customStatePicker.replaceChildren(
       createSearchSelect({
-        value:
-          name === null
-            ? (current.label ?? '')
-            : animation
-              ? (animationLabels[animation] ?? animation)
-              : '',
-        choices: [...customStateChoices.keys()],
+        value: customStateAnimation,
+        choices: animations,
+        labels: animationLabels,
         placeholder: 'Search animations…',
         ariaLabel: 'Custom state animation',
-        onInput: () => {},
+        onInput: setCustomStateAnimation,
+        onCommit: setCustomStateAnimation,
       }),
     );
+    renderCustomStateVisual();
     customStateDialog.showModal();
     customStateName.focus();
   }
+  async function pickCustomStateSprite(): Promise<void> {
+    const prop = current;
+    if (!prop || !customStateDialog.open || prop.id !== customStatePropId) return;
+    const selected = await assetPicker.open('sprite', customStateSprite ?? prop.visual);
+    if (!alive || current !== prop || !customStateDialog.open || selected?.type !== 'sprite') return;
+    customStateSprite = selected;
+    customStateError.hidden = true;
+    renderCustomStateVisual();
+  }
+  customStateType.addEventListener('change', () => {
+    customStateError.hidden = true;
+    renderCustomStateVisual();
+  });
+  chooseCustomStateSprite.addEventListener('click', () => void pickCustomStateSprite());
   get$<HTMLButtonElement>('#add-prop-state').addEventListener('click', () =>
     openCustomStateDialog(),
   );
@@ -1085,16 +1154,18 @@ export function mountProps(root: HTMLElement): () => void {
     event.preventDefault();
     if (!current || saving || !customStateDialog.open || current.id !== customStatePropId) return;
     const id = customStateName.value.trim();
-    const input = customStatePicker.querySelector<HTMLInputElement>('input');
-    const animation = customStateChoices.get(input?.value.trim() ?? '');
-    if (!animation) {
-      customStateError.textContent = 'Select an animation for this state.';
+    const visual = getCustomStateVisual();
+    if (!visual) {
+      const sprite = customStateType.value === 'sprite';
+      customStateError.textContent = sprite
+        ? 'Select a sprite frame for this state.'
+        : 'Select an animation for this state.';
       customStateError.hidden = false;
-      input?.focus();
+      (sprite ? chooseCustomStateSprite : customStatePicker.querySelector('input'))?.focus();
       return;
     }
     try {
-      updatePropCustomState(current, id, animation, editingCustomState);
+      updatePropCustomState(current, id, visual, editingCustomState);
     } catch (error) {
       customStateError.textContent = showMessage(error);
       customStateError.hidden = false;

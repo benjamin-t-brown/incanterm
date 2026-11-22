@@ -1,0 +1,14 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "8fddf77c-d1a2-437a-8f4e-e8826c75e716",
+  "label": "Book: Leo Tolstoy's Legacy by Warren Peece",
+  "examineScript": "items_TolstoyLegacy_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 5
+  },
+  "combinations": []
+}

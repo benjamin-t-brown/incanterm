@@ -1,0 +1,18 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "760769cd-c07e-41f2-a269-61756d06ec89",
+  "label": "music_notes",
+  "visual": {
+    "type": "sprite",
+    "id": "2100cad2-37ca-4a69-b19d-9b60cb33951a",
+    "index": 0
+  },
+  "width": 1,
+  "height": 1,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {}
+}

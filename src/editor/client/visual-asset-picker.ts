@@ -12,6 +12,8 @@ import { requestJson } from './api.js';
 type AssetList = { files: string[]; labels: Record<string, string> };
 type PickerOptions = {
   root: HTMLElement;
+  loadAssetLists?: () => Promise<{ sprites: AssetList; animations: AssetList }>;
+  emptySheetMessage?: string;
   loadSheet: (id: string) => Promise<SpriteDocument>;
   paintSprite: (
     canvas: HTMLCanvasElement,
@@ -149,16 +151,11 @@ export function createVisualAssetPicker(options: PickerOptions) {
   async function loadAssets(existing: PropVisual): Promise<void> {
     const requestToken = ++token;
     try {
-      const [sprites, animations] = await Promise.all([
-        requestJson<AssetList>('/api/sprites'),
-        type === 'animation'
-          ? requestJson<AssetList>('/api/animations')
-          : Promise.resolve({ files: [], labels: {} }),
-      ]);
+      const { sprites, animations } = await (options.loadAssetLists?.() ?? loadAssetLists());
       if (!alive || !dialog.open || requestToken !== token) return;
       inventory = sprites;
       const loaded = await Promise.allSettled(
-        animations.files.map((id) =>
+        (type === 'animation' ? animations.files : []).map((id) =>
           requestJson<AnimationDocument>(`/api/animations/${encodeURIComponent(id)}`),
         ),
       );
@@ -189,11 +186,21 @@ export function createVisualAssetPicker(options: PickerOptions) {
       )
         choice = { ...existing };
       renderSheets();
-      if (!sheetId) status.textContent = 'Create a sprite sheet first.';
+      if (!sheetId)
+        status.textContent = options.emptySheetMessage ?? 'Create a sprite sheet first.';
       else void renderResults();
     } catch (error) {
       if (alive && dialog.open && requestToken === token) showError(error);
     }
+  }
+  async function loadAssetLists(): Promise<{ sprites: AssetList; animations: AssetList }> {
+    const [sprites, animations] = await Promise.all([
+      requestJson<AssetList>('/api/sprites'),
+      type === 'animation'
+        ? requestJson<AssetList>('/api/animations')
+        : Promise.resolve({ files: [], labels: {} }),
+    ]);
+    return { sprites, animations };
   }
   function finishChoice(visual: PropVisual | null): void {
     ++token;

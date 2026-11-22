@@ -1,17 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { TerminalScreen } from '../../client/terminal-screen.js';
-import { createItemScene } from '../../game/__tests__/item-fixture.js';
-import { CellBuffer } from '../../game/cell-buffer.js';
+import { createItemAsset, createItemScene, ITEM_INK } from '../../game/__tests__/item-fixture.js';
 import { Character } from '../../game/character.js';
 import { AnimatedProp } from '../../game/animated-prop.js';
 import { WorldItem } from '../../game/items.js';
 import { parseRpgScript } from '../../game/rpgscript/runtime.js';
 import { commands } from '../../game/scene-commands.js';
 import { getPlainText } from '../../game/terminal.js';
-import {
-  LayoutStandardScene,
-  STANDARD_BACKGROUND,
-} from '../../renderer/ui/layout-standard-scene.js';
 import { createGameSession } from '../game-session.js';
 import { Scene } from '../../game/scene.js';
 
@@ -65,23 +60,13 @@ function createItemSession() {
   function clickAt(x: number, y: number, right = false): void {
     session.input(`\x1b[<${right ? 2 : 0};${x + 1};${y + 1}M`);
   }
-  function clickInventory(itemId: string, examine = false, inventory = ['key', 'coin']): void {
-    const layout = new LayoutStandardScene(scene);
-    layout.tabs.select('inventory');
-    layout.inventory.items = inventory.flatMap((id) => {
-      const asset = scene.itemAssets.get(id);
-      return asset ? [asset] : [];
-    });
-    layout.render(new CellBuffer(120, 40, STANDARD_BACKGROUND));
-    for (let y = 0; y < 40; y++)
-      for (let x = 0; x < 120; x++) {
-        const action = layout.getInventoryActionAt(x, y);
-        if (action?.itemId === itemId && action.examine === examine) {
-          clickAt(x, y);
-          return;
-        }
-      }
-    throw new Error(`No inventory action for ${itemId}`);
+  function clickInventory(itemId: string, action = 'Use'): void {
+    const label = scene.itemAssets.get(itemId)?.definition.label;
+    const button = `[ ${action} ]`;
+    const rows = getPlainText(screen.buffer).split('\n');
+    const y = rows.findIndex((row) => row.includes(` ${label} `) && row.includes(button));
+    if (y < 0) throw new Error(`No ${button} button for ${itemId}`);
+    clickAt(rows[y].indexOf(button) + 2, y);
   }
   return { scene, session, screen, clickAt, clickInventory };
 }
@@ -99,13 +84,18 @@ it('picks up items per player, examines them in world/inventory, and combines in
     expect(second.screen.buffer.get(2, 2).ch).toBe('K');
     expect(first.scene.entities.filter((entity) => entity instanceof WorldItem)).toHaveLength(2);
     first.session.input('\t');
-    expect(getPlainText(first.screen.buffer)).toContain('KEY');
-    expect(getPlainText(first.screen.buffer)).toContain('COIN');
-    first.clickInventory('key', true);
+    expect(getPlainText(first.screen.buffer)).toMatch(/1\..* COIN/);
+    expect(getPlainText(first.screen.buffer)).toMatch(/2\..* KEY/);
+    expect(getPlainText(first.screen.buffer)).toContain('[ Examine ] [ Use ]');
+    first.clickInventory('key', 'Examine');
     expect(getPlainText(first.screen.buffer)).toContain('INSPECTED');
     first.session.input(' ');
     first.clickInventory('coin');
-    first.clickInventory('key');
+    expect(getPlainText(first.screen.buffer)).toMatch(/^│> \d+\..* COIN .*\[ Cancel \]/m);
+    first.clickInventory('coin', 'Cancel');
+    expect(getPlainText(first.screen.buffer)).toContain('[ Examine ] [ Use ]');
+    first.clickInventory('coin');
+    first.clickInventory('key', 'Combine With This Item');
     expect(getPlainText(first.screen.buffer)).toContain('COMBINED');
     first.session.input(' ');
     expect(getPlainText(first.screen.buffer)).not.toContain('KEY');
@@ -120,24 +110,137 @@ it('uses selected items on props/characters and calls the failed-combination hoo
   try {
     game.clickAt(2, 2);
     game.session.input('\t');
-    game.clickInventory('key', false, ['key']);
+    game.clickInventory('key');
     game.clickAt(6, 2);
     expect(getPlainText(game.screen.buffer)).toContain('UNLOCKED');
     game.session.input(' ');
-    game.clickInventory('key', false, ['key']);
+    game.clickInventory('key');
     game.clickAt(8, 2);
     expect(getPlainText(game.screen.buffer)).toContain('GIVEN');
     game.session.input(' ');
-    game.clickInventory('key', false, ['key']);
+    game.clickInventory('key');
     game.clickAt(10, 2);
     expect(getPlainText(game.screen.buffer)).toContain('FAILED');
     game.session.input(' ');
     expect(getPlainText(game.screen.buffer)).toContain('KEY');
-    game.clickInventory('key', false, ['key']);
+    game.clickInventory('key');
     game.session.input('\x1b');
-    expect(getPlainText(game.screen.buffer)).toContain('Click an item to use it');
+    expect(getPlainText(game.screen.buffer)).toMatch(/^│ {2}1\..* KEY/m);
   } finally {
     game.session.close();
+  }
+});
+
+it('selects numbered items and supports keyboard examine, combine, and Escape', () => {
+  const game = createItemSession();
+  const getText = () => getPlainText(game.screen.buffer);
+  try {
+    game.clickAt(2, 2);
+    game.clickAt(4, 2);
+    game.session.input('2');
+    game.session.input('e');
+    expect(getText()).not.toContain('INSPECTED');
+
+    game.session.input('\t');
+    game.session.input('2');
+    expect(getText()).toMatch(/^│> 2\..* KEY/m);
+    vi.advanceTimersByTime(510);
+    expect(getText()).toMatch(/^│ >2\..* KEY/m);
+    expect(getText()).toContain('[ Examine ] [ Use ]');
+    game.session.input('\x1b');
+    game.session.input('e');
+    expect(getText()).not.toMatch(/^│ ?>/m);
+    expect(getText()).not.toContain('INSPECTED');
+    game.session.input('2');
+    game.session.input('e');
+    expect(getText()).toContain('INSPECTED');
+    game.session.input(' ');
+
+    game.session.input('c');
+    expect(getText()).toMatch(/^│> 2\..* KEY .*\[ Cancel \]/m);
+    expect(getText()).toContain('[ Combine With This Item ]');
+    game.session.input('\x1b');
+    expect(getText()).not.toMatch(/^│ ?>/m);
+    expect(getText()).toContain('[ Examine ] [ Use ]');
+
+    game.session.input('2');
+    game.session.input('c');
+    game.session.input('\x1b[A');
+    expect(getText()).toMatch(/^│> 1\..* COIN .*\[ Combine With This Item \]/m);
+    game.session.input('c');
+    expect(getText()).toContain('COMBINED');
+  } finally {
+    game.session.close();
+  }
+});
+
+it('moves selection across inventory pages with arrows and Page Up and Page Down', () => {
+  vi.useFakeTimers();
+  const assets = Array.from({ length: 22 }, (_, index) => createItemAsset(`asset${index + 1}`));
+  assets[10].definition.examineScript = 'inspectEleventh';
+  const scene = new Scene(
+    'pages',
+    120,
+    40,
+    'regular-z',
+    ITEM_INK,
+    [],
+    ['entry'],
+    new Set(),
+    [],
+    [],
+    [],
+    undefined,
+    new Map(assets.map((asset) => [asset.definition.id, asset])),
+  );
+  const sources = assets.map((asset) => `+addItem(${asset.definition.id})`).join('\n');
+  const scripts = parseRpgScript(
+    `#entry\nload,start\n@start\n${sources}\n@inspectEleventh\n+showCenterToast(INSPECTED ELEVENTH)`,
+    'pages.rpgscript',
+    { commands },
+  );
+  const screen = new TerminalScreen();
+  const session = createGameSession(
+    scene,
+    (text, cols, rows) => screen.apply(text, cols, rows),
+    scripts,
+  );
+  const getText = () => getPlainText(screen.buffer);
+  session.resize(120, 40);
+  try {
+    session.open();
+    session.input('\t');
+    expect(getText()).toContain('Page 1/3');
+    expect(getText()).toMatch(/\b1\..* ASSET1\b/);
+    expect(getText()).not.toContain('ASSET11');
+    session.input('9');
+    expect(getText()).toMatch(/^│> {2}9\..* ASSET9\b/m);
+    session.input('\x1b[B');
+    expect(getText()).toContain('Page 1/3');
+    expect(getText()).toMatch(/^│> 10\..* ASSET10\b/m);
+    session.input('\x1b[B');
+    expect(getText()).toContain('Page 2/3');
+    expect(getText()).toMatch(/^│> 11\..* ASSET11\b/m);
+    session.input('\x1b[6~');
+    session.input('\x1b[6~');
+    expect(getText()).toContain('Page 3/3');
+    expect(getText()).toMatch(/^│> 21\..* ASSET21\b/m);
+    expect(getText()).toMatch(/22\..* ASSET22/);
+    session.input('\x1b[5~');
+    const rows = getText().split('\n');
+    const y = rows.findIndex((row) => row.includes('ASSET11'));
+    expect(rows.some((row) => row.includes('Page 2/3'))).toBe(true);
+    expect(y).toBeGreaterThanOrEqual(0);
+    const x = rows[y].indexOf('Examine');
+    expect(x).toBeGreaterThanOrEqual(0);
+    session.input(`\x1b[<0;${x + 1};${y + 1}M`);
+    expect(getText()).toContain('INSPECTED ELEVENTH');
+    session.input(' ');
+    session.input('1');
+    expect(getText()).toContain('Page 1/3');
+    expect(getText()).toMatch(/^│> {2}1\..* ASSET1\b/m);
+  } finally {
+    session.close();
   }
 });
 

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { inspect } from 'node:util';
 import { getCharacterScriptNames } from '../editor/schema.js';
 import { Background, Scene, Prop } from '../game/scene.js';
 import { Character } from '../game/character.js';
@@ -13,9 +14,10 @@ import { addInventoryItem } from '../game/scene-command-support/inventory.js';
 import { getInventoryEntries, getItemCombinationScript, hasInventoryItem, WorldItem, type ItemTarget } from '../game/items.js';
 import { compareSceneDrawRank } from '../game/scene-order.js';
 import { encodeTerminal, encodeTerminalDiff } from '../game/terminal.js';
-import { ScriptRunner, TriggerType, type ScriptLibrary } from '../game/rpgscript/index.js';
+import { ScriptRunner, TriggerType, type ChoicePrompt, type RuntimeValue, type ScriptLibrary } from '../game/rpgscript/index.js';
+import type { SessionScriptHooks } from '../project/session-config.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-standard-scene.js';
-import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createTextColorFilter, ScreenFilterPipeline } from '../renderer/screen-filters.js';
+import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createGlyphSweepFadeFilter, createTextColorFilter, type ScreenFilter, ScreenFilterContext, ScreenFilterPipeline } from '../renderer/screen-filters.js';
 import type { Rect } from '../renderer/ui/element.js';
 import { CellBuffer } from '../game/cell-buffer.js';
 import type { SelectionRect } from '../protocol/messages.js';
@@ -25,7 +27,7 @@ import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type Por
 const MAX_AXIS = 1000;
 const FRAME_INTERVAL_MS = Math.ceil(1000 / 30);
 const INACTIVE_PORTRAIT_FG = { r: 128, g: 128, b: 128 };
-const PORTRAIT_REVEAL_SEQUENCE = '.,:+';
+const UI_GLYPH_SEQUENCE = '.,:+';
 
 export type GameSession = {
   id: string;
@@ -58,6 +60,8 @@ export type PortraitAnimationOptions = {
   rowDelayMs?: number;
 };
 
+export type ScriptVariables = Readonly<Record<string, RuntimeValue>>;
+
 function cloneSessionScene(template: Scene, player?: Character): Scene {
   const entities = template.entities.filter((entity) => entity.id !== player?.id)
     .map((entity) => entity instanceof Prop && !(entity instanceof Background) ? entity.clone() : entity);
@@ -65,7 +69,7 @@ function cloneSessionScene(template: Scene, player?: Character): Scene {
   return new Scene(
     template.id, template.width, template.height, template.depthMode, template.clear, entities,
     template.triggers, template.staticBlockedCells, template.actionTriggers, template.stepTriggers,
-    template.markers, template.loadCharacter, template.itemAssets, template.propSlide,
+    template.markers, template.loadCharacter, template.itemAssets, template.propSlide, template.label,
   );
 }
 
@@ -84,6 +88,8 @@ export function createGameSession(
   sessionTimerTriggers: readonly string[] = [],
   onPropSlideSettled?: (event: PropSlideSettle) => void,
   initialPropSlideState?: unknown,
+  initialScriptVariables?: ScriptVariables,
+  scriptHooks?: SessionScriptHooks,
 ): GameSession {
   // Each connection owns its movable entities and their animation and walking state.
   scene = cloneSessionScene(scene);
@@ -99,6 +105,9 @@ export function createGameSession(
   });
   let propSlideInteraction = false;
   let propPushChoices = false;
+  let pendingPropAction: {
+    propId: string; name: string; args: string[]; getResult: ReturnType<PropSlideControl['startActionApproach']>;
+  } | undefined;
   let lastUpdate = Date.now();
   let mouseInput = '';
   let opened = false;
@@ -112,6 +121,8 @@ export function createGameSession(
   const layout = new LayoutStandardScene(scene);
   if (initialLayout.error) reportPropSlideRestoreError(initialLayout.error);
   const filters = new ScreenFilterPipeline();
+  const portraitFilters = new ScreenFilterPipeline();
+  let screenFade: { target: 0 | 1; startedAtMs: number; filter: ScreenFilter } | undefined;
   const portraitAnimationEnabled = portraitAnimation?.enabled ?? true;
   const portraitStepDurationMs = portraitAnimation?.stepDurationMs ?? 25;
   const portraitRowDelayMs = portraitAnimation?.rowDelayMs ?? 6.25;
@@ -119,6 +130,9 @@ export function createGameSession(
     throw new Error('Portrait stepDurationMs must be positive');
   if (!Number.isFinite(portraitRowDelayMs) || portraitRowDelayMs < 0)
     throw new Error('Portrait rowDelayMs must be nonnegative');
+  const glyphTiming = { stepDurationMs: portraitStepDurationMs, rowDelayMs: portraitRowDelayMs };
+  let displayedChoice: ChoicePrompt | undefined;
+  let choiceTransition: { exiting: boolean; startedAtMs: number; remove: () => void } | undefined;
   let inactiveLeftPortrait = false;
   let inactiveRightPortrait = false;
   const shownPortraitAssets: { left?: PortraitAsset; right?: PortraitAsset } = {};
@@ -132,9 +146,9 @@ export function createGameSession(
     removeFilters: (() => void)[];
   } | undefined;
   const inactivePortraitFilter = createTextColorFilter(INACTIVE_PORTRAIT_FG);
-  filters.addFilter(inactivePortraitFilter,
+  portraitFilters.addFilter(inactivePortraitFilter,
     () => inactiveLeftPortrait ? layout.getPortraitScreenRect('left') : undefined);
-  filters.addFilter(inactivePortraitFilter,
+  portraitFilters.addFilter(inactivePortraitFilter,
     () => inactiveRightPortrait ? layout.getPortraitScreenRect('right') : undefined);
   if (dialogueAnimation?.enabled !== undefined) layout.message.animationEnabled = dialogueAnimation.enabled;
   if (dialogueAnimation?.stepDurationMs !== undefined) {
@@ -163,13 +177,14 @@ export function createGameSession(
     scene,
     playerControl: control,
     changeScene,
+    startScreenFade,
     propSlides,
     resetPropSlides: restoreAuthoredPropLayout,
     beginPropSlideInteraction,
     revealPropPushChoices() {
       propPushChoices = true;
     },
-    bark: (character, text, ms) => layout.addBark(character, text, ms),
+    bark: (target, text, ms) => layout.addBark(target, text, ms),
     clearBark: (character) => layout.clearBark(character),
     clearCharacterSubscript: (ownerId) => runner?.clearSubscript(ownerId),
     resetConversationPortraits: () => {
@@ -184,16 +199,32 @@ export function createGameSession(
       context: gameContext,
       hasItem: (inventory, reference) => hasInventoryItem(inventory, scene.itemAssets, reference),
       getCharacterId: (reference) => findCharacter(scene, reference, control.playerWalkCh).id,
-      isCharacterBusy: (ownerId) => propSlideInteraction && ownerId === control.playerWalkCh?.id ||
+      isCharacterBusy: (ownerId) => (propSlideInteraction || pendingPropAction !== undefined) && ownerId === control.playerWalkCh?.id ||
         findCharacter(scene, ownerId, control.playerWalkCh).isBusy(),
       writeLog: (message) => layout.appendLog(message),
       onCommandError: (error, location) => {
         layout.appendLog(`[RPGSCRIPT ERROR] ${location}: ${getSafeErrorMessage(error)}`, true);
       },
     });
+  if (runner && initialScriptVariables) {
+    for (const [key, value] of Object.entries(structuredClone(initialScriptVariables))) {
+      runner.setGlobal(key, value);
+    }
+  }
   let displayedDialogue: NonNullable<typeof runner>['dialogue'];
   let dialogueUpdate = Date.now();
   let selectedItemId: string | undefined;
+
+  function startScreenFade(target: 0 | 1, ms: number): () => boolean {
+    const now = Date.now();
+    const previousTarget = screenFade?.target ?? 0;
+    screenFade = {
+      target,
+      startedAtMs: now,
+      filter: createGlyphSweepFadeFilter(target === previousTarget ? 0 : ms, target === 0),
+    };
+    return () => Date.now() - now >= ms;
+  }
 
   function reportPropSlideRestoreError(error: string): void {
     layout.appendLog(`[PROP WARNING] Discarded saved slide layout for ${scene.id}: ${error}`);
@@ -208,6 +239,7 @@ export function createGameSession(
   }
 
   function cancelPropSlideInteraction(): boolean {
+    if (pendingPropAction) return false;
     const hadOperation = propSlides.cancel();
     if (!propSlideInteraction && !hadOperation) return false;
     propSlideInteraction = false;
@@ -250,30 +282,69 @@ export function createGameSession(
     return true;
   }
 
-  function activateSlideProp(prop: Prop | undefined): boolean {
-    if (!prop?.slidable || !scene.propSlide || !control.playerWalkCh || !runner?.isIdle() ||
+  function getPropActionScript(prop: Prop | undefined): string | undefined {
+    return prop?.actionScript ?? (scene.propSlide ? prop?.slidable?.actionScript : undefined);
+  }
+
+  function activateProp(prop: Prop | undefined): boolean {
+    const player = control.playerWalkCh;
+    const name = getPropActionScript(prop);
+    if (!prop || !name || !player || !runner?.isIdle() || pendingPropAction ||
       propSlideInteraction || control.isScriptedWalking()) return false;
-    const name = prop.slidable.actionScript;
     const definition = scripts?.get(name);
-    if (definition?.parameters.length !== 1) {
-      layout.appendLog(`[PROP ERROR] ${name} must be an existing one-argument script (prop instance ID: ${prop.id})`, true);
+    const arity = definition?.parameters.length;
+    if (arity !== 1 && !(prop.actionScript && arity === 0)) {
+      const signature = prop.actionScript ? 'zero- or one-argument' : 'one-argument';
+      layout.appendLog(`[PROP ERROR] ${name} must be an existing ${signature} script (prop instance ID: ${prop.id})`, true);
       return true;
     }
-    beginPropSlideInteraction();
-    runner.start(name, [prop.id]);
-    finishConversationIfIdle();
+    if (prop.actionScript) {
+      runner.clearSubscript(player.id);
+      control.stop();
+      pendingPropAction = {
+        propId: prop.id, name, args: arity === 1 ? [prop.id] : [], getResult: propSlides.startActionApproach(prop),
+      };
+      updatePendingPropAction();
+    } else {
+      beginPropSlideInteraction();
+      runner.start(name, [prop.id]);
+      finishConversationIfIdle();
+    }
     return true;
   }
 
-  function getNearestVisibleSlideProp(): Prop | undefined {
+  function cancelPendingPropAction(): boolean {
+    if (!pendingPropAction) return false;
+    pendingPropAction = undefined;
+    propSlides.cancel();
+    return true;
+  }
+
+  function updatePendingPropAction(): void {
+    if (!pendingPropAction || !runner) return;
+    if (!runner.isIdle() || runner.getStorage('dialogue.active') === true) {
+      cancelPendingPropAction();
+      return;
+    }
+    const { propId, name, args, getResult } = pendingPropAction;
+    const result = getResult();
+    if (result === undefined) return;
+    pendingPropAction = undefined;
+    if (result === 'cancelled') return;
+    if (result) runner.start(name, args);
+    else if (scriptHooks?.propUnreachable) runner.start(scriptHooks.propUnreachable, [propId]);
+    finishConversationIfIdle();
+  }
+
+  function getNearestVisibleActionProp(): Prop | undefined {
     const player = control.playerWalkCh;
     const view = layout.getSceneScreenRect();
-    if (!player || !view || !scene.propSlide) return;
+    if (!player || !view) return;
     const order = scene.getDrawOrder();
     let best: Prop | undefined;
     let bestDistance = Infinity;
     for (const entity of order) {
-      if (!(entity instanceof Prop) || !entity.slidable) continue;
+      if (!(entity instanceof Prop) || !getPropActionScript(entity)) continue;
       const sprite = entity.getDrawSprite();
       if (!sprite) continue;
       const left = entity.x - sprite.originX;
@@ -291,17 +362,64 @@ export function createGameSession(
     return best;
   }
 
-  function choosePropPushAt(x: number, y: number): void {
-    const index = layout.getPushChoiceAt(x, y);
-    if (index === undefined) return;
-    chooseScriptOption(index);
-    finishConversationIfIdle();
-    dispatchLoadTriggers();
+  function chooseScriptOption(index: number): void {
+    if (!runner?.choice || index >= runner.choice.options.length) return;
+    propPushChoices = false;
+    runner.choose(index);
   }
 
-  function chooseScriptOption(index: number): void {
-    propPushChoices = false;
-    runner?.choose(index);
+  function getGlyphTransitionDuration(height: number): number {
+    return UI_GLYPH_SEQUENCE.length * glyphTiming.stepDurationMs + Math.max(0, height - 1) * glyphTiming.rowDelayMs;
+  }
+
+  function createUiGlyphTransitionFilter(exiting: boolean): ScreenFilter {
+    return exiting ? createGlyphExitFilter({
+      ...glyphTiming,
+      glyphs: [...UI_GLYPH_SEQUENCE].reverse().join(''),
+    }) : createGlyphGrowthRevealFilter({
+      ...glyphTiming,
+      growthSequences: [UI_GLYPH_SEQUENCE],
+      shortGrowthSequences: [UI_GLYPH_SEQUENCE],
+    });
+  }
+
+  function finishChoiceTransition(): void {
+    choiceTransition?.remove();
+    choiceTransition = undefined;
+  }
+
+  function clearChoicePanel(): void {
+    finishChoiceTransition();
+    displayedChoice = undefined;
+    layout.choicePanel.setChoices();
+    layout.choicePanel.enabled = true;
+  }
+
+  function startChoiceTransition(exiting: boolean, now: number): void {
+    finishChoiceTransition();
+    choiceTransition = {
+      exiting, startedAtMs: now,
+      remove: filters.addFilter(createUiGlyphTransitionFilter(exiting), () => layout.getChoiceScreenRect(), now),
+    };
+  }
+
+  function syncChoicePanel(choice: ChoicePrompt | undefined, now: number): void {
+    if (choice && choice !== displayedChoice) {
+      clearChoicePanel();
+      displayedChoice = choice;
+      layout.choicePanel.setChoices(choice);
+      if (portraitAnimationEnabled) startChoiceTransition(false, now);
+    } else if (!choice && displayedChoice && !choiceTransition?.exiting) {
+      if (!portraitAnimationEnabled) clearChoicePanel();
+      else {
+        // Keep drawing the old panel while its glyphs shrink, without accepting input.
+        layout.choicePanel.enabled = false;
+        startChoiceTransition(true, now);
+      }
+    } else if (choiceTransition && now - choiceTransition.startedAtMs >= getGlyphTransitionDuration(layout.choicePanel.height)) {
+      if (choiceTransition.exiting) clearChoicePanel();
+      else finishChoiceTransition();
+    }
   }
 
   function runItemScript(name: string | undefined): void {
@@ -336,6 +454,26 @@ export function createGameSession(
     else selectedItemId = itemId;
   }
 
+  function handleInventoryShortcut(data: string): boolean {
+    if (
+      !layout.isInventoryVisible() ||
+      pendingPropAction ||
+      !runner?.isIdle() ||
+      runner.getStorage('dialogue.active') === true
+    )
+      return false;
+    if (/^[1-9]$/.test(data)) {
+      layout.inventory.focusItemNumber(Number(data));
+      return true;
+    }
+    const key = data.toLowerCase();
+    if (key !== 'e' && key !== 'c') return false;
+    const itemId = layout.inventory.getFocusedItemId();
+    if (itemId && (key === 'e' || itemId !== selectedItemId))
+      clickInventoryItem(itemId, key === 'e');
+    return true;
+  }
+
   function clickWorldItemTarget(x: number, y: number, examine = false): boolean {
     if (!runner) return false;
     const ranked = scene.entities.map((entity, order) => ({ entity, order }));
@@ -360,7 +498,7 @@ export function createGameSession(
         addInventoryItem(target.asset.definition.id, {
           location: '<pickup>', getGlobal: (key) => runner.getGlobal(key),
           setGlobal: (key, value) => runner.setGlobal(key, value),
-        }, gameContext);
+        }, gameContext, 'first');
         layout.appendLog(`Picked up ${target.asset.definition.label}.`);
       }
     }
@@ -377,14 +515,8 @@ export function createGameSession(
     if (!asset || !portraitAnimationEnabled || isVisibleActor) return;
     portraitReveals[side] = {
       startedAtMs: now,
-      durationMs: PORTRAIT_REVEAL_SEQUENCE.length * portraitStepDurationMs +
-        Math.max(0, asset.height - 1) * portraitRowDelayMs,
-      remove: filters.addFilter(createGlyphGrowthRevealFilter({
-        stepDurationMs: portraitStepDurationMs,
-        rowDelayMs: portraitRowDelayMs,
-        growthSequences: [PORTRAIT_REVEAL_SEQUENCE],
-        shortGrowthSequences: [PORTRAIT_REVEAL_SEQUENCE],
-      }), () => layout.getPortraitScreenRect(side), now),
+      durationMs: getGlyphTransitionDuration(asset.height),
+      remove: portraitFilters.addFilter(createUiGlyphTransitionFilter(false), () => layout.getPortraitScreenRect(side), now),
     };
   }
 
@@ -413,16 +545,11 @@ export function createGameSession(
     if (!portraitAnimationEnabled || (!left && !right)) return;
     finishPortraitReveals();
     const elapsed = now - portraitStart;
-    const durationMs = PORTRAIT_REVEAL_SEQUENCE.length * portraitStepDurationMs +
-      Math.max(0, (left?.height ?? 0) - 1, (right?.height ?? 0) - 1) * portraitRowDelayMs;
+    const durationMs = getGlyphTransitionDuration(Math.max(left?.height ?? 0, right?.height ?? 0));
     const removeFilters: (() => void)[] = [];
     for (const side of ['left', 'right'] as const) {
       if ((side === 'left' ? left : right))
-        removeFilters.push(filters.addFilter(createGlyphExitFilter({
-          stepDurationMs: portraitStepDurationMs,
-          rowDelayMs: portraitRowDelayMs,
-          glyphs: [...PORTRAIT_REVEAL_SEQUENCE].reverse().join(''),
-        }), () => layout.getPortraitScreenRect(side), now));
+        removeFilters.push(portraitFilters.addFilter(createUiGlyphTransitionFilter(true), () => layout.getPortraitScreenRect(side), now));
     }
     portraitExit = {
       startedAtMs: now, durationMs,
@@ -456,6 +583,7 @@ export function createGameSession(
             character.bottomY < trigger.y + trigger.height &&
             runner?.dispatchTrigger(trigger.trigger, TriggerType.STEP, trigger.id)
           ) {
+            cancelPendingPropAction();
             character.stopWalking();
             break;
           }
@@ -470,9 +598,11 @@ export function createGameSession(
     if (!loadSceneById) throw new Error(`${location}: changeScene requires a scene loader`);
     const controlled = control.playerWalkCh;
     if (!controlled) throw new Error(`${location}: changeScene requires a player-controlled walker`);
+    cancelPendingPropAction();
     if (propSlides.cancel() || propPushChoices) cancelPropSlideInteraction();
     const loaded = await loadSceneById(sceneId);
     if (!opened) return;
+    cancelPendingPropAction();
     if (propSlides.cancel() || propPushChoices) cancelPropSlideInteraction();
     const marker = loaded.getMarker(markerName ?? 'mPlayer');
     if (!marker)
@@ -502,7 +632,10 @@ export function createGameSession(
   }
 
   function cancelUiAndOpenLog(): void {
+    const cancelledPlayer = runner && !runner.isIdle() ? control.playerWalkCh : undefined;
+    cancelPendingPropAction();
     if (!cancelPropSlideInteraction()) runner?.cancel();
+    if (cancelledPlayer) cancelledPlayer.foreground = false;
     runner?.setStorage('dialogue.active', false);
     runner?.setStorage('dialogue.leftActor', undefined);
     runner?.setStorage('dialogue.rightActor', undefined);
@@ -512,7 +645,8 @@ export function createGameSession(
     mouseInput = '';
     finishPortraitReveals();
     clearPortraitExit();
-    // Emergency cancellation must not play the normal portrait exit animation.
+    clearChoicePanel();
+    // Emergency cancellation must not play the normal exit animations.
     layout.conversationOpen = false;
     layout.message.clearText();
     layout.clearBarks();
@@ -557,7 +691,13 @@ export function createGameSession(
       }
       if (layout.logWindow.visible) {
         const pane = layout.logWindow;
-        if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[5~' || data === '\x1b[6~') {
+        if (data === 's') {
+          const state = runner ? inspect(runner.getVariableState(), {
+            depth: null, maxArrayLength: null, maxStringLength: null,
+          }) : 'No RPGScript runner.';
+          layout.showLogEntry(`[RPGSCRIPT VAR STATE]\n${state}`);
+          paint();
+        } else if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[5~' || data === '\x1b[6~') {
           pane.scrollY += data === '\x1b[A' ? -1 : data === '\x1b[B' ? 1
             : data === '\x1b[5~' ? -pane.innerHeight : pane.innerHeight;
           paint();
@@ -593,19 +733,29 @@ export function createGameSession(
               advanceDialogue();
               finishConversationIfIdle();
               dispatchLoadTriggers();
-            } else if (propPushChoices && !examine) {
-              choosePropPushAt(x, y);
+            } else if (runner?.choice && !examine) {
+              const index = propPushChoices ? layout.getPushChoiceAt(x, y) : layout.getChoiceAt(x, y);
+              if (index !== undefined) {
+                chooseScriptOption(index);
+                finishConversationIfIdle();
+                dispatchLoadTriggers();
+              }
             } else if (runner?.isIdle() && runner.getStorage('dialogue.active') !== true) {
-              const inventoryAction = layout.getInventoryActionAt(x, y);
-              const tabId = !examine && layout.getTabAt(x, y);
               const point = layout.getScenePoint(x, y);
+              if (pendingPropAction) {
+                if (!point || examine || selectedItemId ||
+                  scene.getVisiblePropAt(point.x, point.y)?.id === pendingPropAction.propId) continue;
+                cancelPendingPropAction();
+              }
+              const inventoryAction = layout.getInventoryActionAt(x, y, examine);
+              const tabId = !examine && layout.getTabAt(x, y);
               if (tabId) layout.tabs.select(tabId);
-              else if (inventoryAction) clickInventoryItem(inventoryAction.itemId, examine || inventoryAction.examine);
+              else if (inventoryAction) clickInventoryItem(inventoryAction.itemId, inventoryAction.examine);
               else if (point && clickWorldItemTarget(point.x, point.y, examine)) {
                 // Item interactions take precedence over scene action triggers.
-              } else if (point && !examine && !selectedItemId && scene.propSlide &&
-                activateSlideProp(scene.getVisiblePropAt(point.x, point.y))) {
-                // The action is bound to the visible, moving instance.
+              } else if (point && !examine && !selectedItemId &&
+                activateProp(scene.getVisiblePropAt(point.x, point.y))) {
+                // The action is bound to the visible instance.
               } else if (point && !examine && !selectedItemId)
                 control.click(
                   point.x,
@@ -627,30 +777,38 @@ export function createGameSession(
         }
         return;
       }
-      if (data === '\x1b' && selectedItemId) {
+      if (
+        data === '\x1b' &&
+        (selectedItemId || (layout.isInventoryVisible() && layout.inventory.getFocusedItemId()))
+      ) {
         selectedItemId = undefined;
+        layout.inventory.clearItemFocus();
         paint();
         return;
       }
-      if (data === '\x1b' && propSlideInteraction) {
-        cancelPropSlideInteraction();
+      if (data === '\x1b' && (cancelPendingPropAction() || cancelPropSlideInteraction())) {
         paint();
         return;
       }
       if (data === '\t' || data === '\x1b[Z') {
-        if (runner?.centerToast !== undefined || propPushChoices) return;
+        if (runner?.centerToast !== undefined || runner?.choice) return;
         layout.tabs.selectNext(data === '\t' ? 1 : -1);
         paint();
         return;
       }
       if (data === '\x1b[A' || data === '\x1b[B' || data === '\x1b[5~' || data === '\x1b[6~') {
         if (runner?.centerToast !== undefined || propPushChoices) return;
-        const pane = runner?.dialogue
-          ? layout.dialoguePanel
-          : layout.tabs.getContent(layout.tabs.selectedId);
-        const page = pane.innerHeight;
-        pane.scrollY +=
-          data === '\x1b[A' ? -1 : data === '\x1b[B' ? 1 : data === '\x1b[5~' ? -page : page;
+        const byPage = data === '\x1b[5~' || data === '\x1b[6~';
+        const direction = data === '\x1b[A' || data === '\x1b[5~' ? -1 : 1;
+        if (!runner?.choice && !displayedDialogue && layout.scrollInventory(direction, byPage)) {
+          paint();
+          return;
+        }
+        const pane = runner?.choice && layout.choicePanel.maxScrollY() > 0 ? layout.choicePanel
+          : displayedDialogue ? layout.dialoguePanel
+          : runner?.choice ? undefined : layout.tabs.getContent(layout.tabs.selectedId);
+        if (!pane) return;
+        pane.scrollY += direction * (byPage ? pane.innerHeight : 1);
         paint();
         return;
       }
@@ -664,9 +822,11 @@ export function createGameSession(
         chooseScriptOption(Number(selected) - 1);
       } else if (runner.dialogue) {
         advanceDialogue();
+      } else if (handleInventoryShortcut(data)) {
+        // Selection shortcuts are local to the visible inventory tab.
       } else if ((data === '\r' || data === '\n') && runner.isIdle() &&
-        runner.getStorage('dialogue.active') !== true && !selectedItemId && scene.propSlide) {
-        activateSlideProp(getNearestVisibleSlideProp());
+        runner.getStorage('dialogue.active') !== true && !selectedItemId && !pendingPropAction) {
+        activateProp(getNearestVisibleActionProp());
       } else return;
       finishConversationIfIdle();
       dispatchLoadTriggers();
@@ -682,9 +842,12 @@ export function createGameSession(
     },
     close() {
       opened = false;
+      cancelPendingPropAction();
       cancelPropSlideInteraction();
+      screenFade = undefined;
       finishPortraitReveals();
       clearPortraitExit();
+      clearChoicePanel();
       delete shownPortraitAssets.left;
       delete shownPortraitAssets.right;
       runner?.clearSubscripts();
@@ -722,6 +885,7 @@ export function createGameSession(
       control.update();
       propSlides.update(now - lastUpdate);
       runner?.update();
+      updatePendingPropAction();
       finishConversationIfIdle();
       dispatchLoadTriggers();
       runner?.updateTimers(now - lastUpdate);
@@ -752,6 +916,7 @@ export function createGameSession(
   function paint(force = false): void {
     needsFrame ||= force;
     if (!opened) return;
+    if (runner?.isIdle()) screenFade = undefined;
     try {
       const entries = getInventoryEntries(runner?.getGlobal('vars.inventory'), scene.itemAssets);
       layout.inventory.items = entries.flatMap((entry) => {
@@ -776,10 +941,11 @@ export function createGameSession(
     layout.centerToast.visible = runner?.centerToast !== undefined;
     if (runner?.centerToast !== undefined)
       layout.centerToast.setMessage(runner.centerToast, session.cols, session.rows);
-    const leftActor = runner?.getStorage('dialogue.leftActor');
-    const rightActor = runner?.getStorage('dialogue.rightActor');
-    const paired = layout.conversationOpen && typeof leftActor === 'string' && typeof rightActor === 'string';
-    const dialogue = runner?.dialogue;
+    const leftActor = getDialogueActorReference(runner?.getStorage('dialogue.leftActor'));
+    const rightActor = getDialogueActorReference(runner?.getStorage('dialogue.rightActor'));
+    const paired = layout.conversationOpen && leftActor !== undefined && rightActor !== undefined;
+    const choice = propPushChoices ? undefined : runner?.choice;
+    const dialogue = runner?.dialogue ?? (choice && wasConversationOpen && layout.conversationOpen ? displayedDialogue : undefined);
     if (dialogue !== displayedDialogue) {
       displayedDialogue = dialogue;
       if (dialogue) layout.message.showText(dialogue.text);
@@ -790,7 +956,8 @@ export function createGameSession(
       layout.message.advanceAnimation(now - dialogueUpdate);
       dialogueUpdate = now;
     }
-    const displayedActor = dialogue && getDisplayedActorName(dialogue.actor);
+    const actor = getDialogueActorReference(dialogue?.actor);
+    const displayedActor = actor === undefined ? undefined : getDisplayedActorName(actor);
     const displayedLeft = typeof leftActor === 'string' ? getDisplayedActorName(leftActor) : undefined;
     const displayedRight = typeof rightActor === 'string' ? getDisplayedActorName(rightActor) : undefined;
     if (!portraitExit) {
@@ -804,17 +971,17 @@ export function createGameSession(
       else layout.dialoguePanel.setSpeaker(displayedActor);
     }
     layout.pushPad.setChoices(propPushChoices ? runner?.choice?.options : undefined);
-    layout.choiceMessage.text = propPushChoices ? '' :
-      runner?.choice?.options.map((option, index) => `${index + 1}. ${option}`).join('  ') ?? '';
+    if (layout.pushPad.visible || layout.centerToast.visible) clearChoicePanel();
+    else syncChoicePanel(choice, now);
     const selection = paired
       ? getDialoguePortrait(activePortraits, leftActor, displayedActor === displayedLeft ? dialogue?.emotion : '', 'right')
-      : dialogue && layout.conversationOpen
-      ? getDialoguePortrait(activePortraits, dialogue.actor, dialogue.emotion, 'right')
+      : actor !== undefined && layout.conversationOpen
+      ? getDialoguePortrait(activePortraits, actor, dialogue?.emotion, 'right')
       : undefined;
     const rightSelection = paired
       ? getDialoguePortrait(activePortraits, rightActor, displayedActor === displayedRight ? dialogue?.emotion : '', 'left')
       : undefined;
-    const key = `${dialogue?.actor ?? ''}:${dialogue?.emotion ?? ''}:${selection?.facing ?? ''}:${rightSelection?.facing ?? ''}`;
+    const key = `${actor ?? ''}:${dialogue?.emotion ?? ''}:${selection?.facing ?? ''}:${rightSelection?.facing ?? ''}`;
     if (key !== portraitKey) {
       portraitKey = key;
       portraitStart = Date.now();
@@ -836,8 +1003,14 @@ export function createGameSession(
       rightPortrait,
       portraitExit?.right?.frame ?? (rightPortrait ? getPortraitFrameAt(rightPortrait, elapsed) : undefined),
     );
-    layout.render(buffer);
-    if (!layout.logWindow.visible) filters.applyFilters(buffer);
+    layout.render(buffer, (frame) => portraitFilters.applyFilters(frame, now));
+    if (!layout.logWindow.visible) {
+      filters.applyFilters(buffer, now);
+      if (screenFade) {
+        const ctx = new ScreenFilterContext(buffer, { x: 0, y: 0, width: buffer.width, height: buffer.height });
+        screenFade.filter(ctx, Math.max(0, now - screenFade.startedAtMs));
+      }
+    }
     const frame = encodeTerminalDiff(buffer, previousFrame);
     if (frame || needsFrame) {
       send(
@@ -849,6 +1022,13 @@ export function createGameSession(
       previousFrame = buffer;
       needsFrame = false;
     }
+  }
+
+  function getDialogueActorReference(actor: RuntimeValue): string | undefined {
+    if (typeof actor !== 'string') return undefined;
+    if (actor.toLowerCase() !== 'player') return actor;
+    const player = control.playerWalkCh;
+    return getCharacterScriptNames(player?.scriptName)[0] ?? player?.instanceName ?? actor;
   }
 
   function getDisplayedActorName(actor: string): string {

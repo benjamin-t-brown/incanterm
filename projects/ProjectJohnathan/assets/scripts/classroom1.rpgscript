@@ -1,4 +1,5 @@
 #load@classroom1Load
+  +:items_restoreTrashState()
   +setPlayerWalkCh(johnathan-1, 3x3)
   +tmp.ralgoMoveVar=0
   +^vars.hasEnvelopeQuest=0
@@ -195,7 +196,6 @@
       +setConv()
       Johnathan: "Is this the envelope Mr Ralgo was talking about?"
       +acquireItem(OfficeEnvelope)
-      +showCenterToast("(Got item: Office Envelope.)")
       Johnathan: "I wonder what's so important that it needs to go to the office now..."
       Johnathan: "Probably just some dumb attendance records or something."
     }

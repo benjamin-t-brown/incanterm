@@ -89,9 +89,12 @@ cross-session resume and disk persistence await the save system.
 
 ### 6. Author the climb and verify the full puzzle
 
+- The route check is implemented as `getPropClimbPath(MarkerPathFloor2)`. The reusable prop's `climbHeight` overrides its height above the row just below the slide footprint. Otherwise, infer height from the lowest painted roof row in `climbCells`. Ordinary walking masks are separate.
+- The **[CHECK]** plaque below **[RESET]** reports in the game's Log tab whether the current layout has a route Johnathan can reach from where he's standing. The approach to the first shelf uses normal walking blockers and his full footing.
+- A transfer requires touching slide footprints (including corners) and a level step or an increase in height of up to two cells. Painted roof tiles guide the waypoints, not eligibility. Floor entry and the final landing also allow a rise of at most two rows. The landing must be within one footprint column of the last shelf.
 - Expand the travel area, paint the participating shelf assets and enable their instances. Keep entry markers, exits, the reset point and its approach usable. Decide the usable shelf heights and climb contacts from the artwork. These are project data or script constants; sprite height and slide footprint alone do not define a climbable top.
 - In `library2.rpgscript`, offer **Climb** from a reachable lower start when the **settled** shelves form a connected sequence of climb contacts in ascending height order that meets the upper landing. Evaluate the actual arrangement after push, reset and re-entry. Equivalent working staircases should count; moving a required shelf away should remove the option.
-- Script the climb through the shelf-top positions to an authored upper-floor marker, hold player input during the sequence, and restore normal walking at the landing. Verify that the existing `library2_isUpstairs` check recognizes that position and the upstairs doors work. Keep the route, landing and character dialogue out of engine code.
+- After a successful push, if Johnathan can reach a complete route, he says “I think I can make it to the top.” and starts climbing automatically. The **[CLIMB]** plaque uses the same RPGScript ascent: walk to the first shelf, jump across the shelf centers, then land at `MarkerPathFloorTop`. A descent control is not wired up yet.
 
 **Release check:** hand another agent a reproducible sequence from reset to the second floor (shelf instance, direction, expected stop for each push). Replay it including a room exit/re-entry halfway through. Also try a near miss, an unreachable push, reset from a bad layout, and an upstairs entry from an adjoining room. Record the working solution and reset location in the project handoff.
 

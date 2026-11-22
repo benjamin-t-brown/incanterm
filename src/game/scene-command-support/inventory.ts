@@ -17,16 +17,32 @@ export function getItemName(value: ScriptValue, context: CommandContext, command
   return item;
 }
 
+// Script-only terminal runners have no project assets.
+export function addNamedInventoryItem(
+  item: string, script: CommandContext, position: 'first' | 'last' = 'last',
+): boolean {
+  const inventory = getInventory(script.getGlobal('vars.inventory'), script.location);
+  if (inventory.includes(item)) return false;
+  script.setGlobal('vars.inventory', position === 'first' ? [item, ...inventory] : [...inventory, item]);
+  return true;
+}
+
 export function addInventoryItem(
   reference: string, script: Pick<CommandContext, 'getGlobal' | 'setGlobal' | 'location'>, game: GameScriptContext,
-): void {
+  position: 'first' | 'last' = 'last',
+): string | undefined {
   const asset = getItemAsset(game.scene.itemAssets, reference);
-  const itemId = asset.definition.id;
+  const { id: itemId, label } = asset.definition;
   const entries = getInventoryEntries(script.getGlobal('vars.inventory'), game.scene.itemAssets);
-  if (!entries.some((entry) => entry.itemId === itemId)) entries.push({ itemId });
+  const isNew = !entries.some((entry) => entry.itemId === itemId);
+  if (isNew) {
+    if (position === 'first') entries.unshift({ itemId });
+    else entries.push({ itemId });
+  }
   script.setGlobal('vars.inventory', entries);
   const acquired = getInventory(script.getGlobal('vars.acquiredItems'), script.location);
   if (!acquired.includes(itemId)) script.setGlobal('vars.acquiredItems', [...acquired, itemId]);
   for (const entity of [...game.scene.entities])
     if (entity instanceof WorldItem && entity.asset.definition.id === itemId) game.scene.removeEntity(entity);
+  return isNew ? label : undefined;
 }

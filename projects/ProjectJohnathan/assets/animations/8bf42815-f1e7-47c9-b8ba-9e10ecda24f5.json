@@ -1,0 +1,35 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "8bf42815-f1e7-47c9-b8ba-9e10ecda24f5",
+  "label": "props_door2Diag_closing",
+  "loop": false,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "1af53305-6afc-43a2-9671-fcd05de645e1",
+      "index": 4,
+      "durationMs": 135
+    },
+    {
+      "sprite": "1af53305-6afc-43a2-9671-fcd05de645e1",
+      "index": 3,
+      "durationMs": 135
+    },
+    {
+      "sprite": "1af53305-6afc-43a2-9671-fcd05de645e1",
+      "index": 2,
+      "durationMs": 135
+    },
+    {
+      "sprite": "1af53305-6afc-43a2-9671-fcd05de645e1",
+      "index": 1,
+      "durationMs": 135
+    },
+    {
+      "sprite": "1af53305-6afc-43a2-9671-fcd05de645e1",
+      "index": 0,
+      "durationMs": 135
+    }
+  ]
+}

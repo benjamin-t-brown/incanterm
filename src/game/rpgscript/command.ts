@@ -22,7 +22,7 @@ export type CommandContext = {
   callSubscript: (ownerId: string, target: string) => void;
   showDialogue: (actor: string, text: string, emotion?: string, onFinish?: () => void) => void;
   showCenterToast: (message: string) => void;
-  showChoices: (options: readonly string[], onChoose?: (index: number) => void) => void;
+  showChoices: (options: readonly string[], onChoose?: (index: number) => void, question?: string) => void;
   waitUntil: (isComplete: () => boolean) => void;
   writeLog: (message: string) => void;
 };

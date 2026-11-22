@@ -3,6 +3,7 @@ import { getProjectSource, type ProjectSourceOptions } from '../project/project.
 import { generateHostKey } from '../server/host-key.js';
 import { startServer } from '../server/start.js';
 import type { ServerMessage } from '../protocol/messages.js';
+import { loadSaveVariables } from './save.js';
 
 export type Loopback = {
   sceneId: string;
@@ -15,12 +16,16 @@ export type Loopback = {
 
 export async function startLoopback(
   options: ProjectSourceOptions & {
+    savePath?: string;
     onMessage: (message: ServerMessage) => void;
     onDisconnect?: () => void;
     onError?: (error: Error) => void;
   },
 ): Promise<Loopback> {
   const { sceneId, assetsRoot } = getProjectSource(options);
+  const initialScriptVariables = options.savePath !== undefined
+    ? await loadSaveVariables(options.savePath)
+    : undefined;
   const server = await startServer({
     host: '127.0.0.1',
     httpPort: 0,
@@ -29,6 +34,7 @@ export async function startLoopback(
     assetsRoot,
     sceneId,
     allowPlayerSpawn: true,
+    initialScriptVariables,
   });
   const sshPort = server.sshPort;
   if (sshPort === undefined) {

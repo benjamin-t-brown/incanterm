@@ -70,7 +70,7 @@ describe('RPGScript call-local arguments', () => {
         +:recurse("inner")
       }
       Guide: "[value]"
-      +awaitChoice("Choose [value]")
+      +awaitChoice("Choose [value]?", "Choose [value]")
       +[value]="changed"
       Guide: "[value]"`,
         'args.rpgscript',
@@ -79,13 +79,13 @@ describe('RPGScript call-local arguments', () => {
     runner.start('recurse', ['outer']);
     expect(runner.dialogue?.text).toBe('inner');
     runner.advance();
-    expect(runner.choice?.options).toEqual(['Choose inner']);
+    expect(runner.choice).toEqual({ question: 'Choose inner?', options: ['Choose inner'] });
     runner.choose(0);
     expect(runner.dialogue?.text).toBe('changed');
     runner.advance();
     expect(runner.dialogue?.text).toBe('outer');
     runner.advance();
-    expect(runner.choice?.options).toEqual(['Choose outer']);
+    expect(runner.choice).toEqual({ question: 'Choose outer?', options: ['Choose outer'] });
     runner.choose(0);
     runner.advance();
     expect(runner.isIdle()).toBe(true);

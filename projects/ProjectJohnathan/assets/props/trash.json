@@ -16,5 +16,13 @@
     5
   ],
   "groundOffsetY": 0,
-  "depthOffset": 0
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {
+    "searched": {
+      "type": "sprite",
+      "id": "5ad1fc16-eb10-45c7-9161-06902775f495",
+      "index": 1
+    }
+  }
 }

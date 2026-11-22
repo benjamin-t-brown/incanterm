@@ -1,0 +1,14 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "dd02b113-be0f-4ab2-a3ae-593f096d1286",
+  "label": "Book: Sweet Salty Umami by Terri Yaki",
+  "examineScript": "items_BookSweetSalty_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 1
+  },
+  "combinations": []
+}

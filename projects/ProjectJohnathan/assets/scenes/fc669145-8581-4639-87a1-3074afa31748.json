@@ -251,6 +251,7 @@
       "name": "trash_1",
       "prop": "trash",
       "state": "default",
+      "actionScript": "items_searchTrash",
       "x": 24,
       "y": 11,
       "z": 0
@@ -399,18 +400,6 @@
       "x": 28,
       "y": 10,
       "width": 5,
-      "height": 2,
-      "actionEnabled": true,
-      "stepEnabled": false,
-      "description": ""
-    },
-    {
-      "id": "65d3d349-188f-4959-9481-760b32614ec7",
-      "trigger": "officeLift_trash",
-      "event": "action",
-      "x": 24,
-      "y": 12,
-      "width": 2,
       "height": 2,
       "actionEnabled": true,
       "stepEnabled": false,

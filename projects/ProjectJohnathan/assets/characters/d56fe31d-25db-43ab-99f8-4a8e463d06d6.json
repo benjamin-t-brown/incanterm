@@ -4,26 +4,6 @@
   "id": "d56fe31d-25db-43ab-99f8-4a8e463d06d6",
   "label": "Johnathan",
   "scriptName": "Johnathan,John,johnathan3x3,johnathan5x5",
-  "defaultVariant": "3x3",
-  "variants": {
-    "5x5": {
-      "animations": {
-        "idle-up": "24f47dc9-5b18-4ae3-8815-bd604f8b9b4b",
-        "idle-down": "f2321e8a-e287-4861-9b3d-92fbf29f0c34",
-        "idle-left": "9e391d23-705c-4009-9747-e56bbd0ed114",
-        "idle-right": "9794c328-d3cc-4717-90a2-21ee64a9e4d7",
-        "walk-up": "1efc906f-cf47-4ac2-a4dd-b16b2b3e3f08",
-        "walk-down": "5b931cb6-1364-48b3-ace9-72b7f1bc6284",
-        "walk-left": "3d663b16-eab0-4995-85ac-6dd2f2ffae84",
-        "walk-right": "ca24e92d-8cd7-46c3-b76c-075595ef99e1",
-        "talking-up": "c9683e40-6485-44d7-ad85-da4bab88b217",
-        "talking-down": "90b0deca-1a7a-4464-a8c2-9d730c670c3a",
-        "talking-left": "d0330ff3-f6cb-464a-81b0-dba045f245f5",
-        "talking-right": "a6604539-3f88-41de-b18e-e052229ae26c"
-      },
-      "customAnimations": {}
-    }
-  },
   "portraits": [
     {
       "facing": "right",
@@ -59,9 +39,44 @@
       "facing": "right",
       "emotion": "surprised",
       "portrait": "johnathan1_6"
+    },
+    {
+      "facing": "right",
+      "emotion": "pleased",
+      "portrait": "johnathan1_8"
+    },
+    {
+      "facing": "right",
+      "emotion": "angry",
+      "portrait": "johnathan1_7"
+    },
+    {
+      "facing": "right",
+      "emotion": "unhappy/upset/grummpy",
+      "portrait": "johnathan1_7"
     }
   ],
   "defaultFacing": "down",
+  "defaultVariant": "3x3",
+  "variants": {
+    "5x5": {
+      "animations": {
+        "idle-up": "24f47dc9-5b18-4ae3-8815-bd604f8b9b4b",
+        "idle-down": "f2321e8a-e287-4861-9b3d-92fbf29f0c34",
+        "idle-left": "9e391d23-705c-4009-9747-e56bbd0ed114",
+        "idle-right": "9794c328-d3cc-4717-90a2-21ee64a9e4d7",
+        "walk-up": "1efc906f-cf47-4ac2-a4dd-b16b2b3e3f08",
+        "walk-down": "5b931cb6-1364-48b3-ace9-72b7f1bc6284",
+        "walk-left": "3d663b16-eab0-4995-85ac-6dd2f2ffae84",
+        "walk-right": "ca24e92d-8cd7-46c3-b76c-075595ef99e1",
+        "talking-up": "c9683e40-6485-44d7-ad85-da4bab88b217",
+        "talking-down": "90b0deca-1a7a-4464-a8c2-9d730c670c3a",
+        "talking-left": "d0330ff3-f6cb-464a-81b0-dba045f245f5",
+        "talking-right": "a6604539-3f88-41de-b18e-e052229ae26c"
+      },
+      "customAnimations": {}
+    }
+  },
   "animations": {
     "idle-up": "2c9579b7-a9d2-4789-a79f-0df5a6bb981e",
     "idle-down": "40e88dad-0df0-477d-a790-c056972e9137",
@@ -79,6 +94,9 @@
   "customAnimations": {
     "sit_left": "657cb7df-591c-4eb0-858c-cbb5715f1c7a",
     "interact up": "7bb1da06-b154-4756-9dbd-5981f5cbaf70",
-    "knock right": "c9f7fa52-d9f0-45d8-b3a5-3b60a8f00461"
+    "knock right": "c9f7fa52-d9f0-45d8-b3a5-3b60a8f00461",
+    "jump": "0bc29489-ff46-4703-87f4-0339ea59a5c6",
+    "interact right": "6ebd8adc-b838-4449-ae3d-bb0a719a8e5c",
+    "interact left": "53299beb-5bf2-4b00-8a1b-8c02d3d31e61"
   }
 }

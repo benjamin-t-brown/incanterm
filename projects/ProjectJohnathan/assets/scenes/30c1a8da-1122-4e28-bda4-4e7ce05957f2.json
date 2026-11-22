@@ -316,7 +316,6 @@
       998,
       999,
       1000,
-      1001,
       1002,
       1003,
       1004,
@@ -350,7 +349,6 @@
       1118,
       1119,
       1120,
-      1121,
       1122,
       1123,
       1124,
@@ -384,19 +382,6 @@
       1238,
       1239,
       1240,
-      1241,
-      1242,
-      1243,
-      1244,
-      1245,
-      1246,
-      1247,
-      1248,
-      1249,
-      1250,
-      1251,
-      1252,
-      1253,
       1340,
       1341,
       1342,
@@ -472,8 +457,6 @@
       1584,
       1585,
       1586,
-      1587,
-      1589,
       1590,
       1591,
       1592,
@@ -492,8 +475,6 @@
       1605,
       1606,
       1607,
-      1608,
-      1610,
       1611,
       1612,
       1613,
@@ -536,6 +517,7 @@
       1736,
       1737,
       1738,
+      1739,
       1740,
       1741,
       1742,
@@ -594,8 +576,6 @@
       1854,
       1855,
       1856,
-      1857,
-      1858,
       1860,
       1861,
       1862,
@@ -842,8 +822,6 @@
       2339,
       2340,
       2341,
-      2342,
-      2343,
       2345,
       2346,
       2347,
@@ -1106,8 +1084,8 @@
       "id": "ede0d218-d31b-4c07-8579-ebfd2f171b75",
       "type": "Marker",
       "name": "MarkerPlayer",
-      "x": 39,
-      "y": 13
+      "x": 45,
+      "y": 16
     },
     {
       "id": "ece779b1-b652-4062-a6e2-da822763a820-1",
@@ -1118,9 +1096,9 @@
       "slidable": {
         "actionScript": "library2_pushShelf"
       },
-      "depthOffset": 2,
-      "x": 18,
-      "y": 4,
+      "depthOffset": 3,
+      "x": 77,
+      "y": 10,
       "z": 0
     },
     {
@@ -1140,8 +1118,8 @@
       "name": "pillar_1x7",
       "prop": "c8a9cb29-2aab-4ed4-b52f-61f7085582c2",
       "state": "default",
-      "depthOffset": 4,
-      "x": 59,
+      "depthOffset": 5,
+      "x": 58,
       "y": 9,
       "z": 0
     },
@@ -1151,23 +1129,23 @@
       "name": "pillar_1x7",
       "prop": "c8a9cb29-2aab-4ed4-b52f-61f7085582c2",
       "state": "default",
-      "depthOffset": 4,
-      "x": 64,
+      "depthOffset": 5,
+      "x": 63,
       "y": 13,
       "z": 0
     },
     {
-      "id": "27e5bb08-2c11-41bd-8788-ffa5b62e4f08-1",
+      "id": "74729928-851b-498d-962d-6e77529c1271-1",
       "type": "Prop",
-      "name": "bookshelf_left_6x7",
-      "prop": "27e5bb08-2c11-41bd-8788-ffa5b62e4f08",
+      "name": "bookshelf_left_7x8",
+      "prop": "74729928-851b-498d-962d-6e77529c1271",
       "state": "default",
       "slidable": {
         "actionScript": "library2_pushShelf"
       },
-      "depthOffset": 3,
-      "x": 41,
-      "y": 7,
+      "depthOffset": 7,
+      "x": 51,
+      "y": 14,
       "z": 0
     },
     {
@@ -1176,41 +1154,42 @@
       "name": "trash_1",
       "prop": "trash",
       "state": "default",
+      "actionScript": "items_searchTrash",
       "depthOffset": 0,
       "x": 95,
       "y": 7,
       "z": 0
     },
     {
-      "id": "067baab0-fd15-4da0-ac09-99aeecb59ad5-1",
+      "id": "a3ed4939-cc3a-4973-90a6-78d8a8ae0a7c-1",
       "type": "Prop",
-      "name": "bookshelf_6x9_left",
-      "prop": "067baab0-fd15-4da0-ac09-99aeecb59ad5",
+      "name": "bookshelf_6x10_left",
+      "prop": "a3ed4939-cc3a-4973-90a6-78d8a8ae0a7c",
       "state": "default",
       "slidable": {
         "actionScript": "library2_pushShelf",
         "standOffsets": {
           "left": {
             "x": 6,
-            "y": 8
+            "y": 9
           },
           "right": {
             "x": -3,
-            "y": 6
+            "y": 7
           },
           "up": {
             "x": 6,
-            "y": 9
+            "y": 10
           },
           "down": {
             "x": -3,
-            "y": 6
+            "y": 7
           }
         }
       },
-      "depthOffset": 6,
-      "x": 62,
-      "y": 8,
+      "depthOffset": 8,
+      "x": 60,
+      "y": 7,
       "z": 0
     },
     {
@@ -1222,9 +1201,9 @@
       "slidable": {
         "actionScript": "library2_pushShelf"
       },
-      "depthOffset": 6,
-      "x": 28,
-      "y": 12,
+      "depthOffset": 7,
+      "x": 26,
+      "y": 10,
       "z": 0
     },
     {
@@ -1239,17 +1218,17 @@
       "z": 0
     },
     {
-      "id": "229ce418-f1db-4640-b6bb-58851cfb2a7f",
+      "id": "63c53df2-a849-4e9a-8f64-284468c0c344-1",
       "type": "Prop",
-      "name": "bookshelf7x5",
-      "prop": "ece779b1-b652-4062-a6e2-da822763a820",
+      "name": "bookshelf_7x2",
+      "prop": "63c53df2-a849-4e9a-8f64-284468c0c344",
       "state": "default",
       "slidable": {
         "actionScript": "library2_pushShelf"
       },
-      "depthOffset": 2,
-      "x": 77,
-      "y": 10,
+      "depthOffset": 0,
+      "x": 36,
+      "y": 14,
       "z": 0
     },
     {
@@ -1267,23 +1246,9 @@
           }
         }
       },
-      "depthOffset": 3,
-      "x": 81,
+      "depthOffset": 4,
+      "x": 70,
       "y": 15,
-      "z": 0
-    },
-    {
-      "id": "1f9b687a-a89a-490e-b78f-9de71e329f7f-1",
-      "type": "Prop",
-      "name": "bookshelf_6x11_left",
-      "prop": "1f9b687a-a89a-490e-b78f-9de71e329f7f",
-      "state": "default",
-      "slidable": {
-        "actionScript": "library2_pushShelf"
-      },
-      "depthOffset": 7,
-      "x": 49,
-      "y": 2,
       "z": 0
     },
     {
@@ -1314,19 +1279,9 @@
         }
       },
       "depthOffset": 0,
-      "x": 46,
-      "y": 14,
+      "x": 82,
+      "y": 17,
       "z": 0
-    },
-    {
-      "id": "library2-shelf-reset-1",
-      "type": "Prop",
-      "name": "Shelf reset",
-      "sprite": "library2-shelf-reset",
-      "x": 37,
-      "y": 15,
-      "z": 0,
-      "depthOffset": 0
     },
     {
       "id": "library2-shelf-reset-safe",
@@ -1336,21 +1291,46 @@
       "y": 20
     },
     {
-      "id": "f9d4581e-335f-4fc8-909c-0e62cce16287-1",
-      "type": "Character",
-      "name": "fabian3x3_ch",
-      "character": "f9d4581e-335f-4fc8-909c-0e62cce16287",
-      "facing": "down",
-      "state": "idle",
-      "x": 103,
-      "y": 18,
+      "id": "c50d804b-141d-457c-ba32-57b83b22de29",
+      "type": "Marker",
+      "name": "MarkerPathFloor2",
+      "x": 86,
+      "y": 9
+    },
+    {
+      "id": "64297bff-a432-4d9a-a509-d592d51c7381",
+      "type": "Marker",
+      "name": "MarkerPathFloorTop",
+      "x": 90,
+      "y": 9
+    },
+    {
+      "id": "5b158472-6238-47e5-88c8-8f1280782302-1",
+      "type": "Prop",
+      "name": "ldesk2",
+      "prop": "5b158472-6238-47e5-88c8-8f1280782302",
+      "state": "default",
+      "depthOffset": 0,
+      "x": 41,
+      "y": 7,
       "z": 0
     },
     {
-      "id": "c50d804b-141d-457c-ba32-57b83b22de29",
+      "id": "3dd110c0-a710-4513-99ff-4eb59081f21a-1",
+      "type": "Prop",
+      "name": "terminal_post",
+      "prop": "3dd110c0-a710-4513-99ff-4eb59081f21a",
+      "state": "default",
+      "depthOffset": 0,
+      "x": 23,
+      "y": 6,
+      "z": 0
+    },
+    {
+      "id": "0ab66a12-e10a-443b-892e-62771f86cb51",
       "type": "Marker",
-      "name": "FromMaintenanceUp-2",
-      "x": 86,
+      "name": "MarkerTerminalReset",
+      "x": 24,
       "y": 9
     }
   ],
@@ -1420,7 +1400,7 @@
       "x": 94,
       "y": 13,
       "width": 4,
-      "height": 1,
+      "height": 2,
       "actionEnabled": false,
       "stepEnabled": true,
       "description": ""
@@ -1450,16 +1430,28 @@
       "description": ""
     },
     {
-      "id": "library2-shelf-reset-action",
-      "trigger": "library2_resetShelves",
+      "id": "51fbfb67-8a92-412f-a6a9-75435594cd2d",
+      "trigger": "library2_toLibrary1Up",
       "event": "action",
-      "x": 37,
-      "y": 15,
-      "width": 7,
-      "height": 1,
+      "x": 94,
+      "y": 11,
+      "width": 4,
+      "height": 2,
       "actionEnabled": true,
       "stepEnabled": false,
-      "description": "Walk up to the reset plaque and restore both trial shelves."
+      "description": ""
+    },
+    {
+      "id": "library2-terminal-reset-action",
+      "trigger": "library2_terminalReset",
+      "event": "action",
+      "x": 23,
+      "y": 6,
+      "width": 3,
+      "height": 3,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": "Reset the Library 2 bookshelves"
     }
   ]
 }

@@ -4,7 +4,7 @@ import { loadOrCreateHostKey } from './host-key.js';
 import { loadGame } from './load-game.js';
 import { startHttpServer } from './http.js';
 import { startSshServer } from './ssh.js';
-import type { DialogueAnimationOptions, PortraitAnimationOptions } from './game-session.js';
+import type { DialogueAnimationOptions, PortraitAnimationOptions, ScriptVariables } from './game-session.js';
 
 export type StartedServer = {
   httpPort: number;
@@ -22,6 +22,7 @@ export type StartOptions = ProjectSourceOptions & {
   dialogueAnimation?: DialogueAnimationOptions;
   portraitAnimation?: PortraitAnimationOptions;
   allowPlayerSpawn?: boolean;
+  initialScriptVariables?: ScriptVariables;
 };
 
 const DEFAULT_HOST_KEY = path.join(process.cwd(), '.data', 'ssh_host_key');
@@ -34,6 +35,7 @@ export async function startServer(options: StartOptions): Promise<StartedServer>
     port: options.httpPort ?? 7101,
     staticRoot: options.staticRoot,
     ...game,
+    initialScriptVariables: options.initialScriptVariables,
   });
   if (options.sshEnabled === false) {
     return { httpPort: http.port, close: http.close };
@@ -45,6 +47,7 @@ export async function startServer(options: StartOptions): Promise<StartedServer>
       port: options.sshPort ?? 7102,
       hostKey,
       ...game,
+      initialScriptVariables: options.initialScriptVariables,
     });
     return {
       httpPort: http.port,

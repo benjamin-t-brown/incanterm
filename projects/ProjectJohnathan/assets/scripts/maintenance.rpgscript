@@ -21,9 +21,11 @@
 
 #step@maintenance_toLibrary2
   +changeScene(library2, FromMaintenance)
+  +setPropAnimState(doorDownstairs, closed)
 
 #step@maintenance_toLib2Upstairs
   +changeScene(library2, FromMaintenanceUp)
+  +setPropAnimState(doorUpstairs, closed)
 
 #step@maintenance_toMusicUpstairs
   +changeScene(music, FromMaintenanceUpstairs)

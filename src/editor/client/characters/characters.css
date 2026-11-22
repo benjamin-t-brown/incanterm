@@ -314,6 +314,16 @@
   border: 1px solid var(--line);
   justify-self: center;
 }
+#portrait-error {
+  color: #e8a197;
+  font-weight: bold;
+}
+body.light #portrait-error {
+  color: var(--red);
+}
+#portrait-error:not(:empty) {
+  margin-bottom: 8px;
+}
 .portrait-actions {
   display: flex;
   justify-content: flex-end;

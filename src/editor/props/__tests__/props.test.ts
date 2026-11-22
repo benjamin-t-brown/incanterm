@@ -62,15 +62,36 @@ it('saves a sprite prop and exposes its label in the prop list', async () => {
   ).toEqual({ files: ['test-prop'], labels: { 'test-prop': 'Wooden crate' } });
 });
 
-it('parses prop customAnimations and rejects reserved default', () => {
+it('parses animation IDs and sprite frames as custom states and rejects reserved default', () => {
   const prop = createProp('machine', { type: 'animation', id: 'idle' });
   const { customAnimations: _, ...without } = prop;
   expect(parseProp(without)).toMatchObject({ ok: true, value: { customAnimations: {} } });
-  expect(parseProp({ ...prop, customAnimations: { open: 'open-clip' } })).toMatchObject({
-    ok: true,
-    value: { customAnimations: { open: 'open-clip' } },
-  });
-  expect(parseProp({ ...prop, customAnimations: { default: 'open-clip' } }).ok).toBe(false);
+  const open = { type: 'sprite', id: 'machine-art', index: 2 };
+  const mixed = { ...prop, customAnimations: { opening: 'open-clip', open } };
+  expect(parseProp(mixed)).toEqual({ ok: true, value: mixed });
+  expect(parseProp({ ...prop, customAnimations: { default: open } }).ok).toBe(false);
+  for (const index of [-1, 0.5, undefined, '2'])
+    expect(parseProp({ ...prop, customAnimations: { open: { ...open, index } } }).ok).toBe(false);
+});
+
+it('rejects missing sprite sheets or frames in custom states without overwriting the prop', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-props-'));
+  roots.push(root);
+  const store = new AssetStore(root);
+  const prop = createProp('crate', { type: 'sprite', id: 'crate-art', index: 0 });
+  await store.saveSprite('crate-art', createSprite('crate-art', 1, 1));
+  await store.savePropDraft(prop.id, prop, null);
+  for (const [id, index] of [['missing', 0], ['crate-art', 1]] as const) {
+    const doc = { ...prop, customAnimations: { open: { type: 'sprite', id, index } } };
+    const response = await dispatchAssetRequest(
+      store,
+      'PUT',
+      `/api/props/${prop.id}`,
+      JSON.stringify({ base: prop, doc }),
+    );
+    expect(response.status).toBe(422);
+    expect(await store.readProp(prop.id)).toEqual(prop);
+  }
 });
 
 it('migrates legacy movement flags and keeps blocked cells in place when resized', () => {

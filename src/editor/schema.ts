@@ -102,20 +102,27 @@ export type PropDocument = {
   blockedCells: number[];
   /** Independent slide contact cells, row-major in the reusable prop's grid. */
   slideCells?: number[];
+  /** Climbable roof cells, row-major in the reusable prop's grid. */
+  climbCells?: number[];
+  /** Height above the slide footprint's base; omit to infer it from the roof mask. */
+  climbHeight?: number;
   groundOffsetY: number;
   /** Legacy fallback for scene instances without their own depthOffset. */
   depthOffset: number;
   foreground: boolean;
-  customAnimations: Record<string, string>;
+  /** Named visuals. Animation IDs retain their original string representation. */
+  customAnimations: Record<string, string | Extract<PropVisual, { type: 'sprite' }>>;
 };
 
 /** Built-in prop state for the asset `visual` (sprite or animation). */
 export const PROP_DEFAULT_STATE = 'default';
 
-export function getPropAnimation(prop: PropDocument, state: string): string | undefined {
-  if (state === PROP_DEFAULT_STATE)
-    return prop.visual.type === 'animation' ? prop.visual.id : undefined;
-  return prop.customAnimations[state];
+export function getPropStateVisuals(prop: PropDocument): Map<string, PropVisual> {
+  const visuals = new Map<string, PropVisual>([[PROP_DEFAULT_STATE, prop.visual]]);
+  for (const [state, visual] of Object.entries(prop.customAnimations)) {
+    visuals.set(state, typeof visual === 'string' ? { type: 'animation', id: visual } : visual);
+  }
+  return visuals;
 }
 
 export const CHARACTER_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
@@ -353,6 +360,7 @@ export type SceneEntity =
       name?: string;
       prop: string;
       state?: string;
+      actionScript?: string;
       slidable?: SlideBinding;
       depthOffset?: number;
       x: number;
@@ -380,6 +388,7 @@ export type SceneEntity =
       name?: string;
       sprite: string;
       state?: string;
+      actionScript?: string;
       slidable?: SlideBinding;
       x: number;
       y: number;
@@ -429,6 +438,14 @@ export type SchemaResult<T> = { ok: true; value: T } | { ok: false; error: strin
 
 export function isAssetId(value: string): boolean {
   return value.length >= 1 && value.length <= MAX_ID_LENGTH && ASSET_ID.test(value);
+}
+
+export function isScriptFileId(value: string): boolean {
+  return (
+    value.length >= 1 &&
+    value.length <= MAX_ID_LENGTH &&
+    /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/i.test(value)
+  );
 }
 
 export function isCharacterStateName(value: string): boolean {
@@ -553,7 +570,18 @@ export function createScene(
   };
 }
 
-/** Validate just the prop fields so the runtime can keep its legacy scene parser. */
+export function isSceneScriptName(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z_][\w-]*$/.test(value);
+}
+
+export function parseScenePropActionScript(type: unknown, value: unknown, label: string): SchemaResult<string | undefined> {
+  if (value === undefined) return { ok: true, value };
+  if (type !== 'Prop') return fail(`${label}: Only scene props can have an actionScript`);
+  if (!isSceneScriptName(value)) return fail(`${label} actionScript must be an RPGScript name`);
+  return { ok: true, value };
+}
+
+/** Validate just the slide fields so the runtime can keep its legacy scene parser. */
 export function parseSceneSlides(
   value: unknown,
   rawEntities: readonly unknown[],
@@ -595,7 +623,7 @@ export function parseSceneSlides(
     const usesAsset = entry.prop !== undefined && data?.footprint === undefined;
     if (!data || (!usesAsset && (!Array.isArray(data.footprint) || !data.footprint.length)))
       return fail(`Prop ${id} needs a nonempty slide footprint`);
-    if (typeof data.actionScript !== 'string' || !/^[A-Za-z_][\w-]*$/.test(data.actionScript))
+    if (data.actionScript !== undefined && !isSceneScriptName(data.actionScript))
       return fail(`Prop ${id} actionScript must be an RPGScript name`);
     const footprint: SlideCell[] = [];
     for (const rawOffset of Array.isArray(data.footprint) ? data.footprint : []) {
@@ -626,7 +654,11 @@ export function parseSceneSlides(
     if (!y.ok) return y;
     entities.push({
       id, x: x.value, y: y.value,
-      slidable: { ...(usesAsset ? {} : { footprint }), actionScript: data.actionScript, ...(standOffsets ? { standOffsets } : {}) },
+      slidable: {
+        ...(usesAsset ? {} : { footprint }),
+        ...(data.actionScript !== undefined ? { actionScript: data.actionScript } : {}),
+        ...(standOffsets ? { standOffsets } : {}),
+      },
     });
   }
   // Asset references are resolved and the complete layout checked by the loader.
@@ -700,6 +732,8 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
   for (const [index, raw] of scene.entities.entries()) {
     const entry = getObject(raw);
     if (!entry) return fail(`Scene entity ${index} must be an object`);
+    const action = parseScenePropActionScript(entry.type, entry.actionScript, `Scene entity ${index}`);
+    if (!action.ok) return action;
     const entityId = readId(entry.id, `Scene entity ${index} id`);
     if (!entityId.ok) return entityId;
     if (ids.has(entityId.value)) return fail(`Scene repeats entity id ${entityId.value}`);
@@ -817,6 +851,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           ...(name !== undefined ? { name } : {}),
           prop: prop.value,
           ...(state !== undefined ? { state } : {}),
+          ...(action.value !== undefined ? { actionScript: action.value } : {}),
           ...(slidable ? { slidable } : {}),
           ...(entry.depthOffset !== undefined ? { depthOffset: depthOffset.value } : {}),
           x: x.value,
@@ -832,6 +867,7 @@ export function parseScene(value: unknown): SchemaResult<SceneDocument> {
           ...(name !== undefined ? { name } : {}),
           sprite: sprite.value,
           ...(state !== undefined ? { state } : {}),
+          ...(action.value !== undefined ? { actionScript: action.value } : {}),
           ...(slidable ? { slidable } : {}),
           x: x.value,
           y: y.value,
@@ -1071,6 +1107,17 @@ export function parseAnimation(value: unknown): SchemaResult<AnimationDocument> 
   };
 }
 
+function readPropSpriteVisual(
+  source: Record<string, unknown>,
+  label: string,
+): SchemaResult<Extract<PropVisual, { type: 'sprite' }>> {
+  const id = readId(source.id, `${label} id`);
+  if (!id.ok) return id;
+  const index = readInt(source.index, `${label} index`, 0, MAX_FRAMES - 1);
+  if (!index.ok) return index;
+  return { ok: true, value: { type: 'sprite', id: id.value, index: index.value } };
+}
+
 export function parseProp(value: unknown): SchemaResult<PropDocument> {
   const record = getObject(value);
   if (record?.format !== 'incanterm-prop' || record.version !== 1) {
@@ -1085,14 +1132,14 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
     return fail('Prop label must be 1 to 80 characters without control characters');
   const source = getObject(record.visual);
   if (!source) return fail('Prop visual must be a sprite or animation');
-  const visualId = readId(source.id, 'Prop visual id');
-  if (!visualId.ok) return visualId;
   let visual: PropVisual;
   if (source.type === 'sprite') {
-    const index = readInt(source.index, 'Prop sprite index', 0, MAX_FRAMES - 1);
-    if (!index.ok) return index;
-    visual = { type: 'sprite', id: visualId.value, index: index.value };
+    const sprite = readPropSpriteVisual(source, 'Prop sprite');
+    if (!sprite.ok) return sprite;
+    visual = sprite.value;
   } else if (source.type === 'animation') {
+    const visualId = readId(source.id, 'Prop visual id');
+    if (!visualId.ok) return visualId;
     visual = { type: 'animation', id: visualId.value };
   } else return fail('Prop visual must be a sprite or animation');
   const width = readInt(record.width, 'Prop width', 1, MAX_SPRITE_WIDTH);
@@ -1121,14 +1168,20 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       ? Array.from({ length: width.value * height.value }, (_, index) => index)
       : [];
   } else return fail('Prop blockedCells must be a list of cell indexes');
-  let slideCells: number[] | undefined;
-  if (record.slideCells !== undefined) {
-    const cells = record.slideCells;
+  const masks: Pick<PropDocument, 'slideCells' | 'climbCells'> = {};
+  for (const field of ['slideCells', 'climbCells'] as const) {
+    const cells = record[field];
+    if (cells === undefined) continue;
     if (!Array.isArray(cells) || cells.some(i => !Number.isInteger(i) || i < 0 || i >= width.value * height.value) ||
       new Set(cells).size !== cells.length)
-      return fail('Prop slideCells must contain unique cell indexes inside the footprint');
-    slideCells = [...cells].sort((a, b) => a - b);
+      return fail(`Prop ${field} must contain unique cell indexes inside the footprint`);
+    masks[field] = [...cells].sort((a, b) => a - b);
   }
+  const climbHeight =
+    record.climbHeight === undefined
+      ? undefined
+      : readInt(record.climbHeight, 'Prop climb height', 1, MAX_SPRITE_HEIGHT);
+  if (climbHeight && !climbHeight.ok) return climbHeight;
   const groundOffsetY = readInt(record.groundOffsetY, 'Prop groundOffsetY', -1024, 1024);
   if (!groundOffsetY.ok) return groundOffsetY;
   const depthOffset = readInt(record.depthOffset, 'Prop depthOffset', -1024, 1024);
@@ -1138,13 +1191,22 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
   const extras = getObject(record.customAnimations) ?? {};
   if (Object.keys(extras).length > 64)
     return fail('Prop customAnimations must contain at most 64 states');
-  const customAnimations: Record<string, string> = {};
+  const customAnimations: PropDocument['customAnimations'] = {};
   for (const [state, value] of Object.entries(extras)) {
     if (!isCharacterStateName(state) || state === PROP_DEFAULT_STATE)
-      return fail(`Invalid custom animation state ${state}`);
-    const animation = readId(value, `Prop ${state} animation`);
-    if (!animation.ok) return animation;
-    customAnimations[state] = animation.value;
+      return fail(`Invalid custom prop state ${state}`);
+    if (typeof value === 'string') {
+      const animation = readId(value, `Prop ${state} animation`);
+      if (!animation.ok) return animation;
+      customAnimations[state] = animation.value;
+    } else {
+      const source = getObject(value);
+      if (source?.type !== 'sprite')
+        return fail(`Prop ${state} state must reference a sprite frame or animation ID`);
+      const sprite = readPropSpriteVisual(source, `Prop ${state} sprite`);
+      if (!sprite.ok) return sprite;
+      customAnimations[state] = sprite.value;
+    }
   }
   return {
     ok: true,
@@ -1158,7 +1220,8 @@ export function parseProp(value: unknown): SchemaResult<PropDocument> {
       height: height.value,
       blockedCells,
       groundOffsetY: groundOffsetY.value,
-      ...(slideCells ? { slideCells } : {}),
+      ...masks,
+      ...(climbHeight ? { climbHeight: climbHeight.value } : {}),
       depthOffset: depthOffset.value,
       foreground: record.foreground === true,
       customAnimations,

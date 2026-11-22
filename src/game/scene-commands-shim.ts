@@ -4,6 +4,7 @@ import {
   getPlayerCharacterName, getPositionCoordinates, getPropInstanceName, getSkipWait,
   getSpeedMultiplier, getWaitMilliseconds, getWalkDestination, getWalkOffset,
 } from './scene-command-support/arguments.js';
+import { addNamedInventoryItem, getItemName } from './scene-command-support/inventory.js';
 import { getDialogueActorName, getDialoguePortrait, type PortraitAssets } from './portrait-assets.js';
 import type { ScriptLibrary, ScriptRunner } from './rpgscript/runtime.js';
 import { parseRpgScript, ScriptRunner as Runner } from './rpgscript/runtime.js';
@@ -40,6 +41,14 @@ export const sceneCommandsShim = {
   resetPropSlides: defineCommand({
     returnsValue: true, parse: commands.resetPropSlides.parse, execute: throwPropSlideWithoutScene,
   }),
+  getPropClimbPath: defineCommand({
+    returnsValue: true, parse: commands.getPropClimbPath.parse, execute: throwPropSlideWithoutScene,
+  }),
+  getMarkerPos: defineCommand({
+    returnsValue: true,
+    parse: commands.getMarkerPos.parse,
+    execute: (_step, script) => { throw new Error(`${script.location}: getMarkerPos requires a world scene`); },
+  }),
   playDialogue: defineCommand({
     parse: commands.playDialogue.parse,
     execute: (step, script) =>
@@ -66,7 +75,9 @@ export const sceneCommandsShim = {
   }),
   addItem: defineCommand({
     parse: commands.addItem.parse,
-    execute: (step, script) => commands.acquireItem.run({ ...step, command: 'acquireItem', line: 0 }, script, undefined),
+    execute: (step, script) => {
+      addNamedInventoryItem(getItemName(step.item, script, 'addItem'), script);
+    },
   }),
   removeItem: defineCommand({
     parse: commands.removeItem.parse,
@@ -97,6 +108,13 @@ export const sceneCommandsShim = {
   }),
   getCharacterPos,
   getChPos: getCharacterPos,
+  setChForeground: defineCommand({
+    parse: commands.setChForeground.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'setChForeground');
+      getBusyState(step.foreground, script, 'setChForeground');
+    },
+  }),
   getPropPos: defineCommand({
     returnsValue: true,
     parse: commands.getPropPos.parse,
@@ -182,8 +200,15 @@ export const sceneCommandsShim = {
   bark: defineCommand({
     parse: commands.bark.parse,
     execute: (step, script) => {
-      getPlayerCharacterName(step.character, script, 'bark');
+      getPlayerCharacterName(step.target, script, 'bark');
       getBark(step, script);
+    },
+  }),
+  barkProp: defineCommand({
+    parse: commands.barkProp.parse,
+    execute: (step, script) => {
+      getPropInstanceName(step.target, script, 'barkProp');
+      getBark(step, script, 'barkProp');
     },
   }),
   setAnimState: defineCommand({
@@ -211,6 +236,24 @@ export const sceneCommandsShim = {
     execute: (step, script) => {
       getWaitMilliseconds(step.ms, script);
     },
+  }),
+  fadeOut: defineCommand({
+    parse: commands.fadeOut.parse,
+    execute: (step, script) => { getWaitMilliseconds(step.ms, script, 'fadeOut'); },
+  }),
+  fadeIn: defineCommand({
+    parse: commands.fadeIn.parse,
+    execute: (step, script) => { getWaitMilliseconds(step.ms, script, 'fadeIn'); },
+  }),
+  getSceneId: defineCommand({
+    returnsValue: true,
+    parse: commands.getSceneId.parse,
+    execute: (_step, script) => { throw new Error(`${script.location}: getSceneId requires a world scene`); },
+  }),
+  getSceneName: defineCommand({
+    returnsValue: true,
+    parse: commands.getSceneName.parse,
+    execute: (_step, script) => { throw new Error(`${script.location}: getSceneName requires a world scene`); },
   }),
   changeScene: defineCommand({
     parse: commands.changeScene.parse,
@@ -284,6 +327,7 @@ export async function runSceneCommandsShim(
        io.writeLine(`${getDialogueActorName(io.portraits, runner.dialogue.actor)}: ${runner.dialogue.text}`);
       runner.advance();
     } else if (runner.choice) {
+      if (runner.choice.question) io.writeLine(runner.choice.question);
       const index = await io.promptChoice(runner.choice.options);
       runner.choose(index);
     } else {

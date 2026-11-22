@@ -13,7 +13,7 @@ import {
   getCharacterAnimation,
   getCharacterVariantNames,
   getCharacterVisual,
-  getPropAnimation,
+  getPropStateVisuals,
   createScene,
   flattenSprite,
   isAssetId,
@@ -43,7 +43,9 @@ import {
   getSlideAuthoringIssues, hasScenePaintCell, paintSceneMask, type ScenePaintTarget, type SceneProp,
 } from '../../scenes/scene-slide-authoring.js';
 import { getPropSlideFootprint, SLIDE_DIRECTIONS, type SlideCell, type SlideDirection } from '../../../game/prop-slide.js';
+import { getPropClimbHeight } from '../../../game/prop-climb-height.js';
 import { getSceneScriptReferences } from '../../scenes/scene-scripts.js';
+import { getPropActionScriptIssue, getSceneProblems, type SceneProblem } from '../../scenes/scene-problems.js';
 import { removeSelectedSceneObjects } from '../../scenes/scene-delete.js';
 import {
   copySceneObjects,
@@ -91,7 +93,7 @@ import type { AssetFolders } from '../../asset-folders.js';
 import { createAssetTree } from '../asset-tree.js';
 import { FOLDER_ICON } from '../asset-tree-icons.js';
 import { createPanelResizer } from '../panel-resizer.js';
-import { alertModal, confirmModal, isModalOpen, promptModal } from '../modal.js';
+import { alertModal, askSaveAs, confirmModal, isModalOpen, promptModal } from '../modal.js';
 import { saveDraft } from '../save.js';
 import { createSearchSelect } from '../search-select.js';
 import { createPageShell, setDirtyGuard, setEditorAssetUrl } from '../shell.js';
@@ -105,11 +107,19 @@ type ObjectRef = SceneObjectRef;
 export function mountScenes(root: HTMLElement): () => void {
   root.innerHTML = createPageShell(
     'Scene',
-    `<aside class="scene-library" aria-label="Scenes">
+    `<div id="scene-left-sidebar" class="scene-left-sidebar">
+    <aside class="scene-library" aria-label="Scenes">
     <input id="scene-search" class="text-input" type="search" placeholder="SEARCH" aria-label="Search scenes" autocomplete="off">
     <div class="asset-tree-toolbar"><span>FOLDERS</span><div class="asset-tree-toolbar-actions"><button id="new-scene-folder" type="button" title="New folder" aria-label="New folder">${FOLDER_ICON}</button></div></div>
     <div id="scene-list" class="scene-library-list"></div></aside>
-    <div id="scene-library-resizer" class="panel-resizer" role="separator" aria-label="Resize scene folders" aria-orientation="vertical" aria-controls="scene-list" tabindex="0" title="Drag to resize; double-click to reset"></div>
+    <section class="scene-problems" aria-labelledby="scene-problems-title">
+      <h2 id="scene-problems-title">PROBLEMS <span id="scene-problem-count" aria-live="polite" aria-atomic="true"></span></h2>
+      <div class="scene-problems-body" tabindex="0" role="region" aria-label="Problem list">
+        <p id="scene-problems-empty">Open a scene to check for problems.</p>
+        <ul id="scene-problem-list" aria-label="Scene problems" hidden></ul>
+      </div>
+    </section></div>
+    <div id="scene-library-resizer" class="panel-resizer" role="separator" aria-label="Resize scene sidebar" aria-orientation="vertical" aria-controls="scene-left-sidebar" tabindex="0" title="Drag to resize; double-click to reset"></div>
     <section class="scene-app" aria-label="Scene editor">
       <div class="toolbar-row"><strong id="scene-title">NO SCENE</strong></div>
       <div id="scene-workspace" class="scene-workspace" hidden>
@@ -199,6 +209,7 @@ export function mountScenes(root: HTMLElement): () => void {
   menubar.innerHTML = `<details class="scene-menu"><summary>FILE</summary><div class="scene-menu-panel">
     <button id="scene-new" type="button">New scene</button>
     <button id="scene-save" type="button">Save</button>
+    <button id="scene-save-as" type="button">Save As…</button>
     <button id="scene-delete" type="button">Delete</button>
   </div></details><details class="scene-menu"><summary>EDIT</summary><div class="scene-menu-panel">
     <button id="scene-rename" type="button" disabled>Update Metadata</button>
@@ -228,7 +239,7 @@ export function mountScenes(root: HTMLElement): () => void {
   };
   const disposeResizer = createPanelResizer({
     container: get$<HTMLElement>('.scene-main'),
-    panel: get$<HTMLElement>('.scene-library'),
+    panel: get$<HTMLElement>('#scene-left-sidebar'),
     handle: get$<HTMLElement>('#scene-library-resizer'),
     storageKey: 'incanterm-scene-library-width',
     defaultWidth: 190,
@@ -277,10 +288,14 @@ export function mountScenes(root: HTMLElement): () => void {
   let files: string[] = [];
   let sceneLabels: Record<string, string> = {};
   let props: string[] = [];
+  let propIds = new Set<string>();
   let propAssetLabels: Record<string, string> = {};
   let rpgTriggers: string[] = [];
   let triggerSources: Record<string, string[]> = {};
   let scriptSources: Record<string, string[]> = {};
+  let referenceToken = 0;
+  let displayedProblemsKey = '[]';
+  const rejectedPropNames = new WeakSet<SceneProp>();
   let sidebarTab: 'scene' | 'scripts' | 'props' = 'scene';
   let newSceneFolder = '';
   const pendingSceneFolders = new Map<string, string>();
@@ -577,26 +592,48 @@ export function mountScenes(root: HTMLElement): () => void {
     cache(characterCache, id, `/api/characters/${encodeURIComponent(id)}`);
 
   const assetFootprints = new Map<string, readonly SlideCell[] | undefined>();
+  const assetClimbProfiles = new Map<string, { override?: number; roofRow?: number }>();
   const footprintLoads = new Map<string, Promise<void>>();
-  async function loadSlideFootprint(id: string): Promise<void> {
+  async function loadSlideFootprint(id: string, reload: boolean): Promise<void> {
+    if (reload) propCache.delete(id);
     const asset = await getProp(id);
     let cells: readonly SlideCell[] | undefined;
-    if (asset?.slideCells) {
+    let roofRow: number | undefined;
+    if (asset && (asset.slideCells || asset.climbCells?.length)) {
       const visual = asset.visual;
+      if (reload && visual.type === 'animation') animationCache.delete(visual.id);
       const first = visual.type === 'animation'
         ? (await getAnimation(visual.id))?.frames.find(frame => !isInvisibleFrame(frame)) : undefined;
       const spriteId = visual.type === 'sprite' ? visual.id : first && !isInvisibleFrame(first) ? first.sprite : undefined;
+      if (reload && spriteId) sheetCache.delete(spriteId);
       const sprite = spriteId && await getSheet(spriteId);
-      cells = sprite ? getPropSlideFootprint(asset, sprite) : [];
+      if (asset.slideCells) cells = sprite ? getPropSlideFootprint(asset, sprite) : [];
+      if (sprite && asset.climbCells?.length)
+        roofRow = Math.floor(Math.max(...asset.climbCells) / asset.width) - sprite.originY;
     }
+    const previousClimb = assetClimbProfiles.get(id);
+    const climb = { override: asset?.climbHeight, roofRow };
+    const changed =
+      !assetFootprints.has(id) ||
+      JSON.stringify(assetFootprints.get(id)) !== JSON.stringify(cells) ||
+      previousClimb?.override !== climb.override ||
+      previousClimb?.roofRow !== climb.roofRow;
     assetFootprints.set(id, cells);
-    if (alive && current) render();
+    assetClimbProfiles.set(id, climb);
+    if (changed && alive && current) render();
   }
-  function loadSceneFootprints(scene: SceneDocument) {
-    return scene.entities.flatMap(entry => {
-      if (entry.type !== 'Prop' || !entry.slidable || !('prop' in entry) || assetFootprints.has(entry.prop)) return [];
-      const pending = footprintLoads.get(entry.prop) ?? loadSlideFootprint(entry.prop);
-      footprintLoads.set(entry.prop, pending);
+  function loadSceneFootprints(scene: SceneDocument, reload = false) {
+    const ids = new Set(
+      scene.entities.flatMap((entry) =>
+        entry.type === 'Prop' && entry.slidable && 'prop' in entry ? [entry.prop] : [],
+      ),
+    );
+    return [...ids].flatMap((id) => {
+      const inFlight = footprintLoads.get(id);
+      if (inFlight) return [inFlight];
+      if (!reload && assetFootprints.has(id)) return [];
+      const pending = loadSlideFootprint(id, reload).finally(() => footprintLoads.delete(id));
+      footprintLoads.set(id, pending);
       return [pending];
     });
   }
@@ -1043,6 +1080,36 @@ export function mountScenes(root: HTMLElement): () => void {
     syncCursor();
   }
 
+  function renderPropActionInspector(prop: SceneProp): void {
+    const legacy = prop.actionScript === undefined ? prop.slidable?.actionScript : undefined;
+    const label = document.createElement('label');
+    label.textContent = 'ACTION SCRIPT';
+    label.title = legacy
+      ? 'Legacy slide binding: this script handles its own approach. Changing the binding enables walk-first behavior.'
+      : 'The player walks to the prop before running this optional script.';
+    function setActionScript(value: string): void {
+      const name = value.trim().replace(/^@/, '');
+      if (name && name !== legacy) prop.actionScript = name;
+      else delete prop.actionScript;
+      if (prop.slidable) {
+        if (name && name === legacy) prop.slidable = { ...prop.slidable, actionScript: legacy };
+        else if (prop.slidable.actionScript !== undefined) {
+          const { actionScript: _legacy, ...slide } = prop.slidable;
+          prop.slidable = slide;
+        }
+      }
+    }
+    label.append(createSearchSelect({
+      value: prop.actionScript ?? legacy ?? '',
+      choices: Object.keys(scriptSources),
+      placeholder: 'Search or paste @script name…',
+      ariaLabel: 'Action script',
+      onInput: (value) => { setActionScript(value); renderProblems(); },
+      onCommit: (value) => { setActionScript(value); render(); },
+    }));
+    inspector.append(label);
+  }
+
   function renderSlideInspector(scene: SceneDocument, prop: SceneProp): void {
     const label = document.createElement('label');
     label.className = 'scene-overlay-toggle';
@@ -1059,19 +1126,18 @@ export function mountScenes(root: HTMLElement): () => void {
     enabled.addEventListener('change', () => {
       if (enabled.checked) {
         ensurePropTravel(scene);
-        prop.slidable = { actionScript: '' };
+        prop.slidable = {};
       } else {
+        if (prop.slidable?.actionScript) prop.actionScript ??= prop.slidable.actionScript;
         delete prop.slidable;
       }
       slidePreview = null;
       render();
     });
     if (!prop.slidable) return;
-    createField('Slide action script', prop.slidable.actionScript, (value) => {
-      if (prop.slidable) prop.slidable = { ...prop.slidable, actionScript: value.trim().replace(/^@/, '') };
-      render();
-    });
-    for (const issue of getSlideAuthoringIssues(scene, prop, assetFootprints)) {
+    for (const issue of getSlideAuthoringIssues(scene, prop, assetFootprints, {
+      includeOverlaps: false,
+    })) {
       const text = document.createElement('p');
       text.className = 'scene-slide-issue';
       text.textContent = issue;
@@ -1175,6 +1241,7 @@ export function mountScenes(root: HTMLElement): () => void {
             y: item.y,
             width: item.width,
           });
+        renderProblems();
         paintHover();
       };
       binding.append(
@@ -1254,9 +1321,14 @@ export function mountScenes(root: HTMLElement): () => void {
             const name = value.trim();
             if (!name || name.length > 80) {
               status.textContent = 'Instance name must be 1 to 80 characters';
+              if (item.type === 'Prop') {
+                rejectedPropNames.add(item);
+                renderProblems();
+              }
               renderInspector();
               return;
             }
+            if (item.type === 'Prop') rejectedPropNames.delete(item);
             item.name = name;
             render();
           },
@@ -1311,7 +1383,10 @@ export function mountScenes(root: HTMLElement): () => void {
           choices: Object.keys(scriptSources),
           placeholder: 'Search or paste @script name…',
           ariaLabel: 'Talk script',
-          onInput: (value) => { item.talkScript = value.trim().replace(/^@/, '') || undefined; },
+          onInput: (value) => {
+            item.talkScript = value.trim().replace(/^@/, '') || undefined;
+            renderProblems();
+          },
           onCommit: (value) => { item.talkScript = value.trim().replace(/^@/, '') || undefined; render(); },
         }));
         inspector.append(talkBinding);
@@ -1441,7 +1516,7 @@ export function mountScenes(root: HTMLElement): () => void {
         const propAssetId = item.prop;
         const state = item.state ?? PROP_DEFAULT_STATE;
         const propStateLabel = document.createElement('label');
-        propStateLabel.textContent = 'STARTING ANIMATION STATE';
+        propStateLabel.textContent = 'STARTING STATE';
         const propStateSelect = document.createElement('select');
         propStateSelect.disabled = true;
         propStateSelect.append(new Option(state, state));
@@ -1458,9 +1533,10 @@ export function mountScenes(root: HTMLElement): () => void {
             return;
           if (!asset) return;
           propStateSelect.replaceChildren();
-          for (const choice of [
-            ...new Set([item.state ?? PROP_DEFAULT_STATE, PROP_DEFAULT_STATE, ...Object.keys(asset.customAnimations)]),
-          ])
+          for (const choice of new Set([
+            item.state ?? PROP_DEFAULT_STATE,
+            ...getPropStateVisuals(asset).keys(),
+          ]))
             propStateSelect.append(new Option(choice, choice));
           propStateSelect.value = item.state ?? PROP_DEFAULT_STATE;
           propStateSelect.disabled = false;
@@ -1474,7 +1550,10 @@ export function mountScenes(root: HTMLElement): () => void {
         note.textContent = `Legacy sprite: ${spriteLabels[item.sprite] ?? item.sprite}`;
         inspector.append(note);
       }
-      if (item.type === 'Prop') renderSlideInspector(current, item);
+      if (item.type === 'Prop') {
+        renderPropActionInspector(item);
+        renderSlideInspector(current, item);
+      }
       const positionRow =
         item.type === 'Prop' || item.type === 'Character' || item.type === 'Item' || item.type === 'Marker'
           ? document.createElement('div')
@@ -1563,6 +1642,91 @@ export function mountScenes(root: HTMLElement): () => void {
     inspector.append(remove);
   }
 
+  function selectSceneObjectInInspector(ref: ObjectRef): void {
+    if (!current || !canSelectSceneObject(current, ref, false)) return;
+    paintTarget = null;
+    blockStroke = null;
+    backgroundEdit = false;
+    placingTrigger = false;
+    drawingTrigger = null;
+    selected = [ref];
+    get$<HTMLButtonElement>('#scene-tab-controls').click();
+    render();
+    syncCursor();
+  }
+
+  function renderProblemRow({ message, target }: SceneProblem): HTMLLIElement {
+    const row = document.createElement('li');
+    if (!target) {
+      row.textContent = message;
+      return row;
+    }
+    const label = target.label && target.label !== target.id ? target.label : null;
+    if (label) {
+      const prefix = document.createElement('span');
+      prefix.textContent = `${label} (`;
+      row.append(prefix);
+    }
+    const id = document.createElement('button');
+    id.type = 'button';
+    id.className = 'scene-problem-target';
+    id.textContent = target.id;
+    id.title = `Select ${label ?? target.kind} (${target.id})`;
+    id.setAttribute('aria-label', id.title);
+    id.addEventListener('click', () =>
+      selectSceneObjectInInspector({ kind: target.kind, id: target.id }),
+    );
+    const detail = document.createElement('span');
+    detail.textContent = `${label ? '):' : ':'} ${message}`;
+    row.append(id, detail);
+    return row;
+  }
+
+  function renderProblems(): void {
+    const problems = current
+      ? getSceneProblems(current, {
+          propIds,
+          triggers: triggerSources,
+          scripts: scriptSources,
+          footprints: assetFootprints,
+        })
+      : [];
+    for (const entity of current?.entities ?? []) {
+      if (entity.type === 'Prop' && rejectedPropNames.has(entity))
+        problems.push({
+          target: { kind: 'entity', id: entity.id },
+          message: 'Name change rejected. Enter 1 to 80 characters.',
+        });
+    }
+    const empty = get$<HTMLElement>('#scene-problems-empty');
+    const list = get$<HTMLElement>('#scene-problem-list');
+    list.hidden = problems.length === 0;
+    empty.hidden = !list.hidden;
+    if (!problems.length) {
+      const checking = current?.entities.some(
+        (entity) =>
+          entity.type === 'Prop' &&
+          entity.slidable &&
+          'prop' in entity &&
+          propIds.has(entity.prop) &&
+          !assetFootprints.has(entity.prop),
+      );
+      const text = current
+        ? checking
+          ? 'Checking slide footprints…'
+          : 'No problems in this scene.'
+        : 'Open a scene to check for problems.';
+      if (empty.textContent !== text) empty.textContent = text;
+    }
+    const count = get$<HTMLElement>('#scene-problem-count');
+    const countText = current ? String(problems.length) : '';
+    if (count.textContent !== countText) count.textContent = countText;
+    const key = JSON.stringify(problems);
+    if (key === displayedProblemsKey) return;
+    displayedProblemsKey = key;
+    list.replaceChildren(...problems.map(renderProblemRow));
+  }
+
   function renderSceneScripts(): void {
     const host = get$<HTMLElement>('#scene-script-list');
     host.replaceChildren();
@@ -1570,7 +1734,7 @@ export function mountScenes(root: HTMLElement): () => void {
     const references = getSceneScriptReferences(current, triggerSources);
     for (const entity of current.entities) {
       if (entity.type !== 'Character' && entity.type !== 'Prop') continue;
-      const script = entity.type === 'Character' ? entity.talkScript : entity.slidable?.actionScript;
+      const script = entity.type === 'Character' ? entity.talkScript : entity.actionScript ?? entity.slidable?.actionScript;
       if (!script) continue;
       const files = scriptSources[script] ?? [];
       for (const file of files.length ? files : [null])
@@ -1634,7 +1798,9 @@ export function mountScenes(root: HTMLElement): () => void {
       detail.textContent = `${'prop' in entry ? entry.prop : entry.sprite} · ${entry.x}, ${entry.y}`;
       button.append(name, detail);
       if (current && entry.slidable) {
-        const issues = getSlideAuthoringIssues(current, entry, assetFootprints);
+        const issues = getSlideAuthoringIssues(current, entry, assetFootprints, {
+          includeOverlaps: false,
+        });
         if (issues.length) {
           const warning = document.createElement('span');
           warning.className = 'scene-slide-issue';
@@ -1643,15 +1809,46 @@ export function mountScenes(root: HTMLElement): () => void {
         }
       }
       button.addEventListener('click', () => {
-        paintTarget = null;
-        blockStroke = null;
-        backgroundEdit = false;
-        selected = [{ kind: 'entity', id: entry.id }];
-        get$<HTMLButtonElement>('#scene-tab-controls').click();
-        render();
+        selectSceneObjectInInspector({ kind: 'entity', id: entry.id });
       });
       host.append(button);
     }
+  }
+
+  function drawClimbHeightBadges(scene: SceneDocument): void {
+    const fontSize = 12 / view.zoom;
+    const padding = 3 / view.zoom;
+    const badgeHeight = fontSize + padding;
+    const sceneWidth = scene.width * cell.width;
+    context.save();
+    context.font = `bold ${fontSize}px monospace`;
+    context.textAlign = 'left';
+    context.textBaseline = 'middle';
+    for (const entry of scene.entities) {
+      if (entry.type !== 'Prop' || !entry.slidable || !('prop' in entry)) continue;
+      const profile = assetClimbProfiles.get(entry.prop);
+      if (!profile) continue;
+      const footprint = getPlacedFootprint(entry, assetFootprints).filter(
+        ({ x, y }) =>
+          entry.x + x >= 0 && entry.x + x < scene.width &&
+          entry.y + y >= 0 && entry.y + y < scene.height,
+      );
+      if (!footprint.length) continue;
+      const bottom = Math.max(...footprint.map(({ y }) => y));
+      const height = getPropClimbHeight(bottom, profile.roofRow, profile.override);
+      if (height === undefined) continue;
+      const columns = footprint.filter(({ y }) => y === bottom).map(({ x }) => x);
+      const center = entry.x + (Math.min(...columns) + Math.max(...columns) + 1) / 2;
+      const label = `H: ${height}`;
+      const width = Math.min(sceneWidth, context.measureText(label).width + padding * 2);
+      const x = Math.max(0, Math.min(sceneWidth - width, center * cell.width - width / 2));
+      const y = Math.max(0, (entry.y + bottom + 1) * cell.height - badgeHeight);
+      context.fillStyle = 'rgba(12, 14, 13, 0.9)';
+      context.fillRect(x, y, width, badgeHeight);
+      context.fillStyle = '#ffe1a1';
+      context.fillText(label, x + padding, y + badgeHeight / 2, Math.max(0, width - padding * 2));
+    }
+    context.restore();
   }
 
   async function draw(): Promise<void> {
@@ -1713,24 +1910,25 @@ export function mountScenes(root: HTMLElement): () => void {
         const asset = await getProp(entry.prop);
         if (!asset) return { entry, sprite: null, index: 0, depth: entry.y };
         const state = entry.state ?? PROP_DEFAULT_STATE;
-        let spriteId: string;
-        let index: number;
-        let flips: { flipH: boolean; flipV: boolean } | undefined;
-        const animationId = getPropAnimation(asset, state);
-        if (animationId) {
-          const clip = await getAnimation(animationId);
+        const visual =
+          getPropStateVisuals(asset).get(state) ??
+          (asset.visual.type === 'sprite' ? asset.visual : null);
+        if (!visual) return { entry, sprite: null, index: 0, depth: entry.y, asset };
+         let spriteId: string;
+         let index: number;
+         let flips: { flipH: boolean; flipV: boolean } | undefined;
+        if (visual.type === 'animation') {
+          const clip = await getAnimation(visual.id);
           const first = clip?.frames.find((frame) => !isInvisibleFrame(frame));
           if (!clip || !first || isInvisibleFrame(first))
             return { entry, sprite: null, index: 0, depth: entry.y, asset };
           spriteId = first.sprite;
           index = first.index;
           flips = getAnimationFrameFlips(clip, first);
-        } else if (asset.visual.type === 'sprite') {
-          spriteId = asset.visual.id;
-          index = asset.visual.index;
-        } else {
-          return { entry, sprite: null, index: 0, depth: entry.y, asset };
-        }
+         } else {
+          spriteId = visual.id;
+          index = visual.index;
+         }
         return {
           entry,
           asset,
@@ -1977,6 +2175,7 @@ export function mountScenes(root: HTMLElement): () => void {
         }
       }
     }
+    if (!backgroundEdit && travelOverlay.checked) drawClimbHeightBadges(scene);
     context.restore();
     // The first obstruction can lie just beyond the scene, outside the normal drawing clip.
     if (obstructionCell) {
@@ -1998,6 +2197,7 @@ export function mountScenes(root: HTMLElement): () => void {
     get$<HTMLElement>('#scene-workspace').hidden = !current;
     get$<HTMLButtonElement>('#scene-cancel-trigger').hidden = !placingTrigger;
     get$<HTMLButtonElement>('#scene-save').disabled = !current || saving;
+    get$<HTMLButtonElement>('#scene-save-as').disabled = !current || saving;
     get$<HTMLButtonElement>('#scene-rename').disabled = !current || saving;
     get$<HTMLButtonElement>('#scene-delete').disabled = !current;
     get$<HTMLButtonElement>('#scene-add-prop').disabled = !current;
@@ -2006,6 +2206,7 @@ export function mountScenes(root: HTMLElement): () => void {
     get$<HTMLButtonElement>('#scene-add-marker').disabled = !current;
     get$<HTMLButtonElement>('#scene-add-trigger').disabled = !current;
     syncHoveredCell();
+    renderProblems();
     if (!current) return;
     loadSceneFootprints(current);
     const bg = getBackground();
@@ -2040,15 +2241,31 @@ export function mountScenes(root: HTMLElement): () => void {
     redraw();
   }
 
-  async function refresh(): Promise<void> {
-    const [sceneList, folders, propList, sheetList, colors, triggers, scripts] = await Promise.all([
-      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/scenes'),
-      requestJson<AssetFolders>('/api/scene-folders'),
+  async function refreshSceneReferences(): Promise<void> {
+    const requestToken = ++referenceToken;
+    const [propList, triggers, scripts] = await Promise.all([
       requestJson<{ files: string[]; labels: Record<string, string> }>('/api/props'),
-      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
-      requestJson<PaletteDocument>('/api/palette'),
       requestJson<{ names: string[]; sources: Record<string, string[]> }>('/api/rpg-triggers'),
       requestJson<{ sources: Record<string, string[]> }>('/api/scripts/names'),
+    ]);
+    if (!alive || requestToken !== referenceToken) return;
+    props = propList.files;
+    propIds = new Set(props);
+    propAssetLabels = propList.labels;
+    rpgTriggers = triggers.names;
+    triggerSources = triggers.sources;
+    scriptSources = scripts.sources;
+    renderProblems();
+    if (sidebarTab === 'scripts') renderSceneScripts();
+  }
+
+  async function refresh(): Promise<void> {
+    const [sceneList, folders, sheetList, colors] = await Promise.all([
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/scenes'),
+      requestJson<AssetFolders>('/api/scene-folders'),
+      requestJson<{ files: string[]; labels: Record<string, string> }>('/api/sprites'),
+      requestJson<PaletteDocument>('/api/palette'),
+      refreshSceneReferences(),
     ]);
     if (!alive) return;
     files = sceneList.files;
@@ -2058,14 +2275,9 @@ export function mountScenes(root: HTMLElement): () => void {
       (id) => files.includes(id) || id === current?.id || (sessions.has(id) && isTabDirty(id)),
     );
     for (const id of sessions.keys()) if (!openTabs.includes(id)) sessions.delete(id);
-    props = propList.files;
-    propAssetLabels = propList.labels;
     sprites = sheetList.files;
     spriteLabels = sheetList.labels;
     palette = colors;
-    rpgTriggers = triggers.names;
-    triggerSources = triggers.sources;
-    scriptSources = scripts.sources;
     render();
   }
   async function open(id: string): Promise<void> {
@@ -2109,15 +2321,28 @@ export function mountScenes(root: HTMLElement): () => void {
     }
   }
 
-  async function save(): Promise<void> {
+  async function saveAs(): Promise<void> {
+    if (!current || saving || isModalOpen()) return;
+    const scene = current;
+    const label = await askSaveAs(`${(scene.label ?? scene.id).slice(0, 75)} copy`);
+    if (label === null || !alive || current !== scene || saving) return;
+    const error = getSpriteLabelError(label);
+    if (error) {
+      await alertModal(error.replace('Sprite', 'Scene'));
+      return;
+    }
+    await save(label.trim());
+  }
+
+  async function save(copyLabel?: string): Promise<void> {
     if (!current || saving) return;
     const editing = current;
     const pendingFootprints = loadSceneFootprints(editing);
     if (pendingFootprints.length) await Promise.all(pendingFootprints);
     if (current !== editing || saving || !alive) return;
     for (const prop of current.entities) {
-      if (prop.type !== 'Prop' || !prop.slidable) continue;
-      const [issue] = getSlideAuthoringIssues(current, prop, assetFootprints);
+      if (prop.type !== 'Prop') continue;
+      const issue = getPropActionScriptIssue(prop) ?? getSlideAuthoringIssues(current, prop, assetFootprints)[0];
       if (issue) {
         status.textContent = `${prop.id}: ${issue}`;
         toast(status.textContent, true);
@@ -2130,37 +2355,84 @@ export function mountScenes(root: HTMLElement): () => void {
       return;
     }
     const sceneId = current.id;
+    const copying = copyLabel !== undefined;
     saving = true;
     get$<HTMLButtonElement>('#scene-save').disabled = true;
+    get$<HTMLButtonElement>('#scene-save-as').disabled = true;
     try {
-      const missing = await getMissingSceneCharacters([current, saved], hasCharacterAsset);
+      const missing = await getMissingSceneCharacters(
+        copying ? [current] : [current, saved],
+        hasCharacterAsset,
+      );
       if (!alive || current?.id !== sceneId) return;
-      current = removeMissingSceneCharacters(current, missing);
-      if (saved) saved = removeMissingSceneCharacters(saved, missing);
-      const sent = structuredClone(current);
-      const base = saved;
-      const stored = await saveDraft(`/api/scenes/${encodeURIComponent(sent.id)}`, sent, base);
-      const pendingFolder = pendingSceneFolders.get(sent.id);
+      const draft = removeMissingSceneCharacters(current, missing);
+      if (!copying) {
+        current = draft;
+        if (saved) saved = removeMissingSceneCharacters(saved, missing);
+      }
+      const sent = structuredClone(draft);
+      if (copying) {
+        sent.id = crypto.randomUUID();
+        sent.label = copyLabel;
+      }
+      const base = copying ? null : saved;
+      const url = `/api/scenes/${encodeURIComponent(sent.id)}`;
+      let stored: SceneDocument;
+      let overwrote = false;
+      try {
+        stored = await saveDraft(url, sent, base);
+      } catch (error) {
+        if (copying || !(error instanceof ApiError && error.status === 409 && error.code === 'merge-conflict'))
+          throw error;
+        if (!alive || current?.id !== sent.id) return;
+        const confirmed = await confirmModal(
+          `${error.message}. Overwrite the disk file with the draft you tried to save? Changes in the disk file will be lost.`,
+          'OVERWRITE DISK',
+          { focusCancel: true },
+        );
+        if (!alive || current?.id !== sent.id) return;
+        if (!confirmed) {
+          status.textContent = 'Save canceled. Your draft is still open.';
+          return;
+        }
+        stored = await requestJson<SceneDocument>(
+          url,
+          jsonRequest('PUT', { base, doc: sent, overwrite: true }),
+        );
+        overwrote = true;
+      }
+      const pendingFolder =
+        pendingSceneFolders.get(sceneId) ?? (copying ? assetTree.getAssetFolder(sceneId) : undefined);
       let folderError: string | null = null;
       if (pendingFolder) {
         try {
           await requestJson<AssetFolders>('/api/scene-folders', jsonRequest('POST', {
             action: 'move', id: sent.id, folder: pendingFolder,
           }));
-          pendingSceneFolders.delete(sent.id);
+          if (!copying) pendingSceneFolders.delete(sceneId);
         } catch (error) {
           folderError = showMessage(error);
         }
       }
-      if (alive && current?.id === sent.id) {
+      if (alive && current?.id === sceneId && copying) {
+        ++switchToken;
+        activateScene(stored, structuredClone(stored));
+        status.textContent = folderError
+          ? `Saved as ${copyLabel}, but could not place it in ${pendingFolder}: ${folderError}`
+          : `Saved as ${copyLabel}`;
+        toast(status.textContent, !!folderError);
+      } else if (alive && current?.id === sceneId) {
         const mergedOnDisk = JSON.stringify(stored) !== JSON.stringify(sent);
         const rebased = rebaseJsonDraft(sent, current, stored);
         if (rebased.ok) {
           current = rebased.value.draft;
           saved = rebased.value.baseline;
-          status.textContent = folderError
-            ? `Saved ${sent.id}, but could not place it in ${pendingFolder}: ${folderError}`
+          const savedMessage = overwrote
+            ? `Overwrote ${sent.id} on disk`
             : mergedOnDisk ? `Saved and merged ${sent.id}` : `Saved ${sent.id}`;
+          status.textContent = folderError
+            ? `${savedMessage}, but could not place it in ${pendingFolder}: ${folderError}`
+            : savedMessage;
         } else status.textContent = `Saved ${sent.id}; newer edits need review`;
         toast(status.textContent, !rebased.ok || !!folderError);
         setEditorAssetUrl(sent.id);
@@ -3061,18 +3333,7 @@ export function mountScenes(root: HTMLElement): () => void {
       if (tab === 'props') renderRoomProps();
       if (tab === 'scripts') {
         renderSceneScripts();
-        void requestJson<{ names: string[]; sources: Record<string, string[]> }>(
-          '/api/rpg-triggers',
-        )
-          .then((result) => {
-            if (!alive) return;
-            rpgTriggers = result.names;
-            triggerSources = result.sources;
-            renderSceneScripts();
-          })
-          .catch((error: unknown) => {
-            if (alive) status.textContent = showMessage(error);
-          });
+        checkSceneReferences();
       }
     });
   }
@@ -3094,6 +3355,7 @@ export function mountScenes(root: HTMLElement): () => void {
   };
   document.addEventListener('pointerdown', closeMenus);
   get$<HTMLButtonElement>('#scene-save').addEventListener('click', () => void save());
+  get$<HTMLButtonElement>('#scene-save-as').addEventListener('click', () => void saveAs());
   get$<HTMLButtonElement>('#scene-rename').addEventListener('click', () => {
     void (async () => {
       if (!current || saving) return;
@@ -3370,7 +3632,9 @@ export function mountScenes(root: HTMLElement): () => void {
     }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
-      void save();
+      if (isModalOpen()) return;
+      if (event.shiftKey) void saveAs();
+      else void save();
     }
   };
   const onKeyUp = (event: KeyboardEvent) => {
@@ -3400,7 +3664,18 @@ export function mountScenes(root: HTMLElement): () => void {
   };
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('keyup', onKeyUp);
+  function checkSceneReferences(): void {
+    if (!current) return;
+    void refreshSceneReferences().catch((error: unknown) => {
+      if (alive) status.textContent = showMessage(error);
+    });
+  }
+  function handleSceneFocus(): void {
+    checkSceneReferences();
+    if (current) loadSceneFootprints(current, true);
+  }
   window.addEventListener('blur', onBlur);
+  window.addEventListener('focus', handleSceneFocus);
   window.addEventListener('pagehide', persistTabs);
   void document.fonts.ready.then(() => {
     if (!alive) return;
@@ -3440,6 +3715,7 @@ export function mountScenes(root: HTMLElement): () => void {
     document.removeEventListener('keyup', onKeyUp);
     document.removeEventListener('pointerdown', closeMenus);
     window.removeEventListener('blur', onBlur);
+    window.removeEventListener('focus', handleSceneFocus);
     window.removeEventListener('pagehide', persistTabs);
     setDirtyGuard(null);
   };

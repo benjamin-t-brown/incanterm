@@ -14,7 +14,8 @@ export type Slidable = Readonly<{
    * For a sprite-local cell, subtract the sprite origin to get this offset.
    */
   footprint: readonly SlideCell[];
-  actionScript: string;
+  /** Legacy click binding; new bindings live on the scene prop itself. */
+  actionScript?: string;
   /** Preferred player stand cells relative to the prop anchor, by push direction. */
   standOffsets?: Readonly<Partial<Record<SlideDirection, SlideCell>>>;
 }>;

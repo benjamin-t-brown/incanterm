@@ -1,5 +1,6 @@
 import {
   createItem,
+  ITEM_SPRITE_SIZE,
   parseItem,
   type ItemCombination,
   type ItemDocument,
@@ -7,6 +8,7 @@ import {
 import {
   flattenSprite,
   getAnimationFrameFlips,
+  getSpriteLabelError,
   isInvisibleFrame,
   type AnimationDocument,
   type SpriteDocument,
@@ -44,19 +46,22 @@ export function mountItems(root: HTMLElement): () => void {
     <section class="item-app prop-app" aria-label="Item editor">
       <div class="toolbar-row asset-create-header"><button id="item-new" type="button">NEW</button></div>
       <div id="item-tabs" class="prop-tabs" role="tablist" aria-label="Open items"></div>
-      <div class="toolbar-row"><button id="item-save" type="button" disabled>SAVE</button><button id="item-delete" type="button" disabled>DELETE</button></div>
+      <div class="toolbar-row"><button id="item-save" type="button" disabled>SAVE</button><button id="item-clone" type="button" disabled>CLONE</button><button id="item-delete" type="button" disabled>DELETE</button></div>
       <p id="item-status" role="status">Create or open an item.</p>
       <div id="item-fields" hidden><div class="item-form">
         <label>LABEL<input id="item-label" class="text-input" maxlength="80"></label>
-        <small>Scripts can reference this item by its label or stable asset ID.</small>
+        <label>SCRIPT NAME / ALIASES<input id="item-script-name" class="text-input" placeholder="e.g. OffEnv, OfficeEnvelope" spellcheck="false"></label>
+        <small>Optional. Separate script aliases with a comma or /. Scripts can also use the label or asset ID.</small>
         <h2>APPEARANCE</h2><label>VISUAL TYPE<select id="item-visual-type" class="text-input"><option value="sprite">SPRITE</option><option value="animation">ANIMATION</option></select></label>
+        <small>Item sprites and all visible animation frames must be ${ITEM_SPRITE_SIZE} cells.</small>
         <div class="prop-asset-field"><span>ASSET</span><span id="item-visual"></span><button id="item-choose-visual" type="button">CHOOSE ASSET…</button></div>
         <canvas id="item-preview" width="360" height="180" aria-label="Item visual preview"></canvas>
         <h2>SCRIPTS</h2><label>EXAMINE<span id="item-examine"></span></label><label>COMBINATION FAILED<span id="item-fail"></span></label>
         <small>Scripts are zero-argument @scripts. They control consuming ingredients and granting results.</small>
         <h2>COMBINATIONS</h2><div id="item-rules"></div><button id="item-add-rule" type="button">ADD COMBINATION</button>
         <small>Targets are asset IDs. Item-to-item recipes also work in reverse; a rule on the selected item takes priority.</small>
-      </div></div></section>`,
+      </div></div></section>
+      <div id="toast-stack" class="toast-stack" aria-live="polite"></div>`,
   );
   root.querySelector('.simple-main')?.classList.add('item-main');
   const get$ = <T extends Element>(selector: string): T => {
@@ -77,6 +82,7 @@ export function mountItems(root: HTMLElement): () => void {
   let current: ItemDocument | null = null;
   let base: ItemDocument | null = null;
   let files: AssetList = { files: [], labels: {} };
+  let itemFolders: AssetFolders = { folders: [], placements: {} };
   const assets: Record<string, AssetList> = {};
   let scriptNames: string[] = [];
   const status = get$<HTMLElement>('#item-status');
@@ -97,6 +103,8 @@ export function mountItems(root: HTMLElement): () => void {
   const sessions = new Map<string, ItemTabSession>(Object.entries(storedTabs.drafts));
   const assetPicker = createVisualAssetPicker({
     root,
+    loadAssetLists: loadItemVisualAssets,
+    emptySheetMessage: `Create a ${ITEM_SPRITE_SIZE} sprite sheet first.`,
     loadSheet: (id) => requestJson<SpriteDocument>(`/api/sprites/${encodeURIComponent(id)}`),
     paintSprite,
   });
@@ -106,6 +114,32 @@ export function mountItems(root: HTMLElement): () => void {
   }
   function showError(error: unknown): void {
     if (alive) status.textContent = error instanceof Error ? error.message : 'Item request failed';
+  }
+  function showSaveError(error: unknown): void {
+    if (!alive) return;
+    const message = error instanceof Error ? error.message : 'Item save failed';
+    status.textContent = message;
+    showSaveToast(message, true);
+  }
+  function showSaveToast(message: string, error = false): void {
+    const toast = document.createElement('div');
+    toast.className = error ? 'save-toast error' : 'save-toast';
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.textContent = error ? '!' : '✓';
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'toast-message';
+    label.textContent = message;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'close-toast';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'Dismiss notification');
+    close.addEventListener('click', () => toast.remove());
+    toast.append(icon, label, close);
+    get$<HTMLElement>('#toast-stack').append(toast);
+    setTimeout(() => toast.remove(), 4000);
   }
   function persistDraft(): void {
     try {
@@ -132,6 +166,7 @@ export function mountItems(root: HTMLElement): () => void {
     renderTabs();
     get$<HTMLButtonElement>('#item-save').disabled =
       !current || saving || (!isDirty() && !newFolder);
+    get$<HTMLButtonElement>('#item-clone').disabled = !current || saving;
   }
   function getSession(id: string): ItemTabSession | undefined {
     return id === current?.id && current
@@ -245,6 +280,7 @@ export function mountItems(root: HTMLElement): () => void {
         '/api/item-folders',
         jsonRequest('POST', change),
       );
+      itemFolders = folders;
       if (change.action === 'delete') {
         for (const id of change.expectedIds) sessions.delete(id);
         openTabs = openTabs.filter((id) => !change.expectedIds.includes(id));
@@ -273,6 +309,7 @@ export function mountItems(root: HTMLElement): () => void {
     ]);
     if (!alive) return;
     files = list;
+    itemFolders = folders;
     assets.item = list;
     tree.setData(list.files, folders, list.labels);
     tree.select(current?.id ?? null);
@@ -293,18 +330,37 @@ export function mountItems(root: HTMLElement): () => void {
     if (saving) return;
     const label = await askId('Item label');
     if (!alive || saving || !label) return;
-    const sprite = assets.sprite?.files[0];
-    const animation = assets.animation?.files[0];
-    if (!sprite && !animation) throw new Error('Create a sprite or animation first');
-    ++token;
-    const item = createItem(
-      crypto.randomUUID(),
-      sprite
-        ? { type: 'sprite', id: sprite, index: 0 }
-        : { type: 'animation', id: animation ?? '' },
-      label,
-    );
+    const requestToken = ++token;
+    const { sprites } = await loadItemVisualAssets();
+    if (!alive || saving || requestToken !== token) return;
+    const sprite = sprites.files[0];
+    if (!sprite) throw new Error(`Create a ${ITEM_SPRITE_SIZE} sprite sheet first`);
+    const item = createItem(crypto.randomUUID(), { type: 'sprite', id: sprite, index: 0 }, label);
     activateItem({ doc: item, base: null, folder });
+  }
+  function loadItemVisualAssets(): Promise<{ sprites: AssetList; animations: AssetList }> {
+    return requestJson('/api/item-visuals');
+  }
+  async function cloneItem(): Promise<void> {
+    const source = current;
+    if (!source || saving) return;
+    const entered = await askId('Clone item label', `${source.label.slice(0, 75).trimEnd()} copy`);
+    if (!alive || current !== source || saving || entered === null) return;
+    const labelError = getSpriteLabelError(entered);
+    if (labelError) throw new Error(labelError.replace('Sprite', 'Item'));
+
+    const clone = structuredClone(source);
+    clone.id = crypto.randomUUID();
+    clone.label = entered.trim();
+    // The original keeps its unique RPGScript aliases; hooks can be shared.
+    delete clone.scriptName;
+    for (const rule of clone.combinations) {
+      if (rule.targetType === 'item' && rule.target === source.id) rule.target = clone.id;
+    }
+    const folder = newFolder || itemFolders.placements[source.id] || '';
+    ++token;
+    activateItem({ doc: clone, base: null, folder });
+    await saveItem();
   }
   function renderScriptPicker(
     host: HTMLElement,
@@ -411,6 +467,7 @@ export function mountItems(root: HTMLElement): () => void {
     }
     status.textContent = current.id;
     get$<HTMLInputElement>('#item-label').value = current.label;
+    get$<HTMLInputElement>('#item-script-name').value = current.scriptName ?? '';
     renderVisualPicker();
     renderScriptPicker(get$('#item-examine'), current.examineScript ?? '', (value) => {
       if (current) current.examineScript = value || undefined;
@@ -501,7 +558,11 @@ export function mountItems(root: HTMLElement): () => void {
       }
   }
   async function saveItem(): Promise<void> {
-    if (!current || saving || (!isDirty() && !newFolder)) return;
+    if (!current || saving) return;
+    if (!isDirty() && !newFolder) {
+      showSaveToast(`No changes to save for ${current.label}`);
+      return;
+    }
     const parsed = parseItem(current);
     if (!parsed.ok) throw new Error(parsed.error);
     saving = true;
@@ -532,8 +593,12 @@ export function mountItems(root: HTMLElement): () => void {
       if (alive) {
         get$<HTMLElement>('#item-fields').inert = false;
         renderFields();
-        if (!isDirty()) status.textContent = `Saved ${current?.label}`;
       }
+    }
+    if (alive && current && !isDirty()) {
+      const message = `Saved ${current.label}`;
+      status.textContent = message;
+      showSaveToast(message);
     }
   }
   get$<HTMLButtonElement>('#item-new').addEventListener(
@@ -541,7 +606,10 @@ export function mountItems(root: HTMLElement): () => void {
     () => void createNewItem().catch(showError),
   );
   get$<HTMLButtonElement>('#item-save').addEventListener('click', () => {
-    void saveItem().catch(showError);
+    void saveItem().catch(showSaveError);
+  });
+  get$<HTMLButtonElement>('#item-clone').addEventListener('click', () => {
+    void cloneItem().catch(showSaveError);
   });
   get$<HTMLButtonElement>('#item-new-folder').addEventListener(
     'click',
@@ -570,6 +638,14 @@ export function mountItems(root: HTMLElement): () => void {
   );
   get$<HTMLInputElement>('#item-label').addEventListener('input', (event) => {
     if (current) current.label = (event.target as HTMLInputElement).value;
+    updateDirty();
+  });
+  get$<HTMLInputElement>('#item-script-name').addEventListener('input', (event) => {
+    if (current) {
+      const name = (event.target as HTMLInputElement).value.trim();
+      if (name) current.scriptName = name;
+      else delete current.scriptName;
+    }
     updateDirty();
   });
   get$<HTMLSelectElement>('#item-visual-type').addEventListener('change', (event) => {
@@ -641,7 +717,7 @@ export function mountItems(root: HTMLElement): () => void {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 's')
       return;
     event.preventDefault();
-    if (!assetPicker.isOpen()) void saveItem().catch(showError);
+    if (!assetPicker.isOpen()) void saveItem().catch(showSaveError);
   }
   document.addEventListener('keydown', handleKeyDown);
   window.addEventListener('pagehide', persistDraft);

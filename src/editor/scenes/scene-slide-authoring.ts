@@ -1,10 +1,11 @@
 import { getSceneSlideSetup, getSlidePath, type SlideCell, type SlideDirection } from '../../game/prop-slide.js';
-import type { SceneDocument, SceneEntity } from '../schema.js';
+import { isSceneScriptName, type SceneDocument, type SceneEntity } from '../schema.js';
 import { paintSceneBlockedCells } from './scene-blocked-cells.js';
 
 export type SceneProp = Extract<SceneEntity, { type: 'Prop' }>;
 export type ScenePaintTarget = { kind: 'walking' } | { kind: 'travel' };
 type AssetFootprints = ReadonlyMap<string, readonly SlideCell[] | undefined>;
+type SlideIssueOptions = { includeOverlaps?: boolean };
 
 export function ensurePropTravel(scene: SceneDocument) {
   scene.propSlide ??= {
@@ -36,7 +37,12 @@ export function paintSceneMask(scene: SceneDocument, target: ScenePaintTarget, f
   }
 }
 
-export function getSlidePlacementIssues(scene: SceneDocument, prop: SceneProp, assets?: AssetFootprints): string[] {
+export function getSlidePlacementIssues(
+  scene: SceneDocument,
+  prop: SceneProp,
+  assets?: AssetFootprints,
+  { includeOverlaps = true }: SlideIssueOptions = {},
+): string[] {
   if (!prop.slidable) return [];
   const issues = new Set<string>();
   const footprint = getPlacedFootprint(prop, assets);
@@ -46,10 +52,11 @@ export function getSlidePlacementIssues(scene: SceneDocument, prop: SceneProp, a
   for (const offset of footprint) {
     const x = prop.x + offset.x;
     const y = prop.y + offset.y;
-    cells.add(`${x},${y}`);
+    if (includeOverlaps) cells.add(`${x},${y}`);
     if (x < 0 || x >= scene.width || y < 0 || y >= scene.height || !travel.has(y * scene.width + x))
       issues.add(`Starts outside prop travel at (${x}, ${y}).`);
   }
+  if (!includeOverlaps) return [...issues];
   for (const other of scene.entities) {
     if (other.type !== 'Prop' || other.id === prop.id || !other.slidable) continue;
     for (const offset of getPlacedFootprint(other, assets)) {
@@ -67,9 +74,20 @@ export function getSceneSlidePreview(scene: SceneDocument, id: string, direction
   return setup && getSlidePath(setup.board, setup.positions, id, direction);
 }
 
-export function getSlideAuthoringIssues(scene: SceneDocument, prop: SceneProp, assets?: AssetFootprints) {
-  const issues = getSlidePlacementIssues(scene, prop, assets);
-  if (prop.slidable && !/^[A-Za-z_][\w-]*$/.test(prop.slidable.actionScript))
-    issues.push('Enter a valid slide action script name before saving.');
+export function getSlideAuthoringIssues(
+  scene: SceneDocument,
+  prop: SceneProp,
+  assets?: AssetFootprints,
+  options?: SlideIssueOptions,
+) {
+  const issues = getSlidePlacementIssues(scene, prop, assets, options);
+  const scriptIssue = getSlideActionScriptIssue(prop);
+  if (scriptIssue) issues.push(scriptIssue);
   return issues;
+}
+
+export function getSlideActionScriptIssue(prop: SceneProp): string | undefined {
+  const legacy = prop.slidable?.actionScript;
+  if (legacy !== undefined && !isSceneScriptName(legacy))
+    return 'Enter a valid slide action script name before saving.';
 }

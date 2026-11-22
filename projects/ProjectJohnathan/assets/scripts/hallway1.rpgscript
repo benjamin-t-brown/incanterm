@@ -36,7 +36,7 @@
   Otis&angry: "C'mon man! Time's kinda running out! You gotta do this soon!"
   Johnathan&upset: "Why do you keep pushing this? Can't she go find some other guy to go dance with?"
   Otis: "No it's gotta be you! You're perfect for her!"
-  Otis&happy: "Big, tall guy. Athletic enough. Ambitious and... fiscally oriented."
+  Otis&happy: "Tall glass of water. Not too boisterous. Ambitious and... fiscally oriented."
   Otis: "She's gotta say 'yes' to you!"
   Johnathan&unhappy: "Fine, I'll do it quick. Do you know where she is?"
   Otis&happy: "Nice! I'll go get her right now."
@@ -48,7 +48,7 @@
   +schoolPuzzle.otisIntroduced=true
   +endConv()
 
-// Bind these talk scripts when placing Otis and Vivi for the return visit.
+  // Bind these talk scripts when placing Otis and Vivi for the return visit.
 @hallway1_OtisTalk
   +:schoolPuzzle_talkOtis()
 
@@ -69,6 +69,7 @@
 #@classroom1_toClassroom1
   +walkToMarker(player, fromClassroom1)
   +changeScene(classroom1, fromHallway1)
+  +setPropAnimState(door1_1, closed)
 
 #@hallway1_toPhysics
   +^tmp.hallway1PhysTalk=0

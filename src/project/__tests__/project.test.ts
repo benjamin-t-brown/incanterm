@@ -90,6 +90,19 @@ describe('project files', () => {
     ).toEqual({ enabled: true });
   });
 
+  it.each([
+    { scriptHooks: [], error: 'scriptHooks must be an object' },
+    { scriptHooks: { propBlocked: 'report' }, error: 'Unknown scriptHooks setting propBlocked' },
+    { scriptHooks: { propUnreachable: ' ' }, error: 'propUnreachable must be an RPGScript function name' },
+    { scriptHooks: { propUnreachable: 'missing' }, error: 'must reference a one-argument RPGScript function: missing' },
+    { scriptHooks: { propUnreachable: 'noArguments' }, error: 'must reference a one-argument RPGScript function: noArguments' },
+  ])('rejects invalid script hooks: $error', async ({ scriptHooks, error }) => {
+    const project = await createProject(path.join(directory, 'configured'), 'Configured');
+    await fs.writeFile(path.join(project.assetsRoot, 'session-config.json'), JSON.stringify({ scriptHooks }));
+    await fs.writeFile(path.join(project.assetsRoot, 'scripts', 'hooks.rpgscript'), '@noArguments\n<\n');
+    await expect(loadGame({ project })).rejects.toThrow(error);
+  });
+
   it('rejects a missing entry scene before starting a runtime', async () => {
     const project = await createProject(path.join(directory, 'missing'), 'Missing');
     await fs.unlink(path.join(project.assetsRoot, 'scenes', 'start.json'));

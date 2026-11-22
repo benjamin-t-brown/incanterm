@@ -52,6 +52,18 @@
     52,
     53
   ],
+  "climbCells": [
+    1,
+    2,
+    3,
+    8,
+    9,
+    10,
+    15,
+    16,
+    17
+  ],
+  "climbHeight": 7,
   "depthOffset": 0,
   "foreground": false,
   "customAnimations": {}

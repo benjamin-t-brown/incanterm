@@ -15,6 +15,7 @@ import { generateCharacter3x3, generateCharacter5x5 } from '../../art/character-
 import { createSpriteFromBrush, getBrushValue, type BrushStamp as Stamp } from '../../art/art-brush.js';
 import { applyBlackWhiteInversionToFrame } from '../../art/invert-black-white.js';
 import { applyFrameFlip } from '../../art/flip-frame.js';
+import { createAltCodeSheet } from '../../art/create-alt-code-sheet.js';
 import { createSpriteProp } from '../../art/create-sprite-prop.js';
 import { createSpriteFromText } from '../../art/create-sprite-from-text.js';
 import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
@@ -281,6 +282,7 @@ export function mountArt(root: HTMLElement): () => void {
   let renamingLayer = false;
   let savedState = '';
   let saving = false;
+  let creatingAltCodeSheet = false;
   let creatingSpriteProp = false;
   let spriteId: string | null = null;
   let tool: Tool = 'brush';
@@ -2212,6 +2214,29 @@ export function mountArt(root: HTMLElement): () => void {
       textArtCancel.disabled = false;
     }
   }
+  async function createSpriteFromAltCodes(): Promise<void> {
+    if (creatingAltCodeSheet) return;
+    creatingAltCodeSheet = true;
+    try {
+      const entered = await promptModal('Name for the new Alt Codes spritesheet', 'Alt Codes');
+      if (entered === null || !alive) return;
+      const label = entered.trim();
+      const labelError = getSpriteLabelError(label);
+      if (labelError) return void alertModal(labelError);
+      const sprite = createAltCodeSheet(crypto.randomUUID(), label);
+      const saved = await saveDraft(`/api/sprites/${encodeURIComponent(sprite.id)}`, sprite, null);
+      if (!alive) return;
+      loadSprite(saved);
+      announce(`Created ${saved.label}`);
+    } catch (error) {
+      if (!alive) return;
+      const message = error instanceof Error ? error.message : 'Create Alt Codes spritesheet failed';
+      announce(message);
+      toast(message, true);
+    } finally {
+      creatingAltCodeSheet = false;
+    }
+  }
   async function createPropFromCurrentFrame(): Promise<void> {
     if (!doc || !spriteId || creatingSpriteProp) return;
     stopPlayback();
@@ -2964,21 +2989,6 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Could not copy ascii');
     }
   }
-  async function importSprite(file: File): Promise<void> {
-    const entered = await askId('Import label', file.name.replace(/\.json$/i, ''));
-    if (entered === null) return;
-    const label = entered.trim();
-    const labelError = getSpriteLabelError(label);
-    if (labelError) return void alertModal(labelError);
-    const id = crypto.randomUUID();
-    const document = JSON.parse(await file.text()) as unknown;
-    const sprite = await requestJson<SpriteDocument>(
-      '/api/import/ed-ascii',
-      jsonRequest('POST', { id, label, document }),
-    );
-    loadSprite(sprite);
-    announce(`Imported ${label}`);
-  }
   const paletteHost = get$<HTMLElement>('#palette');
   for (const color of [
     'black',
@@ -3099,6 +3109,7 @@ export function mountArt(root: HTMLElement): () => void {
     new: () => void createNewSprite(),
     'create-from-text': openCreateFromTextDialog,
     'create-from-brush': () => void createFromBrush(),
+    'create-alt-code-sheet': () => void createSpriteFromAltCodes(),
     'create-sprite-prop': () => void createPropFromCurrentFrame(),
     save: () => void save(),
     'save-as': () => void saveAs(),
@@ -3106,7 +3117,6 @@ export function mountArt(root: HTMLElement): () => void {
     delete: () => {
       if (spriteId) void deleteSprite(spriteId);
     },
-    import: () => get$<HTMLInputElement>('#import-file').click(),
     export: exportSprite,
     'copy-ascii': () => void copyAscii(),
     undo: () => {
@@ -3443,14 +3453,6 @@ export function mountArt(root: HTMLElement): () => void {
     }
     get$<HTMLDialogElement>('#size-dialog').close();
     resizeCanvas(width, height);
-  });
-  get$<HTMLInputElement>('#import-file').addEventListener('change', (event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file)
-      void importSprite(file).catch((error: unknown) =>
-        announce(error instanceof Error ? error.message : 'Import failed'),
-      );
-    (event.target as HTMLInputElement).value = '';
   });
   get$<HTMLButtonElement>('#reference-open').addEventListener('click', () => {
     openReferenceDialog();
@@ -4104,31 +4106,31 @@ function getArtMarkup(): string {
     <nav class="menubar" aria-label="Art editor">
       <details class="menu"><summary>FILE</summary><div class="menu-panel">
         <button type="button" data-action="new">New sprite <kbd>Ctrl+N</kbd></button>
-        <button type="button" data-action="create-from-text">Create From Text…</button>
-        <button type="button" data-action="create-from-brush">Create From Brush…</button>
         <button type="button" data-action="save">Save <kbd>Ctrl+S</kbd></button>
         <button type="button" data-action="save-as">Save as… <kbd>Ctrl+Shift+S</kbd></button>
         <button type="button" data-action="duplicate">Duplicate <kbd>Ctrl+D</kbd></button>
-        <button type="button" data-action="generate">Generate…</button>
         <button type="button" data-action="delete">Delete</button>
-        <hr><button type="button" data-action="import">Import ed-ascii…</button>
-        <button type="button" data-action="export">Export truecolor</button>
+        <hr><button type="button" data-action="create-from-text">Create From Text…</button>
+        <button type="button" data-action="create-from-brush">Create From Brush…</button>
+        <button type="button" data-action="create-alt-code-sheet">Create Alt Codes Spritesheet…</button>
+        <button type="button" data-action="generate">Generate…</button>
+        <hr><button type="button" data-action="export">Export truecolor</button>
         <button type="button" data-action="copy-ascii">Copy Ascii</button>
       </div></details>
       <details class="menu"><summary>EDIT</summary><div class="menu-panel">
-        <button type="button" data-action="sprite-label">Spritesheet meta…</button>
         <button type="button" data-action="undo">Undo <kbd>Ctrl+Z</kbd></button>
         <button type="button" data-action="redo">Redo <kbd>Ctrl+Y</kbd></button>
+        <button type="button" data-action="sprite-label">Rename…</button>
         <button type="button" data-action="resize">Resize canvas…</button>
-        <button type="button" data-action="flip-h">Flip H</button>
-        <button type="button" data-action="flip-v">Flip V</button>
-        <button type="button" data-action="invert-bw">Invert B/W</button>
         <button type="button" data-action="font">Font…</button>
         <button type="button" data-action="animation-speed">Animation speed…</button>
         <hr><button type="button" data-action="select-all">Select all <kbd>Ctrl+A</kbd></button>
         <button type="button" data-action="copy">Copy selection <kbd>Ctrl+C</kbd></button>
         <button type="button" data-action="paste">Paste <kbd>Ctrl+V</kbd></button>
         <button type="button" data-action="clear">Clear selection <kbd>Del</kbd></button>
+        <hr><button type="button" data-action="flip-h">Flip H</button>
+        <button type="button" data-action="flip-v">Flip V</button>
+        <button type="button" data-action="invert-bw">Invert B/W</button>
       </div></details>
       <details class="menu"><summary>VIEW</summary><div class="menu-panel">
         <button type="button" data-action="zoom-in">Zoom in</button>
@@ -4266,7 +4268,6 @@ function getArtMarkup(): string {
         <div id="timeline" class="timeline"></div>
       </aside>
     </main>
-    <input id="import-file" type="file" accept="application/json,.json" hidden>
     <input id="reference-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     <dialog id="reference-dialog"><div class="dialog-heading"><span>REFERENCE IMAGE</span><button id="close-reference" type="button">×</button></div><div class="reference-dialog-body"><button type="button" id="reference-dropper" class="reference-dropper"><span class="reference-dropper-title">DROP IMAGE</span><span class="reference-dropper-hint">or click to browse · Ctrl+V to paste</span></button><p id="reference-dialog-status" class="reference-dialog-status">Drop an image, click to browse, or press Ctrl+V.</p></div></dialog>
     <dialog id="size-dialog"><div class="dialog-heading"><span id="size-dialog-title">RESIZE</span><button id="close-size" type="button">×</button></div><form id="size-form"><p id="size-description"></p><div class="size-fields"><label>WIDTH<input id="canvas-width" type="number" min="1" max="256" required></label><span>×</span><label>HEIGHT<input id="canvas-height" type="number" min="1" max="128" required></label></div><div class="size-dialog-actions"><button id="apply-size" type="submit">RESIZE</button><button id="cancel-size" type="button">CANCEL</button></div></form></dialog>

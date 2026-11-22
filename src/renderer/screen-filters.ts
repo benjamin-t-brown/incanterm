@@ -1,7 +1,7 @@
 import type { CellBuffer, Cell } from '../game/cell-buffer.js';
 import type { Rgb } from '../game/color.js';
 import type { Rect } from './ui/element.js';
-import { DEFAULT_GROWTH_SEQUENCES, DEFAULT_SHORT_GROWTH_SEQUENCES, getRandomGrowthSequence, GROWING_FG } from './glyph-growth.js';
+import { DEFAULT_GROWTH_SEQUENCES, DEFAULT_SHORT_GROWTH_SEQUENCES, getRandomGrowthSequence, GROWING_FG, isShortCharacter } from './glyph-growth.js';
 
 /** Absolute screen coordinates; reads and writes cannot escape the assigned region. */
 export class ScreenFilterContext {
@@ -25,7 +25,7 @@ export class ScreenFilterContext {
   }
 }
 
-/** A post-render operation on a clipped region of the final terminal frame. */
+/** An operation on a clipped, already-rendered region of a terminal frame. */
 export type ScreenFilter = (ctx: ScreenFilterContext, elapsedMs: number) => void;
 export type ScreenFilterRegion = Readonly<Rect> | ((buffer: CellBuffer) => Readonly<Rect> | undefined);
 
@@ -78,6 +78,62 @@ export function createTextColorFilter(fg: Rgb): ScreenFilter {
       for (let x = region.x; x < region.x + region.width; x++) {
         const cell = ctx.getCell(x, y);
         if (cell.ch !== ' ') ctx.setCell(x, y, { ...cell, fg });
+      }
+    }
+  };
+}
+
+function getGrayscaleColor({ r, g, b }: Rgb): Rgb {
+  const gray = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  return { r: gray, g: gray, b: gray };
+}
+
+/** Desaturates foregrounds and backgrounds without changing their glyphs. */
+export function applyGrayscaleFilter(ctx: ScreenFilterContext): void {
+  const { region } = ctx;
+  for (let y = region.y; y < region.y + region.height; y++) {
+    for (let x = region.x; x < region.x + region.width; x++) {
+      const { ch, fg, bg } = ctx.getCell(x, y);
+      ctx.setCell(x, y, { ch, fg: getGrayscaleColor(fg), bg: getGrayscaleColor(bg) });
+    }
+  }
+}
+
+const BLACK = { r: 0, g: 0, b: 0 };
+const WHITE = { r: 255, g: 255, b: 255 };
+const BLACK_CELL = { ch: ' ', fg: BLACK, bg: BLACK };
+const TALL_SHRINK_GLYPHS = '+:,.';
+const SHORT_SHRINK_GLYPHS = '-,.';
+
+/** Two left-to-right passes: recolor and shrink on fade-out, grow and restore color on fade-in. */
+export function createGlyphSweepFadeFilter(durationMs: number, reverse = false): ScreenFilter {
+  if (!Number.isFinite(durationMs) || durationMs < 0)
+    throw new Error('Glyph sweep fade requires a nonnegative durationMs');
+  return (ctx, elapsedMs) => {
+    const elapsedFraction = durationMs === 0 ? 1 : Math.min(1, elapsedMs / durationMs);
+    const progress = reverse ? 1 - elapsedFraction : elapsedFraction;
+    if (progress <= 0) return;
+    const { x: left, y: top, width, height } = ctx.region;
+    const monochromeSweep = progress * 2;
+    const eraseSweep = monochromeSweep - 1;
+    for (let offset = 0; offset < width; offset++) {
+      const column = offset / Math.max(1, width - 1);
+      if (column > monochromeSweep) break;
+      // Reverse the spatial offset as well as time so fade-in still starts on the left.
+      const x = left + (reverse ? width - 1 - offset : offset);
+      // Stagger the start of each column while leaving time for the full glyph animation.
+      const shrink = eraseSweep * 2 - column;
+      for (let y = top; y < top + height; y++) {
+        if (shrink >= 1) {
+          ctx.setCell(x, y, BLACK_CELL);
+          continue;
+        }
+        let { ch } = ctx.getCell(x, y);
+        if (shrink > 0 && ch !== ' ') {
+          const glyphs = isShortCharacter(ch) ? SHORT_SHRINK_GLYPHS : TALL_SHRINK_GLYPHS;
+          ch = glyphs[Math.floor(shrink * glyphs.length)];
+        }
+        ctx.setCell(x, y, { ch, fg: WHITE, bg: BLACK });
       }
     }
   };

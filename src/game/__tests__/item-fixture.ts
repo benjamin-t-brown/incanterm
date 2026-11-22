@@ -11,13 +11,16 @@ export function createItemAsset(id: string, glyph = '*'): ItemAsset {
     { type: 'sprite', id: `${id}-art`, index: 0 },
     id.toUpperCase(),
   );
-  const sprite = new Sprite(`${id}-art`, 1, 1, 0, 0, [{ ...ITEM_INK, ch: glyph }]);
+  const cells = Array.from({ length: 12 }, (_, index) =>
+    index === 0 ? { ...ITEM_INK, ch: glyph } : ITEM_INK,
+  );
+  const sprite = new Sprite(`${id}-art`, 4, 3, 0, 0, cells);
   return { definition, sprite, clip: { frames: [{ sprite, durationMs: 100 }], loop: true } };
 }
 
 export function createItemScene(): Scene {
   const key = createItemAsset('key', 'K');
-  key.definition.scriptName = 'OfficeKey';
+  key.definition.scriptName = 'OfficeKey, SpareKey/KeyTag';
   key.definition.examineScript = 'examineKey';
   key.definition.combineFailScript = 'failKey';
   key.definition.combinations = [
@@ -26,6 +29,7 @@ export function createItemScene(): Scene {
     { targetType: 'character', target: 'guard', script: 'giveKey' },
   ];
   const coin = createItemAsset('coin', '$');
+  coin.definition.scriptName = 'OfficeCoin/Token';
   const assets = new Map([
     ['key', key],
     ['coin', coin],

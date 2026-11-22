@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "308f36a9-cc2b-4ad7-871b-a126a753a3e9",
+  "label": "hadassah3x3 impatient",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 22,
+      "durationMs": 250
+    },
+    {
+      "sprite": "54cd5e40-459c-412d-b052-e49afc8b9a7c",
+      "index": 23,
+      "durationMs": 250
+    }
+  ]
+}

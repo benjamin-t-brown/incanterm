@@ -156,6 +156,48 @@ it('uses the read-only folder/search browser without fetching thumbnails or trun
   ).toBe('true');
 });
 
+it.each([
+  ['happy, smile', 'joy / smile', 'A right-facing portrait already uses the emotion alias "smile".'],
+  ['', '', 'A default portrait already exists for the right direction.'],
+])('shows a persistent error when a portrait conflicts with "%s"', async (first, second, message) => {
+  const { getElement } = await mountPicker();
+  const search = getElement('#portrait-search');
+  search.value = 'Portrait sheet';
+  search.dispatch('input');
+  getElement('#portrait-results').querySelectorAll('.asset-tree-file')[0].dispatch('click');
+  const okay = getElement('#portrait-okay');
+  await vi.waitFor(() => expect(okay.disabled).toBe(false));
+  const emotion = getElement('#portrait-emotion');
+  const form = getElement('#character-portrait-form');
+  const dialog = getElement('#character-portrait-dialog');
+  const error = getElement('#portrait-error');
+  const portraits = getElement('#character-portraits');
+
+  emotion.value = first;
+  form.dispatch('submit');
+  expect(dialog.open).toBe(false);
+  getElement('#add-character-portrait').dispatch('click');
+  await vi.waitFor(() => expect(okay.disabled).toBe(false));
+  emotion.value = second;
+  form.dispatch('submit');
+  expect(dialog.open).toBe(true);
+  expect(portraits.childElementCount).toBe(1);
+  expect(error.textContent).toBe(message);
+
+  getElement('#portrait-frame').querySelectorAll('button')[1].dispatch('click');
+  await vi.waitFor(() =>
+    expect(getElement('#portrait-picker-status').textContent).toBe('Portrait sheet · frame 2 / 2'),
+  );
+  expect(error.textContent).toBe(message);
+
+  emotion.value = 'sad';
+  emotion.dispatch('input');
+  expect(error.textContent).toBe('');
+  form.dispatch('submit');
+  expect(dialog.open).toBe(false);
+  expect(portraits.childElementCount).toBe(2);
+});
+
 it('switches to animation folders, clears sprite frames and plays the selected animation', async () => {
   const { getElement } = await mountPicker();
   const search = getElement('#portrait-search');

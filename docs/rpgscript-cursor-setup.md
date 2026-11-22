@@ -14,8 +14,9 @@ the extension is not needed to build or run the game.
 ## 2. Build the extension package
 
 Run this from the Incanterm root. It fetches the pinned commit from GitHub,
-applies the inline trigger header update, installs the extension's locked
-dependencies in a temporary checkout, and writes `dist/rpgscript-vs.vsix`.
+applies the inline trigger and command navigation patches, installs the
+extension's locked dependencies in a temporary checkout, and writes
+`dist/rpgscript-vs.vsix`.
 You don't need to install Incanterm's npm dependencies for this step.
 
 ```sh
@@ -108,8 +109,8 @@ features; the game runs scripts using its own runtime.
 When the pinned revision in `scripts/build-rpgscript-vs.mjs` changes, rebuild the
 VSIX, reinstall it, and reload the editor. Make language-server or grammar changes
 in the [standalone repository](https://github.com/benjamin-t-brown/rpgscript-vs),
-not in Incanterm. Once the pinned revision includes inline trigger headers,
-remove the build's `rpgscript-vs-trigger-headers.patch`.
+not in Incanterm. Remove the build patches as their changes land in the pinned
+revision.
 
 ## Troubleshooting
 

@@ -2,8 +2,9 @@ import type { Connection, ServerChannel, Session } from 'ssh2';
 import type { Scene } from '../game/scene.js';
 import type { ScriptLibrary } from '../game/rpgscript/index.js';
 import type { PortraitAssets } from '../game/portrait-assets.js';
+import type { SessionScriptHooks } from '../project/session-config.js';
 import { Server } from './ssh2.js';
-import { createGameSession, type DialogueAnimationOptions, type GameSession, type PortraitAnimationOptions } from './game-session.js';
+import { createGameSession, type DialogueAnimationOptions, type GameSession, type PortraitAnimationOptions, type ScriptVariables } from './game-session.js';
 import { closeServer, listen } from './listen.js';
 import { formatTerminalError, TERMINAL_POINTER, TERMINAL_RESTORE } from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
@@ -26,6 +27,8 @@ export async function startSshServer(options: {
   portraitAnimation?: PortraitAnimationOptions;
   allowPlayerSpawn?: boolean;
   sessionTimerTriggers?: readonly string[];
+  initialScriptVariables?: ScriptVariables;
+  scriptHooks?: SessionScriptHooks;
 }): Promise<SshListener> {
   const clients = new Set<Connection>();
   const server = new Server({ hostKeys: [options.hostKey] }, (client) => {
@@ -41,7 +44,7 @@ export async function startSshServer(options: {
       client.on('session', (acceptSession) => {
         attachSession(acceptSession(), options.scene, options.scripts, options.portraits,
           options.reloadPortraits, options.loadSceneById, options.dialogueAnimation, options.portraitAnimation,
-          options.allowPlayerSpawn, options.sessionTimerTriggers);
+          options.allowPlayerSpawn, options.sessionTimerTriggers, options.initialScriptVariables, options.scriptHooks);
       });
     });
   });
@@ -71,6 +74,8 @@ function attachSession(
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
   sessionTimerTriggers?: readonly string[],
+  initialScriptVariables?: ScriptVariables,
+  scriptHooks?: SessionScriptHooks,
 ): void {
   let game: GameSession | undefined;
   let cols = 80;
@@ -90,7 +95,7 @@ function attachSession(
   session.on('shell', (accept) => {
     const stream = accept();
     game = bindSession(stream, scene, scripts, cols, rows, portraits, reloadPortraits,
-      loadSceneById, dialogueAnimation, portraitAnimation, allowPlayerSpawn, sessionTimerTriggers);
+      loadSceneById, dialogueAnimation, portraitAnimation, allowPlayerSpawn, sessionTimerTriggers, initialScriptVariables, scriptHooks);
   });
 }
 
@@ -107,6 +112,8 @@ function bindSession(
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
   sessionTimerTriggers?: readonly string[],
+  initialScriptVariables?: ScriptVariables,
+  scriptHooks?: SessionScriptHooks,
 ): GameSession {
   let writable = true;
   function handleSessionError(error: unknown): void {
@@ -134,6 +141,10 @@ function bindSession(
     portraitAnimation,
     allowPlayerSpawn,
     sessionTimerTriggers,
+    undefined,
+    undefined,
+    initialScriptVariables,
+    scriptHooks,
   );
   game.resize(cols, rows);
   stream.write(`\x1b[?1000h\x1b[?1006h${TERMINAL_POINTER}`);

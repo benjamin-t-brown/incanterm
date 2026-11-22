@@ -1,0 +1,14 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "0966df40-6e62-4b56-ab25-88c26630018c",
+  "label": "Book: Mom Cars by Minnie Vahan",
+  "examineScript": "items_MomCars_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 4
+  },
+  "combinations": []
+}

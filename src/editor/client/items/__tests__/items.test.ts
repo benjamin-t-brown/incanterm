@@ -103,9 +103,13 @@ beforeEach(() => {
       '/api/items/key': item,
       '/api/items/coin': createItem('coin', { type: 'sprite', id: 'art', index: 0 }, 'Coin'),
       '/api/item-folders': { folders: [], placements: {} },
-      '/api/sprites': { files: ['art'], labels: {} },
-      '/api/sprites/art': createSprite('art', 1, 1),
-      '/api/animations': { files: ['clip'], labels: {} },
+      '/api/sprites': { files: ['big', 'art'], labels: {} },
+      '/api/sprites/art': createSprite('art', 4, 3),
+      '/api/animations': { files: ['invalid-clip', 'clip'], labels: {} },
+      '/api/item-visuals': {
+        sprites: { files: ['art'], labels: {} },
+        animations: { files: ['clip'], labels: {} },
+      },
       '/api/animations/clip': {
         ...createAnimation('clip'),
         frames: [{ sprite: 'art', index: 0, durationMs: 100 }],
@@ -132,10 +136,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('edits labels, script hooks and typed combination rules and saves against the loaded baseline', async () => {
+it('edits labels, aliases, hooks and combination rules and saves against the loaded baseline', async () => {
   cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
   await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
-  expect(elements.has('#item-script-name')).toBe(false);
+  const aliases = getElement('item-script-name');
+  expect(aliases.value).toBe('OfficeKey');
+  aliases.value = 'OfficeKey, SpareKey/KeyTag';
+  aliases.dispatch('input');
   getElement('item-label').value = 'Golden key';
   getElement('item-label').dispatch('input');
   const examine = getElement('item-examine').children[0].children[0];
@@ -156,6 +163,7 @@ it('edits labels, script hooks and typed combination rules and saves against the
     '/api/items/key',
     expect.objectContaining({
       label: 'Golden key',
+      scriptName: 'OfficeKey, SpareKey/KeyTag',
       examineScript: 'fail',
       combinations: [{ targetType: 'prop', target: 'lock', script: 'combine' }],
     }),
@@ -163,6 +171,22 @@ it('edits labels, script hooks and typed combination rules and saves against the
   ]);
   await vi.waitFor(() => expect(getElement('item-fields').inert).toBe(false));
   expect(getElement('item-save').disabled).toBe(true);
+  expect(getElement('toast-stack').querySelectorAll('.toast-message')[0]?.textContent).toBe(
+    'Saved Golden key',
+  );
+});
+
+it('can clear old script aliases without changing the item label', async () => {
+  cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
+  const aliases = getElement('item-script-name');
+  await vi.waitFor(() => expect(aliases.value).toBe('OfficeKey'));
+  aliases.value = '';
+  aliases.dispatch('input');
+  getElement('item-save').dispatch('click');
+  await vi.waitFor(() => expect(saveDraft).toHaveBeenCalled());
+  const [, draft] = vi.mocked(saveDraft).mock.calls[0];
+  expect(draft).not.toHaveProperty('scriptName');
+  expect(draft).toHaveProperty('label', item.label);
 });
 
 function getPickerElement(name: string): ItemTestElement {
@@ -185,6 +209,17 @@ function pressSave(metaKey = false): ReturnType<typeof vi.fn> {
   } as unknown as KeyboardEvent);
   return preventDefault;
 }
+
+it('acknowledges Ctrl+S on an unchanged item without writing it again', async () => {
+  cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
+  expect(getElement('item-save').disabled).toBe(true);
+  expect(pressSave()).toHaveBeenCalled();
+  expect(getElement('toast-stack').querySelectorAll('.toast-message')[0]?.textContent).toBe(
+    'No changes to save for Brass key',
+  );
+  expect(saveDraft).not.toHaveBeenCalled();
+});
 
 it('keeps independent dirty tabs, saves only the active item with Ctrl/Cmd+S, and cleans up', async () => {
   cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
@@ -218,6 +253,11 @@ it('keeps independent dirty tabs, saves only the active item with Ctrl/Cmd+S, an
     ),
   );
   await vi.waitFor(() => expect(getElement('item-fields').inert).toBe(false));
+  expect(
+    getElement('toast-stack')
+      .querySelectorAll('.toast-message')
+      .map((toast) => toast.textContent),
+  ).toEqual(['Saved Gold coin', 'Saved Unsaved brass key']);
   cleanup();
   cleanup = undefined;
   expect(document.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
@@ -241,6 +281,7 @@ it('opens the shared frame picker, cancels type changes, and accepts an animatio
   await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
   getElement('item-choose-visual').dispatch('click');
   await vi.waitFor(() => expect(getPickerElement('results').children).toHaveLength(1));
+  expect(getPickerElement('sheets').children.map((button) => button.textContent)).toEqual(['art']);
   expect(getPickerElement('results').children[0].title).toBe('FRAME 1');
   getPickerElement('cancel').dispatch('click');
   expect(getElement('item-save').disabled).toBe(true);
@@ -248,6 +289,7 @@ it('opens the shared frame picker, cancels type changes, and accepts an animatio
   getElement('item-visual-type').dispatch('change');
   await vi.waitFor(() => expect(getPickerElement('title').textContent).toBe('CHOOSE ANIMATION'));
   await vi.waitFor(() => expect(getPickerElement('results').children).toHaveLength(1));
+  expect(requestJson).not.toHaveBeenCalledWith('/api/animations/invalid-clip');
   expect(getElement('item-visual-type').value).toBe('sprite');
   getPickerElement('results').children[0].dispatch('click');
   expect(pressSave()).toHaveBeenCalled();
@@ -272,7 +314,13 @@ it('restores open tabs and unsaved drafts from project storage', async () => {
           version: 1,
           tabs: ['key', 'coin'],
           active: 'coin',
-          drafts: { key: { doc: { ...item, label: 'Restored key' }, base: item, folder: '' } },
+          drafts: {
+            key: {
+              doc: { ...item, label: 'Restored key', scriptName: 'OfficeKey,' },
+              base: item,
+              folder: '',
+            },
+          },
         })
       : null,
   );
@@ -282,6 +330,7 @@ it('restores open tabs and unsaved drafts from project storage', async () => {
   expect(getElement('item-tabs').children).toHaveLength(2);
   vi.mocked(createAssetTree).mock.calls[0][0].onSelect('key');
   await vi.waitFor(() => expect(getElement('item-label').value).toBe('Restored key'));
+  expect(getElement('item-script-name').value).toBe('OfficeKey,');
 });
 
 it('chooses a nonzero sprite frame in the modal instead of requiring a frame-number input', async () => {
@@ -289,7 +338,7 @@ it('chooses a nonzero sprite frame in the modal instead of requiring a frame-num
   if (!request) throw new Error('Missing test API');
   vi.mocked(requestJson).mockImplementation(async <T>(url: string): Promise<T> => {
     if (url !== '/api/sprites/art') return (await request(url)) as T;
-    const sprite = createSprite('art', 1, 1);
+    const sprite = createSprite('art', 4, 3);
     sprite.sprites.push(structuredClone(sprite.sprites[0]));
     return sprite as T;
   });
@@ -318,6 +367,7 @@ it('keeps a new item’s destination folder when switching tabs before its first
   const tree = vi.mocked(createAssetTree).mock.calls[0][0];
   tree.onCreateAsset?.('Tools');
   await vi.waitFor(() => expect(getElement('item-label').value).toBe('Wrench'));
+  expect(getElement('item-visual').textContent).toBe('art · FRAME 1');
   const tab = getElement('item-tabs').children.find(
     (entry) => entry.children[0].textContent === 'Wrench',
   );
@@ -339,7 +389,104 @@ it('keeps a new item’s destination folder when switching tabs before its first
   );
 });
 
-it('keeps invalid combination drafts editable and preserves edits when a save fails', async () => {
+it('explains why a new item cannot be created without a 4×3 sprite', async () => {
+  const request = vi.mocked(requestJson).getMockImplementation();
+  if (!request) throw new Error('Missing test API');
+  vi.mocked(requestJson).mockImplementation(async <T>(url: string): Promise<T> => {
+    if (url === '/api/item-visuals')
+      return {
+        sprites: { files: [], labels: {} },
+        animations: { files: [], labels: {} },
+      } as T;
+    return (await request(url)) as T;
+  });
+  cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
+  vi.mocked(askId).mockResolvedValueOnce('Wrench');
+  getElement('item-new').dispatch('click');
+  await vi.waitFor(() => expect(getElement('item-status').textContent).toContain('4×3'));
+  expect(getElement('item-tabs').children).toHaveLength(1);
+});
+
+it('clones the active draft into the same folder without changing the original', async () => {
+  const request = vi.mocked(requestJson).getMockImplementation();
+  if (!request) throw new Error('Missing test API');
+  const original: ItemDocument = {
+    ...item,
+    combinations: [...item.combinations, { targetType: 'item', target: 'key', script: 'combine' }],
+  };
+  vi.mocked(requestJson).mockImplementation(async <T>(url: string): Promise<T> => {
+    if (url === '/api/items/key') return structuredClone(original) as T;
+    if (url === '/api/item-folders')
+      return { folders: ['Tools'], placements: { key: 'Tools' } } as T;
+    return (await request(url)) as T;
+  });
+  cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
+  const examine = getElement('item-examine').children[0].children[0];
+  examine.value = 'fail';
+  examine.dispatch('input');
+  vi.mocked(askId).mockResolvedValueOnce('Spare key');
+  expect(getElement('item-clone').disabled).toBe(false);
+  getElement('item-clone').dispatch('click');
+  expect(askId).toHaveBeenCalledWith('Clone item label', 'Brass key copy');
+  await vi.waitFor(() =>
+    expect(getElement('toast-stack').querySelectorAll('.toast-message')[0]?.textContent).toBe(
+      'Saved Spare key',
+    ),
+  );
+
+  expect(saveDraft).toHaveBeenCalledTimes(1);
+  const [url, doc, baseline] = vi.mocked(saveDraft).mock.calls[0];
+  const clone = doc as ItemDocument;
+  expect(clone.id).not.toBe(item.id);
+  expect(url).toBe(`/api/items/${clone.id}`);
+  expect(baseline).toBeNull();
+  expect(clone).not.toHaveProperty('scriptName');
+  expect(clone).toMatchObject({
+    label: 'Spare key',
+    visual: original.visual,
+    examineScript: 'fail',
+    combineFailScript: original.combineFailScript,
+    combinations: [
+      original.combinations[0],
+      { targetType: 'item', target: clone.id, script: 'combine' },
+    ],
+  });
+  expect(requestJson).toHaveBeenCalledWith(
+    '/api/item-folders',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ action: 'move', id: clone.id, folder: 'Tools' }),
+    }),
+  );
+  expect(getElement('item-tabs').children).toHaveLength(2);
+  expect(getElement('item-label').value).toBe('Spare key');
+
+  vi.mocked(createAssetTree).mock.calls[0][0].onSelect('key');
+  expect(getElement('item-label').value).toBe(original.label);
+  expect(getElement('item-examine').children[0].children[0].value).toBe('fail');
+  pressSave();
+  await vi.waitFor(() =>
+    expect(saveDraft).toHaveBeenCalledWith(
+      '/api/items/key',
+      { ...original, examineScript: 'fail' },
+      original,
+    ),
+  );
+});
+
+it('does not clone when the label prompt is cancelled', async () => {
+  cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
+  vi.mocked(askId).mockResolvedValueOnce(null);
+  getElement('item-clone').dispatch('click');
+  await vi.waitFor(() => expect(askId).toHaveBeenCalled());
+  expect(getElement('item-tabs').children).toHaveLength(1);
+  expect(saveDraft).not.toHaveBeenCalled();
+});
+
+it('shows error toasts for invalid drafts and rejected saves without losing edits', async () => {
   cleanup = mountItems(new ItemTestElement() as unknown as HTMLElement);
   await vi.waitFor(() => expect(getElement('item-label').value).toBe(item.label));
   getElement('item-add-rule').dispatch('click');
@@ -347,6 +494,9 @@ it('keeps invalid combination drafts editable and preserves edits when a save fa
   await vi.waitFor(() =>
     expect(getElement('item-status').textContent).toContain('Combination needs'),
   );
+  expect(
+    getElement('toast-stack').querySelectorAll('.error')[0]?.children[1]?.textContent,
+  ).toContain('Combination needs');
   expect(saveDraft).not.toHaveBeenCalled();
   expect(getElement('item-fields').inert).toBe(false);
   const last = getElement('item-rules').children[1];
@@ -354,10 +504,15 @@ it('keeps invalid combination drafts editable and preserves edits when a save fa
   getElement('item-label').value = 'Unsaved key';
   getElement('item-label').dispatch('input');
   vi.mocked(saveDraft).mockRejectedValueOnce(new Error('Concurrent edit; nothing saved'));
-  getElement('item-save').dispatch('click');
+  pressSave();
   await vi.waitFor(() =>
     expect(getElement('item-status').textContent).toContain('Concurrent edit'),
   );
   expect(getElement('item-label').value).toBe('Unsaved key');
   expect(getElement('item-save').disabled).toBe(false);
+  const stack = getElement('toast-stack');
+  expect(stack.children).toEqual(stack.querySelectorAll('.error'));
+  expect(stack.querySelectorAll('.toast-message')[1]?.textContent).toBe(
+    'Concurrent edit; nothing saved',
+  );
 });

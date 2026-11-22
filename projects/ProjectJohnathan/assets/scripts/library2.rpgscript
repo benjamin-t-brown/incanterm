@@ -1,4 +1,5 @@
 #load@library2Load
+  +:items_restoreTrashState()
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #library2Update
@@ -44,7 +45,7 @@
   +setAnimState(player, interact up)
   +setPropAnimState(doorUpstairs, open)
   +waitMs(400)
-  +walkToMarker(player, FromMaintenance)
+  +walkToOffset(player, -2, 0)
   +:ld(player, up)
   +waitMs(100)
   +changeScene(maintenance, FromLibrary2Up)
@@ -53,8 +54,22 @@
 #step@library2_toLibrary1
   +changeScene(library1, FromLibrary2)
 
-#step@library2_toLibrary1Up
+#library2_toLibrary1Up
+  step,library2_toLibrary1Up
+  action,library2_toLibrary1Up
+@library2_toLibrary1Up
+  +?once(library2_toLibrary1UpUnlock):{
+    +setConv()
+    Johnathan: "I'll make sure this is unlocked."
+    +:ld(Johnathan, right)
+    +schoolPuzzle.library1UpUnlocked=true
+    +waitMs(500)
+    +:ld(Johnathan, down)
+    +waitMs(300)
+    +endConv()
+  }
   +changeScene(library1, FromLibrary2Up)
+  +setPropAnimState(door1up, closed)
 
 @library2_pushShelf(instance)
   +?is(+:library2_isUpstairs()):{
@@ -63,6 +78,10 @@
   }
   +setConv()
   +[reached]=approachSlideProp([instance])
+  +?once(library2_pushShelfRealizedPushShelve):{
+    Johnathan: "The bookshelves in this room all have sliding wheels on them, so they're easy to move around."
+    Johnathan: "I think they use it to help clean the room."
+  }
   +?isnot([reached]):{
     Johnathan: "I can't reach that."
     +endConv()
@@ -76,6 +95,14 @@
   +[settled]=slideProp([instance], [direction])
   +?isnot([settled]):{
     +log("I can't push the shelf that way.")
+    +endConv()
+    <
+  }
+  +[route]=getPropClimbPath(MarkerPathFloor2, shelfCenters)
+  +?in(0, [route]):{
+    Johnathan: "I think I can make it to the top."
+    +:library2_runClimb([route])
+    <
   }
   +endConv()
 
@@ -94,4 +121,84 @@
     <
   }
   +log("I can't reach the shelf reset from here.")
+  +endConv()
+
+#@library2_checkClimbPath
+  +[route]=getPropClimbPath(MarkerPathFloor2)
+  +?in(0, [route]):{
+    +log("Climb check: valid route to MarkerPathFloor2.")
+    <
+  }
+  +log("Climb check: no reachable route to MarkerPathFloor2 from here.")
+
+#@library2_climb
+  +[route]=getPropClimbPath(MarkerPathFloor2, shelfCenters)
+  +?isnot(in(0, [route])):{
+    +log("Climb: no reachable route from here.")
+    <
+  }
+  +:library2_runClimb([route])
+
+@library2_runClimb(route)
+  +[top]=getMarkerPos(MarkerPathFloorTop)
+  +[entry]=[route]->0
+  +[entryX]=[entry]->0
+  +[entryY]=[entry]->1
+  +[start]=getChPos(player)
+  +[startX]=[start]->0
+  +[startY]=[start]->1
+  +[dx]=[entryX]-[startX]
+  +[dy]=[entryY]-[startY]
+  +setConv()
+  +walkToOffset(player, [dx], [dy])
+  +[arrived]=getChPos(player)
+  +?isnot(all(eq([arrived]->0, [entryX]), eq([arrived]->1, [entryY]))):{
+    +log("Climb: Johnathan couldn't reach the first shelf.")
+    +endConv()
+    <
+  }
+  +setChForeground(player, true)
+  // Skip the walking entry and the logical landing. Visit each shelf once.
+  +setAnimState(player, jump)
+  +waitMs(100)
+  +[i]=1
+  +[next]=2
+  +?while in([next], [route]):{
+    +[stop]=[route]->[i]
+    +setChPos(player, [stop]->0, [stop]->1)
+    +setAnimState(player, jump)
+    +waitMs(175)
+    +[stopY]=[stop]->1
+    +[yMinus1]=[stopY]-1
+    +setChPos(player, [stop]->0, [yMinus1])
+    +waitMs(100)
+    +[i]=[next]
+    +[next]=[next]+1
+  }
+  +setChPos(player, [top]->0, [top]->1)
+  +setAnimState(player, idle)
+  +setChForeground(player, false)
+  Johnathan: "Phew... that was precarious. Let's shelve that idea and use the stairs from now on."
+  +endConv()
+
+#@library2_terminalReset
+  +setConv()
+  +walkToMarker(Johnathan, MarkerTerminalReset)
+  +setFacing(Johnathan, up)
+  +?once(library2_terminalReset):{
+    Johnathan: "Hmm. What does this terminal do?"
+    Terminal: "HELLO! This is a Bookshelf Management terminal."
+  }
+  +awaitChoice("Would you like to reset the bookshelves in this room?", "Yes", "No")
+  +?switch(lastChoiceIndex):{
+    0:{
+      +fadeOut(300)
+      +resetPropSlides(ShelfResetSafe)
+      +waitMs(100)
+      +fadeIn(300)
+    }
+    1: {
+      Terminal: "Please return when you have Bookshelf Management needs!"
+    }
+  }
   +endConv()

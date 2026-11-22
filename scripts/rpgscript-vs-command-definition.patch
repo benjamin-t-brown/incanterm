@@ -1,0 +1,138 @@
+diff --git a/src/server/src/rpgscript/__tests__/command-definition.test.cjs b/src/server/src/rpgscript/__tests__/command-definition.test.cjs
+new file mode 100644
+--- /dev/null
++++ b/src/server/src/rpgscript/__tests__/command-definition.test.cjs
+@@ -0,0 +1,47 @@
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const os = require('node:os');
++const path = require('node:path');
++const { pathToFileURL } = require('node:url');
++const { getDefinition } = require('../../../dist/rpgscript/definition');
++const { disableConsole } = require('../../../dist/logger');
++const { setCurrentSettings } = require('../../../dist/settings');
++
++const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rpgscript-command-definition-'));
++try {
++  const file = path.join(directory, 'scene-commands.ts');
++  fs.writeFileSync(file, [
++    'const approachSlideProp = defineCommand({',
++    '  parse: (args) => ({ prop: args[0] }),',
++    '});',
++    'export const commands = {',
++    '  approachSlideProp,',
++    '};',
++  ].join('\n'));
++  disableConsole();
++  setCurrentSettings({ sceneCommandsPath: file });
++
++  const name = 'approachSlideProp';
++  const direct = getDefinition(`+${name}([instance])`, 1);
++  assert.equal(direct.targetUri, pathToFileURL(file).href);
++  assert.equal(direct.targetSelectionRange.start.line, 0);
++
++  for (const source of [
++    `+[ready]=${name}([instance])`,
++    `  +[ready] = +${name} ([instance]); // move first`,
++    `+puzzle.ready = ${name}("a//b");\r`,
++  ]) {
++    const start = source.indexOf(name);
++    assert.deepEqual(getDefinition(source, start), direct, source);
++    assert.deepEqual(getDefinition(source, start + name.length - 1), direct, source);
++    assert.equal(getDefinition(source, source.indexOf('ready')), undefined, source);
++    assert.equal(getDefinition(source, source.indexOf('(') + 1), undefined, source);
++  }
++
++  for (const rhs of [`"${name}()"`, `?${name}()`, `|${name}()|`, 'missing()']) {
++    const source = `+[ready]=${rhs}`;
++    assert.equal(getDefinition(source, source.indexOf('(') - 1), undefined, source);
++  }
++} finally {
++  fs.rmSync(directory, { recursive: true, force: true });
++}
+diff --git a/src/server/src/rpgscript/definition.ts b/src/server/src/rpgscript/definition.ts
+--- a/src/server/src/rpgscript/definition.ts
++++ b/src/server/src/rpgscript/definition.ts
+@@ -8,6 +8,8 @@ import {
+ } from '../paths';
+ import { getCurrentSettings } from '../settings';
+ import { getSceneCommands } from './commands';
++import { commandResultPattern, storageAssignmentPattern } from './rpgscript';
++import { sourceLinesWithoutComments } from './source';
+
+ const isSceneCommand = (str: string) => {
+   return str[0] === '+' && str[1] !== ':';
+@@ -21,7 +23,27 @@ const isTriggerScriptCall = (str: string) => {
+   return str.match(/^[\w-]+,\s*([\w-]+)(?:\s*,|\s*$)/)?.[1];
+ };
+
+-export const getDefinition = (line: string): LocationLink | undefined => {
++function getAssignedCommandName(line: string, character?: number): string | undefined {
++  const source = sourceLinesWithoutComments(line)[0].trimEnd();
++  const statement = source.trimStart();
++  if (!statement.startsWith('+')) return;
++
++  const assignment = storageAssignmentPattern.exec(statement.slice(1));
++  if (!assignment || statement.startsWith('+^') || assignment[1].startsWith('{')) return;
++
++  const value = assignment[2].replace(/;$/, '').trimEnd();
++  const match = commandResultPattern.exec(value);
++  if (!match) return;
++
++  const name = match[1];
++  const start = source.length - assignment[2].length + (value.startsWith('+') ? 1 : 0);
++  if (character !== undefined && (character < start || character >= start + name.length)) return;
++
++  return name;
++}
++
++export const getDefinition = (line: string, character?: number): LocationLink | undefined => {
++  const assignedCommand = getAssignedCommandName(line, character);
+   line = line.trim();
+   if (!line) {
+     return undefined;
+@@ -39,10 +61,10 @@ export const getDefinition = (line: string): LocationLink | undefined => {
+
+   const scriptNameFromTrigger = isTriggerScriptCall(line || '');
+
+-  if (isSceneCommand(line)) {
++  if (assignedCommand || isSceneCommand(line)) {
+     getSceneCommands();
+     const commandName =
+-      line.slice(1).split('(')[0]?.trim() ?? line.slice(1);
++      assignedCommand ?? line.slice(1).split('(')[0]?.trim() ?? line.slice(1);
+     const meta = getCommandsMetadata().find((m) => m.name === commandName);
+     if (meta) {
+       const range = {
+diff --git a/src/server/src/rpgscript/rpgscript.ts b/src/server/src/rpgscript/rpgscript.ts
+--- a/src/server/src/rpgscript/rpgscript.ts
++++ b/src/server/src/rpgscript/rpgscript.ts
+@@ -6,6 +6,7 @@ type Scene = any;
+
+ export const storageAssignmentPattern =
+   /^\^?([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|\{[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*\}|\[[A-Za-z_][\w-]*\])\s*=\s*(.*)$/;
++export const commandResultPattern = /^\+?([A-Za-z_][\w-]*)\s*\(.*\)$/;
+
+ function getLogicalLines(source: string, file: string): string[] {
+   const lines = source.split('\n');
+@@ -403,7 +404,7 @@ export class ScriptParser {
+         this.throwParsingError('Set-if-undefined assignments cannot target local variables', lineNum, commandSrc);
+       }
+       const value = assignment[2].replace(/;$/, '').trim();
+-      const commandValue = /^\+?[A-Za-z_][\w-]*\s*\(.*\)$/.test(value);
++      const commandValue = commandResultPattern.test(value);
+       if (commandValue || value.startsWith('?')) {
+         const destination = assignment[1];
+         if (ifUndefined || destination.startsWith('{')) {
+diff --git a/src/server/src/server.ts b/src/server/src/server.ts
+--- a/src/server/src/server.ts
++++ b/src/server/src/server.ts
+@@ -189,7 +189,7 @@ connection.onDefinition((params: DefinitionParams) => {
+   const text = documents.get(params.textDocument.uri)?.getText() ?? '';
+   const line = text.split('\n')[params.position.line] ?? '';
+
+-  const link = getDefinition(line);
++  const link = getDefinition(line, params.position.character);
+
+   if (!link) {
+     return undefined;

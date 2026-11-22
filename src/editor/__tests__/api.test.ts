@@ -34,6 +34,44 @@ describe('asset API', () => {
       classroom1_EvaTalk: ['room'], otherTalk: ['room'],
     } });
   });
+
+  it('preserves case when creating, indexing, editing, duplicating, and deleting script files', async () => {
+    const store = await createTempStore();
+    const doc = { id: 'WestHall', source: '@talk\n' };
+    const url = `/api/scripts/${doc.id}`;
+    const put = (base: typeof doc | null, next: typeof doc) =>
+      dispatchAssetRequest(store, 'PUT', url, JSON.stringify({ base, doc: next }));
+    expect((await put(null, doc)).status).toBe(200);
+
+    const list = await dispatchAssetRequest(store, 'GET', '/api/scripts', '');
+    expect(JSON.parse(String(list.body))).toEqual({ files: ['WestHall'] });
+    const names = await dispatchAssetRequest(store, 'GET', '/api/scripts/names', '');
+    expect(JSON.parse(String(names.body))).toEqual({ sources: { talk: ['WestHall'] } });
+    const read = await dispatchAssetRequest(store, 'GET', url, '');
+    expect(JSON.parse(String(read.body))).toEqual(doc);
+
+    const edited = { ...doc, source: '@talk\n@inspect\n' };
+    expect((await put(doc, edited)).status).toBe(200);
+    const diagnosis = await dispatchAssetRequest(
+      store,
+      'POST',
+      '/api/scripts/diagnose',
+      JSON.stringify({ id: doc.id, source: '@talk\n+callScript("inspect")\n@inspect\n' }),
+    );
+    expect(JSON.parse(String(diagnosis.body))).toEqual({ diagnostics: [] });
+
+    const copy = await dispatchAssetRequest(
+      store,
+      'POST',
+      '/api/duplicate',
+      JSON.stringify({ kind: 'script', from: doc.id, id: 'EastHall' }),
+    );
+    expect(copy.status).toBe(200);
+    expect(JSON.parse(String(copy.body))).toEqual({ ...edited, id: 'EastHall' });
+    expect((await dispatchAssetRequest(store, 'DELETE', url, '')).status).toBe(200);
+    expect((await dispatchAssetRequest(store, 'GET', url, '')).status).toBe(404);
+  });
+
   it('copies an animation draft and renames without overwriting or losing a concurrent edit', async () => {
     const store = await createTempStore();
     const original = createAnimation('blink');

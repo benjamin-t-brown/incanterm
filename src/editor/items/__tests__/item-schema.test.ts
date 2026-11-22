@@ -7,7 +7,7 @@ describe('item authoring schema', () => {
   it('round-trips visuals and script hooks without unknown fields', () => {
     const item = createItem('key', { type: 'sprite', id: 'art', index: 2 }, 'Key');
     Object.assign(item, {
-      scriptName: 'OfficeKey',
+      scriptName: 'OfficeKey, Spare Key/Key.Tag',
       examineScript: 'inspect',
       combineFailScript: 'fail',
       combinations: [{ targetType: 'prop', target: 'lock', script: 'unlock' }],
@@ -20,7 +20,10 @@ describe('item authoring schema', () => {
     for (const update of [
       { id: '../escape' },
       { label: '\n' },
-      { scriptName: 'two names' },
+      { scriptName: 'Key, Bad:Name' },
+      { scriptName: 'Key/' },
+      { scriptName: 'Key,, KeyTag' },
+      { scriptName: 'Key/key' },
       { examineScript: '@inspect' },
       { visual: { type: 'sprite', id: 'art', index: -1 } },
       { visual: { type: 'video', id: 'art' } },

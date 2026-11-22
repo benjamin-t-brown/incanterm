@@ -162,6 +162,17 @@ Scene changes rebuild the room and cancel room-owned scripts/actions. Session st
 
 ## Incanterm scene commands
 
+`getSceneId()` returns the active scene's asset ID. Use it for comparisons
+or to save a reference for `changeScene()`. `getSceneName()` returns the scene's
+editor label, or its ID if no label is set. Both read the scene at the time of
+the call, including after a scene change.
+
+```rpgscript
+  +[sceneId]=getSceneId()
+  +sceneName=getSceneName()
+  +log("Current scene: {sceneName}")
+```
+
 `+walkToOffset(character, x, y[, skipWait])` walks from the character's current
 position by integer scene-cell offsets (positive x moves right, positive y
 moves down). Like `walkToMarker`, it waits for arrival by default; pass `true`
@@ -359,6 +370,10 @@ The destination can also be a storage reference: `+someVar=a` followed by `+{som
 
 `+setConv()` opens the conversation panel with a right-facing portrait. `+setConv2(Johnathan, Eva)` opens a two-person panel with Johnathan's right-facing portrait and name on the left and Eva's left-facing portrait and name on the right. Both portraits remain displayed as the dialogue advances; the current speaker's portrait and nameplate borders are white and the listener's are grey. `+endConv()` closes either mode, restores player control, and resumes the clicked character's prior movement, facing and animation. `+endConvNR()` closes without restoring that character's activity. Neither closing command takes a portrait argument. In the character editor, set a **Script Name** matching the dialogue actor (`Eva` for `Eva: "Hello"`) and assign any number of portrait combinations: left or right facing, emotion (blank for default), and an animation ID or sprite frame ID (`face_0`). A line such as `Eva&happy: "Hello"` selects that actor's facing-specific happy portrait; if absent, the blank-emotion portrait of the same facing is used. The opposite-facing portrait is not substituted. If no character or matching portrait is found, dialogue remains readable without one. Portrait animations advance by frame duration while the line is displayed. The scene-free CLI prints the first frame before each matching dialogue line.
 
+`+awaitChoice("Reset the bookshelves?", "Yes", "No")` takes the question first, followed by one to nine answers. The question appears in a centered, 60-column panel above the conversation, with numbered buttons stacked below it on the left. The panel narrows on smaller terminals and can scroll if it doesn't fit. It uses the same glyph transitions and timing settings as portraits. While the choices are visible, the dialogue box and portraits are grayscale, but the choice panel keeps its colors. Click a button or press its number (`1`–`9`) to resume immediately with the zero-based `lastChoiceIndex` (`0` for Yes here), without waiting for the exit animation. `$` choices use the same buttons without a question and also call their selected target script.
+
+`+fadeOut(300)` sweeps left to right twice: first it turns the screen white-on-black, then it shrinks the glyphs into spaces using separate animations for tall and short glyphs. The command waits for both passes, and the screen stays black while the foreground script runs intervening commands such as a room reset. `+fadeIn(300)` also sweeps left to right: first it regrows the glyphs, then it restores their original colors. Durations are in milliseconds; finishing or canceling the foreground script clears the fade.
+
 The single-speaker portrait is shown on the left, inside its own rounded border and outside the dialogue border; the dialogue box uses the remaining horizontal space. The renderer also supports placing the portrait on the right independently of its artwork facing. In narrow viewports where both cannot fit side by side, the portrait overlays the panel and dialogue text reserves space for it. "Right-facing" selects the artwork, not the side of the panel. Assigning portraits requires a Script Name so that dialogue cannot silently fail to resolve them. Live sessions reload portrait assets when opened and when a character conversation starts.
 
 The speaker's name appears without a colon, padded by one space on each side, in a double-bordered nameplate at the dialogue box's top-left corner. Names are blue; in single-speaker mode the nameplate border is white, while in two-speaker mode borders indicate the current speaker. The dialogue text starts below the nameplate; the grey `[Space/Enter]` hint follows the text after a blank line while awaiting advancement. Clicking anywhere while a dialogue line is waiting advances it, just like pressing Space or Enter.
@@ -377,7 +392,9 @@ Walking is non-blocking: subsequent script commands run immediately. Each charac
 
 ### Barks
 
-`bark(ch, text, ?ms, ?skipWait)` shows `text` above a character's head as a UI overlay. The script waits until the bark ends unless `skipWait` is `true`. `ms` defaults to 2000. Text is center-aligned and wrapped to 20 columns, stacked upward so it stays above the character. A new bark replaces the character's current one; barks clear on scene change.
+`+bark(ch, text, ?ms, ?skipWait)` shows `text` above a character. `+barkProp(prop, text, ?ms, ?skipWait)` shows it above a static or animated prop instance. Use the prop's scene instance name or ID (case-insensitive); if multiple props share a name, use the instance ID.
+
+For example, `+barkProp(vending_machine, "Out of stock!", 1500, true)` displays the text for 1.5 seconds without pausing the script. Both commands default to 2000 ms and wait unless `skipWait` is `true`. Text is centered, wraps at 20 columns, and follows the target as it moves. A new bark replaces the current one on that instance, and all barks clear on scene change.
 
 ### Prop animation states
 
@@ -387,13 +404,56 @@ prop whose instance name matches (case-insensitive). Prop assets define a built-
 editor. Scene instances pick a starting state in the scene inspector. A missing
 state logs a warning and falls back to `default` for each matching prop.
 
+### Prop action scripts
+
+Set **Action Script** in a prop's scene inspector to bind an RPGScript function
+to that instance (`actionScript` in scene JSON). Click its visible art, or press
+Enter to activate the nearest visible prop with an action. The player walks to a
+reachable edge and faces the prop before the script runs. The approach uses
+walking blockers, then a slide footprint if present, or the sprite's lowest
+visible row for an unmasked prop.
+
+This only cancels the automatic approach. It does not change the behavior of
+explicit RPGScript walk commands.
+
+Both reusable props and directly placed sprites can use an action without being
+slidable. The function may take no parameters, or one parameter for the
+**scene instance ID**, not the display name or an asset ID:
+
+```rpgscript
+@inspectProp(instance)
+  +barkProp([instance], "It's locked.")
+```
+
+If there is no path, the prop's action does not run. A project can handle that
+failure by adding `scriptHooks.propUnreachable` to `assets/session-config.json`:
+
+```json
+{
+  "scriptHooks": { "propUnreachable": "reportUnreachableProp" }
+}
+```
+
+Define the named function in any file in `assets/scripts/`. It takes one
+argument, the unreachable prop's scene instance ID. In a dialogue line, `player`
+uses the currently controlled character's name and portrait.
+
+```rpgscript
+@reportUnreachableProp(instance)
+  +setConv()
+  player: "I can't reach that."
+  +endConv()
+```
+
+If the hook is omitted, failure is silent. Canceling the approach (for example,
+by clicking elsewhere) does not call the hook.
+
 ### Slidable prop actions
 
-A scene prop with `slidable.actionScript` binds its visible moving art to a
-one-parameter foreground script. Click the prop, or press Enter to activate the
-nearest visible slidable prop. The script receives the **scene instance ID**, not
-the display name or an asset ID. Both reusable props and directly placed sprites
-can opt in.
+**Slidable** controls movement independently from **Action Script**. Existing
+`slidable.actionScript` bindings still start their one-parameter script
+immediately, so scripts that call `approachSlideProp` themselves still work.
+A top-level `actionScript` takes precedence and walks the player there first.
 
 ```rpgscript
 @pushProp(instance)
@@ -430,6 +490,22 @@ can opt in.
   missing or not walkable after reset, the command reports an error and changes
   neither the layout nor its overrides. After a successful reset, the script can
   read prop positions and reevaluate any room-specific puzzle.
+- `getPropClimbPath(landingMarker)` checks the current shelf layout and uses
+  normal walking rules to find a floor entry the controlled character can
+  reach from their current position. It returns `[x, y]` waypoints from that
+  walk anchor to the marker, or `[]` if there is no reachable route or no
+  controlled character. Transfers
+  require touching slide footprints and a level step or a rise of up to
+  two cells. A prop's `climbHeight` is measured from the row just below its
+  slide footprint; when omitted, the lowest painted `climbCells` row sets the
+  height. Roof cells guide the returned waypoints but don't need to line up
+  between shelves. The command doesn't move the player.
+- `getPropClimbPath(landingMarker, shelfCenters)` returns the same reachable
+  floor anchor and logical landing with one centered character anchor per
+  shelf in between, for scripting an animation. `getMarkerPos(marker)` returns
+  the marker's exact `[x, y]` coordinates.
+- `setChForeground(character, true)` draws a character in front of the normal
+  scene layer. Pass `false` to restore normal depth sorting after an animation.
 
 Automatic stand positions are next to the prop's walking blockers, or next to
 its slide footprint if it has no walking blockers. The initial approach

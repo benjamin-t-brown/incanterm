@@ -1,0 +1,14 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "8e13a642-603f-4850-9021-26bb0347efb5",
+  "label": "Book: My Memoir by Paige Turner",
+  "examineScript": "items_BookMemoirOfPaigeTurner_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 0
+  },
+  "combinations": []
+}

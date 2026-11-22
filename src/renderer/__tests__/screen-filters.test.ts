@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CellBuffer, type Cell } from '../../game/cell-buffer.js';
 import type { PortraitAsset, PortraitFrame } from '../../game/portrait-assets.js';
 import { Scene } from '../../game/scene.js';
-import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createPixelateRevealFilter, createTextColorFilter, ScreenFilterPipeline } from '../screen-filters.js';
+import { applyGrayscaleFilter, createGlyphExitFilter, createGlyphGrowthRevealFilter, createGlyphSweepFadeFilter, createPixelateRevealFilter, createTextColorFilter, ScreenFilterPipeline } from '../screen-filters.js';
 import { LayoutStandardScene, STANDARD_BACKGROUND } from '../ui/layout-standard-scene.js';
 
 const ink: Cell = { ch: '.', fg: { r: 1, g: 2, b: 3 }, bg: { r: 4, g: 5, b: 6 } };
@@ -16,6 +16,80 @@ function getBuffer(): CellBuffer {
 }
 
 describe('post-render screen filters', () => {
+  it('desaturates glyphs and backgrounds inside the region, including blank cells', () => {
+    const filters = new ScreenFilterPipeline();
+    const cell = { ch: 'X', fg: { r: 255, g: 0, b: 0 }, bg: { r: 0, g: 255, b: 0 } };
+    const buffer = new CellBuffer(3, 1, cell);
+    buffer.set(1, 0, { ...cell, ch: ' ' });
+    filters.addFilter(applyGrayscaleFilter, { x: 0, y: 0, width: 2, height: 1 });
+    filters.applyFilters(buffer);
+    const gray = { ch: 'X', fg: { r: 54, g: 54, b: 54 }, bg: { r: 182, g: 182, b: 182 } };
+    expect(buffer.get(0, 0)).toEqual(gray);
+    expect(buffer.get(1, 0)).toEqual({ ...gray, ch: ' ' });
+    expect(buffer.get(2, 0)).toEqual(cell);
+  });
+
+  it('sweeps left to right in white on black before shrinking tall and short glyphs', () => {
+    const filters = new ScreenFilterPipeline();
+    const region = { x: 1, y: 0, width: 3, height: 3 };
+    filters.addFilter(createGlyphSweepFadeFilter(400), region, 0);
+    const white = { r: 255, g: 255, b: 255 };
+    const black = { r: 0, g: 0, b: 0 };
+    const tall = { ...ink, ch: 'A' };
+    const monoTall = { ch: 'A', fg: white, bg: black };
+    const blank = { ch: ' ', fg: black, bg: black };
+
+    function getFrameAt(elapsed: number): CellBuffer {
+      const buffer = new CellBuffer(4, 3, tall);
+      buffer.set(1, 1, { ...ink, ch: 'a' });
+      buffer.set(1, 2, { ...ink, ch: ' ' });
+      filters.applyFilters(buffer, elapsed);
+      return buffer;
+    }
+
+    expect(getFrameAt(0).get(1, 0)).toEqual(tall);
+    const recoloring = getFrameAt(100);
+    expect(recoloring.get(3, 0)).toEqual(tall);
+    expect(recoloring.get(1, 0)).toEqual(monoTall);
+    expect(getFrameAt(200).get(3, 0)).toEqual(monoTall);
+
+    const shrinking = getFrameAt(220);
+    expect(shrinking.get(3, 0)).toEqual(monoTall);
+    expect(shrinking.get(1, 0)).toEqual({ ...monoTall, ch: '+' });
+    expect(shrinking.get(1, 1)).toEqual({ ...monoTall, ch: '-' });
+    expect(shrinking.get(1, 2).ch).toBe(' ');
+    expect(getFrameAt(300).get(1, 0)).toEqual(blank);
+    expect(getFrameAt(300).get(3, 0)).toEqual(monoTall);
+    const finished = getFrameAt(400);
+    expect(finished.get(3, 0)).toEqual(blank);
+    expect(finished.get(0, 0)).toEqual(tall);
+  });
+
+  it('grows glyphs and restores colors left to right during fade-in', () => {
+    const duration = 400;
+    const region = { x: 0, y: 0, width: 5, height: 3 };
+    function getFrameAt(elapsed: number, reverse: boolean, ms = duration): CellBuffer {
+      const filters = new ScreenFilterPipeline();
+      filters.addFilter(createGlyphSweepFadeFilter(ms, reverse), region, 0);
+      const buffer = getBuffer();
+      filters.applyFilters(buffer, elapsed);
+      return buffer;
+    }
+    const original = getBuffer();
+    const black = { r: 0, g: 0, b: 0 };
+    const white = { r: 255, g: 255, b: 255 };
+    expect(getFrameAt(0, true)).toEqual(getFrameAt(duration, false));
+    const growing = getFrameAt(50, true);
+    expect(growing.get(0, 0)).toEqual({ ch: ',', fg: white, bg: black });
+    expect(growing.get(4, 0)).toEqual({ ch: ' ', fg: black, bg: black });
+    const recoloring = getFrameAt(300, true);
+    expect(recoloring.get(0, 0)).toEqual(original.get(0, 0));
+    expect(recoloring.get(4, 0)).toEqual({ ch: '4', fg: white, bg: black });
+    expect(getFrameAt(duration, true)).toEqual(original);
+    expect(getFrameAt(0, false, 0)).toEqual(getFrameAt(duration, false));
+    expect(getFrameAt(0, true, 0)).toEqual(original);
+  });
+
   it('clears portrait glyphs bottom-to-top without changing spaces or the frame', () => {
     const filters = new ScreenFilterPipeline();
     filters.addFilter(createGlyphExitFilter({ stepDurationMs: 20, rowDelayMs: 10, glyphs: '+:,.' }),

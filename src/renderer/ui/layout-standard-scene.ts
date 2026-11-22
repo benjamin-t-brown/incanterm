@@ -1,7 +1,8 @@
 import type { CellBuffer, Cell } from '../../game/cell-buffer.js';
-import type { Character } from '../../game/character.js';
-import { renderView, type Scene } from '../../game/scene.js';
-import { UIElement, DrawContext } from './element.js';
+import { Character } from '../../game/character.js';
+import { type Prop, renderView, type Scene } from '../../game/scene.js';
+import { applyGrayscaleFilter, ScreenFilterContext } from '../screen-filters.js';
+import { UIElement, DrawContext, intersectRects } from './element.js';
 import { ParagraphWrapped, wrapParagraph } from './paragraph-wrapped.js';
 import { TabbedView } from './tabbed-view.js';
 import { DialoguePanel } from './dialogue-panel.js';
@@ -9,6 +10,7 @@ import type { Rect } from './element.js';
 import type { DialogueMessage } from './dialogue-message.js';
 import type { SelectionRect } from '../../protocol/messages.js';
 import { CenterToast } from './center-toast.js';
+import { ChoicePanel } from './choice-panel.js';
 import { InventoryPanel } from './inventory-panel.js';
 import { PushDirectionPad } from './push-direction-pad.js';
 import { BorderBox } from './border-box.js';
@@ -33,8 +35,9 @@ export const STANDARD_BACKGROUND: Cell = {
   bg: { r: 12, g: 14, b: 13 },
 };
 const MAX_LOG_ENTRIES = 100;
+type LogEntry = { message: string; error: boolean };
 export const BARK_MAX_WIDTH = 20;
-type Bark = { character: Character; lines: string[]; remainingMs: number };
+type Bark = { target: Prop; lines: string[]; remainingMs: number };
 export const ERROR_LOG_FG = { r: 255, g: 64, b: 64 };
 
 export class LayoutStandardScene extends UIElement {
@@ -43,7 +46,7 @@ export class LayoutStandardScene extends UIElement {
   readonly dialoguePanel: DialoguePanel;
   readonly centerToast = new CenterToast();
   readonly message: DialogueMessage;
-  readonly choiceMessage: ParagraphWrapped;
+  readonly choicePanel = new ChoicePanel();
   readonly scriptLog: ParagraphWrapped;
   readonly inventory = new InventoryPanel();
   readonly pushPad = new PushDirectionPad();
@@ -55,16 +58,17 @@ export class LayoutStandardScene extends UIElement {
   });
   conversationOpen = false;
   portraitExitVisible = false;
-  private readonly logEntries: { message: string; error: boolean }[] = [];
+  private readonly logEntries: LogEntry[] = [];
+  private pendingLogWindowEntry?: LogEntry;
   private viewportWidth = 0;
   private viewportHeight = 0;
   private canClick = false;
   private barks: Bark[] = [];
 
   /** Returns a predicate that is true once the bark has expired, been replaced, or been cleared. */
-  addBark(character: Character, text: string, ms: number): () => boolean {
-    this.barks = this.barks.filter((bark) => bark.character !== character);
-    const bark = { character, lines: wrapParagraph(text, BARK_MAX_WIDTH), remainingMs: ms };
+  addBark(target: Prop, text: string, ms: number): () => boolean {
+    this.clearBark(target);
+    const bark = { target, lines: wrapParagraph(text, BARK_MAX_WIDTH), remainingMs: ms };
     this.barks.push(bark);
     return () => !this.barks.includes(bark);
   }
@@ -78,8 +82,8 @@ export class LayoutStandardScene extends UIElement {
     this.barks = [];
   }
 
-  clearBark(character: Character): void {
-    this.barks = this.barks.filter((bark) => bark.character !== character);
+  clearBark(target: Prop): void {
+    this.barks = this.barks.filter((bark) => bark.target !== target);
   }
 
   private renderBarks(buffer: CellBuffer): void {
@@ -87,17 +91,17 @@ export class LayoutStandardScene extends UIElement {
     const originY = this.y + Math.floor((STANDARD_WORLD_HEIGHT - this.scene.height) / 2);
     const minY = Math.max(0, this.y);
     const maxY = Math.min(buffer.height, this.y + STANDARD_WORLD_HEIGHT);
-    for (const bark of this.barks) {
-      const { sprite } = bark.character;
-      const width = Math.max(...bark.lines.map((line) => line.length));
-      const centerX = originX + bark.character.x - sprite.originX + Math.floor(sprite.width / 2);
+    for (const { target, lines } of this.barks) {
+      const sprite = target instanceof Character ? target.sprite : target.getDrawSprite() ?? target.sprite;
+      const width = Math.max(...lines.map((line) => line.length));
+      const centerX = originX + target.x - sprite.originX + Math.floor(sprite.width / 2);
       const left = Math.min(
         Math.max(this.x, centerX - Math.floor(width / 2)),
         this.x + STANDARD_WIDTH - width,
       );
-      const bottom = originY + bark.character.y - sprite.originY - 1;
-      const top = Math.max(minY, bottom - bark.lines.length + 1);
-      bark.lines.forEach((line, index) => {
+      const bottom = originY + target.y - sprite.originY - 1;
+      const top = Math.max(minY, bottom - lines.length + 1);
+      lines.forEach((line, index) => {
         const y = top + index;
         if (y >= maxY || y < minY) return;
         const pad = Math.floor((width - line.length) / 2);
@@ -113,10 +117,14 @@ export class LayoutStandardScene extends UIElement {
   getScenePoint(x: number, y: number): { x: number; y: number } | undefined {
     const portrait = this.dialoguePanel.portraitBox;
     const rightPortrait = this.dialoguePanel.rightPortraitBox;
+    const choices = this.getChoiceScreenRect();
     if (
       !this.canClick ||
       this.logWindow.visible ||
       this.centerToast.visible ||
+      (choices && (this.choicePanel.enabled ||
+        x >= choices.x && x < choices.x + choices.width &&
+        y >= choices.y && y < choices.y + choices.height)) ||
       x < 0 ||
       y < 0 ||
       x >= this.viewportWidth ||
@@ -167,15 +175,11 @@ export class LayoutStandardScene extends UIElement {
       STANDARD_UI_HEIGHT - 1,
     );
     this.message = this.dialoguePanel.message;
-    this.choiceMessage = new ParagraphWrapped('scene-choices', 1, 3, STANDARD_WIDTH - 4, '', {
-      fg: UI_INK.fg,
-      bg: UI_INK.bg,
-    });
     this.scriptLog = new ParagraphWrapped('scene-script-log', 1, 1, STANDARD_WIDTH - 4, '', {
       fg: UI_INK.fg,
       bg: UI_INK.bg,
     });
-    this.tabs.getContent('log').addChild(this.choiceMessage).addChild(this.scriptLog);
+    this.tabs.getContent('log').addChild(this.scriptLog);
     this.tabs.getContent('inventory').addChild(this.inventory);
     this.ui.addChild(this.tabs);
     this.ui.addChild(this.dialoguePanel);
@@ -187,6 +191,11 @@ export class LayoutStandardScene extends UIElement {
   toggleLogWindow(): void {
     this.logWindow.visible = !this.logWindow.visible;
     if (this.logWindow.visible) this.logWindow.scrollToEnd();
+  }
+
+  showLogEntry(message: string): void {
+    this.appendLog(message);
+    this.pendingLogWindowEntry = this.logEntries.at(-1);
   }
 
   appendLog(message: string, error = false): void {
@@ -217,9 +226,24 @@ export class LayoutStandardScene extends UIElement {
     };
   }
 
-  getInventoryActionAt(x: number, y: number): ReturnType<InventoryPanel['getActionAt']> {
-    if (this.logWindow.visible || !this.canClick || !this.ui.visible || !this.tabs.visible ||
-      this.tabs.selectedId !== 'inventory' || this.centerToast.visible ||
+  isInventoryVisible(): boolean {
+    return this.canClick && this.ui.visible && this.tabs.visible && this.tabs.selectedId === 'inventory' &&
+      !this.logWindow.visible && !this.centerToast.visible;
+  }
+
+  scrollInventory(direction: -1 | 1, byPage: boolean): boolean {
+    if (!this.isInventoryVisible()) return false;
+    if (byPage) this.inventory.scrollPage(direction);
+    else this.inventory.moveItemFocus(direction);
+    return true;
+  }
+
+  getInventoryActionAt(
+    x: number,
+    y: number,
+    rightClick = false,
+  ): ReturnType<InventoryPanel['getActionAt']> {
+    if (!this.isInventoryVisible() ||
       x < 0 || y < 0 || x >= this.viewportWidth || y >= this.viewportHeight) return;
     const pane = this.tabs.getContent('inventory');
     const left = this.x + this.ui.x + this.tabs.x + pane.x;
@@ -227,13 +251,26 @@ export class LayoutStandardScene extends UIElement {
     if (x < left + 1 || x >= left + pane.width - 1 || y < top + 1 || y >= top + pane.height - 1) return;
     return this.inventory.getActionAt(
       x - left - 1 - this.inventory.x,
-      y - top - 1 + pane.scrollY - this.inventory.y,
+      y - top - 1 - this.inventory.y,
+      rightClick,
     );
   }
 
   getPushChoiceAt(x: number, y: number): number | undefined {
     if (!this.canClick || !this.ui.visible || this.centerToast.visible || this.logWindow.visible) return;
     return this.pushPad.getChoiceAt(x - this.x - this.ui.x - this.pushPad.x, y - this.y - this.ui.y - this.pushPad.y);
+  }
+
+  getChoiceAt(x: number, y: number): number | undefined {
+    const choices = this.getChoiceScreenRect();
+    if (choices) return this.choicePanel.getChoiceAt(x - choices.x, y - choices.y);
+  }
+
+  /** The choice panel including its frame, in final screen coordinates. */
+  getChoiceScreenRect(): Rect | undefined {
+    if (!this.canClick || !this.ui.visible || !this.choicePanel.visible || this.centerToast.visible || this.logWindow.visible) return;
+    const { x, y, width, height } = this.choicePanel;
+    return { x, y, width, height };
   }
 
   getTabAt(x: number, y: number): string | undefined {
@@ -260,7 +297,7 @@ export class LayoutStandardScene extends UIElement {
     };
   }
 
-  render(buffer: CellBuffer): void {
+  render(buffer: CellBuffer, applyPortraitFilters?: (buffer: CellBuffer) => void): void {
     this.viewportWidth = buffer.width;
     this.viewportHeight = buffer.height;
     this.canClick = buffer.width >= MIN_STANDARD_WIDTH && buffer.height >= MIN_STANDARD_HEIGHT;
@@ -288,8 +325,13 @@ export class LayoutStandardScene extends UIElement {
     const followsLog = logPanel.scrollY === logPanel.maxScrollY();
     this.tabs.x = left;
     this.tabs.resize(right - left, STANDARD_UI_HEIGHT - 1);
-    this.inventory.width = Math.max(1, this.tabs.getContent('inventory').innerWidth);
-    this.inventory.height = Math.max(3, 2 + this.inventory.items.length * 4);
+    const inventoryPane = this.tabs.getContent('inventory');
+    const inventoryTop = this.y + this.ui.y + this.tabs.y + inventoryPane.y + 1;
+    this.inventory.resize(
+      inventoryPane.innerWidth,
+      Math.min(inventoryPane.innerHeight, buffer.height - inventoryTop),
+    );
+    inventoryPane.topRightLabel = this.inventory.getPageText();
     const portrait = this.dialoguePanel.portraitBox;
     const rightPortrait = this.dialoguePanel.rightPortraitBox;
     const portraitVisible = portrait.visible;
@@ -302,14 +344,20 @@ export class LayoutStandardScene extends UIElement {
     const hasRoom = right - left >= leftWidth + rightWidth + 20;
     this.dialoguePanel.reservePortraitSpace = portraitVisible && !hasRoom;
     this.dialoguePanel.x = left + (hasRoom ? leftWidth : 0);
-    this.dialoguePanel.resize(
-      right - left - (hasRoom ? leftWidth + rightWidth : 0),
-      Math.min(STANDARD_UI_HEIGHT - 1, buffer.height - (this.y + this.ui.y + this.dialoguePanel.y)),
-    );
-    this.choiceMessage.width = Math.max(1, logPanel.innerWidth - 2);
-    this.choiceMessage.visible = this.choiceMessage.text.length > 0;
-    this.scriptLog.y = this.choiceMessage.visible ? this.choiceMessage.y + this.choiceMessage.lines.length + 1 : 1;
-    this.scriptLog.width = this.choiceMessage.width;
+    const uiTop = this.y + this.ui.y;
+    const uiBottom = Math.min(buffer.height, uiTop + STANDARD_UI_HEIGHT);
+    let dialogueTop = uiTop + 1;
+    const choicesVisible = this.ui.visible && this.choicePanel.visible;
+    if (choicesVisible) {
+      const dialogueReserve = this.message.text.length ? this.message.y + 3 : 2;
+      this.choicePanel.resize(right - left, dialogueTop, uiBottom - dialogueReserve);
+      this.choicePanel.x = this.x + left + Math.floor((right - left - this.choicePanel.width) / 2);
+      this.choicePanel.y = Math.max(0, dialogueTop - this.choicePanel.height);
+      dialogueTop = this.choicePanel.y + this.choicePanel.height;
+    }
+    this.dialoguePanel.y = dialogueTop - uiTop;
+    this.dialoguePanel.resize(right - left - (hasRoom ? leftWidth + rightWidth : 0), uiBottom - dialogueTop);
+    this.scriptLog.width = Math.max(1, logPanel.innerWidth - 2);
     this.scriptLog.lineColors = this.logEntries.flatMap((entry) =>
       wrapParagraph(entry.message, this.scriptLog.width).map(() =>
         entry.error ? ERROR_LOG_FG : this.scriptLog.fg,
@@ -321,7 +369,7 @@ export class LayoutStandardScene extends UIElement {
     this.dialoguePanel.visible = !this.pushPad.visible && (this.conversationOpen || this.message.text.length > 0);
     this.dialoguePanel.setEmptyBackground(this.message.text.length === 0);
     this.dialoguePanel.portraitExitVisible = this.portraitExitVisible;
-    this.tabs.visible = !this.dialoguePanel.visible && !this.pushPad.visible;
+    this.tabs.visible = !this.dialoguePanel.visible && !this.pushPad.visible && !choicesVisible;
     this.pushPad.x = left + Math.floor((right - left - this.pushPad.width) / 2);
     super.render(buffer);
     this.dialoguePanel.drawPortrait(
@@ -337,8 +385,33 @@ export class LayoutStandardScene extends UIElement {
       Math.min(buffer.height - 1, this.y + this.ui.y + this.ui.height - 1),
       'right',
     );
+    // Keep conversation effects below the overlays, even when their rectangles overlap.
+    applyPortraitFilters?.(buffer);
+    if (choicesVisible) this.applyConversationGrayscale(buffer);
     this.renderBarks(buffer);
+    if (choicesVisible) this.choicePanel.render(buffer);
     if (this.centerToast.visible) this.centerToast.render(buffer);
+  }
+
+  private applyConversationGrayscale(buffer: CellBuffer): void {
+    const panel = this.dialoguePanel;
+    const regions: Rect[] = [];
+    if (panel.visible) {
+      regions.push({
+        x: this.x + this.ui.x + panel.x,
+        y: this.y + this.ui.y + panel.y,
+        width: panel.width,
+        height: panel.height,
+      });
+    }
+    if (panel.visible || this.portraitExitVisible) {
+      for (const box of [panel.portraitBox, panel.rightPortraitBox]) {
+        if (box.visible) regions.push(box);
+      }
+    }
+    const viewport = { x: 0, y: 0, width: buffer.width, height: buffer.height };
+    for (const region of regions)
+      applyGrayscaleFilter(new ScreenFilterContext(buffer, intersectRects(region, viewport)));
   }
 
   private renderLogWindow(buffer: CellBuffer): void {
@@ -350,15 +423,22 @@ export class LayoutStandardScene extends UIElement {
     this.logWindowText.width = Math.max(1, this.logWindow.innerWidth - 2);
     this.logWindowText.text = this.logEntries.length
       ? this.logEntries.map((entry) => entry.message).join('\n') : 'No log entries yet.';
-    this.logWindowText.lineColors = this.logEntries.flatMap((entry) =>
-      wrapParagraph(entry.message, this.logWindowText.width).map(() =>
+    let revealY: number | undefined;
+    let lineCount = 0;
+    this.logWindowText.lineColors = this.logEntries.flatMap((entry) => {
+      if (entry === this.pendingLogWindowEntry) revealY = lineCount;
+      const lines = wrapParagraph(entry.message, this.logWindowText.width);
+      lineCount += lines.length;
+      return lines.map(() =>
         entry.error ? ERROR_LOG_FG : this.logWindowText.fg,
-      ),
-    );
+      );
+    });
     this.logWindowText.height = this.logWindowText.lines.length;
-    if (followsLog) this.logWindow.scrollToEnd();
+    this.pendingLogWindowEntry = undefined;
+    if (revealY !== undefined) this.logWindow.scrollY = revealY;
+    else if (followsLog) this.logWindow.scrollToEnd();
     this.logWindow.render(buffer);
-    const title = ' Log | ` to return ';
+    const title = ' Log | ` to return | s to dump RPGScript vars ';
     for (let i = 0; i < Math.min(title.length, this.logWindow.innerWidth); i++)
       buffer.set(this.logWindow.x + 1 + i, this.logWindow.y, { ...UI_INK, ch: title[i] });
   }

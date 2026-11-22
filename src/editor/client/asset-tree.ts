@@ -478,5 +478,8 @@ export function createAssetTree(options: TreeOptions) {
     persist();
     render();
   }
-  return { setData, setLabels, select, createFolder, expand };
+  function getAssetFolder(id: string): string | undefined {
+    return Object.hasOwn(tree.placements, id) ? tree.placements[id] : undefined;
+  }
+  return { setData, setLabels, select, createFolder, expand, getAssetFolder };
 }

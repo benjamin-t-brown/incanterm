@@ -1,0 +1,19 @@
+{
+  "format": "incanterm-prop",
+  "version": 1,
+  "id": "door1_diag",
+  "visual": {
+    "type": "animation",
+    "id": "4a6253dd-9e98-4d91-a978-17bc59845d46"
+  },
+  "width": 3,
+  "height": 7,
+  "blockedCells": [],
+  "groundOffsetY": 0,
+  "depthOffset": 0,
+  "foreground": false,
+  "customAnimations": {
+    "opening": "9bb3d7bd-a2d2-41f0-ad7f-f1c62d60bfc4",
+    "closing": "8bf42815-f1e7-47c9-b8ba-9e10ecda24f5"
+  }
+}

@@ -32,7 +32,9 @@ it('loads a scene by exact label while keeping ID precedence', async () => {
   expect((await loadSceneByReference(root, 'room-1')).id).toBe('room-1');
   expect((await loadSceneByReference(root, 'hallway1')).id).toBe('hallway1');
   expect((await loadSceneByReference(root, 'other')).id).toBe('hallway1');
-  expect((await loadSceneByReference(root, 'The Hallway')).id).toBe('room-3');
+  expect(await loadSceneByReference(root, 'The Hallway')).toMatchObject({
+    id: 'room-3', label: 'The Hallway',
+  });
   await expect(loadSceneByReference(root, 'HALLWAY1')).rejects.toThrow('not found by ID or label');
 });
 

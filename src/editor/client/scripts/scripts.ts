@@ -1,5 +1,5 @@
 import type { ScriptDiagnostic } from '../../rpgscript/diagnose.js';
-import { isAssetId } from '../../schema.js';
+import { isScriptFileId } from '../../schema.js';
 import { ApiError, jsonRequest, requestJson } from '../api.js';
 import { mergeText } from '../../safe-save.js';
 import { saveDraft } from '../save.js';
@@ -141,7 +141,9 @@ export function mountScripts(root: HTMLElement): () => void {
   root.querySelector('#new-script')?.addEventListener('click', () => {
     void (async () => {
       const id = await askId('New script id');
-      if (!id || !isAssetId(id)) return;
+      if (!id) return;
+      if (!isScriptFileId(id))
+        return void alertModal('Use a short script id with letters, numbers, hyphens, or underscores');
       if (files.includes(id)) {
         await alertModal('An asset with that id already exists');
         return;
@@ -160,10 +162,15 @@ export function mountScripts(root: HTMLElement): () => void {
     const from = currentId;
     void (async () => {
       const id = await askId('Duplicate as', `${from}-copy`);
-      if (!id || !isAssetId(id)) return;
-      void requestJson('/api/duplicate', jsonRequest('POST', { kind: 'script', from, id })).then(
-        () => openScript(id),
-      );
+      if (!id) return;
+      if (!isScriptFileId(id))
+        return void alertModal('Use a short script id with letters, numbers, hyphens, or underscores');
+      try {
+        await requestJson('/api/duplicate', jsonRequest('POST', { kind: 'script', from, id }));
+        await openScript(id);
+      } catch (error) {
+        await alertModal(error instanceof Error ? error.message : 'Could not duplicate script');
+      }
     })();
   });
   root.querySelector('#delete-script')?.addEventListener('click', () => {

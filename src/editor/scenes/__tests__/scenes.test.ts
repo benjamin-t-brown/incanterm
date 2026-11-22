@@ -43,6 +43,61 @@ afterEach(async () => {
 });
 
 describe('scene authoring', () => {
+  it('only replaces conflicting disk changes when overwrite is explicit', async () => {
+    const { store } = await createFixture();
+    const scene = createScene('conflict-room');
+    const base = await store.saveSceneDraft(scene.id, scene, null);
+    const disk = { ...base, width: 90, label: 'Disk-only name' };
+    await store.saveSceneDraft(scene.id, disk, base);
+    const doc = { ...base, width: 100 };
+    const url = `/api/scenes/${scene.id}`;
+
+    const conflict = await dispatchAssetRequest(store, 'PUT', url, JSON.stringify({ base, doc }));
+    expect(conflict.status).toBe(409);
+    expect(JSON.parse(String(conflict.body))).toMatchObject({ code: 'merge-conflict' });
+    expect(await store.readScene(scene.id)).toEqual(disk);
+
+    const overwritten = await dispatchAssetRequest(
+      store,
+      'PUT',
+      url,
+      JSON.stringify({ base, doc, overwrite: true }),
+    );
+    expect(overwritten.status).toBe(200);
+    expect(JSON.parse(String(overwritten.body))).toEqual(doc);
+    expect(await store.readScene(scene.id)).toEqual(doc);
+  });
+
+  it('validates an overwrite and does not recreate a deleted scene', async () => {
+    const { store } = await createFixture();
+    const scene = createScene('checked-room');
+    const base = await store.saveSceneDraft(scene.id, scene, null);
+    const url = `/api/scenes/${scene.id}`;
+    const invalid = {
+      ...base,
+      entities: [{ id: 'background', type: 'Background', sprite: 'tiles', index: 9, x: 0, y: 0 }],
+    };
+    const rejected = await dispatchAssetRequest(
+      store,
+      'PUT',
+      url,
+      JSON.stringify({ base, doc: invalid, overwrite: true }),
+    );
+    expect(rejected.status).toBe(422);
+    expect(await store.readScene(scene.id)).toEqual(base);
+
+    await store.deleteScene(scene.id);
+    const deleted = await dispatchAssetRequest(
+      store,
+      'PUT',
+      url,
+      JSON.stringify({ base, doc: scene, overwrite: true }),
+    );
+    expect(deleted.status).toBe(409);
+    expect(JSON.parse(String(deleted.body))).not.toHaveProperty('code');
+    expect(await store.listScenes()).not.toContain(scene.id);
+  });
+
   it('adds character instances with independent facing and starting states, and loads their selected art', async () => {
     const { root, store } = await createFixture();
     const left = createSprite('left-sprite', 1, 1);
@@ -151,18 +206,23 @@ describe('scene authoring', () => {
     ]);
     expect((await store.readScene(scene.id)).entities).toEqual(second.entities);
   });
-  it('lists RPGScript trigger names for the scene inspector', async () => {
-    const { store } = await createFixture();
+  it('lists RPGScript trigger names from lowercase and mixed-case files for the scene inspector', async () => {
+    const { root, store } = await createFixture();
     await store.saveScript('first', '#door\n  action,open\n@open\n  +log("open")\n');
-    await store.saveScript(
-      'second',
-      '#step@floor\n  +log("walk")\n#@door\n  +log("close")\n#timer@clock, 250\n  +log("tick")\n',
+    await fs.writeFile(
+      path.join(root, 'scripts', 'secondRoom.rpgscript'),
+      '#load@roomLoad\n  +log("load")\n#step@floor\n  +log("walk")\n#@door\n  +log("close")\n#timer@clock, 250\n  +log("tick")\n',
     );
     const response = await dispatchAssetRequest(store, 'GET', '/api/rpg-triggers', '');
     expect(response.status).toBe(200);
     expect(JSON.parse(String(response.body))).toEqual({
-      names: ['clock', 'door', 'floor'],
-      sources: { clock: ['second'], door: ['first', 'second'], floor: ['second'] },
+      names: ['clock', 'door', 'floor', 'roomLoad'],
+      sources: {
+        clock: ['secondRoom'],
+        door: ['first', 'secondRoom'],
+        floor: ['secondRoom'],
+        roomLoad: ['secondRoom'],
+      },
     });
     expect(
       (await dispatchAssetRequest(store, 'POST', '/api/scripts/missing/open', '')).status,
@@ -170,6 +230,14 @@ describe('scene authoring', () => {
     expect(
       (await dispatchAssetRequest(store, 'POST', '/api/scripts/%2E%2E%2Foutside/open', '')).status,
     ).toBe(400);
+  });
+
+  it('indexes a slide action script under the bare name referenced by scenes', async () => {
+    const { store } = await createFixture();
+    await store.saveScript('shelf-puzzle', '@pushShelf(instance)\n  +log("push")\n');
+    const response = await dispatchAssetRequest(store, 'GET', '/api/scripts/names', '');
+    expect(response.status).toBe(200);
+    expect(JSON.parse(String(response.body))).toEqual({ sources: { pushShelf: ['shelf-puzzle'] } });
   });
 
   it('persists independent Action and Step switches on a region', async () => {

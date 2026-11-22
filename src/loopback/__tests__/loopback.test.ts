@@ -5,8 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ServerMessage } from '../../protocol/messages.js';
-import { createSprite, createCharacter } from '../../editor/schema.js';
+import { createAnimation, createSprite, createCharacter } from '../../editor/schema.js';
 import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
+import { loadLoopbackOptions } from '../cli.js';
 import { startLoopback, type Loopback } from '../start.js';
 import { loadSessionConfig } from '../../project/session-config.js';
 import { routeLoopbackInput } from '../input.js';
@@ -171,6 +172,50 @@ describe('isolated loopback game', () => {
     if (frame.type === 'terminal-data') expect(frame.data).toContain('Guide');
   });
 
+  it.each([
+    { name: 'requested.json', requested: true, text: 'Book requested' },
+    { name: 'not requested.json', requested: false, text: 'Waiting for request' },
+    { name: undefined, requested: undefined, text: 'Waiting for request' },
+  ])('runs scene load scripts with variables from $name', async ({ name, requested, text }) => {
+    const root = await createFixture();
+    await fs.writeFile(
+      path.join(root, 'scripts', 'greeting.rpgscript'),
+      [
+        '#room-entry',
+        'load,greeting',
+        '@greeting',
+        '+^quest.requested=false',
+        '+?is(quest.requested):{',
+        'Guide: "Book requested"',
+        '}',
+        '+?else:{',
+        'Guide: "Waiting for request"',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    await fs.writeFile(
+      path.join(root, 'session-config.json'),
+      JSON.stringify({ dialogueAnimation: { enabled: false } }),
+    );
+    const args = ['--assets', root, '--scene', 'Fixture Room'];
+    const savePath = name === undefined ? undefined : path.join(root, name);
+    const save = JSON.stringify({ v: 1, vars: { 'quest.requested': requested } });
+    if (savePath !== undefined) {
+      await fs.writeFile(savePath, save);
+      args.push('--save', savePath);
+    }
+    const received = getMessages();
+    const game = await startLoopback({
+      ...(await loadLoopbackOptions(args)),
+      onMessage: received.onMessage,
+    });
+    running.push(game);
+    expect((await getFrameContaining(received, text)).type).toBe('terminal-data');
+    await game.close();
+    if (savePath !== undefined) expect(await fs.readFile(savePath, 'utf8')).toBe(save);
+  });
+
   it('fails before listening if the scene references a missing trigger', async () => {
     const root = await createFixture('missing');
     await expect(
@@ -216,6 +261,49 @@ describe('isolated loopback game', () => {
     });
     running.push(game);
     expect((await getFrameContaining(received, 'Session tick')).type).toBe('terminal-data');
+  });
+
+  it('runs the project’s unreachable prop hook through the real WebSocket client', async () => {
+    const root = await createFixture();
+    for (const folder of ['sprites', 'animations', 'characters']) await fs.mkdir(path.join(root, folder));
+    const art = createSprite('art', 1, 1);
+    art.sprites[0].layers[0].cells[0] = { ch: '@', fg: 'white', bg: 'black' };
+    await fs.writeFile(path.join(root, 'sprites', 'art.json'), encodeStoredSprite(art));
+    const animation = createAnimation('idle');
+    animation.frames = [{ sprite: 'art', index: 0, durationMs: 100 }];
+    await fs.writeFile(path.join(root, 'animations', 'idle.json'), JSON.stringify(animation));
+    await fs.writeFile(path.join(root, 'characters', 'actor.json'), JSON.stringify({
+      ...createCharacter('actor', 'idle'), scriptName: 'Explorer',
+    }));
+    const sceneFile = path.join(root, 'scenes', 'e2e-room.json');
+    const scene = JSON.parse(await fs.readFile(sceneFile, 'utf8')) as Record<string, unknown>;
+    scene.blockedCells = [2, 7, 12];
+    scene.entities = [
+      { id: 'hero', type: 'Character', character: 'actor', x: 0, y: 1, z: 0, facing: 'down', state: 'idle' },
+      { id: 'sign', type: 'Prop', sprite: 'art', actionScript: 'readSign', x: 4, y: 1, z: 0 },
+    ];
+    await fs.writeFile(sceneFile, JSON.stringify(scene));
+    await fs.writeFile(path.join(root, 'scripts', 'greeting.rpgscript'), `
+#room-entry
+load,start
+@start
+  +setPlayerWalkCh(hero)
+@readSign
+  +log("Read the sign")
+@reportBlocked(instance)
+  +setConv()
+  player: "Can't get to [instance]."
+  +endConv()
+`);
+    await fs.writeFile(path.join(root, 'session-config.json'), JSON.stringify({
+      dialogueAnimation: { enabled: false }, scriptHooks: { propUnreachable: 'reportBlocked' },
+    }));
+    const received = getMessages();
+    const game = await startLoopback({ sceneId: 'e2e-room', assetsRoot: root, onMessage: received.onMessage });
+    running.push(game);
+    game.sendInput('\r');
+    const frame = await getFrameContaining(received, "Can't get to sign.");
+    expect(frame).toMatchObject({ type: 'terminal-data', data: expect.stringContaining('Explorer') });
   });
 
   it.each([

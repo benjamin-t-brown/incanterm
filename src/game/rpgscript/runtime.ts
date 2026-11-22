@@ -343,7 +343,7 @@ function isMissingDirectory(error: unknown): boolean {
 }
 
 export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string }>;
-export type ChoicePrompt = Readonly<{ options: readonly string[] }>;
+export type ChoicePrompt = Readonly<{ options: readonly string[]; question?: string }>;
 const maxLoopPasses = 1000;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
 type ConditionCall = { target: string; args: readonly RuntimeValue[] };
@@ -421,6 +421,26 @@ export class ScriptRunner<Host> {
   setGlobal(key: string, value: RuntimeValue): void {
     this.storage.set(`global.${key}`, value);
   }
+
+  getVariableState() {
+    return {
+      globals: Object.fromEntries(
+        [...this.storage].filter(([key]) => key.startsWith('global.'))
+          .map(([key, value]) => [key.slice('global.'.length), value] as const),
+      ),
+      foreground: this.getStackVariables(),
+      background: [...this.subscripts].map(([ownerId, runner]) => ({
+        ownerId, frames: runner.getStackVariables(),
+      })),
+    };
+  }
+
+  private getStackVariables() {
+    return this.stack.map((frame) => ({
+      script: frame.script.name, locals: Object.fromEntries(frame.locals),
+    }));
+  }
+
   getStorage(key: string): RuntimeValue {
     return this.storage.get(key);
   }
@@ -1036,9 +1056,9 @@ export class ScriptRunner<Host> {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show a center toast`);
         this.centerToast = message;
       },
-      showChoices: (options, onChoose) => {
+      showChoices: (options, onChoose, question) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show choices`);
-        this.choice = { options };
+        this.choice = question === undefined ? { options } : { options, question };
         this.onChoose = onChoose;
       },
       waitUntil: (isComplete) => {

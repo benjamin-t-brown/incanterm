@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createProp, createSprite, type SceneDocument } from '../../../schema.js';
+import { createProp, createSprite, type PropDocument, type SceneDocument } from '../../../schema.js';
 import { TestElement } from '../../__tests__/dom-fixture.js';
-import { requestJson } from '../../api.js';
-import { promptModal } from '../../modal.js';
+import { ApiError, requestJson } from '../../api.js';
+import { alertModal, askSaveAs, confirmModal, promptModal } from '../../modal.js';
+import type { AssetFolders } from '../../../asset-folders.js';
 import { mountScenes } from '../scenes.js';
 import { createItem } from '../../../items/item-schema.js';
 import { createPropSlideFixtureDocuments } from '../../../../game/__tests__/prop-slide-fixture.js';
@@ -24,6 +25,7 @@ vi.mock('../../panel-resizer.js', () => ({ createPanelResizer: () => vi.fn() }))
 vi.mock('../../tab-close-actions.js', () => ({ renderTabCloseActions: vi.fn() }));
 vi.mock('../../modal.js', () => ({
   alertModal: vi.fn(),
+  askSaveAs: vi.fn(),
   confirmModal: vi.fn(),
   isModalOpen: () => false,
   promptModal: vi.fn(),
@@ -32,6 +34,11 @@ vi.mock('../../modal.js', () => ({
 let cleanup: (() => void) | undefined;
 let elements: Map<string, SceneTestElement>;
 let storedScene: SceneDocument | null;
+let sceneFolderData: AssetFolders;
+let listedProps: string[];
+let shelfSlideCells: number[];
+let shelfClimb: Pick<PropDocument, 'climbHeight' | 'climbCells'>;
+let scriptNameSources: Record<string, string[]>;
 const sprite = createSprite('test-sprite', 2, 1);
 const prop = createProp('test-prop', { type: 'sprite', id: sprite.id, index: 0 });
 const item = createItem('test-item', { type: 'sprite', id: sprite.id, index: 0 }, 'Office Key');
@@ -138,6 +145,11 @@ beforeEach(() => {
     ['.scene-library', new SceneTestElement()],
   ]);
   storedScene = null;
+  sceneFolderData = { folders: [], placements: {} };
+  listedProps = [prop.id];
+  shelfSlideCells = [0, 4];
+  shelfClimb = {};
+  scriptNameSources = {};
   vi.stubGlobal('document', {
     createElement: (tag: string) => new SceneTestElement(tag),
     addEventListener: vi.fn(),
@@ -176,7 +188,7 @@ beforeEach(() => {
       } else if (storedScene && url === `/api/scenes/${storedScene.id}`) {
         result = storedScene;
       } else if (url === '/api/props') {
-        result = { files: [prop.id], labels: {} };
+        result = { files: listedProps, labels: {} };
       } else if (url === '/api/items') {
         result = { files: [item.id], labels: { [item.id]: item.label } };
       } else if (url === `/api/items/${item.id}`) {
@@ -188,15 +200,17 @@ beforeEach(() => {
       } else if (url === `/api/props/${prop.id}`) {
         result = prop;
       } else if (url === `/api/props/${slideFixture.prop.id}`) {
-        result = { ...slideFixture.prop, slideCells: [0, 4] };
+        result = { ...slideFixture.prop, slideCells: shelfSlideCells, ...shelfClimb };
       } else if (url === `/api/sprites/${slideFixture.sprite.id}`) {
         result = slideFixture.sprite;
+      } else if (url === '/api/scene-folders') {
+        result = sceneFolderData;
       } else if (url.endsWith('-folders')) {
         result = { folders: [], placements: {} };
       } else if (url === '/api/rpg-triggers') {
         result = { names: [], sources: {} };
       } else if (url === '/api/scripts/names') {
-        result = { sources: {} };
+        result = { sources: scriptNameSources };
       } else if (url === '/api/characters') {
         result = { files: [], labels: {} };
       } else if (url === '/api/palette') {
@@ -215,6 +229,103 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+});
+
+it('saves the in-memory scene under a new id in the same folder and keeps the original draft open', async () => {
+  await createSceneWithBackground();
+  await saveScene();
+  const original = structuredClone(storedScene);
+  if (!original) throw new Error('Expected an original scene');
+  sceneFolderData = { folders: ['rooms'], placements: { [original.id]: 'rooms' } };
+  // Reload the browser's folder data before editing the draft.
+  await saveScene();
+  const depth = getElement('scene-depth');
+  depth.value = 'regular-z';
+  depth.dispatch('change');
+  vi.mocked(requestJson).mockClear();
+
+  vi.mocked(askSaveAs).mockResolvedValueOnce('My copy');
+  clickElement('scene-save-as');
+  await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe('Saved as My copy'));
+  expect(askSaveAs).toHaveBeenCalledWith('Test room copy');
+  const copy = storedScene;
+  if (!copy) throw new Error('Expected a saved copy');
+  expect(copy.id).not.toBe(original.id);
+  expect(copy).toEqual({ ...original, id: copy.id, label: 'My copy', depthMode: 'regular-z' });
+  const writes = vi.mocked(requestJson).mock.calls.filter(([, options]) => options?.method === 'PUT');
+  expect(writes).toEqual([[
+    `/api/scenes/${copy.id}`,
+    expect.objectContaining({ body: JSON.stringify({ base: null, doc: copy }) }),
+  ]]);
+  expect(requestJson).toHaveBeenCalledWith('/api/scene-folders', expect.objectContaining({
+    method: 'POST',
+    body: JSON.stringify({ action: 'move', id: copy.id, folder: 'rooms' }),
+  }));
+  expect(getElement('scene-title').textContent).toBe('My copy');
+
+  await vi.waitFor(() => expect(getElement('scene-save-as').disabled).toBe(false));
+  const originalTab = getElement('scene-tabs').children.find((tab) => tab.dataset.tabId === original.id);
+  expect(originalTab?.className).toContain('dirty');
+  originalTab?.children[0].dispatch('click');
+  await vi.waitFor(() => expect(getElement('scene-title').textContent).toBe('Test room'));
+  expect(depth.value).toBe('regular-z');
+});
+
+it('keeps the original open without overwriting anything if Save As is canceled or conflicts', async () => {
+  await createSceneWithBackground();
+  vi.mocked(requestJson).mockClear();
+  vi.mocked(askSaveAs).mockResolvedValueOnce(null);
+  clickElement('scene-save-as');
+  await vi.waitFor(() => expect(askSaveAs).toHaveBeenCalledTimes(1));
+  expect(requestJson).not.toHaveBeenCalled();
+
+  vi.mocked(askSaveAs).mockResolvedValueOnce('My copy');
+  vi.mocked(requestJson).mockRejectedValueOnce(new ApiError('File already exists', 409));
+  clickElement('scene-save-as');
+  await vi.waitFor(() => expect(alertModal).toHaveBeenCalledWith(
+    'File already exists. Your draft is still open.',
+  ));
+  expect(requestJson).toHaveBeenCalledTimes(1);
+  expect(confirmModal).not.toHaveBeenCalled();
+  expect(getElement('scene-title').textContent).toBe('Test room');
+});
+
+it.each([true, false])('retries a scene overwrite only when confirmed (%s)', async (confirmed) => {
+  await createSceneWithBackground();
+  await saveScene();
+  const base = storedScene;
+  if (!base) throw new Error('Expected a saved scene');
+  storedScene = { ...base, label: 'Disk version' };
+  const url = `/api/scenes/${base.id}`;
+
+  vi.mocked(promptModal).mockResolvedValueOnce('My draft');
+  vi.mocked(confirmModal).mockResolvedValueOnce(confirmed);
+  vi.mocked(requestJson).mockClear();
+  vi.mocked(requestJson).mockRejectedValueOnce(
+    new ApiError('Both editors changed the scene', 409, 'merge-conflict'),
+  );
+  clickElement('scene-rename');
+  await vi.waitFor(() => expect(confirmModal).toHaveBeenCalled());
+  await vi.waitFor(() => expect(getElement('scene-save').disabled).toBe(false));
+
+  expect(confirmModal).toHaveBeenCalledWith(
+    expect.stringContaining('Changes in the disk file will be lost'),
+    'OVERWRITE DISK',
+    { focusCancel: true },
+  );
+  const writes = vi.mocked(requestJson).mock.calls
+    .filter(([path, options]) => path === url && options?.method === 'PUT')
+    .map(([, options]) => JSON.parse(options?.body as string));
+  const doc = { ...base, label: 'My draft' };
+  expect(writes).toEqual(
+    confirmed ? [{ base, doc }, { base, doc, overwrite: true }] : [{ base, doc }],
+  );
+  expect(storedScene?.label).toBe(confirmed ? 'My draft' : 'Disk version');
+  if (!confirmed) {
+    expect(getElement('scene-status').textContent).toContain('Your draft is still open');
+    await saveScene();
+    expect(storedScene?.label).toBe('My draft');
+  }
 });
 
 it('outlines the hovered cell and shows its coordinates without replacing the status message', async () => {
@@ -360,6 +471,20 @@ function getPreviewButton(direction: string) {
   return button;
 }
 
+function getProblemMessages(): string[] {
+  return getElement('scene-problem-list').children.map(
+    (row) => row.textContent + row.children.map((part) => part.textContent).join(''),
+  );
+}
+
+function clickProblemEntity(id: string): void {
+  const button = getElement('scene-problem-list')
+    .querySelectorAll('.scene-problem-target')
+    .find((target) => target.textContent === id);
+  if (!button) throw new Error(`Missing Problems button for ${id}`);
+  button.dispatch('click');
+}
+
 it('paints room travel and previews shared asset footprints without storing them on instances', async () => {
   const { scene, prop: shelfAsset, sprite: shelfArt } = createPropSlideFixtureDocuments();
   storedScene = scene;
@@ -402,13 +527,15 @@ it('paints room travel and previews shared asset footprints without storing them
   setSlidable(false);
   setSlidable(true);
   expect(getElement('scene-inspector').children.some(e => e.textContent === 'Preview Slide')).toBe(true);
-  const action = getInspectorInput('Slide action script');
-  action.value = 'pushShelf';
-  action.dispatch('change');
+  const action = getInspectorInput('ACTION SCRIPT').children[0];
+  expect(action.value).toBe('pushShelf');
   selectShelf(0);
   await saveScene();
   const authored = structuredClone(storedScene);
-  expect(authored?.entities.map(e => 'slidable' in e && e.slidable)).toEqual([{ actionScript: 'pushShelf' }, { actionScript: 'pushShelf' }]);
+  expect(authored?.entities).toMatchObject([
+    { actionScript: 'pushShelf', slidable: {} },
+    { slidable: { actionScript: 'pushShelf' } },
+  ]);
   expect(authored?.propSlide?.travelCells).toEqual(scene.propSlide.travelCells.filter(i => i !== 7));
   expect(authored?.blockedCells).toEqual(scene.blockedCells);
   checkPreviewButtons();
@@ -435,6 +562,39 @@ it('paints room travel and previews shared asset footprints without storing them
     [shelfAsset.id, shelfArt.id].some(id => url.endsWith(`/${id}`)) && options?.method === 'PUT')).toBe(false);
 });
 
+it('authors and clears a walk-first action on a non-slidable prop', async () => {
+  const { scene } = createPropSlideFixtureDocuments();
+  const { propSlide: _travel, ...room } = scene;
+  storedScene = {
+    ...room,
+    entities: [{ id: 'lamp', type: 'Prop', sprite: sprite.id, x: 2, y: 2, z: 0, depthOffset: 0 }],
+  };
+  vi.stubGlobal('location', { search: `?id=${scene.id}` });
+  cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe(`Opened ${scene.id}`));
+  clickElement('scene-tab-props');
+  getElement('scene-room-props').children[0].dispatch('click');
+  const action = getInspectorInput('ACTION SCRIPT').children[0];
+  action.value = '@inspectLamp';
+  action.dispatch('input');
+  action.dispatch('blur');
+  expect(getProblemMessages()).toContain('lamp: Action script @inspectLamp not found.');
+  clickElement('scene-tab-scripts');
+  expect(getElement('scene-script-list').children[0].children[0].textContent).toBe('@inspectLamp (lamp)');
+  clickElement('scene-tab-props');
+  getElement('scene-room-props').children[0].dispatch('click');
+  await saveScene();
+  expect(storedScene?.entities[0]).toMatchObject({ type: 'Prop', actionScript: 'inspectLamp' });
+  expect(storedScene?.entities[0]).not.toHaveProperty('slidable');
+  expect(storedScene).not.toHaveProperty('propSlide');
+  const reopenedAction = getInspectorInput('ACTION SCRIPT').children[0];
+  reopenedAction.value = '';
+  reopenedAction.dispatch('input');
+  reopenedAction.dispatch('blur');
+  await saveScene();
+  expect(storedScene?.entities[0]).not.toHaveProperty('actionScript');
+});
+
 it('previews an immediately blocked crate without a text readout and still reports invalid placements', async () => {
   const { scene } = createPropSlideFixtureDocuments();
   storedScene = {
@@ -447,25 +607,116 @@ it('previews an immediately blocked crate without a text readout and still repor
   vi.stubGlobal('location', { search: `?id=${scene.id}` });
   cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
   await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe(`Opened ${scene.id}`));
+  expect(getProblemMessages()).toEqual([
+    'Crate (crate-a): Slide action script @pushCrate not found.',
+    'Crate (crate-b): Slide action script @pushCrate not found.',
+  ]);
   clickElement('scene-tab-props');
-  getElement('scene-room-props').children[0].dispatch('click');
+  clickProblemEntity('crate-a');
+  expect(getElement('scene-tab-controls').attributes.get('aria-selected')).toBe('true');
+  expect(getElement('scene-inspector').querySelectorAll('.scene-id-text')[0]?.textContent).toBe(
+    'ID: crate-a',
+  );
+  const name = getInspectorInput('INSTANCE NAME');
+  name.value = '';
+  name.dispatch('change');
+  expect(getProblemMessages()).toContain('crate-a: Name change rejected. Enter 1 to 80 characters.');
+  const validName = getInspectorInput('INSTANCE NAME');
+  validName.value = 'Crate A';
+  validName.dispatch('change');
+  expect(getProblemMessages()).not.toContain(expect.stringContaining('Name change rejected'));
   getPreviewButton('right').dispatch('click');
   expect(getPreviewButton('right').attributes.get('aria-pressed')).toBe('true');
   expect(getElement('scene-inspector').children.some(e => /steps? to|blocked at/.test(e.textContent))).toBe(false);
   const x = getInspectorInput('X');
   x.value = '3';
   x.dispatch('change');
-  expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Overlaps crate-b at (3, 2).');
+  expect(getElement('scene-inspector').children.map(e => e.textContent)).not.toContain('Overlaps crate-b at (3, 2).');
+  expect(getProblemMessages()).toContain('Crate A (crate-a): Overlaps crate-b at (3, 2).');
   clickElement('scene-tab-props');
-  getElement('scene-room-props').children[1].dispatch('click');
-  expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Overlaps crate-a at (3, 2).');
+  expect(getElement('scene-room-props').querySelectorAll('.scene-slide-issue')).toHaveLength(0);
+  expect(getProblemMessages()).toContain('Crate A (crate-a): Overlaps crate-b at (3, 2).');
+  clickProblemEntity('crate-b');
+  expect(getElement('scene-inspector').querySelectorAll('.scene-id-text')[0]?.textContent).toBe(
+    'ID: crate-b',
+  );
+  expect(getElement('scene-inspector').children.map(e => e.textContent)).not.toContain('Overlaps crate-a at (3, 2).');
   const nextX = getInspectorInput('X');
   nextX.value = '4';
   nextX.dispatch('change');
+  expect(getProblemMessages()).not.toContain(expect.stringContaining('Overlaps'));
   const y = getInspectorInput('Y');
   y.value = '1';
   y.dispatch('change');
   expect(getElement('scene-inspector').children.map(e => e.textContent)).toContain('Starts outside prop travel at (4, 1).');
+  expect(getProblemMessages()).toContain('Crate (crate-b): Starts outside prop travel at (4, 1).');
+});
+
+it('rechecks the Problems panel after scripts and footprints are fixed in another tab', async () => {
+  const { scene, prop: shelf } = createPropSlideFixtureDocuments();
+  for (const entry of scene.entities) entry.slidable = { actionScript: 'pushShelf' };
+  storedScene = scene;
+  listedProps.push(shelf.id);
+  shelfSlideCells = [];
+  vi.stubGlobal('location', { search: `?id=${scene.id}` });
+  cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+
+  const problems = getElement('scene-problem-list');
+  await vi.waitFor(() => expect(getProblemMessages()).toEqual([
+    'Shelf (first): Slide action script @pushShelf not found.',
+    'Shelf (first): Paint a slide footprint on the asset in the Prop editor.',
+    'Shelf (second): Slide action script @pushShelf not found.',
+    'Shelf (second): Paint a slide footprint on the asset in the Prop editor.',
+  ]));
+
+  shelfSlideCells = [0, 4];
+  scriptNameSources = { pushShelf: ['puzzle'] };
+  const focus = vi.mocked(window.addEventListener).mock.calls.find(([type]) => type === 'focus')?.[1];
+  if (typeof focus !== 'function') throw new Error('Expected a focus listener');
+  focus(new Event('focus'));
+
+  await vi.waitFor(() => expect(problems.hidden).toBe(true));
+  expect(getElement('scene-problems-empty').textContent).toBe('No problems in this scene.');
+  expect(getElement('scene-problem-count').textContent).toBe('0');
+});
+
+it('shows effective climb heights with the slide overlay and refreshes a changed override', async () => {
+  const { scene, prop: shelf } = createPropSlideFixtureDocuments();
+  for (const entry of scene.entities) entry.slidable = { actionScript: 'pushShelf' };
+  storedScene = scene;
+  listedProps.push(shelf.id);
+  shelfClimb = { climbCells: [1] };
+  vi.stubGlobal('location', { search: `?id=${scene.id}` });
+  cleanup = mountScenes(new SceneTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('scene-status').textContent).toBe(`Opened ${scene.id}`));
+
+  const { clearRect, fillText } = getElement('scene-canvas').context;
+  const animationFrames = vi.mocked(requestAnimationFrame);
+  const drawOverlay = async () => {
+    clearRect.mockClear();
+    fillText.mockClear();
+    animationFrames.mock.lastCall?.[0](0);
+    await vi.waitFor(() => expect(clearRect).toHaveBeenCalled());
+    return fillText.mock.calls.map(([text]) => text).filter((text) => String(text).startsWith('H: '));
+  };
+  expect(await drawOverlay()).toEqual([]);
+
+  const overlay = getElement('scene-show-travel');
+  overlay.checked = true;
+  overlay.dispatch('change');
+  expect(await drawOverlay()).toEqual(['H: 2', 'H: 2']);
+
+  const framesBeforeFocus = animationFrames.mock.calls.length;
+  const focus = vi.mocked(window.addEventListener).mock.calls.find(([type]) => type === 'focus')?.[1];
+  if (typeof focus !== 'function') throw new Error('Expected a focus listener');
+  shelfClimb = { ...shelfClimb, climbHeight: 3 };
+  focus(new Event('focus'));
+  await vi.waitFor(() => expect(animationFrames.mock.calls.length).toBeGreaterThan(framesBeforeFocus));
+  expect(await drawOverlay()).toEqual(['H: 3', 'H: 3']);
+
+  overlay.checked = false;
+  overlay.dispatch('change');
+  expect(await drawOverlay()).toEqual([]);
 });
 
 it('disables world Z in Bottom Up and saves independent render-only Z offsets', async () => {

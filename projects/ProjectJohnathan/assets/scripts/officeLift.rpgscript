@@ -1,4 +1,5 @@
 #load@officeLiftLoad
+  +:items_restoreTrashState()
   +setPlayerWalkCh(Johnathan, 3x3)
   +^schoolPuzzle.officeEntryMarker="fromOfficeLift"
 
@@ -112,6 +113,10 @@
   Mrs Laddy: "I already have. But they're busy fixing the elevators."
   Johnathan: "Something else is broken in the school today?"
   Mrs Laddy: "Mmhmm! The elevators are down. Some students are stranded upstairs so they're working on getting them down."
+  +schoolPuzzle.knowsElevatorsAreDown=true
+  +?is(schoolPuzzle.knowsHaddyIsWaitingForElevator):{
+    Johnathan: "That explains why Haddy couldn't get an elevator...."
+  }
   Johnathan: "And I'm guessing they can't use the stairs because of the anti-fire system?"
   Mrs Laddy: "Yes that's correct."
   Johnathan: "Awesome. That's so awesome."

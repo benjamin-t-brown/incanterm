@@ -1,5 +1,5 @@
 import { exportTruecolor } from './schema.js';
-import { AssetError, AssetStore, getImageRevision } from './store.js';
+import { AssetError, type AssetStore, getImageRevision } from './store.js';
 import { SaveConflict } from './safe-save.js';
 import { openScriptWithDefaultApp } from './open-script.js';
 
@@ -41,6 +41,8 @@ export async function dispatchAssetRequest(
       return await handleSceneFoldersRequest(store, method, rawBody, 'characters');
     if (parts[1] === 'item-folders' && parts.length === 2)
       return await handleSceneFoldersRequest(store, method, rawBody, 'items');
+    if (parts[1] === 'item-visuals' && parts.length === 2 && method === 'GET')
+      return getJson(200, await store.getItemVisualAssets());
     if (parts[1] === 'items')
       return await handleItemsRequest(store, method, parts.slice(2), rawBody);
     if (parts[1] === 'animations')
@@ -74,7 +76,10 @@ export async function dispatchAssetRequest(
     }
     return getJson(404, { error: 'Not found' });
   } catch (error) {
-    if (error instanceof AssetError || error instanceof SaveConflict) {
+    if (error instanceof SaveConflict) {
+      return getJson(error.status, { error: error.message, code: error.code });
+    }
+    if (error instanceof AssetError) {
       return getJson(error.status, { error: error.message });
     }
     if (error instanceof SyntaxError) return getJson(400, { error: 'Invalid JSON' });
@@ -414,8 +419,10 @@ async function handleScenesRequest(
   if (parts.length === 1 && method === 'GET')
     return getJson(200, await store.readScene(decode(parts[0])));
   if (parts.length === 1 && method === 'PUT') {
-    const { base, doc } = getDraftBody(rawBody);
-    return getJson(200, await store.saveSceneDraft(decode(parts[0]), doc, base));
+    const { base, doc, overwrite } = getDraftBody(rawBody);
+    if (overwrite !== undefined && typeof overwrite !== 'boolean')
+      throw new AssetError('Scene overwrite must be a boolean', 400);
+    return getJson(200, await store.saveSceneDraft(decode(parts[0]), doc, base, overwrite));
   }
   if (parts.length === 1 && method === 'DELETE') {
     await store.deleteScene(decode(parts[0]));
@@ -510,12 +517,12 @@ function parseJson(rawBody: string | Buffer): unknown {
   return JSON.parse(text) as unknown;
 }
 
-function getDraftBody(rawBody: string | Buffer): { base: unknown; doc: unknown } {
+function getDraftBody(rawBody: string | Buffer): { base: unknown; doc: unknown; overwrite: unknown } {
   const body = getRecord(parseJson(rawBody));
   if (!('base' in body) || !('doc' in body)) {
     throw new AssetError('Save needs a base snapshot and doc', 400);
   }
-  return { base: body.base, doc: body.doc };
+  return { base: body.base, doc: body.doc, overwrite: body.overwrite };
 }
 
 function getRecord(value: unknown): Record<string, unknown> {

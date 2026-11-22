@@ -22,8 +22,11 @@ export class AnimatedProp extends Prop {
     foreground = false,
     blockingOffsets: Prop['blockingOffsets'] = [],
     slidable?: Prop['slidable'],
+    climbOffsets: Prop['climbOffsets'] = [],
+    climbHeight?: number,
+    actionScript?: string,
   ) {
-    super(id, x, y, depthOffset, z, sprite, foreground, instanceName, blockingOffsets, slidable);
+    super(id, x, y, depthOffset, z, sprite, foreground, instanceName, blockingOffsets, slidable, climbOffsets, climbHeight, actionScript);
   }
 
   /** Active clip for the current state (falls back to default, then a static sprite frame). */
@@ -65,6 +68,9 @@ export class AnimatedProp extends Prop {
       this.foreground,
       this.blockingOffsets,
       this.slidable,
+      this.climbOffsets,
+      this.climbHeight,
+      this.actionScript,
     );
   }
 

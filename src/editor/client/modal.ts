@@ -19,6 +19,7 @@ type ModalRequest = {
   readonlyId?: string;
   confirmLabel: string;
   cancelLabel: string | null;
+  focusCancel?: boolean;
   resolve: (value: ModalResult) => void;
 };
 
@@ -55,7 +56,11 @@ export function alertModal(message: string): Promise<void> {
   }).then(() => undefined);
 }
 
-export function confirmModal(message: string, confirmLabel = 'OK'): Promise<boolean> {
+export function confirmModal(
+  message: string,
+  confirmLabel = 'OK',
+  options: { focusCancel?: boolean } = {},
+): Promise<boolean> {
   return openModal({
     title: 'CONFIRM',
     message,
@@ -65,6 +70,7 @@ export function confirmModal(message: string, confirmLabel = 'OK'): Promise<bool
     assetId: false,
     confirmLabel,
     cancelLabel: 'CANCEL',
+    focusCancel: options.focusCancel,
   }).then((value) => value === true);
 }
 
@@ -217,8 +223,9 @@ function showNext(): void {
     elements.heightInput.value = String(request.size.height);
   }
   elements.dialog.showModal();
-  if (request.input === null) elements.confirmButton.focus();
-  else {
+  if (request.input === null) {
+    (request.focusCancel ? elements.cancelButton : elements.confirmButton).focus();
+  } else {
     elements.input.focus();
     elements.input.select();
   }

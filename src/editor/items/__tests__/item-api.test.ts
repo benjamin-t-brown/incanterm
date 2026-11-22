@@ -16,7 +16,7 @@ async function createStore(): Promise<AssetStore> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-item-api-'));
   roots.push(root);
   const store = new AssetStore(root);
-  await store.saveSprite('art', createSprite('art', 1, 1));
+  await store.saveSprite('art', createSprite('art', 4, 3));
   await store.saveScript('hooks', '@inspect\n@fail\n@combine\n');
   return store;
 }
@@ -64,10 +64,18 @@ describe('item asset API', () => {
         null,
       ),
     ).rejects.toThrow();
-    await store.saveItemDraft('key', { ...item, scriptName: 'OfficeKey' }, null);
+    const key = { ...item, scriptName: 'OfficeKey, SpareKey/KeyTag' };
+    expect(await store.saveItemDraft('key', key, null)).toEqual(key);
+    expect(await store.readItem('key')).toEqual(key);
     await expect(
-      store.saveItemDraft('coin', { ...item, id: 'coin', scriptName: 'OfficeKey' }, null),
-    ).rejects.toThrow('conflicts');
+      store.saveItemDraft('coin', { ...item, id: 'coin', scriptName: 'Token/sparekey' }, null),
+    ).rejects.toThrow('"SpareKey" conflicts');
+    await expect(
+      store.saveItemDraft('coin', { ...item, id: 'coin', scriptName: 'Token, Key' }, null),
+    ).rejects.toThrow('"key" conflicts');
+    await expect(
+      store.saveItemDraft('keytag', { ...item, id: 'keytag' }, null),
+    ).rejects.toThrow('"KeyTag" conflicts');
     const empty = createAnimation('empty');
     await store.saveAnimationDraft(empty.id, empty, null);
     await expect(
@@ -115,5 +123,78 @@ describe('item asset API', () => {
     });
     await store.deleteItem('key');
     expect((await store.getItemFolders()).placements).toEqual({});
+  });
+
+  it('only offers and accepts item visuals with 4×3 sprites in every visible frame', async () => {
+    const store = await createStore();
+    await store.saveSprite('tall', createSprite('tall', 3, 4));
+    const blink = createAnimation('blink');
+    blink.frames = [
+      { sprite: 'art', index: 0, durationMs: 100 },
+      { invisible: true, durationMs: 100 },
+    ];
+    await store.saveAnimationDraft(blink.id, blink, null);
+    const mixed = {
+      ...blink,
+      id: 'mixed',
+      frames: [...blink.frames, { sprite: 'tall', index: 0, durationMs: 100 }],
+    };
+    await store.saveAnimationDraft(mixed.id, mixed, null);
+    const hidden = { ...createAnimation('hidden'), frames: [{ invisible: true, durationMs: 100 }] };
+    await store.saveAnimationDraft(hidden.id, hidden, null);
+
+    const listed = await dispatchAssetRequest(store, 'GET', '/api/item-visuals', '');
+    expect(listed.status).toBe(200);
+    expect(JSON.parse(String(listed.body))).toEqual({
+      sprites: { files: ['art'], labels: { art: 'art' } },
+      animations: { files: ['blink'], labels: { blink: 'blink' } },
+    });
+    const invalidVisuals = [
+      { type: 'sprite', id: 'tall', index: 0 },
+      { type: 'animation', id: 'mixed' },
+    ] as const;
+    for (const visual of invalidVisuals) {
+      const doc = createItem('key', visual);
+      const response = await dispatchAssetRequest(
+        store,
+        'PUT',
+        '/api/items/key',
+        JSON.stringify({ base: null, doc }),
+      );
+      expect(response.status).toBe(422);
+      expect(JSON.parse(String(response.body)).error).toContain('Item sprites must be 4×3');
+    }
+    const item = createItem('key', { type: 'animation', id: blink.id });
+    expect(await store.saveItemDraft(item.id, item, null)).toEqual(item);
+  });
+
+  it('rejects sprite resizes and animation edits that would invalidate existing items', async () => {
+    const store = await createStore();
+    const animatedArt = await store.saveSprite('animated-art', createSprite('animated-art', 4, 3));
+    await store.saveSprite('tall', createSprite('tall', 4, 4));
+    const clip = createAnimation('clip');
+    clip.frames = [{ sprite: animatedArt.id, index: 0, durationMs: 100 }];
+    await store.saveAnimationDraft(clip.id, clip, null);
+    const key = createItem('key', { type: 'sprite', id: 'art', index: 0 });
+    const coin = createItem('coin', { type: 'animation', id: clip.id });
+    await store.saveItemDraft(key.id, key, null);
+    await store.saveItemDraft(coin.id, coin, null);
+
+    const art = await store.readSprite('art');
+    await expect(store.saveSpriteDraft('art', createSprite('art', 5, 3), art)).rejects.toThrow(
+      'Item sprites must be 4×3',
+    );
+    await expect(
+      store.saveSpriteDraft(animatedArt.id, createSprite(animatedArt.id, 4, 4), animatedArt),
+    ).rejects.toThrow('Item sprites must be 4×3');
+    const frames = [...clip.frames, { sprite: 'tall', index: 0, durationMs: 100 }];
+    await expect(store.saveAnimationDraft(clip.id, { ...clip, frames }, clip)).rejects.toThrow(
+      'Item sprites must be 4×3',
+    );
+    expect(await store.readSprite('art')).toEqual(art);
+    expect(await store.readSprite(animatedArt.id)).toEqual(animatedArt);
+    expect(await store.readAnimation(clip.id)).toEqual(clip);
+    const updated = { ...clip, frames: [{ ...clip.frames[0], durationMs: 200 }] };
+    expect(await store.saveAnimationDraft(clip.id, updated, clip)).toEqual(updated);
   });
 });

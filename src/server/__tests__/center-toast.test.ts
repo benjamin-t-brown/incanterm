@@ -1,13 +1,14 @@
 import { expect, it } from 'vitest';
 import { TerminalScreen } from '../../client/terminal-screen.js';
+import { createItemAsset } from '../../game/__tests__/item-fixture.js';
 import { parseRpgScript } from '../../game/rpgscript/__tests__/test-support.js';
 import { Scene } from '../../game/scene.js';
 import { getPlainText } from '../../game/terminal.js';
 import { createGameSession } from '../game-session.js';
 
-function createToastSession(source: string) {
+function createToastSession(source: string, itemAssets?: Scene['itemAssets']) {
   const clear = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
-  const scene = new Scene('room', 10, 10, 'regular-z', clear, [], ['entry']);
+  const scene = new Scene('room', 10, 10, 'regular-z', clear, [], ['entry'], undefined, [], [], [], undefined, itemAssets);
   const screen = new TerminalScreen();
   const scripts = parseRpgScript(`#entry\nload,start\n@start\n${source}`, 'toast.rpgscript');
   const session = createGameSession(scene, (text, cols, rows) => screen.apply(text, cols, rows), scripts);
@@ -15,6 +16,25 @@ function createToastSession(source: string) {
   session.open();
   return { screen, session };
 }
+
+it('renders newly acquired items in a dismissible center toast', () => {
+  const key = createItemAsset('key');
+  key.definition.label = 'Brass key';
+  const { screen, session } = createToastSession(
+    '+acquireItem(key)\n+acquireItem(key)\n+log(after acquisition)',
+    new Map([['key', key]]),
+  );
+  try {
+    const lines = getPlainText(screen.buffer).split('\n');
+    expect(lines[19].slice(40, 80)).toBe(`│${' '.repeat(10)}Acquired Brass key${' '.repeat(10)}│`);
+    expect(getPlainText(screen.buffer)).not.toContain('after acquisition');
+    session.input(' ');
+    expect(getPlainText(screen.buffer)).not.toContain('Acquired Brass key');
+    expect(getPlainText(screen.buffer)).toContain('after acquisition');
+  } finally {
+    session.close();
+  }
+});
 
 it.each([' ', '\r', '\n'])('centers a 40x5 toast and dismisses it with %j', (key) => {
   const { screen, session } = createToastSession('+showCenterToast(Hello there)\n+log(after toast)');

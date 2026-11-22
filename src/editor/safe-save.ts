@@ -2,6 +2,13 @@ export type MergeResult<T> = { ok: true; value: T } | { ok: false; reason: strin
 
 export class SaveConflict extends Error {
   readonly status = 409;
+
+  constructor(
+    message: string,
+    readonly code?: 'merge-conflict',
+  ) {
+    super(message);
+  }
 }
 
 export type SaveOptions<T> = {
@@ -32,7 +39,8 @@ export class SaveCoordinator {
       }
       const merged =
         disk && base ? options.merge(base, ours, disk) : { ok: true as const, value: ours };
-      if (!merged.ok) throw new SaveConflict(`${merged.reason}; nothing was saved`);
+      if (!merged.ok)
+        throw new SaveConflict(`${merged.reason}; nothing was saved`, 'merge-conflict');
       const valid = options.validate(merged.value);
       if (disk === null || !isSame(disk, valid)) await options.write(valid);
       return valid;

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { TerminalScreen } from '../../client/terminal-screen.js';
 import { Character } from '../../game/character.js';
 import { parseRpgScript } from '../../game/rpgscript/__tests__/test-support.js';
-import { Scene } from '../../game/scene.js';
+import { Prop, Scene } from '../../game/scene.js';
 import { Sprite } from '../../game/sprite.js';
 import { getPlainText } from '../../game/terminal.js';
 import { CANCEL_UI_AND_OPEN_LOG_INPUT } from '../../protocol/input.js';
@@ -11,11 +11,16 @@ import { createGameSession } from '../game-session.js';
 
 afterEach(() => vi.useRealTimers());
 
-function createCancelSession(source: string) {
+function createCancelSession(source: string, withOverlappingArt = false) {
   const ink = { ch: ' ', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
-  const hero = new Character('hero', 0, 1, 0, new Sprite('actor', 1, 1, 0, 0, [ink]),
+  const hero = new Character('hero', 0, 1, 0, new Sprite('actor', 1, 1, 0, 0, [
+    withOverlappingArt ? { ...ink, ch: 'Ω' } : ink,
+  ]),
     'actor', 'Hero', 'idle', 'right', 100);
-  const scene = new Scene('room', 10, 10, 'regular-z', ink, [hero], ['entry'], new Set(), [], [], [
+  const entities = withOverlappingArt
+    ? [hero, new Prop('shelf', 0, 1, 0, 1, new Sprite('shelf', 1, 1, 0, 0, [{ ...ink, ch: '§' }]))]
+    : [hero];
+  const scene = new Scene('room', 10, 10, 'regular-z', ink, entities, ['entry'], new Set(), [], [], [
     { id: 'exit', name: 'Exit', x: 8, y: 1 },
   ]);
   const screen = new TerminalScreen();
@@ -36,7 +41,7 @@ function createCancelSession(source: string) {
 const cancellationCases = [
   '+setConv()\n+bad={missing}+1',
   '+setConv2(Hero, Guide)\nHero: "Interrupted dialogue"',
-  '+setConv()\n+awaitChoice("Interrupted choice", "Other choice")',
+  '+setConv()\n+awaitChoice("Interrupted choice", "First choice", "Other choice")',
   '+setConv()\n+showCenterToast("Interrupted toast")',
   '+setConv()\n+waitMs(1000)',
   '+setConv()\n+walkToMarker(hero, Exit)',
@@ -84,10 +89,23 @@ it('opens the log from another tab even with a partial mouse packet pending', ()
   }
 });
 
+it('restores normal player depth when a foreground animation is canceled', () => {
+  vi.useFakeTimers();
+  const { session, screen } = createCancelSession('+setConv()\n+setChForeground(player, true)\n+waitMs(1000)', true);
+  try {
+    expect(getPlainText(screen.buffer)).toContain('Ω');
+    session.input(CANCEL_UI_AND_OPEN_LOG_INPUT);
+    expect(getPlainText(screen.buffer)).not.toContain('Ω');
+    expect(getPlainText(screen.buffer)).toContain('§');
+  } finally {
+    session.close();
+  }
+});
+
 it.each([
   '+setConv()\n+bad={missing}+1',
   '+setConv()\nHero: "Retained dialogue"',
-  '+setConv()\n+awaitChoice("Retained choice", "Other choice")',
+  '+setConv()\n+awaitChoice("Retained choice", "First choice", "Other choice")',
   '+showCenterToast("Retained toast")',
 ])('toggles a large log window with plain backtick without changing the interaction: %s', (source) => {
   vi.useFakeTimers();
@@ -129,6 +147,71 @@ it('scrolls the log window above a toast without dismissing it', () => {
     expect(getPlainText(screen.buffer)).toContain('Entry 69');
     session.input('`');
     expect(getPlainText(screen.buffer)).toContain('Retained toast');
+  } finally {
+    session.close();
+  }
+});
+
+it('dumps live globals and locals only in the backtick log window without advancing gameplay', () => {
+  vi.useFakeTimers();
+  const { session, screen } = createCancelSession(`
++score=42
++vars.flags=|true, 0, {missing}|
++empty={missing}
++[outer]="outer value"
++callChSubscript(hero, work)
++:child("child argument")
++score=43
+@child(arg)
++showCenterToast("Retained toast")
+@work(owner)
++[task]="background value"
++waitMs(1000)`);
+  try {
+    session.input('s');
+    expect(getPlainText(screen.buffer)).toContain('Retained toast');
+    session.input('`');
+    expect(getPlainText(screen.buffer)).not.toContain('[RPGSCRIPT VAR STATE]');
+    session.input('s');
+    const snapshot = getPlainText(screen.buffer);
+    expect(snapshot).toContain('[RPGSCRIPT VAR STATE]');
+    expect(snapshot).toContain('score: 42');
+    expect(snapshot).toContain("'vars.flags': [ true, 0, undefined ]");
+    expect(snapshot).toContain('empty: undefined');
+    expect(snapshot).toContain("script: 'start', locals: { outer: 'outer value' }");
+    expect(snapshot).toContain("script: 'child', locals: { arg: 'child argument' }");
+    expect(snapshot).toContain("ownerId: 'hero'");
+    expect(snapshot).toContain("owner: 'hero', task: 'background value'");
+    expect(snapshot).not.toContain('Retained toast');
+
+    session.input('`');
+    expect(getPlainText(screen.buffer)).toContain('Retained toast');
+    session.input('\r');
+    session.input('`');
+    session.input('s');
+    const updated = getPlainText(screen.buffer);
+    expect(updated).toContain('score: 43');
+    expect(updated).toContain('foreground: []');
+  } finally {
+    session.close();
+  }
+});
+
+it('shows the start of a large variable dump and lets the player scroll to the end', () => {
+  vi.useFakeTimers();
+  const variables = Array.from({ length: 120 }, (_, index) => `+var${index}=${index}`).join('\n');
+  const { session, screen } = createCancelSession(variables);
+  try {
+    session.input('`');
+    session.input('s');
+    const firstPage = getPlainText(screen.buffer);
+    expect(firstPage).toContain('[RPGSCRIPT VAR STATE]');
+    expect(firstPage).toContain('var0: 0');
+    expect(firstPage).not.toContain('var119: 119');
+    for (let page = 0; page < 4; page++) session.input('\x1b[6~');
+    const lastPage = getPlainText(screen.buffer);
+    expect(lastPage).toContain('var119: 119');
+    expect(lastPage).toContain('background: []');
   } finally {
     session.close();
   }

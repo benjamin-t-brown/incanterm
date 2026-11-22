@@ -17,7 +17,8 @@ function createTransitionScenes(markers: SceneMarker[]) {
     new Map(), undefined, 'Actor/AlternateActor');
   return {
     first: new Scene('first', 7, 7, 'bottom-up', clear, [hero], ['entry']),
-    next: new Scene('next', 7, 7, 'bottom-up', clear, [], ['arrival'], new Set(), [], [], markers),
+    next: new Scene('next', 7, 7, 'bottom-up', clear, [], ['arrival'], new Set(), [], [], markers,
+      undefined, undefined, undefined, 'Next Scene'),
   };
 }
 
@@ -105,6 +106,34 @@ it('logs a failed scene load and continues the script in the original scene', as
     const text = getPlainText(screen.buffer);
     expect(text).toContain('Scene not found');
     expect(text).toContain('Still in first');
+  } finally {
+    session.close();
+  }
+});
+
+it('returns the active scene ID and name before and after a transition', async () => {
+  vi.useFakeTimers();
+  const { first, next } = createTransitionScenes([{ id: 'door', name: 'mPlayer', x: 4, y: 3 }]);
+  const scripts = parseRpgScript(`
+#load@entry
+  +setPlayerWalkCh(hero)
+  +beforeName=getSceneName()
+  +log("Before: {beforeName}")
+  +changeScene("Next Scene")
+  +[id]=getSceneId()
+  +afterName=getSceneName()
+  +?eq([id], "next"):+log("After: {afterName}")
+`, 'scene-identity.rpgscript');
+  const screen = new TerminalScreen();
+  const session = createGameSession(first, (text, cols, rows) => screen.apply(text, cols, rows),
+    scripts, undefined, undefined, undefined, undefined, async () => next);
+  try {
+    session.open();
+    await vi.advanceTimersByTimeAsync(100);
+    const text = getPlainText(screen.buffer);
+    expect(text).toContain('Before: first');
+    expect(text).toContain('After: Next Scene');
+    expect(text).not.toContain('[RPGSCRIPT ERROR]');
   } finally {
     session.close();
   }

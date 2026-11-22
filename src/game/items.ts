@@ -1,4 +1,4 @@
-import type { ItemDocument } from '../editor/items/item-schema.js';
+import { getItemScriptNames, type ItemDocument } from '../editor/items/item-schema.js';
 import { AnimatedProp, type PropClip } from './animated-prop.js';
 import type { RuntimeValue } from './rpgscript/command.js';
 import type { Sprite } from './sprite.js';
@@ -44,8 +44,6 @@ export class WorldItem extends AnimatedProp {
 }
 
 export function getItemAsset(assets: ReadonlyMap<string, ItemAsset>, reference: string): ItemAsset {
-  const exact = assets.get(reference);
-  if (exact) return exact;
   const matches = getItemReferenceMatches(assets, reference);
   if (matches.length !== 1)
     throw new Error(
@@ -58,12 +56,14 @@ function getItemReferenceMatches(
   assets: ReadonlyMap<string, ItemAsset>,
   reference: string,
 ): ItemAsset[] {
+  const exact = assets.get(reference);
+  if (exact) return [exact];
   const items = [...assets.values()];
-  const labels = items.filter((asset) => asset.definition.label === reference);
-  // Preserve old projects' aliases, but labels are the user-facing reference.
-  return labels.length
-    ? labels
-    : items.filter((asset) => asset.definition.scriptName === reference);
+  const key = reference.toLowerCase();
+  const aliases = items.filter((asset) =>
+    getItemScriptNames(asset.definition.scriptName).some((name) => name.toLowerCase() === key),
+  );
+  return aliases.length ? aliases : items.filter((asset) => asset.definition.label === reference);
 }
 
 /** Read old string saves, but always write canonical asset references on mutation. */
@@ -94,8 +94,7 @@ export function hasInventoryItem(
 ): boolean {
   // Unknown names in conditions are false, while malformed inventory is an error.
   const entries = getInventoryEntries(value, assets);
-  const exact = assets.get(reference);
-  const matches = exact ? [exact] : getItemReferenceMatches(assets, reference);
+  const matches = getItemReferenceMatches(assets, reference);
   const asset = matches.length === 1 ? matches[0] : undefined;
   return !!asset && entries.some((entry) => entry.itemId === asset.definition.id);
 }

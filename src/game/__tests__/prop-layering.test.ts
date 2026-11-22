@@ -6,6 +6,9 @@ import { createAnimation, createProp, createScene } from '../../editor/schema.js
 import { AnimatedProp } from '../animated-prop.js';
 import { Character } from '../character.js';
 import { loadScene } from '../load-scene.js';
+import { PlayerControl } from '../player-control.js';
+import { parseRpgScript, ScriptRunner } from '../rpgscript/runtime.js';
+import { commands } from '../scene-commands.js';
 import { Background, Prop, Scene, renderView } from '../scene.js';
 import { compareSceneDrawRank, type DepthMode } from '../scene-order.js';
 import { Sprite } from '../sprite.js';
@@ -45,6 +48,25 @@ it.each<DepthMode>(['bottom-up', 'regular-z'])(
     expect(renderView(scene, 1, 1).get(0, 0).ch).toBe('F');
   },
 );
+
+it('can draw a character in front of shelf art and restore their normal depth from RPGScript', () => {
+  const actor = new Character('hero', 0, 0, 0, createGlyph('H'), 'hero', undefined, 'idle', 'down');
+  const shelf = new Prop('shelf', 0, 0, 1, 0, createGlyph('S'));
+  const scene = new Scene('climb-layers', 1, 1, 'bottom-up', ink, [actor, shelf]);
+  const playerControl = new PlayerControl(scene);
+  playerControl.setPlayerWalkCh(actor.id);
+  const script = parseRpgScript(
+    '@raise\n+setChForeground(player, true)\n@restore\n+setChForeground(player, false)',
+    'climb-layers.rpgscript',
+    { commands },
+  );
+  const runner = new ScriptRunner(script, { commands, context: { scene, playerControl } });
+  expect(renderView(scene, 1, 1).get(0, 0).ch).toBe('S');
+  runner.start('raise');
+  expect(renderView(scene, 1, 1).get(0, 0).ch).toBe('H');
+  runner.start('restore');
+  expect(renderView(scene, 1, 1).get(0, 0).ch).toBe('S');
+});
 
 it.each([
   ['sprite', 'bottom-up'],

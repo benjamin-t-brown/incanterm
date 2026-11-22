@@ -1,9 +1,15 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { expect, it } from 'vitest';
+import { createAnimation, createProp, createScene, createSprite } from '../../editor/schema.js';
+import { AssetStore } from '../../editor/store.js';
 import { AnimatedProp, type PropClip } from '../animated-prop.js';
+import { loadScene } from '../load-scene.js';
 import { PlayerControl } from '../player-control.js';
 import { parseRpgScript, ScriptRunner } from '../rpgscript/runtime.js';
 import { commands } from '../scene-commands.js';
-import { Scene } from '../scene.js';
+import { renderView, Scene } from '../scene.js';
 import { Sprite } from '../sprite.js';
 
 function createPropRunner(source: string) {
@@ -32,6 +38,59 @@ it('sets the animation state on every prop that shares the instance name', () =>
   runner.start('start');
   expect(left.state).toBe('open');
   expect(right.state).toBe('open');
+});
+
+it('loads a starting sprite state and switches between sprite and animation states from scripts', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-prop-states-'));
+  try {
+    const store = new AssetStore(root);
+    const sheet = createSprite('door-art', 1, 1);
+    sheet.sprites = ['D', 'S', 'A'].map((ch) => {
+      const frame = structuredClone(sheet.sprites[0]);
+      frame.layers[0].cells[0] = { ch, fg: 'white', bg: 'black' };
+      return frame;
+    });
+    await store.saveSprite(sheet.id, sheet);
+    const animation = createAnimation('door-opening');
+    animation.frames = [2, 0].map((index) => ({ sprite: sheet.id, index, durationMs: 100 }));
+    await store.saveAnimation(animation.id, animation);
+    const prop = createProp('door', { type: 'sprite', id: sheet.id, index: 0 });
+    prop.customAnimations = {
+      open: { type: 'sprite', id: sheet.id, index: 1 },
+      opening: animation.id,
+    };
+    await store.savePropDraft(prop.id, prop, null);
+    expect(await store.readProp(prop.id)).toEqual(prop);
+    const doc = createScene('room', undefined, 1, 1);
+    doc.entities = [{ type: 'Prop', id: 'door', prop: prop.id, x: 0, y: 0, z: 0, state: 'open' }];
+    await store.saveSceneDraft(doc.id, doc, null);
+    const scene = await loadScene(root, doc.id);
+    const door = scene.entities[0];
+    if (!(door instanceof AnimatedProp)) throw new Error('Expected a reusable prop');
+    const script = parseRpgScript(
+      '@animate\n+setPropAnimState(door, opening)\n@open\n+setPropAnimState(door, open)\n@reset\n+setPropAnimState(door, default)',
+      'door.rpgscript',
+      { commands },
+    );
+    const runner = new ScriptRunner(script, {
+      commands,
+      context: { scene, playerControl: new PlayerControl(scene) },
+    });
+    const getGlyph = () => renderView(scene, 1, 1).get(0, 0).ch;
+    expect(getGlyph()).toBe('S');
+    door.update(2500);
+    expect(getGlyph()).toBe('S');
+    runner.start('animate');
+    expect(getGlyph()).toBe('A');
+    door.update(100);
+    expect(getGlyph()).toBe('D');
+    runner.start('open');
+    expect(getGlyph()).toBe('S');
+    runner.start('reset');
+    expect(getGlyph()).toBe('D');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 it('logs a missing state and falls back to default on each match', () => {

@@ -20,6 +20,8 @@
     20
   ],
   "groundOffsetY": 0,
+  "climbCells": [0, 1, 2, 3, 4, 5, 6],
+  "climbHeight": 3,
   "slideCells": [
     14,
     15,

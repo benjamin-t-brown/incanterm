@@ -34,8 +34,11 @@ describe('item commands and conditions', () => {
     const second = new ScriptRunner(scripts);
     first.start('start', ['key']);
     expect(first.getGlobal('vars.inventory')).toEqual(['key']);
-    expect(first.dialogue?.text).toBe('Owned');
     expect(second.getGlobal('vars.inventory')).toBeUndefined();
+    expect(first.centerToast).toBe('Acquired key');
+    first.dismissCenterToast();
+    expect(first.centerToast).toBeUndefined();
+    expect(first.dialogue?.text).toBe('Owned');
     first.advance();
     expect(first.getGlobal('vars.inventory')).toEqual([]);
     expect(first.dialogue?.text).toBe('Removed');
@@ -49,6 +52,7 @@ describe('item commands and conditions', () => {
     const scripts = parseRpgScript(`@start
 +acquireItem(key)
 +acquireItem(coin)
++acquireItem(key)
 +?func(hasItem, key):A: "Key"
 +?func(hasItem, {wanted}):A: "Wanted"
 +?func(hasItem, "{wanted}"):A: "Interpolated"`, 'items.rpgscript');
@@ -56,7 +60,9 @@ describe('item commands and conditions', () => {
     runner.setGlobal('key', 'coin');
     runner.setGlobal('wanted', 'coin');
     runner.start('start');
-    expect(runner.getGlobal('vars.inventory')).toEqual(['key', 'coin']);
+    runner.dismissCenterToast();
+    runner.dismissCenterToast();
+    expect(runner.getGlobal('vars.inventory')).toEqual(['coin', 'key']);
     expect(runner.dialogue?.text).toBe('Key');
     runner.advance();
     expect(runner.dialogue?.text).toBe('Wanted');

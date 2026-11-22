@@ -18,7 +18,7 @@ describe('RPGScript diagnose', () => {
   });
 
   it('accepts a known command and a script defined in the project', () => {
-    const source = ['@intro', "+callScript('other')", '+wait(1)'].join('\n');
+    const source = ['@intro', "+callScript('other')", '+wait(1)', '+barkProp(speaker, "Beep")'].join('\n');
     expect(diagnoseScript(source, ['intro', 'other'])).toEqual([]);
   });
 
@@ -30,6 +30,18 @@ describe('RPGScript diagnose', () => {
     expect(diagnoseScript('#timer@bad,0', [])).toEqual([
       { line: 1, severity: 'error', message: 'Timer interval must be a positive number of milliseconds' },
     ]);
+  });
+
+  it('indexes parameterized scripts by name and skips invalid signatures and @this', () => {
+    const source = [
+      '@bad(1)',
+      '@pushShelf(instance)',
+      '@adjustShelf (instance, direction)',
+      '@this',
+      '@reset()',
+    ].join('\n');
+    expect(getScriptNames(source)).toEqual(['pushShelf', 'adjustShelf', 'reset']);
+    expect(diagnoseScript(`@start\n+callScript("pushShelf")`, getScriptNames(source))).toEqual([]);
   });
 
   it('recognizes switch case blocks without hiding commands within them', () => {
@@ -46,6 +58,8 @@ describe('RPGScript diagnose', () => {
   +[result]=?lte([pos]->1, 1)
   <[result]
 @start
+  +[sceneId]=getSceneId()
+  +sceneName=getSceneName()
   +?is(+:check()):{
     <
   }

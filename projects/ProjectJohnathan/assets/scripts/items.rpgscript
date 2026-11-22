@@ -1,0 +1,94 @@
+@items_comboFailed
+  +setConv()
+  Johnathan: "They don't go together."
+  +endConv()
+
+@items_genericItem
+  +setConv()
+  Johnathan: "It's an item that I picked up."
+  +endConv()
+
+@items_OfficeNote_examine
+  +setConv()
+  Johnathan: "Mr. Ralgo's all-important envelope that I need to deliver to the Main Office."
+  +endConv()
+
+@items_BookMemoirOfPaigeTurner_examine
+  +setConv()
+  Johnathan: "A riveting tale."
+  +endConv()
+
+@items_BookSweetSalty_examine
+  +setConv()
+  Johnathan: "Lots of Japanese food in here."
+  +endConv()
+
+@items_MomCars_examine
+  +setConv()
+  Johnathan: "It might not be as good as The Odyssey or Voyager, but you could take it to a carnival in the pacifica."
+  Johnathan: "Or a grand caravan."
+  +endConv()
+
+@items_TolstoyLegacy_examine
+  +setConv()
+  Johnathan: "Gosh, this book is lengthy too."
+  +endConv()
+
+@items_SeeingMirror_examine
+  +setConv()
+  Johnathan: "What a weird book."
+  +endConv()
+
+@items_StaticsAndArchitecture_examine
+  +setConv()
+  Johnathan: "Even the book won't fall over on its side."
+  +endConv()
+
+@items_spareChange_examine
+  +setConv()
+  Johnathan: "Just enough money for a refreshing drink or snack."
+  +endConv()
+
+@items_restoreTrashState
+  +[sceneId]=getSceneId()
+  +?is("schoolPuzzle.trashSearched.[sceneId]"):+setPropAnimState(trash_1, searched)
+
+#@items_searchTrash
+  +setConv()
+  +[sceneId]=getSceneId()
+  +[searchedKey]="schoolPuzzle.trashSearched.[sceneId]"
+  +?is([searchedKey]):{
+    Johnathan: "I already searched that."
+    +endConv()
+    <
+  }
+  +setStorage([searchedKey], true)
+  +setPropAnimState(trash_1, searched)
+  +^schoolPuzzle.trashSearchCount=0
+  +schoolPuzzle.trashSearchCount={schoolPuzzle.trashSearchCount}+1
+  +?switch(schoolPuzzle.trashSearchCount):{
+    1: {
+      Johnathan: "I don't see anything useful in there. Not this trashcan, at least."
+    }
+    2: {
+      Johnathan: "Just a bunch of paper in this can. Dang, nothing useful."
+    }
+    3: {
+      Johnathan: "This can's empty."
+    }
+    4: {
+      Johnathan: "Oh there might be something..."
+      Johnathan: "Ahh, nevermind, i'ts just an empty banana peel. Nobody would ever have a use for that."
+    }
+    5: {
+      Johnathan: "Oh no this one's empty too. Just my luck."
+    }
+    6: {
+      Johnathan: "Oh hey, look at this! Somebody left some Spare Change in here!"
+      +acquireItem(SpareChange)
+    }
+    *: {
+      Johnathan: "I think I'm done looking through trash cans for today."
+    }
+  }
+  +endConv()

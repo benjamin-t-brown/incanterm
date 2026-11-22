@@ -21,13 +21,19 @@ import { renderView } from '../scene.js';
 import { createItemScene } from './item-fixture.js';
 
 const source = `@add
-+addItem(OfficeKey)
++addItem(SpareKey)
 +acquireItem(key)
-+?func(hasItem, OfficeKey):+setStorage(owned, true)
++?func(hasItem, keytag):+setStorage(owned, true)
+@acquire
++addItem(coin)
++acquireItem(OfficeKey)
++acquireItem(key)
++acquireItem(coin)
++setStorage(acquisitionComplete, true)
 @remove
-+removeItem(OfficeKey)
++removeItem(KeyTag)
 @inspect
-+examineItem(OfficeKey)
++examineItem(SpareKey)
 @combine(kind, target)
 +combineItem(OfficeKey, [kind], [target])
 @examineKey
@@ -53,6 +59,11 @@ function createItemRunner() {
     hasItem: (inventory, reference) => hasInventoryItem(inventory, scene.itemAssets, reference),
   });
   return { scene, runner };
+}
+
+async function writeAsset(root: string, folder: string, id: string, value: unknown): Promise<void> {
+  await fs.mkdir(path.join(root, folder), { recursive: true });
+  await fs.writeFile(path.join(root, folder, `${id}.json`), `${JSON.stringify(value)}\n`);
 }
 
 describe('item assets and inventory', () => {
@@ -93,6 +104,16 @@ describe('item assets and inventory', () => {
     expect(getItemAsset(scene.itemAssets, 'key')).toBe(key);
   });
 
+  it('prefers a configured alias over a matching display label', () => {
+    const scene = createItemScene();
+    const key = getItemAsset(scene.itemAssets, 'key');
+    const coin = getItemAsset(scene.itemAssets, 'coin');
+    coin.definition.label = 'SpareKey';
+    expect(getItemAsset(scene.itemAssets, 'SpareKey')).toBe(key);
+    expect(hasInventoryItem([{ itemId: 'key' }], scene.itemAssets, 'SpareKey')).toBe(true);
+    expect(hasInventoryItem([{ itemId: 'coin' }], scene.itemAssets, 'SpareKey')).toBe(false);
+  });
+
   it('checks canonical inventory references even without a host alias resolver', () => {
     const scene = createItemScene();
     const library = parseRpgScript(
@@ -130,6 +151,18 @@ describe('item assets and inventory', () => {
     expect(() => runner.start('unknown')).toThrow('Unknown item missing');
   });
 
+  it('puts newly acquired items first and shows their label in a center toast', () => {
+    const { runner } = createItemRunner();
+    runner.start('acquire');
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }, { itemId: 'coin' }]);
+    expect(runner.centerToast).toBe('Acquired KEY');
+    expect(runner.getGlobal('acquisitionComplete')).toBeUndefined();
+    runner.dismissCenterToast();
+    expect(runner.centerToast).toBeUndefined();
+    expect(runner.getGlobal('acquisitionComplete')).toBe(true);
+    expect(runner.getGlobal('vars.inventory')).toEqual([{ itemId: 'key' }, { itemId: 'coin' }]);
+  });
+
   it('migrates legacy inventory names without duplicating or copying item definitions', () => {
     const { scene, runner } = createItemRunner();
     runner.setGlobal('vars.inventory', ['OfficeKey', 'key', 'coin']);
@@ -153,7 +186,7 @@ describe('item assets and inventory', () => {
     expect(runner.getGlobal('examined')).toBe(true);
     expect(() => runner.start('combine', ['item', 'coin'])).toThrow('requires an owned item');
     runner.start('add');
-    runner.start('combine', ['item', 'coin']);
+    runner.start('combine', ['item', 'Token']);
     expect(runner.getGlobal('combined')).toBe('coin');
     expect(runner.getGlobal('vars.inventory')).toEqual([]);
     expect(() => runner.start('inspect')).toThrow('not available');
@@ -208,29 +241,39 @@ describe('item assets and inventory', () => {
   it('loads static and animated world items with independent clocks and no blocked cells', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-items-'));
     try {
-      async function writeAsset(folder: string, id: string, value: unknown): Promise<void> {
-        await fs.mkdir(path.join(root, folder), { recursive: true });
-        await fs.writeFile(path.join(root, folder, `${id}.json`), `${JSON.stringify(value)}\n`);
-      }
-      const sprite = createSprite('art', 1, 1);
+      const sprite = createSprite('art', 4, 3);
       sprite.sprites[0].layers[0].cells[0] = { ch: 'K', fg: 'white', bg: 'black' };
-      await writeAsset('sprites', sprite.id, sprite);
+      await writeAsset(root, 'sprites', sprite.id, sprite);
       const clip = createAnimation('blink');
       clip.frames = [
         { sprite: 'art', index: 0, durationMs: 50 },
         { invisible: true, durationMs: 50 },
       ];
-      await writeAsset('animations', clip.id, clip);
-      await writeAsset('items', 'key', createItem('key', { type: 'sprite', id: 'art', index: 0 }));
-      await writeAsset('items', 'coin', createItem('coin', { type: 'animation', id: 'blink' }));
+      await writeAsset(root, 'animations', clip.id, clip);
+      await writeAsset(
+        root,
+        'items',
+        'key',
+        {
+          ...createItem('key', { type: 'sprite', id: 'art', index: 0 }),
+          scriptName: 'OfficeKey/SpareKey',
+        },
+      );
+      await writeAsset(
+        root,
+        'items',
+        'coin',
+        createItem('coin', { type: 'animation', id: 'blink' }),
+      );
       const doc = createScene('room', undefined, 4, 2);
       doc.entities = [
         { type: 'Item', id: 'key-1', item: 'key', x: 0, y: 0, z: 0, depthOffset: 0 },
         { type: 'Item', id: 'coin-1', item: 'coin', x: 1, y: 0, z: 0, depthOffset: 0 },
       ];
-      await writeAsset('scenes', doc.id, doc);
+      await writeAsset(root, 'scenes', doc.id, doc);
       const scene = await loadScene(root, 'room');
       expect(scene.itemAssets.size).toBe(2);
+      expect(getItemAsset(scene.itemAssets, 'SpareKey').definition.id).toBe('key');
       expect(scene.blockedCells.size).toBe(0);
       expect(renderView(scene, 4, 2).get(1, 0).ch).toBe('K');
       const item = scene.entities[1];
@@ -241,6 +284,50 @@ describe('item assets and inventory', () => {
       expect(renderView(scene, 4, 2).get(1, 0).ch).toBe(' ');
       scene.entities[1] = copy;
       expect(renderView(scene, 4, 2).get(1, 0).ch).toBe('K');
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects conflicting aliases on disk, including aliases matching another item ID', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-item-aliases-'));
+    try {
+      const visual = { type: 'sprite', id: 'art', index: 0 } as const;
+      await writeAsset(root, 'scenes', 'room', createScene('room'));
+      await writeAsset(root, 'sprites', 'art', createSprite('art', 4, 3));
+      await writeAsset(root, 'items', 'coin', { ...createItem('coin', visual), scriptName: 'Token' });
+      const key = createItem('key', visual);
+      await writeAsset(root, 'items', 'key', { ...key, scriptName: 'OfficeKey, token' });
+      await expect(loadScene(root, 'room')).rejects.toThrow('Duplicate item script name token');
+      await writeAsset(root, 'items', 'key', { ...key, scriptName: 'OfficeKey/Coin' });
+      await expect(loadScene(root, 'room')).rejects.toThrow('Item script name Coin conflicts');
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects invalid dimensions for both static items and later animation frames', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'incanterm-item-size-'));
+    try {
+      await writeAsset(root, 'scenes', 'room', createScene('room'));
+      await writeAsset(root, 'sprites', 'art', createSprite('art', 4, 3));
+      await writeAsset(root, 'sprites', 'tall', createSprite('tall', 3, 4));
+      const clip = createAnimation('clip');
+      clip.frames = [
+        { sprite: 'art', index: 0, durationMs: 100 },
+        { sprite: 'tall', index: 0, durationMs: 100 },
+      ];
+      await writeAsset(root, 'animations', clip.id, clip);
+      const invalidVisuals = [
+        { type: 'sprite', id: 'tall', index: 0 },
+        { type: 'animation', id: clip.id },
+      ] as const;
+      for (const visual of invalidVisuals) {
+        await writeAsset(root, 'items', 'key', createItem('key', visual));
+        await expect(loadScene(root, 'room')).rejects.toThrow(
+          'Item key: Item sprites must be 4×3 cells; sprite "tall" is 3×4',
+        );
+      }
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

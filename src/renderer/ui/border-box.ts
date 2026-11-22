@@ -91,6 +91,7 @@ export class BorderBox extends UIElement {
   border: BorderStyle;
   fg: Rgb;
   bg: Rgb;
+  topRightLabel = '';
   private _scrollY = 0;
 
   constructor(
@@ -166,6 +167,10 @@ export class BorderBox extends UIElement {
 
   protected paint(ctx: DrawContext): void {
     paintBox(ctx, this.width, this.height, this.border, (ch) => this.getInk(ch));
+    if (!this.topRightLabel || this.innerWidth < 3) return;
+    const label = ` ${this.topRightLabel.slice(0, this.innerWidth - 2)} `;
+    for (let i = 0; i < label.length; i++)
+      ctx.set(this.width - 1 - label.length + i, 0, this.getInk(label[i]));
   }
 
   protected drawChildren(ctx: DrawContext): void {

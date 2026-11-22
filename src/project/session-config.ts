@@ -2,10 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { DialogueAnimationOptions, PortraitAnimationOptions } from '../server/game-session.js';
 
+export type SessionScriptHooks = Readonly<{
+  propUnreachable?: string;
+}>;
+
 export type SessionConfig = {
   dialogueAnimation?: DialogueAnimationOptions;
   portraitAnimation?: PortraitAnimationOptions;
   timerTriggers?: readonly string[];
+  scriptHooks?: SessionScriptHooks;
 };
 
 /** Reads project-owned runtime settings shared by server and local previews. */
@@ -28,10 +33,21 @@ export async function loadSessionConfig(assetsRoot: string): Promise<SessionConf
     throw new Error(`${file}: Expected an object`);
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
-    if (!['dialogueAnimation', 'portraitAnimation', 'timerTriggers'].includes(key))
+    if (!['dialogueAnimation', 'portraitAnimation', 'timerTriggers', 'scriptHooks'].includes(key))
       throw new Error(`${file}: Unknown setting ${key}`);
   }
   const config: SessionConfig = {};
+  const hooks = record.scriptHooks;
+  if (hooks !== undefined) {
+    if (hooks === null || typeof hooks !== 'object' || Array.isArray(hooks))
+      throw new Error(`${file}: scriptHooks must be an object`);
+    const { propUnreachable, ...unknownHooks } = hooks as Record<string, unknown>;
+    for (const key of Object.keys(unknownHooks))
+      throw new Error(`${file}: Unknown scriptHooks setting ${key}`);
+    if (propUnreachable !== undefined && (typeof propUnreachable !== 'string' || !propUnreachable.trim()))
+      throw new Error(`${file}: scriptHooks.propUnreachable must be an RPGScript function name`);
+    config.scriptHooks = propUnreachable === undefined ? {} : { propUnreachable };
+  }
   const timerTriggers = record.timerTriggers;
   if (timerTriggers !== undefined) {
     if (

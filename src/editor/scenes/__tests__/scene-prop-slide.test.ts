@@ -18,12 +18,13 @@ it('round-trips editor JSON and loads the same board without treating walking ma
   try {
     const store = new AssetStore(root);
     const { scene, sprite, prop } = createPropSlideFixtureDocuments();
+    const shelf = { ...prop, climbHeight: 4 };
     await store.saveSprite(sprite.id, sprite);
-    await store.savePropDraft(prop.id, prop, null);
+    await store.savePropDraft(prop.id, shelf, null);
     await store.saveSceneDraft(scene.id, scene, null);
     const reopened = await store.readScene(scene.id);
     expect(reopened).toEqual(scene);
-    expect(await store.readProp(prop.id)).toEqual(prop);
+    expect(await store.readProp(prop.id)).toEqual(shelf);
     const runtime = await loadScene(root, scene.id);
     const editorSetup = getSceneSlideSetup(reopened);
     const runtimeSetup = getSceneSlideSetup(runtime);
@@ -54,6 +55,8 @@ it('round-trips editor JSON and loads the same board without treating walking ma
     const first = runtime.entities[0];
     if (!(first instanceof Prop)) throw new Error('Expected a loaded prop');
     const clone = first.clone();
+    expect(first.climbHeight).toBe(4);
+    expect(clone.climbHeight).toBe(4);
     expect(clone.slidable).toEqual(scene.entities[0].slidable);
     clone.x = 4;
     expect(first.x).toBe(2);
@@ -144,7 +147,7 @@ it.each([
   expect(parseScene(scene)).toEqual({ ok: false, error: expect.stringContaining(error) });
 });
 
-it('requires all four directions, a travel area, and a valid instance action binding', () => {
+it('requires all four directions and a travel area, but does not require a legacy action binding', () => {
   const scene = createPropSlideScene();
   const { left, right, up } = scene.propSlide.directions;
   expect(
@@ -160,11 +163,13 @@ it('requires all four directions, a travel area, and a valid instance action bin
     error: expect.stringContaining('Only scene props can be slidable'),
   });
   expect(
-    parseScene({ ...scene, entities: [{ ...first, slidable: { footprint: [{ x: 0, y: 0 }] } }] }),
+    parseScene({ ...scene, entities: [{ ...first, slidable: { footprint: [{ x: 0, y: 0 }], actionScript: '' } }] }),
   ).toEqual({
     ok: false,
     error: expect.stringContaining('Prop first actionScript must be an RPGScript name'),
   });
+  const scripted = { ...first, actionScript: 'inspectShelf', slidable: { footprint: [{ x: 0, y: 0 }] } };
+  expect(parseScene({ ...scene, entities: [scripted] })).toMatchObject({ ok: true, value: { entities: [scripted] } });
   const legacy = createScene('legacy');
   expect(parseScene(legacy)).toEqual({ ok: true, value: legacy });
 });

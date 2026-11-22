@@ -5,7 +5,8 @@
     "portraits",
     "bg",
     "5x5",
-    "props/school"
+    "props/school",
+    "items"
   ],
   "placements": {
     "007ba615-9410-4d38-ab33-65091d4bcca4": "props/school",
@@ -70,11 +71,21 @@
     "4b562537-2462-4bbb-bf68-215e388c6f01": "bg",
     "1b4310e2-e099-4d6a-8fd8-0efecbaea786": "props/school",
     "09c6381d-38f8-499d-bce3-c60fac57ea3d": "props/school",
+    "85160d6a-a005-477f-8241-b34478b45f32": "props/school",
     "3def456d-568a-4634-8718-848b8b359dd3": "props/school",
     "a07883d6-9bf3-46fd-9434-b6d27ca5b989": "props/school",
     "dbff5af3-4aca-4b19-a17d-2db1558f8448": "props/school",
     "9f8b9eca-e077-42b0-b538-227a66b868ea": "props/school",
     "04165c6c-a969-49ae-8454-294403acf650": "props/school",
-    "4e8d2bb6-0a1d-418d-9a4d-9e70d3bdf727": "props/school"
+    "4e8d2bb6-0a1d-418d-9a4d-9e70d3bdf727": "props/school",
+    "bbd2b393-aee7-4467-8cca-42ac15024fb5": "props/school",
+    "2100cad2-37ca-4a69-b19d-9b60cb33951a": "props/school",
+    "cd688696-fca5-45e6-bce2-fce7a4287f9c": "props/school",
+    "a9647f35-99e0-42d0-8fc0-d84859670ad7": "props/school",
+    "10c63d71-16ed-4ba1-b836-a6727d528f65": "props/school",
+    "b27610a7-d04a-4797-9c83-5d63651376f1": "props/school",
+    "d9a5f551-e4db-4e15-9625-e148d25411de": "props/school",
+    "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5": "items",
+    "f580f9a5-2a62-426c-b856-d321e1ccd5d1": "items"
   }
 }

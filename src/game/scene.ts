@@ -49,6 +49,9 @@ export class Prop extends Entity {
     readonly instanceName?: string,
     readonly blockingOffsets: readonly { x: number; y: number }[] = [],
     readonly slidable?: Slidable,
+    readonly climbOffsets: readonly { x: number; y: number }[] = [],
+    readonly climbHeight?: number,
+    readonly actionScript?: string,
   ) {
     super(id, x, y, depthOffset, z);
   }
@@ -98,6 +101,7 @@ export class Scene {
     readonly loadCharacter?: (reference: string) => Promise<Character>,
     readonly itemAssets: ReadonlyMap<string, ItemAsset> = new Map(),
     readonly propSlide?: PropSlideArea,
+    readonly label?: string,
   ) {
     this.entities = [...entities];
   }

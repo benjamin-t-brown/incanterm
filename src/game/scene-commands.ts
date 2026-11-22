@@ -5,21 +5,23 @@ import type { Character } from './character.js';
 import { findCharacter, getWalkAnchor } from './character-movement.js';
 import { getInventoryEntries, getItemAsset, getItemCombinationScript, WorldItem, type ItemTarget } from './items.js';
 import { findAnimatedProps, findProp } from './prop-lookup.js';
+import { getPropClimbPath as getClimbRoute } from './prop-climb.js';
 import { SLIDE_DIRECTIONS } from './prop-slide.js';
 import { defineCommand } from './rpgscript/command.js';
 import {
   checkChoiceCount, getAnimationStateName, getBark, getBusyState, getCharacterVariantName,
   getFacingDirection, getPlayerCharacterName, getPositionCoordinates, getPropInstanceName,
   getScriptValue, getSkipWait, getSpeedMultiplier, getWaitMilliseconds, getWalkDestination,
-  getWalkOffset, parsePositionArgs,
+  getWalkOffset, parseBarkArgs, parsePositionArgs,
 } from './scene-command-support/arguments.js';
 import type { Choice, GameScriptContext } from './scene-command-support/context.js';
-import { addInventoryItem, getInventory, getItemName } from './scene-command-support/inventory.js';
+import { addInventoryItem, addNamedInventoryItem, getInventory, getItemName } from './scene-command-support/inventory.js';
 import { setFacingToward, walkScriptedToDestination } from './scene-command-support/movement.js';
 import {
   getPropSlideControl, getSlidePropId, isSlideCommandReference, parseSlidePropArgs,
   parseSlidePropId, waitForPropSlideResult,
 } from './scene-command-support/prop-slide.js';
+import { parseFadeArgs, waitForScreenFade } from './scene-command-support/screen-fade.js';
 
 const callScript = defineCommand({
   parse: (args, location) => {
@@ -94,6 +96,17 @@ const setBusy = defineCommand({
     const name = getPlayerCharacterName(step.character, script, 'setBusy');
     const busy = getBusyState(step.busy, script);
     findCharacter(game.scene, name, game.playerControl.playerWalkCh).setBusy(busy);
+  },
+});
+
+const setChForeground = defineCommand({
+  parse: (args, location) => args.length === 2
+    ? { character: getScriptValue(args[0], location), foreground: getScriptValue(args[1], location) }
+    : undefined,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPlayerCharacterName(step.character, script, 'setChForeground');
+    const foreground = getBusyState(step.foreground, script, 'setChForeground');
+    findCharacter(game.scene, name, game.playerControl.playerWalkCh).foreground = foreground;
   },
 });
 
@@ -175,17 +188,14 @@ const acquireItem = defineCommand({
     ? { item: getScriptValue(args[0], location) } : undefined,
   execute: (step, context, game?: GameScriptContext) => {
     const item = getItemName(step.item, context, 'acquireItem');
-    if (game?.scene) {
-      addInventoryItem(item, context, game);
-      return;
-    }
-    // Script-only terminal runners have no project assets.
-    const inventory = getInventory(context.getGlobal('vars.inventory'), context.location);
-    if (!inventory.includes(item)) context.setGlobal('vars.inventory', [...inventory, item]);
+    let label: string | undefined;
+    if (game?.scene) label = addInventoryItem(item, context, game, 'first');
+    else if (addNamedInventoryItem(item, context, 'first')) label = item;
+    if (label !== undefined && !context.background) context.showCenterToast(`Acquired ${label}`);
   },
 });
 
-// Keep the existing acquireItem spelling as an alias for older scripts.
+// Add an item without interrupting the script with a toast.
 const addItem = defineCommand({
   parse: acquireItem.parse,
   execute: (step, context, game?: GameScriptContext) => {
@@ -399,6 +409,19 @@ const getCharacterPos = defineCommand({
 
 const getChPos = getCharacterPos;
 
+const getMarkerPos = defineCommand({
+  returnsValue: true,
+  parse: (args, location) => args.length === 1 ? { marker: getScriptValue(args[0], location) } : undefined,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = script.value(step.marker);
+    if (typeof name !== 'string' || !name.trim())
+      throw new Error(`${script.location}: getMarkerPos requires a marker name`);
+    const marker = game.scene.getMarker(name);
+    if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${name}`);
+    return [marker.x, marker.y];
+  },
+});
+
 const getPropPos = defineCommand({
   returnsValue: true,
   parse: (args, location) => args.length === 1
@@ -578,19 +601,22 @@ const lookAtMarker = defineCommand({
 });
 
 const bark = defineCommand({
-  parse: (args, location) => {
-    if (args.length < 2 || args.length > 4) return;
-    return {
-      character: getScriptValue(args[0], location),
-      text: getScriptValue(args[1], location),
-      ms: args.length >= 3 ? getScriptValue(args[2], location) : undefined,
-      skipWait: args.length === 4 ? getScriptValue(args[3], location) : undefined,
-    };
-  },
+  parse: parseBarkArgs,
   execute: (step, script, game: GameScriptContext) => {
-    const name = getPlayerCharacterName(step.character, script, 'bark');
+    const name = getPlayerCharacterName(step.target, script, 'bark');
     const { text, ms, skipWait } = getBark(step, script);
     const isDone = game.bark?.(findCharacter(game.scene, name, game.playerControl.playerWalkCh), text, ms);
+    if (isDone && !skipWait) script.waitUntil(isDone);
+  },
+});
+
+const barkProp = defineCommand({
+  parse: parseBarkArgs,
+  execute: (step, script, game: GameScriptContext) => {
+    const name = getPropInstanceName(step.target, script, 'barkProp');
+    const { text, ms, skipWait } = getBark(step, script, 'barkProp');
+    const prop = findProp(game.scene, name);
+    const isDone = game.bark?.(prop, text, ms);
     if (isDone && !skipWait) script.waitUntil(isDone);
   },
 });
@@ -677,6 +703,28 @@ const waitMs = defineCommand({
     const deadline = Date.now() + ms;
     script.waitUntil(() => Date.now() >= deadline);
   },
+});
+
+const fadeOut = defineCommand({
+  parse: parseFadeArgs,
+  execute: (step, script, game: GameScriptContext) => waitForScreenFade(step, script, game, 1),
+});
+
+const fadeIn = defineCommand({
+  parse: parseFadeArgs,
+  execute: (step, script, game: GameScriptContext) => waitForScreenFade(step, script, game, 0),
+});
+
+const getSceneId = defineCommand({
+  returnsValue: true,
+  parse: (args) => args.length === 0 ? {} : undefined,
+  execute: (_step, _script, game: GameScriptContext) => game.scene.id,
+});
+
+const getSceneName = defineCommand({
+  returnsValue: true,
+  parse: getSceneId.parse,
+  execute: (_step, _script, game: GameScriptContext) => game.scene.label ?? game.scene.id,
 });
 
 const changeScene = defineCommand({
@@ -780,13 +828,44 @@ const resetPropSlides = defineCommand({
   },
 });
 
+const getPropClimbPath = defineCommand({
+  returnsValue: true,
+  parse: (args, location) => {
+    if (args.length !== 1 && args.length !== 2) return;
+    return {
+      marker: getScriptValue(args[0], location),
+      mode: args.length === 2 ? getScriptValue(args[1], location) : 'waypoints',
+    };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    const name = script.value(step.marker);
+    if (typeof name !== 'string' || !name.trim())
+      throw new Error(`${script.location}: getPropClimbPath requires a landing marker name`);
+    const landing = game.scene.getMarker(name);
+    if (!landing) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${name}`);
+    const mode = script.value(step.mode);
+    if (mode !== 'waypoints' && mode !== 'shelfCenters')
+      throw new Error(`${script.location}: getPropClimbPath mode must be waypoints or shelfCenters`);
+    const player = game.playerControl.playerWalkCh;
+    if (!player || !game.scene.entities.includes(player)) return [];
+    return getClimbRoute(game.scene, landing, player, mode).map((step) => {
+      const point = mode === 'shelfCenters' && step.kind === 'roof'
+        ? getWalkAnchor(game.scene, player, step)
+        : step;
+      return [point.x, point.y];
+    });
+  },
+});
+
 const awaitChoice = defineCommand({
   parse: (args, location) => {
-    if (!args.length || !args.every((arg) => typeof arg === 'string')) return;
-    checkChoiceCount(args.length, location);
-    return { type: 'awaitChoice' as const, options: Object.freeze([...args]) };
+    if (args.length < 2 || !args.every((arg) => typeof arg === 'string') || !args[0].trim())
+      throw new Error(`${location}: awaitChoice requires a question followed by at least one option`);
+    const [question, ...options] = args;
+    checkChoiceCount(options.length, location);
+    return { type: 'awaitChoice' as const, question, options: Object.freeze(options) };
   },
-  execute: (step, context) => context.showChoices(step.options.map(context.interpolate)),
+  execute: (step, context) => context.showChoices(step.options.map(context.interpolate), undefined, context.interpolate(step.question)),
 });
 
 // The language parser emits showChoices for `$` choice blocks.
@@ -830,6 +909,7 @@ export const commands = {
   continueLoop,
   callChSubscript,
   setBusy,
+  setChForeground,
   playDialogue,
   showCenterToast,
   setStorage,
@@ -850,6 +930,7 @@ export const commands = {
   setPlayerWalkCh,
   getCharacterPos,
   getChPos,
+  getMarkerPos,
   getPropPos,
   setChPos,
   setPropPos,
@@ -862,17 +943,23 @@ export const commands = {
   lookAtCh,
   lookAtMarker,
   bark,
+  barkProp,
   setAnimState,
   setCharacterVariant,
   setPropAnimState,
   despawnCh,
   waitMs,
+  fadeOut,
+  fadeIn,
+  getSceneId,
+  getSceneName,
   changeScene,
   approachSlideProp,
   getPropPushes,
   choosePropPush,
   slideProp,
   resetPropSlides,
+  getPropClimbPath,
   awaitChoice,
   showChoices,
 };

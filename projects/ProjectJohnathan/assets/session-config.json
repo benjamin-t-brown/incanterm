@@ -10,5 +10,8 @@
     "enabled": true,
     "stepDurationMs": 33,
     "rowDelayMs": 8.25
+  },
+  "scriptHooks": {
+    "propUnreachable": "reportUnreachableProp"
   }
 }

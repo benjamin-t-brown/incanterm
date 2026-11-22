@@ -30,10 +30,11 @@ export function readItemTabs(storage: Pick<Storage, 'getItem'>): ItemTabStore {
     for (const id of tabs) {
       const session = raw.drafts?.[id];
       if (!session) continue;
-      // Half-entered labels, hooks and rules are legitimate local drafts.
+      // Half-entered labels, aliases, hooks and rules are legitimate local drafts.
       const doc = parseItem({
         ...session.doc,
         label: id,
+        scriptName: undefined,
         examineScript: undefined,
         combineFailScript: undefined,
         combinations: [],
@@ -44,6 +45,7 @@ export function readItemTabs(storage: Pick<Storage, 'getItem'>): ItemTabStore {
         !doc.ok ||
         doc.value.id !== id ||
         typeof session.doc.label !== 'string' ||
+        (session.doc.scriptName !== undefined && typeof session.doc.scriptName !== 'string') ||
         (session.doc.examineScript !== undefined &&
           typeof session.doc.examineScript !== 'string') ||
         (session.doc.combineFailScript !== undefined &&
@@ -63,6 +65,7 @@ export function readItemTabs(storage: Pick<Storage, 'getItem'>): ItemTabStore {
         doc: {
           ...doc.value,
           label: session.doc.label,
+          ...(session.doc.scriptName !== undefined ? { scriptName: session.doc.scriptName } : {}),
           ...(session.doc.examineScript !== undefined
             ? { examineScript: session.doc.examineScript }
             : {}),

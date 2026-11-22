@@ -6,6 +6,22 @@ import {
   type SchemaResult,
 } from '../schema.js';
 
+export const ITEM_SPRITE_WIDTH = 4;
+export const ITEM_SPRITE_HEIGHT = 3;
+export const ITEM_SPRITE_SIZE = `${ITEM_SPRITE_WIDTH}×${ITEM_SPRITE_HEIGHT}`;
+
+export function isItemSpriteSize({ width, height }: { width: number; height: number }): boolean {
+  return width === ITEM_SPRITE_WIDTH && height === ITEM_SPRITE_HEIGHT;
+}
+
+export function getItemSpriteSizeError(sprite: {
+  id: string;
+  width: number;
+  height: number;
+}): string {
+  return `Item sprites must be ${ITEM_SPRITE_SIZE} cells; sprite "${sprite.id}" is ${sprite.width}×${sprite.height}`;
+}
+
 export type ItemCombination = {
   targetType: 'item' | 'prop' | 'character';
   /** Stable target asset ID, not a scene instance name. */
@@ -18,6 +34,7 @@ export type ItemDocument = {
   version: 1;
   id: string;
   label: string;
+  /** Item aliases separated by commas or slashes. */
   scriptName?: string;
   visual: PropVisual;
   examineScript?: string;
@@ -27,6 +44,10 @@ export type ItemDocument = {
 
 export function createItem(id: string, visual: PropVisual, label = id): ItemDocument {
   return { format: 'incanterm-item', version: 1, id, label, visual, combinations: [] };
+}
+
+export function getItemScriptNames(scriptName: string | undefined): string[] {
+  return scriptName?.split(/[,/]/).map((name) => name.trim()) ?? [];
 }
 
 export function parseItem(value: unknown): SchemaResult<ItemDocument> {
@@ -40,7 +61,21 @@ export function parseItem(value: unknown): SchemaResult<ItemDocument> {
     return fail('Item needs a valid asset id');
   if (typeof record.label !== 'string' || getSpriteLabelError(record.label))
     return fail('Item label must be 1 to 80 characters without control characters');
-  for (const key of ['scriptName', 'examineScript', 'combineFailScript'] as const) {
+  if (record.scriptName !== undefined) {
+    if (typeof record.scriptName !== 'string') return fail('Item script names must be text');
+    const seen = new Set<string>();
+    for (const name of getItemScriptNames(record.scriptName)) {
+      if (!name) return fail('Item script aliases cannot be empty');
+      if (!/^[A-Za-z_][\w. -]*$/.test(name))
+        return fail(
+          `Invalid item script name "${name}". Start with a letter or underscore; use only letters, numbers, spaces, dots, hyphens or underscores.`,
+        );
+      const key = name.toLowerCase();
+      if (seen.has(key)) return fail(`Item script name "${name}" is listed more than once`);
+      seen.add(key);
+    }
+  }
+  for (const key of ['examineScript', 'combineFailScript'] as const) {
     if (
       record[key] !== undefined &&
       (typeof record[key] !== 'string' || !/^[A-Za-z_][\w-]*$/.test(record[key]))

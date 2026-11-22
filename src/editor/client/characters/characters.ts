@@ -114,7 +114,10 @@ export function mountCharacters(root: HTMLElement): () => void {
             <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
            </section>
           </div>
-         <div class="portrait-actions"><button id="portrait-okay" type="submit" disabled>OK</button><button id="portrait-cancel" type="button">CANCEL</button></div>
+          <footer>
+           <p id="portrait-error" role="alert"></p>
+           <div class="portrait-actions"><button id="portrait-okay" type="submit" disabled>OK</button><button id="portrait-cancel" type="button">CANCEL</button></div>
+          </footer>
        </form>
      </dialog>
       <dialog id="character-from-folder-dialog" aria-labelledby="character-from-folder-title">
@@ -171,6 +174,7 @@ export function mountCharacters(root: HTMLElement): () => void {
   const portraitFrameLabel = get$<HTMLElement>('#portrait-frame-label');
   const portraitCanvas = get$<HTMLCanvasElement>('#portrait-preview');
   const portraitStatus = get$<HTMLElement>('#portrait-picker-status');
+  const portraitError = get$<HTMLElement>('#portrait-error');
   const portraitOkay = get$<HTMLButtonElement>('#portrait-okay');
   const drawing = canvas.getContext('2d');
   if (!drawing) throw new Error('Canvas unavailable');
@@ -892,6 +896,15 @@ export function mountCharacters(root: HTMLElement): () => void {
     }
   }
 
+  function showPortraitError(message: string): void {
+    portraitError.textContent = message;
+    portraitError.scrollIntoView({ block: 'nearest' });
+  }
+
+  function clearPortraitError(): void {
+    portraitError.textContent = '';
+  }
+
   function openPortraitPicker(index?: number): void {
     if (!current || portraitDialog.open || (index === undefined && (current.portraits?.length ?? 0) >= 128)) return;
     portraitEditIndex = index;
@@ -911,6 +924,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     portraitFrameLabel.hidden = true;
     portraitCanvas.getContext('2d')?.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
     portraitStatus.textContent = 'Select a sprite or animation.';
+    clearPortraitError();
     portraitDialog.showModal();
     renderPortraitResults();
     if (choice) {
@@ -1197,6 +1211,9 @@ export function mountCharacters(root: HTMLElement): () => void {
   get$<HTMLButtonElement>('#add-character-portrait').addEventListener('click', () => {
     openPortraitPicker();
   });
+  portraitEmotion.addEventListener('input', clearPortraitError);
+  portraitDirectionLeft.addEventListener('change', clearPortraitError);
+  portraitDirectionRight.addEventListener('change', clearPortraitError);
   portraitKind.addEventListener('change', () => {
     portraitChoice = undefined;
     ++portraitToken;
@@ -1215,14 +1232,19 @@ export function mountCharacters(root: HTMLElement): () => void {
     const emotion = portraitEmotion.value.trim();
     const facing: 'left' | 'right' = portraitDirectionLeft.checked ? 'left' : 'right';
     if (!isPortraitEmotionValid(emotion)) {
-      portraitStatus.textContent = 'Use unique emotion names containing letters, numbers, hyphens or underscores, separated by a comma or /. Leave blank for default; do not leave empty aliases.';
+      showPortraitError('Use unique emotion names containing letters, numbers, hyphens or underscores, separated by a comma or /. Leave blank for default; do not leave empty aliases.');
       return;
     }
-    const emotions = getPortraitEmotionNames(emotion);
-    if (current.portraits?.some((entry, index) =>
-      index !== portraitEditIndex && entry.facing === facing &&
-      getPortraitEmotionNames(entry.emotion).some((name) => emotions.includes(name)))) {
-      portraitStatus.textContent = `A ${facing} portrait already uses one of these emotion names (or the default emotion).`;
+    const assignedEmotions = new Set(
+      current.portraits?.flatMap((entry, index) =>
+        index !== portraitEditIndex && entry.facing === facing ? getPortraitEmotionNames(entry.emotion) : [],
+      ),
+    );
+    const duplicate = getPortraitEmotionNames(emotion).find((name) => assignedEmotions.has(name));
+    if (duplicate !== undefined) {
+      showPortraitError(duplicate
+        ? `A ${facing}-facing portrait already uses the emotion alias "${duplicate}".`
+        : `A default portrait already exists for the ${facing} direction.`);
       return;
     }
     const portrait = portraitChoice.kind === 'sprite'

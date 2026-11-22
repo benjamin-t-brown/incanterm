@@ -1,9 +1,14 @@
-import { isCharacterStateName, PROP_DEFAULT_STATE, type PropDocument } from '../schema.js';
+import {
+  isCharacterStateName,
+  PROP_DEFAULT_STATE,
+  type PropDocument,
+  type PropVisual,
+} from '../schema.js';
 
 export function updatePropCustomState(
   prop: PropDocument,
   name: string,
-  animation: string,
+  visual: PropVisual,
   previousName: string | null = null,
 ): void {
   const nextName = name.trim();
@@ -18,12 +23,13 @@ export function updatePropCustomState(
   if (previousName === null && Object.keys(prop.customAnimations).length >= 64)
     throw new Error('Maximum 64 custom states');
 
+  const value = visual.type === 'animation' ? visual.id : visual;
   if (previousName === null) {
-    prop.customAnimations[nextName] = animation;
+    prop.customAnimations[nextName] = value;
   } else {
     prop.customAnimations = Object.fromEntries(
-      Object.entries(prop.customAnimations).map(([key, value]) =>
-        key === previousName ? [nextName, animation] : [key, value],
+      Object.entries(prop.customAnimations).map(([key, existing]) =>
+        key === previousName ? [nextName, value] : [key, existing],
       ),
     );
   }

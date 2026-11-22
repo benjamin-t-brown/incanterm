@@ -2,6 +2,8 @@ import { expect, it } from 'vitest';
 import { createProp, parseProp } from '../../schema.js';
 import { updatePropCustomState } from '../prop-custom-states.js';
 
+const newAnimation = { type: 'animation', id: 'new-animation' } as const;
+
 function createTestProp() {
   const prop = createProp('test-prop', { type: 'sprite', id: 'test-art', index: 0 });
   prop.customAnimations = { open: 'open-animation', closed: 'closed-animation' };
@@ -10,24 +12,26 @@ function createTestProp() {
 
 it('updates the animation without treating an unchanged name as a duplicate', () => {
   const prop = createTestProp();
-  updatePropCustomState(prop, 'open', 'new-animation', 'open');
+  updatePropCustomState(prop, 'open', newAnimation, 'open');
   expect(prop.customAnimations).toEqual({ open: 'new-animation', closed: 'closed-animation' });
   expect(parseProp(prop)).toEqual({ ok: true, value: prop });
 });
 
-it('renames the state and changes its animation without leaving the old state behind', () => {
+it('renames an animation state and replaces it with a sprite without leaving the old state behind', () => {
   const prop = createTestProp();
-  updatePropCustomState(prop, '  partly open  ', 'half-animation', 'open');
+  const sprite = { type: 'sprite', id: 'test-art', index: 2 } as const;
+  updatePropCustomState(prop, '  partly open  ', sprite, 'open');
   expect(prop.customAnimations).toEqual({
-    'partly open': 'half-animation',
+    'partly open': sprite,
     closed: 'closed-animation',
   });
   expect(Object.keys(prop.customAnimations)).toEqual(['partly open', 'closed']);
+  expect(parseProp(prop)).toEqual({ ok: true, value: prop });
 });
 
 it('still supports adding a new state', () => {
   const prop = createTestProp();
-  updatePropCustomState(prop, 'broken', 'broken-animation');
+  updatePropCustomState(prop, 'broken', { type: 'animation', id: 'broken-animation' });
   expect(prop.customAnimations).toEqual({
     open: 'open-animation',
     closed: 'closed-animation',
@@ -40,7 +44,7 @@ it.each(['closed', 'default', '', 'Open', 'bad\nname'])(
   (name) => {
     const prop = createTestProp();
     const before = structuredClone(prop);
-    expect(() => updatePropCustomState(prop, name, 'new-animation', 'open')).toThrow(
+    expect(() => updatePropCustomState(prop, name, newAnimation, 'open')).toThrow(
       'Use a unique lowercase state name',
     );
     expect(prop).toEqual(before);
@@ -50,7 +54,7 @@ it.each(['closed', 'default', '', 'Open', 'bad\nname'])(
 it('does not recreate an edited state that was removed while the dialog was open', () => {
   const prop = createTestProp();
   delete prop.customAnimations.open;
-  expect(() => updatePropCustomState(prop, 'open', 'new-animation', 'open')).toThrow(
+  expect(() => updatePropCustomState(prop, 'open', newAnimation, 'open')).toThrow(
     'This custom state no longer exists',
   );
   expect(prop.customAnimations).toEqual({ closed: 'closed-animation' });
@@ -61,10 +65,10 @@ it('allows editing at the 64-state limit but prevents adding another state', () 
   prop.customAnimations = Object.fromEntries(
     Array.from({ length: 64 }, (_, index) => [`state-${index}`, 'test-animation']),
   );
-  updatePropCustomState(prop, 'renamed', 'new-animation', 'state-0');
+  updatePropCustomState(prop, 'renamed', newAnimation, 'state-0');
   expect(prop.customAnimations.renamed).toBe('new-animation');
   expect(Object.keys(prop.customAnimations)).toHaveLength(64);
-  expect(() => updatePropCustomState(prop, 'extra', 'test-animation')).toThrow(
+  expect(() => updatePropCustomState(prop, 'extra', newAnimation)).toThrow(
     'Maximum 64 custom states',
   );
 });

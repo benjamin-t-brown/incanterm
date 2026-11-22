@@ -105,7 +105,7 @@ Guide: "Next {name}"
   it('substitutes both prompt types when shown, without changing static branch targets', () => {
     const library = parseRpgScript(
       `@start
-+awaitChoice("Take {item}", "Skip {missing}")
++awaitChoice("What about the {item}?", "Take {item}", "Skip {missing}")
 $
 Keep {item}:keep
 Leave {missing}:leave
@@ -118,7 +118,7 @@ Guide: "Left"`,
     const runner = new ScriptRunner(library);
     runner.setGlobal('item', 'key');
     runner.start('start');
-    expect(runner.choice?.options).toEqual(['Take key', 'Skip ']);
+    expect(runner.choice).toEqual({ question: 'What about the key?', options: ['Take key', 'Skip '] });
     runner.setGlobal('item', 'coin');
     runner.choose(0);
     expect(runner.choice?.options).toEqual(['Keep coin', 'Leave ']);

@@ -1,4 +1,5 @@
 #load@hallwayGymLoad
+  +:items_restoreTrashState()
   +setPlayerWalkCh(Johnathan, 3x3)
 
 #hallwayGymUpdate
@@ -58,7 +59,7 @@
 #@hallwayGym_trash
   +walkToMarker(player, TrashMarker)
   +:ld(player, up)
-  +:schoolPuzzle_searchTrash(gym)
+  +:items_searchTrash()
 
 #@hallwayGym_trianglePoster
   +^tmp.hallwayGymTriangleTalk=0

@@ -1,6 +1,6 @@
-import { parseProjectArguments, loadProjectFromArguments } from '../project/cli.js';
 import { matchesViewport, type TerminalViewport } from '../client/viewport.js';
 import type { ServerMessage } from '../protocol/messages.js';
+import { loadLoopbackOptions } from './cli.js';
 import { routeLoopbackInput } from './input.js';
 import { startLoopback, type Loopback } from './start.js';
 import { TerminalScreen } from '../client/terminal-screen.js';
@@ -11,17 +11,6 @@ import {
   TERMINAL_POINTER,
 } from '../client/terminal-cleanup.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
-
-async function loadOptionsFromArgs(args: string[]) {
-  const options = parseProjectArguments(args);
-  if (options.remaining.length)
-    throw new Error(`Unknown arguments: ${options.remaining.join(' ')}`);
-  return {
-    project: await loadProjectFromArguments(options),
-    assetsRoot: options.assetsRoot,
-    sceneId: options.sceneId,
-  };
-}
 
 if (!process.stdin.isTTY || !process.stdout.isTTY) {
   console.error('Loopback mode needs an interactive terminal.');
@@ -135,7 +124,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   }
 
   try {
-    const options = await loadOptionsFromArgs(process.argv.slice(2));
+    const options = await loadLoopbackOptions(process.argv.slice(2));
     loopback = await startLoopback({
       ...options,
       onMessage,

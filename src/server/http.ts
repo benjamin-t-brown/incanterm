@@ -5,9 +5,10 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type { Scene } from '../game/scene.js';
 import type { ScriptLibrary } from '../game/rpgscript/index.js';
 import type { PortraitAssets } from '../game/portrait-assets.js';
+import type { SessionScriptHooks } from '../project/session-config.js';
 import { encodeMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.js';
 import { getSessionErrorText } from '../protocol/session-error.js';
-import { createGameSession, type DialogueAnimationOptions, type PortraitAnimationOptions } from './game-session.js';
+import { createGameSession, type DialogueAnimationOptions, type PortraitAnimationOptions, type ScriptVariables } from './game-session.js';
 import { closeServer, listen } from './listen.js';
 
 const MIME: Record<string, string> = {
@@ -43,6 +44,8 @@ export async function startHttpServer(options: {
   portraitAnimation?: PortraitAnimationOptions;
   allowPlayerSpawn?: boolean;
   sessionTimerTriggers?: readonly string[];
+  initialScriptVariables?: ScriptVariables;
+  scriptHooks?: SessionScriptHooks;
 }): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
     void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
@@ -60,7 +63,7 @@ export async function startHttpServer(options: {
   webSocketServer.on('connection', (socket) => {
     attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits,
       options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn,
-      options.sessionTimerTriggers);
+      options.sessionTimerTriggers, options.initialScriptVariables, options.scriptHooks);
   });
 
   const port = await listen(httpServer, options.port, options.host);
@@ -92,6 +95,8 @@ function attachSocket(
   portraitAnimation?: PortraitAnimationOptions,
   allowPlayerSpawn = false,
   sessionTimerTriggers?: readonly string[],
+  initialScriptVariables?: ScriptVariables,
+  scriptHooks?: SessionScriptHooks,
 ): void {
   let sendingFrame = false;
   const session = createGameSession(
@@ -113,6 +118,10 @@ function attachSocket(
     portraitAnimation,
     allowPlayerSpawn,
     sessionTimerTriggers,
+    undefined,
+    undefined,
+    initialScriptVariables,
+    scriptHooks,
   );
   function handleSessionError(error: unknown): void {
     console.error('Game session failed:', error);

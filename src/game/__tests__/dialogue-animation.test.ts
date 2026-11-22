@@ -104,7 +104,7 @@ it('cleans up the talking animation when dialogue is cancelled without advancing
 
 it('returns to idle before choices and supports consecutive lines from the same speaker', () => {
   const { ada, runner } = createDialogueRunner(
-    '@start\nAda: "First"\nAda: "Second"\n+awaitChoice("Continue")',
+    '@start\nAda: "First"\nAda: "Second"\n+awaitChoice("Ready?", "Continue")',
   );
   runner.start('start');
   runner.advance();

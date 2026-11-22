@@ -5,8 +5,10 @@ export const PROP_SLIDE_COMMAND_NAMES = [
 export const COMMAND_NAMES = [
   'callChSubscript',
   'setBusy',
+  'setChForeground',
   'getCharacterPos',
   'getChPos',
+  'getMarkerPos',
   'getPropPos',
   'setChPos',
   'setPropPos',
@@ -16,6 +18,9 @@ export const COMMAND_NAMES = [
   'setFacing',
   'setCharacterVariant',
   'bark',
+  'barkProp',
+  'getSceneId',
+  'getSceneName',
   'changeScene',
   'spawnAtMarker',
   'lookAtMarker',
@@ -46,7 +51,11 @@ export const COMMAND_NAMES = [
   'playMusic',
   'stopMusic',
   'fade',
+  'fadeOut',
+  'fadeIn',
+  'awaitChoice',
   'wait',
+  'getPropClimbPath',
   ...PROP_SLIDE_COMMAND_NAMES,
 ] as const;
 

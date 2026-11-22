@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "53299beb-5bf2-4b00-8a1b-8c02d3d31e61",
+  "label": "johnathan3x3 interact left",
+  "loop": false,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "ae12a341-1474-4dda-8c1e-27b006279c79",
+      "index": 11,
+      "durationMs": 135
+    },
+    {
+      "sprite": "ae12a341-1474-4dda-8c1e-27b006279c79",
+      "index": 16,
+      "durationMs": 135
+    }
+  ]
+}

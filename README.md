@@ -68,7 +68,8 @@ my-game/
 Paths are relative to the manifest. `assets` must stay inside the project directory.
 The entry scene must exist. New projects include an empty, playable `start` scene.
 Optional `assets/session-config.json` controls dialogue and portrait animation and
-can bind [session-wide RPGScript timers](docs/design/rpgscript.md#timer-triggers).
+can bind [session-wide RPGScript timers](docs/design/rpgscript.md#timer-triggers)
+and the [unreachable-prop script hook](docs/design/rpgscript.md#prop-action-scripts).
 These settings apply to standalone servers and local previews.
 
 Editor saves merge independent changes against the last loaded version and reject
@@ -112,12 +113,14 @@ names or IDs rather than an ambiguous shared script name.
 
 ## Items and inventory
 
-Use **ITEMS** to create reusable item assets with a sprite frame or animation, an optional
-unique script name (for example `OfficeKey`), examine/failure scripts, and combination
-rules targeting item, prop, or character **asset IDs**. Bind zero-argument `@scripts`,
-not `#triggers`. Item recipes work in either direction; the selected item's rule wins
-when both items define a recipe. Scripts decide which ingredients to remove or results
-to grant; combinations do not automatically consume anything.
+Use **ITEMS** to create reusable item assets with a sprite frame or animation, examine/failure
+scripts, and combination rules targeting item, prop, or character **asset IDs**. Set
+**Script Name / Aliases** to `OffEnv, OfficeEnvelope` to use either name in RPGScript,
+for example `+acquireItem(OffEnv)`. Separate aliases with commas or slashes. Aliases
+are case-insensitive and take precedence over labels; exact asset IDs still work.
+Bind zero-argument `@scripts`, not `#triggers`. Item recipes work in either direction;
+the selected item's rule wins when both items define a recipe. Scripts decide which
+ingredients to remove or results to grant; combinations do not automatically consume anything.
 
 In **SCENE → ENTITIES → Add Item**, choose an item and position its world instance.
 Items animate and participate in depth ordering without blocking movement.
@@ -128,8 +131,10 @@ combine them. Esc cancels the selection.
 
 Press **`** (backtick, without Ctrl) to open a large log-only window, even behind
 dialogue, choices, or a center toast. Press **`** again to return to the previous
-UI without cancelling or advancing the interaction. Use Up/Down or Page Up/Down
-to scroll the log; browser users can select and copy its text.
+UI without cancelling or advancing the interaction. While the window is open,
+press **S** to log the current RPGScript globals and locals, including active
+character subscripts. Use Up/Down or Page Up/Down to scroll the log; browser
+users can select and copy its text.
 
 ```text
 +addItem(OfficeKey)
@@ -180,6 +185,29 @@ require `--scene <id-or-label>`.
 `npm run client` or `ssh -p 7102 player@127.0.0.1` connects to the standalone server.
 Loopback uses temporary local ports and combines server and terminal client; press `~`
 to switch between game and server views.
+
+Use `--save <path>` to seed RPGScript variables before the starting scene's load scripts
+run. For example, start Library 1 after the book has been requested:
+
+```sh
+npm run loopback -- --project projects/ProjectJohnathan --scene library1 --save projects/ProjectJohnathan/test-saves/library1-book-requested.json
+```
+
+To make another test save, use version `1` and put the variables under `vars`. Keep
+dotted names as single keys:
+
+```json
+{
+  "v": 1,
+  "vars": {
+    "schoolPuzzle.bookRequested": true
+  }
+}
+```
+
+The path is relative to the working directory (or absolute). The file is read-only:
+this seeds script variables for testing, not a full game checkpoint. `--scene` still
+selects the starting scene.
 
 ## Export and deploy a game
 

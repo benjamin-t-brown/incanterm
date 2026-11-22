@@ -1,7 +1,11 @@
 import { isKnownCommand, PROP_SLIDE_COMMAND_NAMES } from './commands.js';
 import { commands } from '../../game/scene-commands.js';
 import { ScriptParser } from '../../game/rpgscript/parser.js';
-import { getTriggerScriptPrefix, parseTriggerScriptHeader } from '../../game/rpgscript/signature.js';
+import {
+  getTriggerScriptPrefix,
+  parseScriptSignature,
+  parseTriggerScriptHeader,
+} from '../../game/rpgscript/signature.js';
 
 export type ScriptDiagnostic = {
   line: number;
@@ -114,8 +118,12 @@ export function getScriptNames(source: string): string[] {
     if (triggerScript) {
       names.push(triggerScript);
     } else if (line.startsWith('@')) {
-      const name = line.slice(1).trim().split(/\s+/)[0] ?? '';
-      if (name && name !== 'this') names.push(name);
+      try {
+        const { name } = parseScriptSignature(line.slice(1));
+        if (name !== 'this') names.push(name);
+      } catch {
+        // An invalid signature should not hide valid definitions later in the file.
+      }
     }
   }
   return names;

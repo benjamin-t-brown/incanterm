@@ -95,7 +95,7 @@ beforeEach(() => {
       '/api/sprites': { files: ['overlay-art'], labels: {} },
       '/api/sprites/overlay-art': createSprite('overlay-art', 1, 1),
       '/api/sprites/new-art': createSprite('new-art', 2, 2),
-      '/api/animations': { files: [], labels: {} },
+      '/api/animations': { files: ['open-clip'], labels: { 'open-clip': 'Opening' } },
       '/api/palette': null,
       '/api/prop-folders': { folders: [], placements: {} },
     };
@@ -124,6 +124,59 @@ it('uses the shared asset picker and still resizes the prop footprint after sele
       }),
       expect.anything(),
     ),
+  );
+});
+
+it('lets a custom state use a sprite frame, then change to an animation', async () => {
+  cleanup = mountProps(new PropTestElement() as unknown as HTMLElement);
+  await vi.waitFor(() => expect(getElement('prop-status').textContent).toBe('Opened overlay'));
+  const picker = vi.mocked(createVisualAssetPicker).mock.results[0].value;
+  const visual = { type: 'sprite', id: 'new-art', index: 2 };
+  vi.mocked(picker.open).mockResolvedValueOnce(visual);
+  const type = getElement('prop-custom-state-type');
+  const form = getElement('prop-custom-state-form');
+
+  getElement('add-prop-state').dispatch('click');
+  expect(type.value).toBe('animation');
+  getElement('prop-custom-state-name').value = 'open';
+  type.value = 'sprite';
+  type.dispatch('change');
+  expect(getElement('prop-custom-state-animation').hidden).toBe(true);
+  expect(getElement('prop-custom-state-sprite').hidden).toBe(false);
+  form.dispatch('submit');
+  expect(getElement('prop-custom-state-error').textContent).toBe(
+    'Select a sprite frame for this state.',
+  );
+  expect(saveDraft).not.toHaveBeenCalled();
+
+  getElement('choose-prop-state-sprite').dispatch('click');
+  expect(picker.open).toHaveBeenCalledWith('sprite', prop.visual);
+  await vi.waitFor(() =>
+    expect(getElement('prop-custom-state-sprite-label').textContent).toBe('new-art · frame 3'),
+  );
+  form.dispatch('submit');
+  await vi.waitFor(() => expect(getElement('prop-status').textContent).toBe('Saved overlay'));
+  expect(saveDraft).toHaveBeenLastCalledWith(
+    '/api/props/overlay',
+    { ...prop, customAnimations: { open: visual } },
+    prop,
+  );
+
+  const [edit, , label] = getElement('prop-custom').children[0].children;
+  expect(label.textContent).toBe('open · new-art · frame 3');
+  edit.dispatch('click');
+  expect(type.value).toBe('sprite');
+  expect(getElement('prop-custom-state-sprite-label').textContent).toBe('new-art · frame 3');
+  type.value = 'animation';
+  type.dispatch('change');
+  const input = getElement('prop-custom-state-picker').children[0].children[0];
+  input.value = 'Opening';
+  input.dispatch('input');
+  form.dispatch('submit');
+  expect(saveDraft).toHaveBeenLastCalledWith(
+    '/api/props/overlay',
+    { ...prop, customAnimations: { open: 'open-clip' } },
+    { ...prop, customAnimations: { open: visual } },
   );
 });
 

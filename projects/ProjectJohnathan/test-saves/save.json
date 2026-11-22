@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "vars": {
+    "schoolPuzzle.bookRequested": true,
+    "vars.inventory": [
+      { "itemId": "0d573aeb-ac6b-47cd-874e-c86aef17879a" },
+      { "itemId": "8fddf77c-d1a2-437a-8f4e-e8826c75e716" },
+      { "itemId": "af4bbe17-906d-4c29-8f73-16f942da201c" }
+    ],
+    "vars.acquiredItems": [
+      "af4bbe17-906d-4c29-8f73-16f942da201c",
+      "8fddf77c-d1a2-437a-8f4e-e8826c75e716",
+      "0d573aeb-ac6b-47cd-874e-c86aef17879a"
+    ]
+  }
+}

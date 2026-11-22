@@ -272,13 +272,13 @@
       "id": "ac1755e1-8707-452b-8b4e-023a2b29d929",
       "type": "Marker",
       "name": "FromSouthLifts",
-      "x": 92,
+      "x": 91,
       "y": 18
     },
     {
       "id": "door1-1",
       "type": "Prop",
-      "name": "door1_1",
+      "name": "door1up",
       "prop": "door1",
       "state": "default",
       "depthOffset": 0,
@@ -299,6 +299,7 @@
       "name": "bookshelf_left_6x7_2",
       "prop": "3e946791-1113-45c8-a996-74ef8620b39b",
       "state": "default",
+      "actionScript": "library1_bookshelf1",
       "depthOffset": 4,
       "x": 27,
       "y": 14,
@@ -321,6 +322,7 @@
       "name": "bookshelf_left_6x7",
       "prop": "27e5bb08-2c11-41bd-8788-ffa5b62e4f08",
       "state": "default",
+      "actionScript": "library1_bookshelf2",
       "depthOffset": 4,
       "x": 36,
       "y": 14,
@@ -332,6 +334,7 @@
       "name": "bookshelf_left_6x7_2",
       "prop": "3e946791-1113-45c8-a996-74ef8620b39b",
       "state": "default",
+      "actionScript": "library1_bookshelf3",
       "depthOffset": 4,
       "x": 48,
       "y": 14,
@@ -343,8 +346,9 @@
       "name": "bookshelf_left_6x7",
       "prop": "27e5bb08-2c11-41bd-8788-ffa5b62e4f08",
       "state": "default",
+      "actionScript": "library1_bookshelf4",
       "depthOffset": 4,
-      "x": 56,
+      "x": 57,
       "y": 14,
       "z": 0
     },
@@ -354,6 +358,7 @@
       "name": "trash_1",
       "prop": "trash",
       "state": "default",
+      "actionScript": "items_searchTrash",
       "depthOffset": 0,
       "x": 21,
       "y": 11,
@@ -376,6 +381,7 @@
       "name": "bookshelf7x5",
       "prop": "ece779b1-b652-4062-a6e2-da822763a820",
       "state": "default",
+      "actionScript": "library1_bookshelf5",
       "depthOffset": 0,
       "x": 41,
       "y": 9,
@@ -387,6 +393,7 @@
       "name": "bookshelf7x5",
       "prop": "ece779b1-b652-4062-a6e2-da822763a820",
       "state": "default",
+      "actionScript": "library1_bookshelf6",
       "depthOffset": 0,
       "x": 49,
       "y": 9,
@@ -433,8 +440,82 @@
       "state": "default",
       "depthOffset": 0,
       "x": 62,
-      "y": 9,
+      "y": 8,
       "z": 0
+    },
+    {
+      "id": "13669bad-dec3-4518-a233-2bcae5b2d763",
+      "type": "Marker",
+      "name": "FromLibrary2UpPanel",
+      "x": 88,
+      "y": 5
+    },
+    {
+      "id": "df44d3ce-a19f-4df9-b4fc-91c4066756d4",
+      "type": "Marker",
+      "name": "MarkerReturnMachine",
+      "x": 66,
+      "y": 14
+    },
+    {
+      "id": "c091ad90-c75f-410d-a6cf-33685f685e46",
+      "type": "Marker",
+      "name": "MarkerHatch",
+      "x": 78,
+      "y": 14
+    },
+    {
+      "id": "cbfa4eec-6041-4103-85fe-1569bb2de00b",
+      "type": "Marker",
+      "name": "MarkerBooksA",
+      "x": 34,
+      "y": 19
+    },
+    {
+      "id": "93ea3aca-d561-4f79-88d6-442c46fa2245",
+      "type": "Marker",
+      "name": "MarkerBooksB",
+      "x": 55,
+      "y": 19
+    },
+    {
+      "id": "9d4b15f3-eb36-4468-baf1-9bbc057d2620",
+      "type": "Marker",
+      "name": "MarkerBooksC",
+      "x": 45,
+      "y": 14
+    },
+    {
+      "id": "d339672c-49b6-4353-a62c-3481476edb75",
+      "type": "Marker",
+      "name": "MarkerBooksD",
+      "x": 53,
+      "y": 14
+    },
+    {
+      "id": "3d4b6e4b-4c34-4ce3-a945-8ec6a293a658",
+      "type": "Marker",
+      "name": "MarkerReturnMachineTerminal",
+      "x": 58,
+      "y": 14
+    },
+    {
+      "id": "door1_diag-1",
+      "type": "Prop",
+      "name": "door1_diag_1",
+      "prop": "door1_diag",
+      "state": "default",
+      "depthOffset": 0,
+      "x": 93,
+      "y": 13,
+      "z": 0
+    },
+    {
+      "id": "aab17e50-ebbf-46d0-8e54-119a91614a3d",
+      "type": "Marker",
+      "name": "MarkerTerminalDiag",
+      "x": 95,
+      "y": 20
     }
   ],
   "triggers": [
@@ -537,9 +618,33 @@
       "trigger": "library1_toSouthLifts",
       "event": "action",
       "x": 97,
-      "y": 18,
+      "y": 19,
       "width": 1,
       "height": 1,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "7436a76b-cffa-4c54-b551-df52698d4a8d",
+      "trigger": "library1_returnMachineTerminal1",
+      "event": "action",
+      "x": 57,
+      "y": 11,
+      "width": 3,
+      "height": 3,
+      "actionEnabled": true,
+      "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "2847cc65-a2cd-4a9c-9a61-dbdd84aa964b",
+      "trigger": "library1_returnMachine1",
+      "event": "action",
+      "x": 61,
+      "y": 11,
+      "width": 18,
+      "height": 3,
       "actionEnabled": true,
       "stepEnabled": false,
       "description": ""
