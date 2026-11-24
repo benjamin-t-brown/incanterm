@@ -26,7 +26,8 @@ const client = connectGameClient(url, {
       failure = getSessionErrorText(message.details);
       return;
     }
-    process.stderr.write(`audio ${message.type} ${message.assetId}\n`);
+    if (message.type === 'play-sound' || message.type === 'stop-sound')
+      process.stderr.write(`audio ${message.type} ${message.assetId}\n`);
   },
   onOpen() {
     if (process.stdin.isTTY) process.stdin.setRawMode(true);

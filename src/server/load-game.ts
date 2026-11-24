@@ -5,6 +5,7 @@ import { loadPortraitAssets } from '../game/portrait-assets.js';
 import { getProjectSource, type ProjectSourceOptions } from '../project/project.js';
 import { loadSessionConfig } from '../project/session-config.js';
 import type { DialogueAnimationOptions, PortraitAnimationOptions } from './game-session.js';
+import { loadVoiceClips } from './voice-clips.js';
 
 export async function loadGame(
   options: ProjectSourceOptions & {
@@ -41,6 +42,7 @@ export async function loadGame(
     scene,
     scripts,
     portraits,
+    voiceClips: await loadVoiceClips(assetsRoot),
     dialogueAnimation: options.dialogueAnimation ?? settings.dialogueAnimation,
     portraitAnimation: options.portraitAnimation ?? settings.portraitAnimation,
     sessionTimerTriggers: settings.timerTriggers,

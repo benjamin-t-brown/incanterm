@@ -206,6 +206,122 @@ export function createAssetTree(options: TreeOptions) {
       getParentFolder(source) !== parent
     );
   }
+  // Handle mouse moves inside the tree without relying on native HTML drop negotiation.
+  if (!options.readOnly) {
+    let gesture: {
+      source: HTMLButtonElement;
+      pointerId: number;
+      startX: number;
+      startY: number;
+    } | null = null;
+    let suppressClick = false;
+    let scrollFrame = 0;
+    let x = 0;
+    let y = 0;
+
+    function getDestination() {
+      const hit = document.elementFromPoint(x, y);
+      if (!gesture || !hit || !list.contains(hit)) return null;
+      const row =
+        hit.closest<HTMLElement>(
+          '.asset-tree-folder-row, .asset-tree-contents, .asset-tree-root',
+        ) ?? list;
+      const folder = row.dataset.folder ?? '';
+      const sourceFolder =
+        gesture.source.closest<HTMLElement>('.asset-tree-folder-row')?.dataset.folder;
+      if (sourceFolder && !canMoveFolder(sourceFolder, folder)) return null;
+      return { row, folder, sourceFolder };
+    }
+    function highlightDestination(): void {
+      const row = getDestination()?.row;
+      clearDropTargets(row);
+      row?.classList.add('drop-target');
+    }
+    function scrollAtEdge(): void {
+      if (!gesture || !dragging) return;
+      if (!list.contains(gesture.source) || !list.isConnected) {
+        endGesture();
+        return;
+      }
+      const bounds = list.getBoundingClientRect();
+      if (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom) {
+        const step = y < bounds.top + 24 ? -8 : y > bounds.bottom - 24 ? 8 : 0;
+        if (step) {
+          list.scrollTop += step;
+          highlightDestination();
+        }
+      }
+      scrollFrame = requestAnimationFrame(scrollAtEdge);
+    }
+    function endGesture(): void {
+      if (!gesture) return;
+      const { source, pointerId } = gesture;
+      gesture = null;
+      source.draggable = true;
+      if (source.hasPointerCapture(pointerId)) source.releasePointerCapture(pointerId);
+      cancelAnimationFrame(scrollFrame);
+      setDragging(false);
+      clearDropTargets();
+      list.classList.remove('asset-tree-moving');
+    }
+    list.addEventListener('pointerdown', (event) => {
+      if (!event.isPrimary || event.button !== 0 || event.pointerType !== 'mouse') return;
+      endGesture();
+      suppressClick = false;
+      const source = (event.target as Element).closest<HTMLButtonElement>(
+        '.asset-tree-file, .asset-tree-folder',
+      );
+      if (!source || busy) return;
+      source.draggable = false;
+      source.setPointerCapture(event.pointerId);
+      gesture = {
+        source,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+    });
+    list.addEventListener('pointermove', (event) => {
+      if (gesture?.pointerId !== event.pointerId) return;
+      x = event.clientX;
+      y = event.clientY;
+      if (!dragging) {
+        if (Math.hypot(x - gesture.startX, y - gesture.startY) < 5) return;
+        suppressClick = true;
+        setDragging(true);
+        list.classList.add('asset-tree-moving');
+        scrollFrame = requestAnimationFrame(scrollAtEdge);
+      }
+      highlightDestination();
+    });
+    list.addEventListener('pointerup', (event) => {
+      if (gesture?.pointerId !== event.pointerId) return;
+      x = event.clientX;
+      y = event.clientY;
+      const target = dragging ? getDestination() : null;
+      const id = gesture.source.dataset.id;
+      endGesture();
+      if (target?.sourceFolder) {
+        void change({ action: 'move-folder', folder: target.sourceFolder, parent: target.folder });
+      } else if (target && id && (tree.placements[id] ?? '') !== target.folder) {
+        void change({ action: 'move', id, folder: target.folder });
+      }
+    });
+    for (const type of ['lostpointercapture', 'pointercancel'] as const)
+      list.addEventListener(type, (event) => {
+        if (gesture?.pointerId === event.pointerId) endGesture();
+      });
+    list.addEventListener(
+      'click',
+      (event) => {
+        if (!suppressClick || event.detail === 0) return;
+        suppressClick = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    );
+  }
   dropZone(list, '');
   list.addEventListener('dragend', () => {
     setDragging(false);

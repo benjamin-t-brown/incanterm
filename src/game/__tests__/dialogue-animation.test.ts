@@ -5,6 +5,8 @@ import { parseRpgScript, ScriptRunner } from '../rpgscript/runtime.js';
 import { commands } from '../scene-commands.js';
 import { Scene } from '../scene.js';
 import { Sprite } from '../sprite.js';
+import { getVoiceRevision } from '../../voice/contracts.js';
+import { sceneCommandsShim } from '../scene-commands-shim.js';
 
 function createDialogueRunner(source: string) {
   const ink = { ch: '.', fg: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } };
@@ -139,6 +141,26 @@ it('resolves interpolated speaker aliases and explicit dialogue commands', () =>
   runner.advance();
   expect(ada.state).toBe('idle');
   expect(skye.state).toBe('talking');
+});
+
+it('carries the request and permanent ID only on ID-bearing dialogue', () => {
+  const { runner } = createDialogueRunner(`@start
++playDialogue(Ada, "First", happy, "v_first")
++playDialogue(Skye, "Second", "", "v_second", "no-voice")
+Ada: "Third"`);
+  runner.start('start');
+  expect(runner.dialogue).toEqual({ actor: 'Ada', text: 'First', emotion: 'happy', voice: { lineId: 'v_first', requested: true, revision: getVoiceRevision('Ada', 'First') } });
+  runner.advance();
+  expect(runner.dialogue).toEqual({ actor: 'Skye', text: 'Second', voice: { lineId: 'v_second', requested: false, revision: getVoiceRevision('Skye', 'Second') } });
+  runner.advance();
+  expect(runner.dialogue).toEqual({ actor: 'Ada', text: 'Third' });
+});
+
+it('passes the same voice metadata through the terminal scene shim', () => {
+  const scripts = parseRpgScript('@start\n+playDialogue(Tess, "Hi", "", "v_hi")', 'shim.rpgscript', { commands: sceneCommandsShim });
+  const runner = new ScriptRunner(scripts, { commands: sceneCommandsShim, context: undefined });
+  runner.start('start');
+  expect(runner.dialogue?.voice).toEqual({ lineId: 'v_hi', requested: true, revision: getVoiceRevision('Tess', 'Hi') });
 });
 
 it('allows off-scene and ambiguous speakers without animating unrelated instances', () => {

@@ -1,11 +1,47 @@
-.script-box {
+.script-editor {
+  position: relative;
+  min-width: 0;
+  background: var(--inset);
+}
+.script-editor .script-box,
+.script-highlight pre {
+  margin: 0;
+  padding: 12px;
+  font: 15px/1.5 'Courier New', monospace;
+  tab-size: 4;
+  white-space: pre;
+  text-align: left;
+}
+.script-editor .script-box {
+  display: block;
+  position: relative;
   width: 100%;
   min-height: 360px;
-  background: var(--inset);
-  color: var(--text);
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
   border: 1px solid var(--line);
-  padding: 12px;
   resize: vertical;
+}
+.script-highlight {
+  position: absolute;
+  inset: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.script-highlight pre { color: var(--text); }
+.rpg-comment { color: var(--muted); }
+.rpg-header, .rpg-control { color: #f5add0; }
+.rpg-string { color: #b4dd98; }
+.rpg-call, .rpg-event { color: #88d8ee; }
+.rpg-value, .rpg-reference, .rpg-speaker { color: #ffcc88; }
+.light :is(.rpg-header, .rpg-control) { color: #823758; }
+.light .rpg-string { color: #365f21; }
+.light :is(.rpg-call, .rpg-event) { color: #155b77; }
+.light :is(.rpg-value, .rpg-reference, .rpg-speaker) { color: #80470e; }
+@media (forced-colors: active) {
+  .script-highlight { display: none; }
+  .script-editor .script-box { color: CanvasText; }
 }
 .diagnostics {
   margin-top: 12px;
@@ -24,3 +60,26 @@
 .diagnostic.warning {
   color: #efcf80;
 }
+.simple-main.script-main {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.script-workspace {
+  display: grid;
+  grid-template-columns: clamp(110px, 16vw, 210px) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.script-library, .script-errors {
+  overflow: auto;
+  padding: 10px;
+  background: var(--surface);
+}
+.script-library h2, .script-errors h2 { margin: 0 0 8px; font-size: 1rem; }
+.script-document { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+#script-columns { min-height: 0; flex: 1; display: flex; }
+#script-columns > .script-editor { flex: none; width: calc((100% - 6px) * .75); max-width: calc(100% - 56px); }
+#script-columns .script-box { height: 100%; min-height: 0; resize: none; }
+#script-divider { flex: 0 0 6px; cursor: col-resize; touch-action: none; }
+.script-errors { flex: 1; min-width: 0; overflow-wrap: anywhere; }

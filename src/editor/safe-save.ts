@@ -16,6 +16,7 @@ export type SaveOptions<T> = {
   base: unknown;
   doc: unknown;
   validate(value: unknown): T;
+  prepareWrite?(value: T): T;
   read(): Promise<T | null>;
   write(value: T): Promise<void>;
   merge(base: T, ours: T, theirs: T): MergeResult<T>;
@@ -41,7 +42,7 @@ export class SaveCoordinator {
         disk && base ? options.merge(base, ours, disk) : { ok: true as const, value: ours };
       if (!merged.ok)
         throw new SaveConflict(`${merged.reason}; nothing was saved`, 'merge-conflict');
-      const valid = options.validate(merged.value);
+      const valid = options.validate(options.prepareWrite ? options.prepareWrite(merged.value) : merged.value);
       if (disk === null || !isSame(disk, valid)) await options.write(valid);
       return valid;
     });

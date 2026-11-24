@@ -14,3 +14,19 @@
 
 #step@hallway2_toSouthLifts
   +changeScene(southLifts, FromHallway2)
+
+@hallway2_tess
+  +setConv2(Tess, Johnathan)
+  +?once(hallway2_tess1):{
+    Tess: "Hey, John, wanna come to a party?"
+    Johnathan&surprised: "What? Now?"
+    Tess: "Yeah, let's go!"
+    Johnathan&happy: "Thanks but, sorry, I need to go to a job interview."
+    Tess: "Lame."
+  }
+  +?else:{
+    Tess: "Invitation's still open. You in?"
+    Johnathan&embarrassed: "No sorry."
+    Tess: "Your loss."
+  }
+  +endConv()

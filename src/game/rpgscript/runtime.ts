@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { DialogueVoice } from '../scene-command-support/dialogue.js';
 import { evaluateNumericExpression, ScriptExpressionError } from './expression.js';
 import {
   ScriptParser,
@@ -67,7 +68,29 @@ export function parseRpgScript(
   file: string,
   options: ScriptOptions,
 ): ScriptLibrary {
-  const parsed = new ScriptParser(file).parse(source);
+  return compileRpgScript(source, file, options);
+}
+
+/** Inspect a draft without loading or executing it. Never run a partial compilation. */
+export function checkRpgScript(
+  source: string, file: string, options: ScriptOptions,
+  reportError: (error: unknown) => void,
+  checkTarget: (name: string, line: number) => void,
+): void {
+  try {
+    const library = compileRpgScript(source, file, options, reportError);
+    checkScriptTargets(library, (name, _count, _file, line) => checkTarget(name, line));
+  } catch (error) {
+    reportError(error);
+  }
+}
+
+function compileRpgScript(
+  source: string, file: string, options: ScriptOptions, reportError?: (error: unknown) => void,
+): ScriptLibrary {
+  // A draft may contain an unnumbered marker until the writer saves. A game must
+  // never use a temporary identity for playback.
+  const parsed = new ScriptParser(file, reportError ? () => 'v_pending' : undefined).parse(source);
   const catalog = options.commands;
   const scripts = new Map<string, ScriptDefinition>();
   const triggers = new Map<string, TriggerDefinition>();
@@ -85,19 +108,23 @@ export function parseRpgScript(
     const blocks = script.blocks.map((block) => {
       const line = block.conditionLine ?? block.commands[0]?.i ?? script.lineNum;
       validateLocals(block.conditional, locals, file, line);
-      for (const command of block.commands) {
-        validateLocals(command.args, locals, file, command.i);
-        validateLocals(command.condition, locals, file, command.i);
-      }
       return Object.freeze({
         condition: convertToCondition(block.conditional, file, line),
         ...(block.conditionLine === undefined ? {} : { conditionLine: block.conditionLine }),
         loopTo: block.loopTo,
         loopLine: block.loopLine,
         steps: Object.freeze(
-          block.commands.map((command) =>
-            Object.freeze(toStep(command, file, catalog, locals)),
-          ),
+          block.commands.flatMap((command) => {
+            try {
+              validateLocals(command.args, locals, file, command.i);
+              validateLocals(command.condition, locals, file, command.i);
+              return [Object.freeze(toStep(command, file, catalog, locals))];
+            } catch (error) {
+              if (!reportError) throw error;
+              reportError(error);
+              return [];
+            }
+          }),
         ),
       });
     });
@@ -317,32 +344,39 @@ export async function loadRpgScripts(root: string, options: ScriptOptions): Prom
       triggers.set(name, definition);
     }
   }
-  function validateTarget(name: string, argumentCount: number, location: string): void {
+  const library = libraryWithTriggers(scripts, triggers);
+  checkScriptTargets(library, (name, argumentCount, file, line) => {
+    const location = `${file}:${line}`;
     const definition = scripts.get(name);
     if (!definition) throw new Error(`${location}: Unknown script ${name}`);
     checkArgumentCount(definition, argumentCount, location);
-  }
-  for (const script of scripts.values()) {
+  });
+  return library;
+}
+
+function checkScriptTargets(
+  library: ScriptLibrary, checkTarget: (name: string, argumentCount: number, file: string, line: number) => void,
+): void {
+  for (const script of library.values()) {
     for (const block of script.blocks) {
       for (const target of getConditionTargets(block.condition))
-        validateTarget(target.name, target.argumentCount, `${script.file}:${block.conditionLine ?? 1}`);
+        checkTarget(target.name, target.argumentCount, script.file, block.conditionLine ?? 1);
       for (const step of block.steps)
         for (const target of step.targets ?? [])
-          validateTarget(target.name, target.argumentCount, `${script.file}:${step.line}`);
+          checkTarget(target.name, target.argumentCount, script.file, step.line);
     }
   }
-  for (const trigger of triggers.values())
+  for (const trigger of library.triggers.values())
     for (const call of trigger.calls) {
-      validateTarget(call.target, call.character === undefined ? 0 : 1, `${trigger.file}:${call.line}`);
+      checkTarget(call.target, call.character === undefined ? 0 : 1, trigger.file, call.line);
     }
-  return libraryWithTriggers(scripts, triggers);
 }
 
 function isMissingDirectory(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }
 
-export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string }>;
+export type Dialogue = Readonly<{ actor: string; text: string; emotion?: string; voice?: DialogueVoice }>;
 export type ChoicePrompt = Readonly<{ options: readonly string[]; question?: string }>;
 const maxLoopPasses = 1000;
 const valuePlaceholder = /\{([A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*)\}|\[([A-Za-z_][\w-]*)\]/g;
@@ -385,6 +419,7 @@ export type RunnerOptions<Host> = {
   context: Host;
   writeLog?: (message: string) => void;
   onCommandError?: (error: unknown, location: string) => void;
+  onDialogueChange?: (dialogue: Dialogue | undefined) => void;
   background?: boolean;
 };
 
@@ -624,7 +659,9 @@ export class ScriptRunner<Host> {
   }
 
   private clearDialogue(): void {
+    if (!this.dialogue) return;
     this.dialogue = undefined;
+    this.options.onDialogueChange?.(undefined);
     const finishDialogue = this.finishDialogue;
     this.finishDialogue = undefined;
     finishDialogue?.();
@@ -1046,11 +1083,12 @@ export class ScriptRunner<Host> {
         this.jumpToBlock(frame, header, header);
       },
       callSubscript: (ownerId, target) => this.callSubscript(ownerId, target, location),
-      showDialogue: (actor, text, emotion, onFinish) => {
+      showDialogue: (actor, text, emotion, onFinish, voice) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show dialogue`);
         this.clearDialogue();
-        this.dialogue = emotion ? { actor, text, emotion } : { actor, text };
+        this.dialogue = { actor, text, ...(emotion && { emotion }), ...(voice && { voice }) };
         this.finishDialogue = onFinish;
+        this.options.onDialogueChange?.(this.dialogue);
       },
       showCenterToast: (message) => {
         if (this.options.background) throw new Error(`${location}: Character subscripts cannot show a center toast`);

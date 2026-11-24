@@ -10,9 +10,11 @@
     <header>
       <h1>Incanterm</h1>
       <p id="status">Connecting…</p>
+      <label><input type="checkbox" id="voice" accesskey="v" checked /> Voice</label>
     </header>
+    <small id="game-keys">Focus the game and press Enter, or click it, to use Tab and Shift+Tab for game panels. Esc restores page navigation.</small>
     <p id="audio"></p>
-    <pre id="screen"></pre>
+    <pre id="screen" tabindex="0" aria-label="Game screen" aria-describedby="game-keys"></pre>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

@@ -37,7 +37,7 @@
   +setConv()
   +walkToOffset(John, -2, 0)
   +:ld(Johnathan, down)
-  Johnathan: "What? There's nobody here?"
+  Johnathan&surprised: "What? There's nobody here?"
   +endConv()
 
 #@maintenance_terminal
@@ -100,7 +100,7 @@
   +maintenance.desk1={maintenance.desk1}+1
   +?switch(maintenance.desk1):{
     1: {
-      Johnathan: "There should be somebody here twiddling their thumbs and enjoying the sunlight."
+      Johnathan&happy: "There should be somebody here twiddling their thumbs and enjoying the sunlight."
     }
     2: {
       Johnathan: "I wish the desks in our classroom were this nice."
@@ -178,10 +178,10 @@
   +maintenance.plants={maintenance.plants}+1
   +?switch(maintenance.plants):{
     1: {
-      Johnathan: "Maintenance brought these in here last year, I guess because of the sunlight. It was a good idea!"
+      Johnathan&happy: "Maintenance brought these in here last year, I guess because of the sunlight. It was a good idea!"
     }
     2: {
-      Johnathan: "These are blooming great."
+      Johnathan&happy: "These are blooming great."
     }
     *:{
       Johnathan: "I don't see anything interesting among these flowers."

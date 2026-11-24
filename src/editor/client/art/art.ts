@@ -15,7 +15,7 @@ import { generateCharacter3x3, generateCharacter5x5 } from '../../art/character-
 import { createSpriteFromBrush, getBrushValue, type BrushStamp as Stamp } from '../../art/art-brush.js';
 import { applyBlackWhiteInversionToFrame } from '../../art/invert-black-white.js';
 import { applyFrameFlip } from '../../art/flip-frame.js';
-import { createAltCodeSheet } from '../../art/create-alt-code-sheet.js';
+import { ALT_CODE_PAGES } from '../../resources/alt-codes.js';
 import { createSpriteProp } from '../../art/create-sprite-prop.js';
 import { createSpriteFromText } from '../../art/create-sprite-from-text.js';
 import { wrappedFrameIndex } from '../../animation/animation-navigation.js';
@@ -208,6 +208,7 @@ const ALIASING_GLYPHS = Array.from('_,od8bn."*+=YP^\'`;[]()-/\\|');
 const GLYPH_TABS = [
   { id: 'specials', label: 'SPECIALS', glyphs: SPECIAL_GLYPHS },
   { id: 'aliasing', label: 'ALIASING', glyphs: ALIASING_GLYPHS },
+  { id: 'alt-codes', label: 'ALT CODES' },
 ] as const;
 type GlyphTabId = (typeof GLYPH_TABS)[number]['id'];
 const MIN_ZOOM = 0.35;
@@ -282,7 +283,6 @@ export function mountArt(root: HTMLElement): () => void {
   let renamingLayer = false;
   let savedState = '';
   let saving = false;
-  let creatingAltCodeSheet = false;
   let creatingSpriteProp = false;
   let spriteId: string | null = null;
   let tool: Tool = 'brush';
@@ -2214,29 +2214,6 @@ export function mountArt(root: HTMLElement): () => void {
       textArtCancel.disabled = false;
     }
   }
-  async function createSpriteFromAltCodes(): Promise<void> {
-    if (creatingAltCodeSheet) return;
-    creatingAltCodeSheet = true;
-    try {
-      const entered = await promptModal('Name for the new Alt Codes spritesheet', 'Alt Codes');
-      if (entered === null || !alive) return;
-      const label = entered.trim();
-      const labelError = getSpriteLabelError(label);
-      if (labelError) return void alertModal(labelError);
-      const sprite = createAltCodeSheet(crypto.randomUUID(), label);
-      const saved = await saveDraft(`/api/sprites/${encodeURIComponent(sprite.id)}`, sprite, null);
-      if (!alive) return;
-      loadSprite(saved);
-      announce(`Created ${saved.label}`);
-    } catch (error) {
-      if (!alive) return;
-      const message = error instanceof Error ? error.message : 'Create Alt Codes spritesheet failed';
-      announce(message);
-      toast(message, true);
-    } finally {
-      creatingAltCodeSheet = false;
-    }
-  }
   async function createPropFromCurrentFrame(): Promise<void> {
     if (!doc || !spriteId || creatingSpriteProp) return;
     stopPlayback();
@@ -2443,13 +2420,19 @@ export function mountArt(root: HTMLElement): () => void {
     remember(before);
     refreshControls();
   }
-  function applyFlipToActiveFrame(axis: 'horizontal' | 'vertical'): void {
-    const frame = getActiveFrame();
-    if (!doc || !frame) return announce('Open or create a sprite');
+  function getSelectedFrameBounds(): { from: number; to: number } {
+    return rangeSelected ? playBounds() : { from: selectedFrame, to: selectedFrame };
+  }
+  function applyFlipToSelectedFrames(axis: 'horizontal' | 'vertical'): void {
+    if (!doc) return announce('Open or create a sprite');
+    const { from, to } = getSelectedFrameBounds();
     const before = captureHistory();
-    applyFrameFlip(frame, doc.width, doc.height, axis);
+    for (let index = from; index <= to; index++) {
+      applyFrameFlip(doc.sprites[index], doc.width, doc.height, axis);
+    }
     commitDoc(before);
-    announce(`Flipped frame ${selectedFrame + 1} ${axis === 'horizontal' ? 'horizontally' : 'vertically'}`);
+    const target = from === to ? `frame ${from + 1}` : `frames ${from + 1}–${to + 1}`;
+    announce(`Flipped ${target} ${axis === 'horizontal' ? 'horizontally' : 'vertically'}`);
   }
   function nextLayerId(): string {
     const used = new Set<string>();
@@ -2670,10 +2653,27 @@ export function mountArt(root: HTMLElement): () => void {
     if (!doc) return announce('Open or create a sprite');
     insertFrame(createBlankFrame());
   }
-  function copyFrame(): void {
-    const frame = getActiveFrame();
-    if (!doc || !frame) return announce('Open or create a sprite');
-    insertFrame(cloneFrame(frame));
+  function duplicateSelectedFrames(): void {
+    if (!doc) return announce('Open or create a sprite');
+    const { from, to } = getSelectedFrameBounds();
+    const count = to - from + 1;
+    if (doc.sprites.length + count > MAX_FRAMES) {
+      announce(`At most ${MAX_FRAMES} frames`);
+      return;
+    }
+    stopPlayback();
+    const before = captureHistory();
+    const copies = doc.sprites.slice(from, to + 1).map(cloneFrame);
+    doc.sprites.splice(to + 1, 0, ...copies);
+    selectedFrame += count;
+    playFrom = to + 1;
+    playTo = to + count;
+    rangeSelected = true;
+    moveArmed = count === 1;
+    selection = null;
+    pasteMode = false;
+    commitDoc(before);
+    announce(`Duplicated ${count} ${count === 1 ? 'frame' : 'frames'}`);
   }
   function deleteFrame(): void {
     if (!doc) return announce('Open or create a sprite');
@@ -2769,7 +2769,7 @@ export function mountArt(root: HTMLElement): () => void {
     if (gesture.kind === 'range') {
       playFrom = Math.min(gesture.origin, gesture.last);
       playTo = Math.max(gesture.origin, gesture.last);
-      selectedFrame = gesture.origin;
+      selectedFrame = gesture.last;
       rangeSelected = true;
       moveArmed = playFrom === playTo;
       refreshControls();
@@ -2814,8 +2814,9 @@ export function mountArt(root: HTMLElement): () => void {
       if (frameGesture.kind === 'range') {
         playFrom = Math.min(frameGesture.origin, next);
         playTo = Math.max(frameGesture.origin, next);
-        selectedFrame = frameGesture.origin;
-        highlightFrameRange();
+        selectedFrame = next;
+        rangeSelected = true;
+        highlightCel();
         get$<HTMLElement>('#frame-status').textContent = getFrameStatusText();
         redraw();
       }
@@ -3089,10 +3090,14 @@ export function mountArt(root: HTMLElement): () => void {
     panel.dataset.glyphPanel = tab.id;
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', button.id);
-    for (const entry of tab.glyphs) {
+    function appendGlyph(entry: string, title?: string): void {
       const glyphButton = document.createElement('button');
       glyphButton.type = 'button';
       glyphButton.textContent = entry;
+      if (title) {
+        glyphButton.title = title;
+        glyphButton.setAttribute('aria-label', title);
+      }
       glyphButton.dataset.glyph = entry;
       glyphButton.addEventListener('click', () => {
         glyph = entry;
@@ -3100,6 +3105,18 @@ export function mountArt(root: HTMLElement): () => void {
         refreshControls();
       });
       panel.append(glyphButton);
+    }
+    if (tab.id === 'alt-codes') {
+      for (const page of ALT_CODE_PAGES) {
+        const heading = document.createElement('strong');
+        heading.textContent = page.title;
+        panel.append(heading);
+        for (const [index, ch] of Array.from(page.glyphs).entries()) {
+          if (ch !== '\0') appendGlyph(ch, `Alt+${page.prefix}${page.start + index}: ${ch}`);
+        }
+      }
+    } else {
+      for (const entry of tab.glyphs) appendGlyph(entry);
     }
     glyphSets.append(panel);
   }
@@ -3109,7 +3126,6 @@ export function mountArt(root: HTMLElement): () => void {
     new: () => void createNewSprite(),
     'create-from-text': openCreateFromTextDialog,
     'create-from-brush': () => void createFromBrush(),
-    'create-alt-code-sheet': () => void createSpriteFromAltCodes(),
     'create-sprite-prop': () => void createPropFromCurrentFrame(),
     save: () => void save(),
     'save-as': () => void saveAs(),
@@ -3134,8 +3150,9 @@ export function mountArt(root: HTMLElement): () => void {
       announce('Redo');
     },
     resize: () => openResizeDialog(),
-    'flip-h': () => applyFlipToActiveFrame('horizontal'),
-    'flip-v': () => applyFlipToActiveFrame('vertical'),
+    'duplicate-frames': duplicateSelectedFrames,
+    'flip-h': () => applyFlipToSelectedFrames('horizontal'),
+    'flip-v': () => applyFlipToSelectedFrames('vertical'),
     'invert-bw': () => {
       const frame = getActiveFrame();
       if (!frame) return announce('Open or create a sprite');
@@ -3531,7 +3548,7 @@ export function mountArt(root: HTMLElement): () => void {
   get$<HTMLButtonElement>('#layer-delete').addEventListener('click', deleteLayer);
   get$<HTMLButtonElement>('#frame-play').addEventListener('click', togglePlayback);
   get$<HTMLButtonElement>('#frame-add').addEventListener('click', addEmptyFrame);
-  get$<HTMLButtonElement>('#frame-copy').addEventListener('click', copyFrame);
+  get$<HTMLButtonElement>('#frame-copy').addEventListener('click', duplicateSelectedFrames);
   get$<HTMLButtonElement>('#frame-delete').addEventListener('click', deleteFrame);
   function pickBrush(picked: SpriteCell, part: 'tile' | 'ink' | 'paper'): void {
     stamp = null;
@@ -3931,7 +3948,7 @@ export function mountArt(root: HTMLElement): () => void {
       if (!typing && !ctrl && !keyMode && keyEvent.altKey && (key === 'b' || key === 'n')) {
         keyEvent.preventDefault();
         if (key === 'b') addEmptyFrame();
-        else copyFrame();
+        else duplicateSelectedFrames();
         return;
       }
       if (!typing && !ctrl && !keyMode && !keyEvent.altKey && keyEvent.key === 'Enter') {
@@ -4112,7 +4129,6 @@ function getArtMarkup(): string {
         <button type="button" data-action="delete">Delete</button>
         <hr><button type="button" data-action="create-from-text">Create From Text…</button>
         <button type="button" data-action="create-from-brush">Create From Brush…</button>
-        <button type="button" data-action="create-alt-code-sheet">Create Alt Codes Spritesheet…</button>
         <button type="button" data-action="generate">Generate…</button>
         <hr><button type="button" data-action="export">Export truecolor</button>
         <button type="button" data-action="copy-ascii">Copy Ascii</button>
@@ -4128,7 +4144,8 @@ function getArtMarkup(): string {
         <button type="button" data-action="copy">Copy selection <kbd>Ctrl+C</kbd></button>
         <button type="button" data-action="paste">Paste <kbd>Ctrl+V</kbd></button>
         <button type="button" data-action="clear">Clear selection <kbd>Del</kbd></button>
-        <hr><button type="button" data-action="flip-h">Flip H</button>
+        <hr><button type="button" data-action="duplicate-frames">Duplicate Frames</button>
+        <button type="button" data-action="flip-h">Flip H</button>
         <button type="button" data-action="flip-v">Flip V</button>
         <button type="button" data-action="invert-bw">Invert B/W</button>
       </div></details>

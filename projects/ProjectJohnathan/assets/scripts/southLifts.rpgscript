@@ -22,21 +22,21 @@
   +?once(southLifts_HaddyTalk1):{
     Johnathan: "Uh, it's Hadassah, right?"
     Haddy: "Haddy."
-    Johnathan: "Right, sorry."
+    Johnathan&embarrassed: "Right, sorry."
     Haddy: "Don't worry about it."
-    Johnathan: "Are you... waiting for something?"
+    Johnathan&confused: "Are you... waiting for something?"
     Haddy: "Yeah. These lifts. It's been several minutes and none have come yet."
     +?is(schoolPuzzle.knowsElevatorsAreDown):{
       +schoolPuzzle.toldHaddyAboutElevators=true
       Johnathan: "Apparently the elevators are down, and Maintenance is working on it."
       Haddy: "Oh yeah? Well that explains things."
       +waitMs(750)
-      Johnathan: "Are you... gonna leave now?"
+      Johnathan&confused: "Are you... gonna leave now?"
       Haddy: "No, why? What else am I gonna do except wait for the elevators to work? We're not supposed to use the stairs."
-      Johnathan: "Yeah I guess so."
+      Johnathan&thinking: "Yeah I guess so."
     }
     +?else:{
-      Johnathan: "Weird."
+      Johnathan&thinking: "Weird."
       Haddy: "Yep. So I guess I'll just keep on waiting."
     }
   }
@@ -46,14 +46,14 @@
       Johnathan: "Apparently the elevators are down, and Maintenance is working on it."
       Haddy: "Oh yeah? Well that explains things."
       +waitMs(750)
-      Johnathan: "Are you... gonna leave now?"
+      Johnathan&confused: "Are you... gonna leave now?"
       Haddy: "No, why? What else am I gonna do except wait for the elevators to work? We're not supposed to use the stairs."
-      Johnathan: "Yeah I guess so."
+      Johnathan&thinking: "Yeah I guess so."
     }
     +?else:{
       Johnathan: "Still waiting?"
+      Haddy: "Yeppers."
     }
-    Haddy: "Yeppers."
   }
   +endConv()
 

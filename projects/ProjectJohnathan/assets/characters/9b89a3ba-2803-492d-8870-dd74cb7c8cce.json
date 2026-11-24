@@ -1,0 +1,105 @@
+{
+  "format": "incanterm-character",
+  "version": 1,
+  "id": "9b89a3ba-2803-492d-8870-dd74cb7c8cce",
+  "label": "Vivi",
+  "scriptName": "Vivi",
+  "portraits": [
+    {
+      "facing": "right",
+      "emotion": "",
+      "portrait": "vivi1_0"
+    },
+    {
+      "facing": "left",
+      "emotion": "",
+      "portrait": "vivi1_0"
+    },
+    {
+      "facing": "right",
+      "emotion": "patient/bored/thinking",
+      "portrait": "vivi1_1"
+    },
+    {
+      "facing": "right",
+      "emotion": "sad",
+      "portrait": "vivi1_2"
+    },
+    {
+      "facing": "right",
+      "emotion": "angry/unhappy",
+      "portrait": "vivi1_3"
+    },
+    {
+      "facing": "right",
+      "emotion": "confused",
+      "portrait": "vivi1_4"
+    },
+    {
+      "facing": "right",
+      "emotion": "happy",
+      "portrait": "vivi1_5"
+    },
+    {
+      "facing": "right",
+      "emotion": "confident",
+      "portrait": "vivi1_6"
+    },
+    {
+      "facing": "left",
+      "emotion": "patient/bored/thinking",
+      "portrait": "vivi1_1"
+    },
+    {
+      "facing": "left",
+      "emotion": "sad",
+      "portrait": "vivi1_2"
+    },
+    {
+      "facing": "left",
+      "emotion": "angry/unhappy",
+      "portrait": "vivi1_3"
+    },
+    {
+      "facing": "left",
+      "emotion": "confused",
+      "portrait": "vivi1_3"
+    },
+    {
+      "facing": "left",
+      "emotion": "happy",
+      "portrait": "vivi1_5"
+    },
+    {
+      "facing": "left",
+      "emotion": "confident",
+      "portrait": "vivi1_6"
+    },
+    {
+      "facing": "right",
+      "emotion": "shy",
+      "portrait": "vivi1_7"
+    },
+    {
+      "facing": "left",
+      "emotion": "shy",
+      "portrait": "vivi1_7"
+    }
+  ],
+  "defaultFacing": "down",
+  "animations": {
+    "idle-up": "4a3bbe7a-b3fe-48ef-9a8c-886cc2a1a951",
+    "idle-down": "60e97be2-6dd0-4e54-aa9e-f1346d68119b",
+    "idle-left": "7d81bd11-377f-4de1-99f6-3f313e709366",
+    "idle-right": "bf428b06-e506-41ab-8eef-8f7556af5791",
+    "walk-up": "d7efc0f6-6e1e-4a6a-957e-b7eb7ab7a729",
+    "walk-down": "09adcd7c-729c-4a57-b29a-2d0ef82ca7ce",
+    "walk-left": "8f5a4c05-bd5d-454e-b262-a02637a49b54",
+    "walk-right": "56bf012d-f783-4340-9076-894220b0dde7",
+    "talking-up": "5ee3981f-6092-4c77-800e-3e4d86586fa7",
+    "talking-down": "96ec525f-d828-4077-9a75-44700c2be43b",
+    "talking-left": "7a4a34fb-bd4f-4a04-83ea-21e6c15c0660",
+    "talking-right": "4834d9a0-21e5-4019-8509-635e4bd54754"
+  },
+  "customAnimations": {}
+}

@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "7a4a34fb-bd4f-4a04-83ea-21e6c15c0660",
+  "label": "vivi3x3 talking left",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 2,
+      "durationMs": 500
+    },
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 3,
+      "durationMs": 500
+    }
+  ]
+}

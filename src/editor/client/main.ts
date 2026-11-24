@@ -19,6 +19,7 @@ import {
   type EditorProject,
 } from './project.js';
 import { mountSoundboard } from './soundboard/soundboard.js';
+import { mountVoiceStudio } from './voice/voice.js';
 
 const icon = document.createElement('link');
 icon.rel = 'icon';
@@ -34,6 +35,7 @@ const titles: Record<string, string> = {
   '/items': 'Incanterm Editor - Items',
   '/characters': 'Incanterm Editor - Characters',
   '/soundboard': 'Incanterm Editor - Soundboard',
+  '/voice': 'Incanterm Editor - Voice Studio',
   '/scripts': 'Incanterm Editor - Script Writer',
   '/scenes': 'Incanterm Editor - Scene',
   '/game': 'Incanterm Editor - Game',
@@ -47,6 +49,7 @@ const routes: Record<string, (root: HTMLElement) => void | (() => void)> = {
   '/items': mountItems,
   '/characters': mountCharacters,
   '/soundboard': mountSoundboard,
+  '/voice': mountVoiceStudio,
   '/scripts': mountScripts,
   '/scenes': mountScenes,
   '/game': mountGame,
@@ -57,6 +60,13 @@ if (!(appNode instanceof HTMLElement)) throw new Error('Missing #app');
 const app: HTMLElement = appNode;
 
 let cleanup: (() => void) | undefined;
+let renderedEntry = Number.isSafeInteger(history.state?.editorEntry)
+  ? Number(history.state.editorEntry)
+  : 0;
+history.replaceState({ ...history.state, editorEntry: renderedEntry }, '');
+let checkingHistory = false;
+let restoringHistory = false;
+let renderedUrl = location.href;
 
 function getCurrentPath(): string {
   const path = location.pathname.replace(/\/$/, '');
@@ -64,6 +74,10 @@ function getCurrentPath(): string {
 }
 
 function render(): void {
+  if (!Number.isSafeInteger(history.state?.editorEntry))
+    history.replaceState({ ...history.state, editorEntry: renderedEntry }, '');
+  renderedEntry = history.state.editorEntry;
+  renderedUrl = location.href;
   cleanup?.();
   cleanup = undefined;
   setDirtyGuard(null);
@@ -83,7 +97,7 @@ function render(): void {
 async function navigate(url: URL): Promise<void> {
   if (url.pathname === getCurrentPath() && url.search === location.search) return;
   if (!(await allowLeave())) return;
-  history.pushState(null, '', `${url.pathname}${url.search}`);
+  history.pushState({ editorEntry: renderedEntry + 1 }, '', `${url.pathname}${url.search}`);
   render();
 }
 
@@ -113,7 +127,32 @@ window.addEventListener('popstate', () => {
 });
 
 async function navigateBack(): Promise<void> {
-  if (await allowLeave()) render();
+  // Back/Forward changes the URL before popstate fires. A declined dirty guard
+  // must restore the mounted editor's existing entry, including its asset query.
+  if (restoringHistory && history.state?.editorEntry === renderedEntry) {
+    restoringHistory = false;
+    return;
+  }
+  if (checkingHistory) return;
+  checkingHistory = true;
+  try {
+    if (await allowLeave()) {
+      restoringHistory = false;
+      render();
+    } else {
+      if (!Number.isSafeInteger(history.state?.editorEntry)) {
+        history.pushState({ editorEntry: renderedEntry }, '', renderedUrl);
+        return;
+      }
+      const delta = renderedEntry - history.state.editorEntry;
+      if (delta) {
+        restoringHistory = true;
+        history.go(delta);
+      }
+    }
+  } finally {
+    checkingHistory = false;
+  }
 }
 
 async function startEditor(): Promise<void> {

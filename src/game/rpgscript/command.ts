@@ -1,4 +1,5 @@
 import type { Command, ScriptValue } from './parser.js';
+import type { DialogueVoice } from '../scene-command-support/dialogue.js';
 
 export type RuntimeValue = string | number | boolean | readonly RuntimeValue[] | { readonly [key: string]: RuntimeValue } | undefined;
 
@@ -20,7 +21,7 @@ export type CommandContext = {
   breakLoop: (target: number, header: number) => void;
   continueLoop: (header: number) => void;
   callSubscript: (ownerId: string, target: string) => void;
-  showDialogue: (actor: string, text: string, emotion?: string, onFinish?: () => void) => void;
+  showDialogue: (actor: string, text: string, emotion?: string, onFinish?: () => void, voice?: DialogueVoice) => void;
   showCenterToast: (message: string) => void;
   showChoices: (options: readonly string[], onChoose?: (index: number) => void, question?: string) => void;
   waitUntil: (isComplete: () => boolean) => void;

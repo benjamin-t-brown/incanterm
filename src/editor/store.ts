@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { assignMissingVoiceIds } from '../game/rpgscript/voice-ids.js';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import {
@@ -242,6 +243,13 @@ export class AssetStore {
         return { id, source };
       },
       read: () => this.readOptional(() => this.readScript(id)),
+      prepareWrite: (value) => {
+        try {
+          return { id, source: assignMissingVoiceIds(value.source, `${id}.rpgscript`) };
+        } catch (error) {
+          throw new AssetError((error as Error).message, 422);
+        }
+      },
       write: (value) => this.writeAtomic(file, value.source),
       merge: (old, local, remote) => {
         const merged = mergeText(old.source, local.source, remote.source);
@@ -1144,8 +1152,9 @@ export class AssetStore {
     const file = this.getScriptFile(id);
     if (typeof source !== 'string') throw new AssetError('Script source must be text', 422);
     if (source.length > 1_000_000) throw new AssetError('Script is too large', 413);
-    await this.saves.run(file.toLowerCase(), () => this.writeText(file, source));
-    return { id, source };
+    const prepared = assignMissingVoiceIds(source, `${id}.rpgscript`);
+    await this.saves.run(file.toLowerCase(), () => this.writeText(file, prepared));
+    return { id, source: prepared };
   }
 
   async deleteScript(id: string): Promise<void> {

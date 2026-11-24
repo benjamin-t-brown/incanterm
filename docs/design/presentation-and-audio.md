@@ -2,6 +2,9 @@
 
 [Design index](../../README.md)
 
+See the [Voice Studio implementation plan](voice-studio.md) for dialogue recording,
+pickup tracking, browser playback, and release validation.
+
 ## Responsibilities
 
 Presentation covers both visual rendering and audio. Keep them as separate systems with coordinated timing:

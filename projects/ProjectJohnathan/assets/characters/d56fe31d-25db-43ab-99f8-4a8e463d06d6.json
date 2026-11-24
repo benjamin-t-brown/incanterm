@@ -8,52 +8,82 @@
     {
       "facing": "right",
       "emotion": "",
-      "portrait": "johnathan1_4"
+      "portrait": "johnathan1_15"
     },
     {
       "facing": "left",
       "emotion": "",
-      "portrait": "johnathan1_0"
+      "portrait": "johnathan1_9"
     },
     {
       "facing": "left",
-      "emotion": "unhappy/upset/grummpy",
-      "portrait": "johnathan1_2"
+      "emotion": "unhappy/upset/grummpy/bored",
+      "portrait": "johnathan1_13"
     },
     {
       "facing": "left",
       "emotion": "pleased/happy/explain",
-      "portrait": "johnathan1_3"
+      "portrait": "johnathan1_11"
     },
     {
       "facing": "left",
       "emotion": "angry",
-      "portrait": "johnathan1_1"
+      "portrait": "johnathan1_10"
     },
     {
       "facing": "left",
       "emotion": "surprised",
-      "portrait": "johnathan1_5"
+      "portrait": "johnathan1_14"
     },
     {
       "facing": "right",
       "emotion": "surprised",
-      "portrait": "johnathan1_6"
+      "portrait": "johnathan1_20"
     },
     {
       "facing": "right",
-      "emotion": "pleased",
-      "portrait": "johnathan1_8"
+      "emotion": "pleased/happy/explain",
+      "portrait": "johnathan1_17"
     },
     {
       "facing": "right",
       "emotion": "angry",
-      "portrait": "johnathan1_7"
+      "portrait": "johnathan1_16"
     },
     {
       "facing": "right",
-      "emotion": "unhappy/upset/grummpy",
-      "portrait": "johnathan1_7"
+      "emotion": "unhappy/upset/grummpy/bored",
+      "portrait": "johnathan1_19"
+    },
+    {
+      "facing": "left",
+      "emotion": "confused",
+      "portrait": "johnathan1_12"
+    },
+    {
+      "facing": "right",
+      "emotion": "confused",
+      "portrait": "johnathan1_18"
+    },
+    {
+      "facing": "left",
+      "emotion": "embarrassed",
+      "portrait": "johnathan1_21"
+    },
+    {
+      "facing": "right",
+      "emotion": "embarrassed",
+      "portrait": "johnathan1_22"
+    },
+    {
+      "facing": "left",
+      "emotion": "thinking",
+      "portrait": "johnathan1_23"
+    },
+    {
+      "facing": "right",
+      "emotion": "thinking",
+      "portrait": "johnathan1_24"
     }
   ],
   "defaultFacing": "down",

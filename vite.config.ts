@@ -14,6 +14,7 @@ export default defineConfig({
     port: 7103,
     proxy: {
       '/health': gameServer,
+      '/voice/': gameServer,
       '/ws': {
         target: gameServer,
         ws: true,

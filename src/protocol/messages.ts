@@ -4,7 +4,10 @@ export type ClientMessage =
 
 export type SelectionRect = { x: number; y: number; width: number; height: number };
 
+export type VoiceMessage = { type: 'voice-start'; checksum: string } | { type: 'voice-stop' };
+
 export type ServerMessage =
+  | VoiceMessage
   | { type: 'terminal-data'; data: string; cols?: number; rows?: number; logSelection?: SelectionRect }
   | { type: 'session-status'; status: 'connected'; sessionId: string }
   | { type: 'session-error'; details: string }
@@ -63,6 +66,10 @@ export function parseServerMessage(raw: string): ServerMessage | null {
   ) {
     return { type: value.type, assetId: value.assetId };
   }
+  if (value.type === 'voice-start' && typeof value.checksum === 'string' && /^[a-f0-9]{64}$/.test(value.checksum)) {
+    return { type: 'voice-start', checksum: value.checksum };
+  }
+  if (value.type === 'voice-stop') return { type: 'voice-stop' };
   return null;
 }
 

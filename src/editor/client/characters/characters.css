@@ -171,20 +171,26 @@
   margin-top: auto;
 }
 #character-portrait-dialog {
-  width: min(960px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   overflow: auto;
   padding: 0;
   border: 2px solid var(--mint);
   background: var(--surface);
   color: var(--text);
-  box-shadow: 8px 8px 0 #071d1c;
 }
 #character-portrait-dialog::backdrop {
   background: #071d1cd9;
 }
 #character-portrait-form {
   display: grid;
+  box-sizing: border-box;
+  height: 100%;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 12px;
   padding: 20px;
 }
@@ -216,13 +222,16 @@
 }
 .portrait-picker-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  grid-template-columns: clamp(200px, 20vw, 320px) minmax(0, 1fr);
+  min-height: 0;
+  overflow: auto;
   gap: 16px;
   align-items: stretch;
 }
 .portrait-library {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   min-width: 0;
   border: 1px solid var(--line);
   background: var(--inset);
@@ -234,13 +243,13 @@
 }
 .portrait-results {
   flex: 1;
-  min-height: 280px;
-  max-height: 440px;
+  min-height: 0;
   overflow: auto;
 }
 .portrait-selection {
   display: grid;
   align-content: start;
+  overflow: auto;
   min-width: 0;
   gap: 12px;
 }
@@ -268,9 +277,9 @@
 }
 .portrait-frame-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
   gap: 8px;
-  max-height: 240px;
+  max-height: 36dvh;
   overflow: auto;
   padding: 2px;
 }
@@ -309,10 +318,30 @@
   font-size: 11px;
 }
 #portrait-preview {
-  width: min(100%, 320px);
+  box-sizing: border-box;
+  width: min(100%, 800px);
   height: auto;
   border: 1px solid var(--line);
   justify-self: center;
+}
+.portrait-asset-card canvas {
+  width: 100%;
+  height: auto;
+}
+@media (min-width: 1100px) {
+  .portrait-selection:has(#portrait-frame-label:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: start;
+  }
+  #portrait-frame-label {
+    grid-row: span 2;
+    max-height: 100%;
+    overflow: auto;
+  }
+  .portrait-frame-grid {
+    max-height: none;
+  }
 }
 #portrait-error {
   color: #e8a197;
@@ -335,7 +364,11 @@ body.light #portrait-error {
 }
 @media (max-width: 640px) {
   .portrait-picker-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+  .portrait-selection {
+    overflow: visible;
   }
   .portrait-results {
     min-height: 120px;

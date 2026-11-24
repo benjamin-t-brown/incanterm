@@ -69,7 +69,7 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
       log(`Session ${sessionId} connected`);
     } else if (message.type === 'session-error') {
       failure = getSessionErrorText(message.details);
-    } else {
+    } else if (message.type === 'play-sound' || message.type === 'stop-sound') {
       log(`${message.type}: ${message.assetId}`);
     }
   }

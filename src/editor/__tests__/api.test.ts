@@ -392,6 +392,16 @@ describe('asset API', () => {
     expect(upload.status).toBe(405);
   });
 
+  it('fills missing voice IDs after merging and returns exactly the source stored on disk', async () => {
+    const store = await createTempStore();
+    const base = await store.saveScript('flight', '@flight\nPilot: "Clear."\n+endConv()');
+    await store.saveScriptDraft('flight', { ...base, source: base.source.replace('endConv()', 'endConvNR()') }, base);
+    const saved = await store.saveScriptDraft('flight', { ...base, source: base.source.replace('"Clear."', '"Clear." // voice') }, base);
+    expect(saved.source).toMatch(/"Clear\." \/\/ voice v_[\w-]+\n\+endConvNR\(\)$/);
+    expect(await store.readScript('flight')).toEqual(saved);
+    expect(await store.saveScriptDraft('flight', saved, saved)).toEqual(saved);
+  });
+
   it('stores a sprite reference image and placement, then copies and deletes it', async () => {
     const store = await createTempStore();
     const sprite = createSprite('mark', 4, 2);

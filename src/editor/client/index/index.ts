@@ -31,6 +31,7 @@ export function mountIndex(root: HTMLElement): () => void {
       <a class="tool-card" href="/items"><strong>ITEMS</strong><span>Create collectible items and scripted combinations.</span></a>
       <a class="tool-card" href="/characters"><strong>CHARACTERS</strong><span>Assign animation states and portraits.</span></a>
       <a class="tool-card" href="/soundboard"><strong>SOUNDBOARD</strong><span>Play project sounds.</span></a>
+      <a class="tool-card" href="/voice"><strong>VOICE STUDIO</strong><span>Record dialogue, review pickups, and publish approved takes.</span></a>
       <a class="tool-card" href="/scripts"><strong>SCRIPT WRITER</strong><span>Edit RPGScript.</span></a>
       <a class="tool-card" href="/scenes"><strong>SCENES</strong><span>Edit scenes and triggers.</span></a>
       <a class="tool-card" href="/game"><strong>PLAY</strong><span>Run this project's entry scene.</span></a>

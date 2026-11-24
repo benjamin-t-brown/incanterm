@@ -2,24 +2,46 @@ import { describe, expect, it } from 'vitest';
 import { diagnoseScript, getScriptNames } from '../diagnose.js';
 
 describe('RPGScript diagnose', () => {
-  it('reports a parse error, an unknown command, and a missing callScript target', () => {
+  it('reports a structural parse error without guessing at the following lines', () => {
+    expect(diagnoseScript('@intro\n+waitMs(', ['intro'])).toEqual([
+      { line: 2, severity: 'error', message: expect.stringContaining('no end parens') },
+    ]);
+  });
+
+  it('reports an invalid command argument, an unknown command, and a missing callScript target', () => {
     const source = [
       '@intro',
-      '+wait(',
+      '+waitMs()',
       '+dance()',
       "+callScript('missing')",
       'Guide: "Hello"',
     ].join('\n');
     expect(diagnoseScript(source, ['intro'])).toEqual([
-      { line: 2, severity: 'error', message: 'Invalid command, missing parentheses' },
+      { line: 2, severity: 'error', message: expect.stringContaining('waitMs') },
       { line: 3, severity: 'warning', message: 'No command exists with name "dance"' },
       { line: 4, severity: 'error', message: 'No script exists with name "missing".' },
     ]);
   });
 
   it('accepts a known command and a script defined in the project', () => {
-    const source = ['@intro', "+callScript('other')", '+wait(1)', '+barkProp(speaker, "Beep")'].join('\n');
+    const source = ['@intro', "+callScript('other')", '+waitMs(1)', '+barkProp(speaker, "Beep")'].join('\n');
     expect(diagnoseScript(source, ['intro', 'other'])).toEqual([]);
+  });
+
+  it('accepts the writer’s voice request and flags an invalid request mode', () => {
+    const source = `@intro
++playDialogue("Tess", "Hi", "", "v_hi")
++playDialogue("Tess", "Bye", "", "v_bye", "no-voice")
++playDialogue("Tess", "Wait", "", "v_wait", "maybe")`;
+    expect(diagnoseScript(source, ['intro'])).toEqual([
+      { line: 4, severity: 'error', message: expect.stringContaining('playDialogue') },
+    ]);
+  });
+
+  it.each(['result = ', '[local] = +', '?is(ready):+result = '])('reports invalid dialogue result assignment: %s', (assignment) => {
+    expect(diagnoseScript(`@intro\n+${assignment}playDialogue(Ada, "Hello", "", "v_id")`, ['intro'])).toEqual([
+      { line: 2, severity: 'error', message: expect.stringContaining('playDialogue does not return a value') },
+    ]);
   });
 
   it('indexes inline trigger scripts without the trigger type or timer interval', () => {
@@ -28,7 +50,7 @@ describe('RPGScript diagnose', () => {
     expect(names).toEqual(['poster', 'talk', 'door', 'intro', 'clock']);
     expect(diagnoseScript(`${source}\n@start\n+callScript("clock")`, names)).toEqual([]);
     expect(diagnoseScript('#timer@bad,0', [])).toEqual([
-      { line: 1, severity: 'error', message: 'Timer interval must be a positive number of milliseconds' },
+      { line: 1, severity: 'error', message: expect.stringContaining('Timer interval must be a positive number of milliseconds') },
     ]);
   });
 
@@ -45,10 +67,25 @@ describe('RPGScript diagnose', () => {
   });
 
   it('recognizes switch case blocks without hiding commands within them', () => {
-    const source = ['@intro', '+?switch(true):{', '  eq({a}, 1): {', '    +dance()', '  }', '  *: {', '    +wait(1)', '  }', '}'].join('\n');
+    const source = ['@intro', '+?switch(true):{', '  eq({a}, 1): {', '    +dance()', '  }', '  *: {', '    +waitMs(1)', '  }', '}'].join('\n');
     expect(diagnoseScript(source, ['intro'])).toEqual([
       { line: 4, severity: 'warning', message: 'No command exists with name "dance"' },
     ]);
+  });
+
+  it('accepts timer declarations, current conversation commands, and contextual else blocks', () => {
+    const source = `#watch
+  timer,tick,750
+@tick
+  +setConv2(Scout, Pilot)
+  +?once(firstVisit):{
+    Scout: "Clear skies?"
+  }
+  +?else:{
+    Pilot: "Still clear."
+  }
+  +endConv()`;
+    expect(diagnoseScript(source, getScriptNames(source))).toEqual([]);
   });
 
   it('recognizes command results, boolean assignments, and script calls in conditions', () => {

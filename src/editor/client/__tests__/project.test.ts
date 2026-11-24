@@ -93,6 +93,7 @@ it('requires an opened project and scopes every asset API including audio and im
   expect(getProjectApiUrl('/api/projects')).toBe('/api/projects');
   setOpenedProject(createEditorProject('first'));
   expect(getProjectApiUrl('/api/scenes/start')).toBe('/api/projects/first/assets/scenes/start');
+  expect(getProjectApiUrl('/api/voice/takes')).toBe('/api/projects/first/voice/takes');
   expect(getProjectApiUrl('/api/references/picture/image?t=123')).toBe(
     '/api/projects/first/assets/references/picture/image?t=123',
   );

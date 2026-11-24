@@ -1,0 +1,15 @@
+{
+  "format": "incanterm-item",
+  "version": 1,
+  "id": "b21144af-b986-468b-8681-0b47743e265b",
+  "label": "Book: Ada's Physics Book",
+  "scriptName": "PhysicsBook",
+  "examineScript": "items_BookPhysics_examine",
+  "combineFailScript": "items_comboFailed",
+  "visual": {
+    "type": "sprite",
+    "id": "6c3af1d8-dc75-4eca-a2fb-5e6276f7a1c5",
+    "index": 6
+  },
+  "combinations": []
+}

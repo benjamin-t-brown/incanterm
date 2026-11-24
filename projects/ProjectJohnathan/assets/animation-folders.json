@@ -1,6 +1,5 @@
 {
   "folders": [
-    "3x3/vivi3x3",
     "3x3/eva3x3",
     "test3x3",
     "3x3/johnathan3x3",
@@ -16,18 +15,10 @@
     "johnathan5x5",
     "3x3/lady3x3",
     "3x3/skye3x3",
-    "3x3"
+    "3x3",
+    "vivi3x3"
   ],
   "placements": {
-    "18a71513-2fc4-4be9-af0f-f3ce97094768": "3x3/vivi3x3",
-    "536ca9e3-34fb-4e45-a0b2-3e5798f0ffe7": "3x3/vivi3x3",
-    "84a5b414-9d19-4d42-8cb8-c881740672d1": "3x3/vivi3x3",
-    "b904b05b-7fc3-4fa7-81e6-b49350a6cbe5": "3x3/vivi3x3",
-    "1ce6f889-2404-4b5d-b6d3-99702f02a204": "3x3/vivi3x3",
-    "086aff0b-d7f6-444a-ab77-52ad9e4365d6": "3x3/vivi3x3",
-    "1b875ac4-cfb0-4c86-9c60-cc7e426a4d23": "3x3/vivi3x3",
-    "653d640d-b34a-4676-adf5-10b8214a5597": "3x3/vivi3x3",
-    "52400829-699c-4155-92c9-bf7bc49d6922": "3x3/vivi3x3",
     "1c702888-59c9-4810-bed9-564e561bbf0e": "3x3/eva3x3",
     "7a74903a-eff3-4b08-a3d6-5428248ab68e": "3x3/eva3x3",
     "7ed7da5e-3f7e-4e0c-8aa4-9bc19939e17c": "3x3/eva3x3",
@@ -227,6 +218,18 @@
     "8bf42815-f1e7-47c9-b8ba-9e10ecda24f5": "props",
     "6ebd8adc-b838-4449-ae3d-bb0a719a8e5c": "3x3/johnathan3x3",
     "53299beb-5bf2-4b00-8a1b-8c02d3d31e61": "3x3/johnathan3x3",
-    "308f36a9-cc2b-4ad7-871b-a126a753a3e9": "3x3/hadassah3x3"
+    "308f36a9-cc2b-4ad7-871b-a126a753a3e9": "3x3/hadassah3x3",
+    "4a3bbe7a-b3fe-48ef-9a8c-886cc2a1a951": "vivi3x3",
+    "60e97be2-6dd0-4e54-aa9e-f1346d68119b": "vivi3x3",
+    "7d81bd11-377f-4de1-99f6-3f313e709366": "vivi3x3",
+    "bf428b06-e506-41ab-8eef-8f7556af5791": "vivi3x3",
+    "d7efc0f6-6e1e-4a6a-957e-b7eb7ab7a729": "vivi3x3",
+    "09adcd7c-729c-4a57-b29a-2d0ef82ca7ce": "vivi3x3",
+    "8f5a4c05-bd5d-454e-b262-a02637a49b54": "vivi3x3",
+    "56bf012d-f783-4340-9076-894220b0dde7": "vivi3x3",
+    "5ee3981f-6092-4c77-800e-3e4d86586fa7": "vivi3x3",
+    "96ec525f-d828-4077-9a75-44700c2be43b": "vivi3x3",
+    "7a4a34fb-bd4f-4a04-83ea-21e6c15c0660": "vivi3x3",
+    "4834d9a0-21e5-4019-8509-635e4bd54754": "vivi3x3"
   }
 }

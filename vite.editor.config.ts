@@ -5,18 +5,22 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig, type Connect, type Plugin } from 'vite';
 import { dispatchProjectRequest, ProjectRegistry } from './src/editor/projects.js';
 import { isLocalEditorRequest } from './src/editor/request-origin.js';
+import { getEditorUploadLimit } from './src/editor/voice/api.js';
+import { privateDevFiles } from './src/editor/voice/dev-fs.js';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
-function readBody(request: IncomingMessage): Promise<Buffer> {
+function readBody(request: IncomingMessage, limit: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
     request.on('data', (chunk: Buffer) => {
       size += chunk.length;
-      if (size > 4_000_000) {
+      if (size > limit) {
+        // Drain without buffering. Destroying the socket here drops the 413
+        // response and looks like an unexplained network failure to the actor.
+        chunks.length = 0;
         reject(new Error('too large'));
-        request.destroy();
         return;
       }
       chunks.push(chunk);
@@ -108,7 +112,7 @@ async function respondToAssetRequest(
     const body =
       method === 'GET' || method === 'HEAD' || method === 'DELETE'
         ? Buffer.alloc(0)
-        : await readBody(request);
+        : await readBody(request, getEditorUploadLimit(method, request.url ?? '/api'));
     const result = await dispatchProjectRequest(
       projects,
       method,
@@ -142,6 +146,6 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 7104,
     strictPort: true,
-    fs: { allow: [rootDir] },
+    fs: { allow: [rootDir], deny: privateDevFiles },
   },
 });

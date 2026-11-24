@@ -30,6 +30,7 @@ export function createEditorNav(): string {
         <a href="/items">ITEMS</a>
         <a href="/characters">CHARACTERS</a>
         <a href="/soundboard">SOUNDBOARD</a>
+        <a href="/voice">VOICE</a>
         <a href="/scripts">SCRIPTS</a>
         <a href="/scenes">SCENE</a>
         <a href="/game">GAME</a>

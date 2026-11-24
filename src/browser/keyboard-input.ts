@@ -6,6 +6,7 @@ type KeyboardInputEvent = {
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
+  shiftKey: boolean;
 };
 
 export function getKeyboardInput(event: KeyboardInputEvent): string | null {
@@ -15,7 +16,7 @@ export function getKeyboardInput(event: KeyboardInputEvent): string | null {
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
   if (event.key === 'Enter') return '\r';
   if (event.key === 'Backspace') return '\x7f';
-  if (event.key === 'Tab') return '\t';
+  if (event.key === 'Tab') return event.shiftKey ? '\x1b[Z' : '\t';
   if (event.key === 'ArrowUp') return '\x1b[A';
   if (event.key === 'ArrowDown') return '\x1b[B';
   if (event.key === 'ArrowRight') return '\x1b[C';

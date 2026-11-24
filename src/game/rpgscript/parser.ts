@@ -6,6 +6,7 @@ import {
   parseTriggerScriptHeader,
 } from './signature.js';
 import { isNumericExpression, validateNumericExpression } from './expression.js';
+import { parseVoiceAnnotation } from './voice-annotation.js';
 
 const DIALOGUE_LINE = /^_?[A-Za-z_][\w. -]*(?:&[\w-]+)?:\s*["']/;
 
@@ -199,7 +200,7 @@ function hasOnceCondition(condition: Conditional | boolean): boolean {
 }
 
 export class ScriptParser {
-  constructor(readonly name: string) {}
+  constructor(readonly name: string, private readonly getMissingVoiceId?: (line: number) => string) {}
 
   throwParsingError(err: string, lineNum: number, lineContents: string): never {
     throw new Error(`${this.name}:${lineNum}: ${err} (${lineContents})`);
@@ -582,6 +583,20 @@ export class ScriptParser {
     }
 
     text = text.trim();
+    let annotation: ReturnType<typeof parseVoiceAnnotation>;
+    try {
+      annotation = parseVoiceAnnotation(text);
+    } catch (error) {
+      this.throwParsingError((error as Error).message, lineNum, line);
+    }
+    let lineId = annotation?.id;
+    if (annotation) {
+      text = annotation.spoken;
+      if (annotation.requested && !lineId) {
+        lineId = this.getMissingVoiceId?.(lineNum);
+        if (!lineId) this.throwParsingError('Voice request needs an ID: save in Script Writer or run npm run voice:ids', lineNum, line);
+      }
+    }
 
     if ((text[0] === '"' || text[0] === "'") && text[text.length - 1] !== text[0]) {
       this.throwParsingError('Dialogue string is missing its closing quote', lineNum, line);
@@ -597,7 +612,9 @@ export class ScriptParser {
     return {
       i: lineNum,
       type,
-      args: [{ actorName, text, portraitEmotion }],
+      args: lineId
+        ? [actorName, text, portraitEmotion, lineId, ...(annotation?.requested ? [] : ['no-voice'])]
+        : [{ actorName, text, portraitEmotion }],
     };
   }
 

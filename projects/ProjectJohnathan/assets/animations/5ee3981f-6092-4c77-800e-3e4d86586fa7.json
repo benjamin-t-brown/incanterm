@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "5ee3981f-6092-4c77-800e-3e4d86586fa7",
+  "label": "vivi3x3 talking up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 6,
+      "durationMs": 500
+    },
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 7,
+      "durationMs": 500
+    }
+  ]
+}

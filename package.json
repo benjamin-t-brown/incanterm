@@ -25,6 +25,7 @@
     "format:check": "biome format .",
     "format:rpgscript": "tsx scripts/format-rpgscript.ts --write",
     "format:rpgscript:check": "tsx scripts/format-rpgscript.ts --check",
+    "voice:ids": "tsx scripts/assign-voice-ids.ts",
     "build": "npm run build:server && npm run build:client && npm run build:browser",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --outfile=dist/server.js --packages=external",
     "build:client": "esbuild src/client/index.ts --bundle --platform=node --format=esm --outfile=dist/client.js --packages=external",

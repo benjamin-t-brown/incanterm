@@ -74,6 +74,7 @@ export function mountCharacters(root: HTMLElement): () => void {
           <h2>CONVERSATION PORTRAITS</h2><p class="page-copy">Blank emotion is the default. Separate emotion aliases with a comma or /.</p>
           <div id="character-portraits" class="character-portrait-grid"></div>
          <button id="add-character-portrait" type="button">+ PORTRAIT</button>
+         <button id="mirror-character-portraits" type="button">Create Mirrored Variants</button>
          <h2>VISUAL VARIANTS</h2>
          <p class="page-copy">Variants share identity and portraits. Each has its own animations. Scenes can choose a variant; scripts can use setCharacterVariant.</p>
          <label class="character-label">DEFAULT VARIANT NAME <input id="character-default-variant" class="text-input" spellcheck="false" maxlength="64"></label>
@@ -110,7 +111,7 @@ export function mountCharacters(root: HTMLElement): () => void {
            </section>
            <section class="portrait-selection" aria-label="Portrait frames and preview">
             <div id="portrait-frame-label" hidden><h3 id="portrait-frames-title">SPRITE FRAME</h3><div id="portrait-frame" class="portrait-frame-grid" role="group" aria-labelledby="portrait-frames-title"></div></div>
-            <canvas id="portrait-preview" width="320" height="180" aria-label="Selected portrait preview"></canvas>
+             <canvas id="portrait-preview" width="800" height="450" aria-label="Selected portrait preview"></canvas>
             <p id="portrait-picker-status" role="status">Select a sprite or animation.</p>
            </section>
           </div>
@@ -764,7 +765,7 @@ export function mountCharacters(root: HTMLElement): () => void {
     drawing.fillStyle = '#000';
     drawing.fillRect(0, 0, target.width, target.height);
     const native = terminalCellAtZoom(drawing, 1, sprite.font);
-    const scale = Math.max(0.1, Math.min(4, (target.width - 12) / (sprite.width * native.width),
+    const scale = Math.max(0.1, Math.min((target.width - 12) / (sprite.width * native.width),
       (target.height - 12) / (sprite.height * native.height)));
     const cell = terminalCellAtZoom(drawing, scale, sprite.font);
     const x0 = (target.width - sprite.width * cell.width) / 2;
@@ -837,8 +838,8 @@ export function mountCharacters(root: HTMLElement): () => void {
             button.className = 'portrait-asset-card';
             button.setAttribute('aria-label', `Frame ${index + 1}`);
             const thumbnail = document.createElement('canvas');
-            thumbnail.width = 96;
-            thumbnail.height = 60;
+            thumbnail.width = 320;
+            thumbnail.height = 200;
             const label = document.createElement('span');
             label.textContent = `FRAME ${index + 1}`;
             button.append(thumbnail, label);
@@ -1210,6 +1211,33 @@ export function mountCharacters(root: HTMLElement): () => void {
   });
   get$<HTMLButtonElement>('#add-character-portrait').addEventListener('click', () => {
     openPortraitPicker();
+  });
+  get$<HTMLButtonElement>('#mirror-character-portraits').addEventListener('click', () => {
+    if (!current) return;
+    const portraits = current.portraits ?? [];
+    const assigned = { left: new Set<string>(), right: new Set<string>() };
+    for (const entry of portraits)
+      for (const name of getPortraitEmotionNames(entry.emotion)) assigned[entry.facing].add(name);
+    const additions: typeof portraits = [];
+    for (const entry of portraits) {
+      const facing = entry.facing === 'left' ? 'right' : 'left';
+      const names = getPortraitEmotionNames(entry.emotion);
+      const missing = names.filter((name) => !assigned[facing].has(name));
+      if (missing.length) additions.push({
+        ...entry, facing, emotion: missing.length === names.length ? entry.emotion : missing.join(', '),
+      });
+    }
+    if (!additions.length) {
+      status.textContent = 'No missing portrait variants.';
+      return;
+    }
+    if (portraits.length + additions.length > 128) {
+      status.textContent = 'Cannot create all mirrored variants: a character can have at most 128 portraits.';
+      return;
+    }
+    portraits.push(...additions);
+    render();
+    status.textContent = `Created ${additions.length} mirrored portrait variant${additions.length === 1 ? '' : 's'}.`;
   });
   portraitEmotion.addEventListener('input', clearPortraitError);
   portraitDirectionLeft.addEventListener('change', clearPortraitError);

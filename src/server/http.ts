@@ -10,6 +10,7 @@ import { encodeMessage, parseClientMessage, type ServerMessage } from '../protoc
 import { getSessionErrorText } from '../protocol/session-error.js';
 import { createGameSession, type DialogueAnimationOptions, type PortraitAnimationOptions, type ScriptVariables } from './game-session.js';
 import { closeServer, listen } from './listen.js';
+import type { GameVoiceClips } from './voice-clips.js';
 
 const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
@@ -31,7 +32,7 @@ export type HttpListener = {
   close: () => Promise<void>;
 };
 
-export async function startHttpServer(options: {
+type HttpServerOptions = {
   host: string;
   port: number;
   staticRoot?: string;
@@ -46,9 +47,12 @@ export async function startHttpServer(options: {
   sessionTimerTriggers?: readonly string[];
   initialScriptVariables?: ScriptVariables;
   scriptHooks?: SessionScriptHooks;
-}): Promise<HttpListener> {
+  voiceClips?: GameVoiceClips;
+};
+
+export async function startHttpServer(options: HttpServerOptions): Promise<HttpListener> {
   const httpServer = http.createServer((req, res) => {
-    void handleRequest(req, res, options.staticRoot).catch((error: unknown) => {
+    void handleRequest(req, res, options.staticRoot, options.voiceClips).catch((error: unknown) => {
       console.error(error);
       if (!res.headersSent) sendText(res, 500, 'Internal error\n');
       else res.end();
@@ -60,11 +64,7 @@ export async function startHttpServer(options: {
     maxPayload: 1024 * 1024,
   });
 
-  webSocketServer.on('connection', (socket) => {
-    attachSocket(socket, options.scene, options.scripts, options.portraits, options.reloadPortraits,
-      options.loadSceneById, options.dialogueAnimation, options.portraitAnimation, options.allowPlayerSpawn,
-      options.sessionTimerTriggers, options.initialScriptVariables, options.scriptHooks);
-  });
+  webSocketServer.on('connection', (socket) => attachSocket(socket, options));
 
   const port = await listen(httpServer, options.port, options.host);
   httpServer.on('error', (error) => {
@@ -84,23 +84,11 @@ export async function startHttpServer(options: {
   };
 }
 
-function attachSocket(
-  socket: WebSocket,
-  scene: Scene,
-  scripts: ScriptLibrary,
-  portraits?: PortraitAssets,
-  reloadPortraits?: () => Promise<PortraitAssets>,
-  loadSceneById?: (sceneId: string) => Promise<Scene>,
-  dialogueAnimation?: DialogueAnimationOptions,
-  portraitAnimation?: PortraitAnimationOptions,
-  allowPlayerSpawn = false,
-  sessionTimerTriggers?: readonly string[],
-  initialScriptVariables?: ScriptVariables,
-  scriptHooks?: SessionScriptHooks,
-): void {
+function attachSocket(socket: WebSocket, options: HttpServerOptions): void {
+  const { voiceClips } = options;
   let sendingFrame = false;
   const session = createGameSession(
-    scene,
+    options.scene,
     (text, cols, rows, logSelection) => {
       sendingFrame = true;
       socket.send(encodeMessage({ type: 'terminal-data', data: text, cols, rows, logSelection }), (error) => {
@@ -108,20 +96,21 @@ function attachSocket(
         if (error) socket.terminate();
       });
     },
-    scripts,
-    portraits,
+    options.scripts,
+    options.portraits,
     () => socket.readyState === WebSocket.OPEN && !sendingFrame && socket.bufferedAmount === 0,
-    reloadPortraits,
+    options.reloadPortraits,
     handleSessionError,
-    loadSceneById,
-    dialogueAnimation,
-    portraitAnimation,
-    allowPlayerSpawn,
-    sessionTimerTriggers,
+    options.loadSceneById,
+    options.dialogueAnimation,
+    options.portraitAnimation,
+    options.allowPlayerSpawn,
+    options.sessionTimerTriggers,
     undefined,
     undefined,
-    initialScriptVariables,
-    scriptHooks,
+    options.initialScriptVariables,
+    options.scriptHooks,
+    voiceClips && { getChecksum: (dialogue) => voiceClips.getChecksum(dialogue), send: (message) => send(socket, message) },
   );
   function handleSessionError(error: unknown): void {
     console.error('Game session failed:', error);
@@ -159,6 +148,7 @@ async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   staticRoot: string | undefined,
+  voiceClips?: GameVoiceClips,
 ): Promise<void> {
   const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
   if (req.method === 'GET' && pathname === '/health') {
@@ -167,6 +157,16 @@ async function handleRequest(
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendText(res, 405, 'Method not allowed\n');
+    return;
+  }
+  if (pathname.startsWith('/voice/')) {
+    const checksum = /^\/voice\/([a-f0-9]{64})\.mp3$/.exec(pathname)?.[1];
+    const clip = checksum && await voiceClips?.readClip(checksum);
+    if (!clip) sendText(res, 404, 'Not found\n');
+    else {
+      res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': clip.length });
+      res.end(req.method === 'HEAD' ? undefined : clip);
+    }
     return;
   }
   if (staticRoot && (await tryStatic(staticRoot, pathname, req.method, res))) return;

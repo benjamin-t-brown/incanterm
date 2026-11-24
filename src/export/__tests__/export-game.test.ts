@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,8 +12,17 @@ import { encodeStoredSprite } from '../../editor/art/sprite-storage.js';
 import { getDefaultPalette } from '../../editor/palette.js';
 import { exportGame } from '../export-game.js';
 import { createItem } from '../../editor/items/item-schema.js';
+import { getVoiceRevision } from '../../voice/contracts.js';
 
 const ENGINE_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const voiceBytes = Buffer.from('synthetic approved MP3 bytes');
+const checksum = createHash('sha256').update(voiceBytes).digest('hex');
+const approvedClip = {
+  lineId: 'v_greeting',
+  revision: getVoiceRevision('Guide', 'Release hello'),
+  file: `${checksum}.mp3`,
+  checksum,
+};
 let directory: string;
 let project: LoadedProject;
 let outputPath: string;
@@ -68,7 +78,14 @@ beforeAll(async () => {
   );
   await fs.writeFile(
     path.join(project.assetsRoot, 'scripts', 'entry.rpgscript'),
-    '#entry\nload,greeting\n@greeting\nGuide: "Release hello"\nGuide: "Next line"',
+    [
+      '#entry',
+      'load,greeting',
+      '@greeting',
+      '+playDialogue(Guide, "Release hello", "", "v_greeting")',
+      '+playDialogue(Guide, "Next line", "", "v_disabled", "no-voice")',
+      'Guide: "Text only"',
+    ].join('\n'),
   );
   await fs.writeFile(
     path.join(project.assetsRoot, 'session-config.json'),
@@ -81,6 +98,35 @@ beforeAll(async () => {
   await fs.writeFile(
     path.join(project.assetsRoot, 'audio', 'cue.wav'),
     Buffer.from('RIFF-fixture'),
+  );
+  const work = path.join(project.root, 'voice-work');
+  await fs.mkdir(work);
+  await Promise.all(
+    ['original.webm', 'room-tone.wav', 'alternate.mp3', 'takes.json'].map((name) =>
+      fs.writeFile(path.join(work, name), 'private recording session'),
+    ),
+  );
+  const voice = path.join(project.assetsRoot, 'audio', 'voice');
+  await fs.mkdir(voice);
+  await fs.writeFile(path.join(voice, approvedClip.file), voiceBytes);
+  for (const name of ['old.mp3', 'archived.mp3', 'raw.wav', 'alternate.mp3', 'room-tone.ogg'])
+    await fs.writeFile(path.join(voice, name), 'must not ship');
+  await fs.writeFile(
+    path.join(voice, 'index.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'private session',
+      clips: [
+        { ...approvedClip, takeId: 'private take' },
+        {
+          ...approvedClip,
+          lineId: 'v_disabled',
+          revision: getVoiceRevision('Guide', 'Previous line'),
+          file: 'old.mp3',
+        },
+        { ...approvedClip, lineId: 'v_archived', file: 'archived.mp3' },
+      ],
+    }),
   );
   await fs.mkdir(path.join(project.root, 'story'));
   await fs.writeFile(path.join(project.root, 'story', 'notes.txt'), 'Private author notes');
@@ -146,11 +192,19 @@ it('keeps asset bytes and IDs, resolves the selected scene label, and never modi
   expect(await fs.readFile(path.join(exported.assetsRoot, 'audio', 'cue.wav'), 'utf8')).toBe(
     'RIFF-fixture',
   );
-  expect(JSON.parse(await fs.readFile(path.join(exported.assetsRoot, 'items', 'key.json'), 'utf8')))
-    .toEqual(createItem('key', { type: 'sprite', id: 'key-art', index: 0 }));
+  expect(
+    JSON.parse(await fs.readFile(path.join(exported.assetsRoot, 'items', 'key.json'), 'utf8')),
+  ).toEqual(createItem('key', { type: 'sprite', id: 'key-art', index: 0 }));
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('references');
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('scene-folders.json');
   expect(await fs.readdir(exported.assetsRoot)).not.toContain('.env');
+  expect(await fs.readdir(exported.root)).not.toContain('voice-work');
+  const voice = path.join(exported.assetsRoot, 'audio', 'voice');
+  expect((await fs.readdir(voice)).sort()).toEqual([approvedClip.file, 'index.json'].sort());
+  expect(JSON.parse(await fs.readFile(path.join(voice, 'index.json'), 'utf8'))).toEqual({
+    version: 1,
+    clips: [approvedClip],
+  });
   const original = await loadProject(project.root);
   expect(original.manifest.assets).toBe('content');
   expect(original.manifest.entryScene).toBe('start');
@@ -265,6 +319,9 @@ it('runs the built release from an unrelated working directory and exposes play,
     expect((await fetch(new URL(script, base))).status).toBe(200);
     expect((await fetch(`${base}/api/projects`)).status).toBe(404);
     expect((await fetch(`${base}/game/incanterm.json`)).status).toBe(404);
+    const voice = await fetch(`${base}/voice/${checksum}.mp3`);
+    expect(voice.status).toBe(200);
+    expect(Buffer.from(await voice.arrayBuffer())).toEqual(voiceBytes);
     socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const frame = await new Promise<string>((resolve, reject) => {
       socket?.on('message', (data) => {

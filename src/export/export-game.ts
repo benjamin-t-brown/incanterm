@@ -6,6 +6,7 @@ import { build as buildBrowser } from 'vite';
 import { loadProject, PROJECT_FILE } from '../project/project.js';
 import { loadGame } from '../server/load-game.js';
 import { getDockerfile, getDockerignore, getReleaseReadme } from './deployment.js';
+import { exportVoice } from './export-voice.js';
 import { createRuntimePackage } from './runtime-package.js';
 import type { ExportOptions } from './export-options.js';
 
@@ -76,6 +77,7 @@ async function copyRuntimeFolder(
   target: string,
   folder: string,
   format: string | null,
+  skipVoiceFolder = false,
 ): Promise<void> {
   let entries: import('node:fs').Dirent[];
   try {
@@ -85,6 +87,8 @@ async function copyRuntimeFolder(
     throw error;
   }
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    // Published voice is selected separately against the exported dialogue catalog.
+    if (skipVoiceFolder && entry.name.toLowerCase() === 'voice') continue;
     const from = path.join(source, entry.name);
     const to = path.join(target, entry.name);
     if (entry.isSymbolicLink()) throw new Error(`Runtime asset links cannot be exported: ${from}`);
@@ -116,7 +120,7 @@ async function copyRuntimeAssets(source: string, target: string): Promise<void> 
     }
     const to = path.join(target, folder);
     await fs.mkdir(to);
-    await copyRuntimeFolder(from, to, folder, format);
+    await copyRuntimeFolder(from, to, folder, format, folder === 'audio');
   }
   for (const [file, format] of [
     ['palette.json', 'incanterm-palette'],
@@ -168,7 +172,9 @@ export async function exportGame(
   try {
     const gameRoot = path.join(outputPath, 'game');
     await fs.mkdir(gameRoot);
-    await copyRuntimeAssets(project.assetsRoot, path.join(gameRoot, 'assets'));
+    const targetAssets = path.join(gameRoot, 'assets');
+    await copyRuntimeAssets(project.assetsRoot, targetAssets);
+    await exportVoice(project.assetsRoot, targetAssets);
     await writeJson(path.join(gameRoot, PROJECT_FILE), {
       ...project.manifest,
       assets: 'assets',

@@ -1,0 +1,20 @@
+{
+  "format": "incanterm-animation",
+  "version": 1,
+  "id": "d7efc0f6-6e1e-4a6a-957e-b7eb7ab7a729",
+  "label": "vivi3x3 walk up",
+  "loop": true,
+  "defaultDurationMs": 135,
+  "frames": [
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 14,
+      "durationMs": 135
+    },
+    {
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
+      "index": 15,
+      "durationMs": 135
+    }
+  ]
+}

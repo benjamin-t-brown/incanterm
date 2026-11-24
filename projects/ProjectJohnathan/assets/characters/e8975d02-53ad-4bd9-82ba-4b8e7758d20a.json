@@ -29,6 +29,31 @@
       "facing": "right",
       "emotion": "bored",
       "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_4"
+    },
+    {
+      "facing": "left",
+      "emotion": "",
+      "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_5"
+    },
+    {
+      "facing": "left",
+      "emotion": "pleased/happy",
+      "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_6"
+    },
+    {
+      "facing": "left",
+      "emotion": "angry/upset",
+      "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_7"
+    },
+    {
+      "facing": "left",
+      "emotion": "surprised/inquisitive/talk",
+      "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_8"
+    },
+    {
+      "facing": "left",
+      "emotion": "bored",
+      "portrait": "5cb1dbda-d534-4474-85b5-8484003f4f18_9"
     }
   ],
   "defaultFacing": "down",

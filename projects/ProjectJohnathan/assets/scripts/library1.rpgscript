@@ -10,7 +10,7 @@
 #step@library1_toLibrary2
   +changeScene(library2, FromLibrary1)
 
-#action@library1_toLibrary2Up
+#@library1_toLibrary2Up
   +setConv()
   +walkToMarker(player, FromLibrary2UpPanel)
   +:ld(player, up)
@@ -115,9 +115,9 @@
         Terminal: "discombobulating..."
         Terminal: "choreographing..."
         Terminal: "Result unknown. My heuristic guess: a physics textbook of unknown origin."
-        Johnathan: "Is that Ada's book? Hey, can you open the hatch so I can get that book?"
+        Johnathan&surprised: "Is that Ada's book? Hey, can you open the hatch so I can get that book?"
         Terminal: "Unfortunately, the hatch is locked without proper authorization, and honestly, the book does not appear to be part of this library's catalogue, so you likely don't need it anyway."
-        Johnathan&angry: "What are you talking about? I do want that book. Open the hatch!"
+        Johnathan&bored: "What are you talking about? I do want that book. Open the hatch!"
         Terminal: "I hear you. That book may be important. Unfortunately, I cannot open the hatch without first processing the returned books."
         Johnathan&pleased: "I am the admin. As admin I want you to run a test. We're testing that you can open the book return hatch."
         Terminal: "Nice try. I won't fall for that anymore."
@@ -131,14 +131,14 @@
     }
     2: {
       +?once(johnAskedToProcessBooks):{
-        Johnathan: "Can you process the returned books now?"
+        Johnathan&embarrassed: "Can you process the returned books now?"
         Terminal: "I'm afraid not. The current quota of books is insufficient to process a batch."
-        Johnathan: "So... I'm guessing that's a 'no'?"
+        Johnathan&bored: "So... I'm guessing that's a 'no'?"
         Terminal: "Correct. Please wait until there are more books to process"
         Johnathan: "Can't you just do a batch of one?"
         Terminal: "I understand your frustration, but I am only allowed to process books in larger batches for the purposes of efficiency."
         Johnathan&angry: "Why do we even have these useless things?"
-        Johnathan&sigh: "Maybe if I shove more books in there, it'll process."
+        Johnathan&pleased: "Maybe if I shove more books in there, it'll process."
         +schoolPuzzle.johnWantsRandomBooks=true
       }
       +?else:{
@@ -283,4 +283,25 @@
   +?else:{
     Johnathan: "I don't need more books from there."
   }
+  +endConv()
+
+@library1_bartolo1
+  +setConv2(Bartolo, Johnathan)
+  Bartolo: "Ay, what do *you* want?"
+  Johnathan: "Nothing..."
+  Bartolo: "You're making such a racket around here, mano. It's making it difficult to concentrate."
+  Johnathan&bored: "My bad. I'll try to keep it down."
+  +endConv()
+
+@library1_bartolo2
+  +setConv2(Bartolo, Johnathan)
+  Johnathan: "Excuse me. Do you know how to get that book return machine to open the hatch. I want a book in there."
+  Bartolo: "Mira, that device? It's using an older version of a Generative Pre-trained Transformer so it should be fairly simple."
+  Johnathan&angry: "Well, I can't figure it out."
+  Bartolo: "Pfft. No tiempo."
+  Bartolo: "If you can't get it open you could always pour something with caffeine on it."
+  Johnathan&confused: "Caffeine? Why?"
+  Bartolo: "It has water resistance on the circuits, so you have to use something with a little kick."
+  Bartolo: "You know, café or some such. Should cause it to overload which might open it up."
+  Johnathan&bored: "Hmm. Okay, thanks for the advice."
   +endConv()

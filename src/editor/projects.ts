@@ -6,6 +6,7 @@ import { startHttpServer, type HttpListener } from '../server/http.js';
 import { loadGame } from '../server/load-game.js';
 import { dispatchAssetRequest, type AssetResponse } from './api.js';
 import { AssetStore } from './store.js';
+import { dispatchVoiceRequest } from './voice/api.js';
 
 export type EditorProject = {
   key: string;
@@ -170,6 +171,15 @@ export async function dispatchProjectRequest(
         return getJson(200, { url: `/game-preview?project=${key}` });
       }
     }
+    if (parts[3] === 'voice')
+      return await dispatchVoiceRequest(
+        registered.project,
+        method,
+        parts.slice(4),
+        rawBody,
+        contentType,
+        request.searchParams,
+      );
     if (parts[3] === 'assets') {
       // The store is captured per request. Switching a different tab/project can never retarget a save.
       const assetUrl = `/api/${parts.slice(4).join('/')}${request.search}`;

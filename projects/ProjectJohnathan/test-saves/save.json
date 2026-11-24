@@ -1,7 +1,7 @@
 {
   "v": 1,
   "vars": {
-    "schoolPuzzle.bookRequested": true,
+    "schoolPuzzle.bookRequested": false,
     "vars.inventory": [
       { "itemId": "0d573aeb-ac6b-47cd-874e-c86aef17879a" },
       { "itemId": "8fddf77c-d1a2-437a-8f4e-e8826c75e716" },

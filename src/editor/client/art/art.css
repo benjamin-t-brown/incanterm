@@ -595,6 +595,9 @@ input[type='range'] {
 .glyph-list[hidden] {
   display: none;
 }
+.glyph-list > strong {
+  grid-column: 1 / -1;
+}
 .glyph-list button {
   height: 29px;
   background: var(--inset);

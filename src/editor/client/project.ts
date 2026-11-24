@@ -40,6 +40,8 @@ export function setOpenedProject(project: EditorProject): void {
 export function getProjectApiUrl(url: string): string {
   if (!url.startsWith('/api/') || url.startsWith('/api/projects')) return url;
   if (!openedProject) throw new Error('Open a project before accessing assets');
+  if (/^\/api\/voice(?:[/?]|$)/.test(url))
+    return `/api/projects/${openedProject.key}${url.slice(4)}`;
   return `/api/projects/${openedProject.key}/assets/${url.slice('/api/'.length)}`;
 }
 

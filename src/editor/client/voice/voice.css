@@ -1,0 +1,48 @@
+.voice-layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(0, 2fr);
+  gap: 1.5rem;
+  max-width: 80rem;
+  align-items: start;
+}
+.voice-queue {
+  display: grid;
+  gap: 4px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+.voice-queue button {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.voice-queue button[aria-current="true"] {
+  border-inline-start: 4px solid var(--highlight);
+}
+.voice-dialogue {
+  border-inline-start: 3px solid var(--highlight);
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+}
+.voice-layout .text-select {
+  max-width: 100%;
+}
+.voice-layout .zone {
+  margin-top: 1.25rem;
+}
+.voice-notice {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .voice-layout {
+    grid-template-columns: 1fr;
+  }
+  .voice-queue {
+    max-height: 12rem;
+  }
+}

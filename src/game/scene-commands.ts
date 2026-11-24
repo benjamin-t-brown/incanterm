@@ -15,6 +15,7 @@ import {
   getWalkOffset, parseBarkArgs, parsePositionArgs,
 } from './scene-command-support/arguments.js';
 import type { Choice, GameScriptContext } from './scene-command-support/context.js';
+import { parseDialogueArgs } from './scene-command-support/dialogue.js';
 import { addInventoryItem, addNamedInventoryItem, getInventory, getItemName } from './scene-command-support/inventory.js';
 import { setFacingToward, walkScriptedToDestination } from './scene-command-support/movement.js';
 import {
@@ -111,25 +112,13 @@ const setChForeground = defineCommand({
 });
 
 const playDialogue = defineCommand({
-  parse: (args) => {
-    const dialogue = args[0];
-    if ((args.length === 2 || args.length === 3) && typeof dialogue === 'string' &&
-      typeof args[1] === 'string' && (args.length === 2 || typeof args[2] === 'string'))
-      return { type: 'dialogue' as const, actor: dialogue, text: args[1], emotion: args[2] as string | undefined };
-    if (
-      typeof dialogue === 'object' &&
-      dialogue &&
-      'actorName' in dialogue &&
-      'text' in dialogue
-    )
-      return { type: 'dialogue' as const, actor: dialogue.actorName, text: dialogue.text, emotion: dialogue.portraitEmotion };
-  },
+  parse: parseDialogueArgs,
   execute: (step, context, game?: GameScriptContext) => {
     const actor = context.interpolate(step.actor);
     let speaker: Character | undefined;
     context.showDialogue(actor, context.interpolate(step.text), step.emotion, () => {
       if (speaker?.state === 'talking') speaker.setAnimationState('idle');
-    });
+    }, step.voice);
     if (!game?.scene) return;
     let character: Character;
     try {

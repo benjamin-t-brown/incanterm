@@ -43,7 +43,7 @@
   +:ld(player, up)
   +?switch(tmp.hallwayGymLimeTalk):{
     0: {
-      Johnathan: "Lime soda. It was a fad last year but I don't think this machine has been touched since then. Not worth the cash."
+      Johnathan: "Lime soda. It was a fad last year but I don't think this machine has been touched since then. Not worth the cash." // voice v_5196b899-1d74-4582-88db-efed8fd1069c
       +tmp.hallwayGymLimeTalk=1
     }
     1: {
@@ -145,4 +145,61 @@
       Johnathan: "I don't need to go."
     }
   }
+  +endConv()
+
+@hallwayGym_talkVivi1
+  +setConv2(Vivi, Johnathan)
+  Johnathan: "Oh... hey Vivi."
+  Vivi: "Hey."
+  Johnathan&happy: "So.. uh... you got basketball practice today?"
+  Vivi&shy: "Yeah."
+  Vivi: "Playoffs are soon. And all that."
+  Vivi&confident: "Gotta practice."
+  Johnathan: "Yeah? Nice."
+  +waitMs(1000)
+  Vivi&happy: "Did you want something?"
+  Johnathan&bored: "*sigh* Always to the point, aren't you? I was building towards it."
+  Vivi&confused: "Towards what?"
+  Johnathan: "I've always thought you were pretty cool... And that I'd like to get to know you better."
+  Vivi: "Oh..."
+  Johnathan&thinking: "Yeah."
+  Johnathan: "Do you want to go out with me? Maybe we can get a coffee sometime?"
+  Vivi&patient: "Um..."
+  Vivi&shy: "Well... I... um..."
+  Vivi&patient: "Um...."
+  Johnathan&surprised: "Are you okay?"
+  Vivi&sad: "No thanks. I'm... not interested."
+  Johnathan&bored: "Oof."
+  Johnathan&sad: "Well okay then."
+  Vivi&sad: "I'm really sorry."
+  Vivi: "I just can't."
+  Vivi&sad: "Sorry."
+  Vivi: "I'm really sorry!"
+  Johnathan&pleased: "It's okay. Honestly now I'm just relieved that's over."
+
+  // Otis walks over
+
+  +setConv()
+  Otis&happy: "Would you look at that? Here are my two favorite people."
+  Otis: "What's the happs with you two love birds?"
+  Otis&angry: "Wait a sec... What's going on? Why do you look so sad?"
+  Vivi: "Hey..."
+  +setConv2(Otis, Vivi)
+  Vivi&angry: "Did you put him up to this?"
+  Otis&surprised: "Whoah whoah, slow down. Up to what?"
+  Vivi&angry: "I can't believe this. Are you trying to piss me off?"
+  Otis&happy: "What? No!"
+  +setConv2(Vivi, Johnathan)
+  Vivi: "Johnathan, tell me the truth. Did Otis tell you to ask me out?"
+  Johnathan&embarrassed: "Yeah... he did. He said we'd be a good match."
+  Vivi&angry: "I knew it!"
+  +setConv()
+  Otis&angry: "Well, yeah, cuz you are a good match!"
+  +setConv2(Otis, Vivi)
+  Vivi&angry: "That isn't the point, and you know it!"
+  Vivi&sad: "You know I can't. Not right now."
+  Otis&angry: "Oh come on, Vivi. You don't have to do whatever you're told all the time."
+  Vivi&angry: "Ohh... I can't stand you sometimes!"
+  Vivi&angry: "You make me soo angry."
+  
   +endConv()

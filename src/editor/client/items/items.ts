@@ -21,6 +21,7 @@ import { createPanelResizer } from '../panel-resizer.js';
 import { createVisualAssetPicker } from '../visual-asset-picker.js';
 import { renderTabCloseActions } from '../tab-close-actions.js';
 import { renderTabReordering } from '../tab-reordering.js';
+import { showEditorToast } from '../save-toast.js';
 import { OPEN_ITEMS_KEY, readItemTabs, type ItemTabSession } from '../../items/item-tabs.js';
 import { addOpenTab } from '../../tab-order.js';
 import { jsonRequest, requestJson } from '../api.js';
@@ -122,24 +123,7 @@ export function mountItems(root: HTMLElement): () => void {
     showSaveToast(message, true);
   }
   function showSaveToast(message: string, error = false): void {
-    const toast = document.createElement('div');
-    toast.className = error ? 'save-toast error' : 'save-toast';
-    const icon = document.createElement('span');
-    icon.className = 'toast-icon';
-    icon.textContent = error ? '!' : '✓';
-    icon.setAttribute('aria-hidden', 'true');
-    const label = document.createElement('span');
-    label.className = 'toast-message';
-    label.textContent = message;
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'close-toast';
-    close.textContent = '×';
-    close.setAttribute('aria-label', 'Dismiss notification');
-    close.addEventListener('click', () => toast.remove());
-    toast.append(icon, label, close);
-    get$<HTMLElement>('#toast-stack').append(toast);
-    setTimeout(() => toast.remove(), 4000);
+    showEditorToast(get$<HTMLElement>('#toast-stack'), message, error);
   }
   function persistDraft(): void {
     try {

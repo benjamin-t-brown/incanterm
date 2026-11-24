@@ -20,7 +20,8 @@ import { LayoutStandardScene, STANDARD_BACKGROUND } from '../renderer/ui/layout-
 import { createGlyphExitFilter, createGlyphGrowthRevealFilter, createGlyphSweepFadeFilter, createTextColorFilter, type ScreenFilter, ScreenFilterContext, ScreenFilterPipeline } from '../renderer/screen-filters.js';
 import type { Rect } from '../renderer/ui/element.js';
 import { CellBuffer } from '../game/cell-buffer.js';
-import type { SelectionRect } from '../protocol/messages.js';
+import type { SelectionRect, VoiceMessage } from '../protocol/messages.js';
+import type { GameVoiceClips } from './voice-clips.js';
 import { hasCancelUiAndOpenLogInput, TOGGLE_LOG_WINDOW_INPUT } from '../protocol/input.js';
 import { getDialogueActorName, getDialoguePortrait, getPortraitFrameAt, type PortraitAsset, type PortraitAssets, type PortraitFrame } from '../game/portrait-assets.js';
 
@@ -90,13 +91,14 @@ export function createGameSession(
   initialPropSlideState?: unknown,
   initialScriptVariables?: ScriptVariables,
   scriptHooks?: SessionScriptHooks,
+  voice?: Pick<GameVoiceClips, 'getChecksum'> & { send(message: VoiceMessage): void },
 ): GameSession {
   // Each connection owns its movable entities and their animation and walking state.
   scene = cloneSessionScene(scene);
   const propSlideLayouts = new PropSlideLayouts(initialPropSlideState);
   const initialLayout = propSlideLayouts.restoreRoom(scene);
   let authoredPropPositions = initialLayout.defaults;
-  const control = new PlayerControl(scene, allowPlayerSpawn);
+  const control = new PlayerControl(scene, allowPlayerSpawn, stopVoice);
   const propSlides = new PropSlideControl(control, (event) => {
     const authored = authoredPropPositions.get(event.instanceId);
     if (event.sceneId === scene.id && authored)
@@ -192,11 +194,26 @@ export function createGameSession(
       clearPortraitExit();
     },
   };
+  let voiceActive = false;
+  function stopVoice(): void {
+    if (!voiceActive) return;
+    voiceActive = false;
+    voice?.send({ type: 'voice-stop' });
+  }
+
   const runner =
     scripts &&
     new ScriptRunner(scripts, {
       commands,
       context: gameContext,
+      onDialogueChange: (dialogue) => {
+        stopVoice();
+        if (!opened || !voice || !dialogue?.voice?.requested) return;
+        const checksum = voice.getChecksum(dialogue);
+        if (!checksum) return;
+        voiceActive = true;
+        voice.send({ type: 'voice-start', checksum });
+      },
       hasItem: (inventory, reference) => hasInventoryItem(inventory, scene.itemAssets, reference),
       getCharacterId: (reference) => findCharacter(scene, reference, control.playerWalkCh).id,
       isCharacterBusy: (ownerId) => (propSlideInteraction || pendingPropAction !== undefined) && ownerId === control.playerWalkCh?.id ||

@@ -8,7 +8,11 @@ export class PlayerControl {
   private conversation?: { target: Character; activity: CharacterActivity };
   private scriptedWalker?: Character;
   private cancelledWalks = new WeakSet<Character>();
-  constructor(public scene: Scene, private allowPlayerSpawn = false) {}
+  constructor(
+    public scene: Scene,
+    private allowPlayerSpawn = false,
+    private readonly onConversationEnd?: () => void,
+  ) {}
 
   changeScene(scene: Scene, player: Character): void {
     this.stop();
@@ -119,6 +123,8 @@ export class PlayerControl {
   }
 
   endConversation(restore: boolean): void {
+    // Scripted conversations do not necessarily have an on-screen target.
+    this.onConversationEnd?.();
     const conversation = this.conversation;
     this.conversation = undefined;
     conversation?.target.setConversationBusy(false);

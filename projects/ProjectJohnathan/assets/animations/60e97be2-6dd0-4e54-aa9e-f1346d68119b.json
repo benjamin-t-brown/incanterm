@@ -1,13 +1,13 @@
 {
   "format": "incanterm-animation",
   "version": 1,
-  "id": "536ca9e3-34fb-4e45-a0b2-3e5798f0ffe7",
+  "id": "60e97be2-6dd0-4e54-aa9e-f1346d68119b",
   "label": "vivi3x3 idle down",
   "loop": true,
   "defaultDurationMs": 135,
   "frames": [
     {
-      "sprite": "johnathan3x3",
+      "sprite": "02ddbdc9-5648-4754-a092-ba3c31887e3d",
       "index": 0,
       "durationMs": 135
     }

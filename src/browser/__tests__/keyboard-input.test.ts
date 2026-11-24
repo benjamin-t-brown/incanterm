@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { CANCEL_UI_AND_OPEN_LOG_INPUT } from '../../protocol/input.js';
 import { getKeyboardInput } from '../keyboard-input.js';
 
-const plainEvent = { key: '', code: '', ctrlKey: false, metaKey: false, altKey: false };
+const plainEvent = { key: '', code: '', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false };
 
 it.each([
   { key: '~', code: 'Backquote' },
@@ -15,6 +15,10 @@ it.each([
 
 it.each(['~', '`'])('preserves unmodified %s', (key) => {
   expect(getKeyboardInput({ ...plainEvent, key, code: 'Backquote' })).toBe(key);
+});
+
+it('encodes reverse game panel navigation when game controls have captured Shift+Tab', () => {
+  expect(getKeyboardInput({ ...plainEvent, key: 'Tab', shiftKey: true })).toBe('\x1b[Z');
 });
 
 it.each([

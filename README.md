@@ -25,6 +25,20 @@ Choose **GAME / PLAY** to run the opened project's entry scene. The editor start
 local preview; a separate `npm run dev` or fixed game-client port is not required.
 Leave and return to Play to reload the latest saved content.
 
+### Voice Studio
+
+In Script Writer, request voice for a dialogue line and save the script. Open **Voice
+Studio** in Chrome or Edge to record and compare takes. Save a take before moving to
+the next line. A favorite helps you compare performances; approval selects the take
+for the current wording. After a rewrite, the pickup queue keeps the earlier takes
+available for comparison.
+
+Publish the approved take before exporting. Publishing requires `ffmpeg` on the
+editor server's PATH; the exported game doesn't need it. Include the project’s
+`voice-work/` folder in authoring backups: it holds original recordings and room tone,
+while the published clips live under the configured assets root. See the
+[five-line pilot](docs/design/voice-studio-pilot.md) to try the full workflow.
+
 ### ProjectJohnathan
 
 The current game is now [`projects/ProjectJohnathan`](projects/ProjectJohnathan).

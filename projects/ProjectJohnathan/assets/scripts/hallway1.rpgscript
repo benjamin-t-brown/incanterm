@@ -27,12 +27,12 @@
   +:leach(Otis, Johnathan)
   +setConv2(Otis, Johnathan)
   Otis: "You going home?"
-  Johnathan: "Nah, I need to take this envelope to the office for Mr. Ralgo. Then I gotta go try to get a job."
+  Johnathan: "Nah, I need to take this envelope to the office for Mr. Ralgo. Then I gotta go try to get a job." // no-voice v_53ce8df5-afd6-4160-96e6-68a21fb1df41
   Otis: "Is it that pizza thing?"
-  Johnathan: "Yeah. But I might be late unless I hurry to the office."
+  Johnathan&embarrassed: "Yeah. But I might be late unless I hurry to the office."
   Otis: "Hold on a sec. I've been meaning to ask you..."
   Otis&surprised: "Have you asked my sister out yet?"
-  Johnathan: "Oh... No I haven't yet. Sorry I keep forgetting."
+  Johnathan&thinking: "Oh... No I haven't yet. Sorry I keep forgetting."
   Otis&angry: "C'mon man! Time's kinda running out! You gotta do this soon!"
   Johnathan&upset: "Why do you keep pushing this? Can't she go find some other guy to go dance with?"
   Otis: "No it's gotta be you! You're perfect for her!"
@@ -135,7 +135,7 @@
   +?switch(tmp.hallway1WyattTalk):{
     0: {
       +setConv2(Wyatt, Johnathan)
-      Johnathan: "Looking for something?"
+      Johnathan&embarrassed: "Looking for something?"
       Wyatt: "Buzz off, I'm not giving you any money today, Johnathan."
       Johnathan&angry: "I wasn't asking for any..."
       Wyatt: "Yeah, well you were thinking it."

@@ -52,7 +52,7 @@ export const sceneCommandsShim = {
   playDialogue: defineCommand({
     parse: commands.playDialogue.parse,
     execute: (step, script) =>
-      script.showDialogue(script.interpolate(step.actor), script.interpolate(step.text), step.emotion),
+      script.showDialogue(script.interpolate(step.actor), script.interpolate(step.text), step.emotion, undefined, step.voice),
   }),
   setConv: defineCommand({
     parse: commands.setConv.parse,

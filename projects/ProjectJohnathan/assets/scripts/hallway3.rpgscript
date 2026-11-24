@@ -26,17 +26,39 @@
     +:hallway3_AdaSkye1()
     +schoolPuzzle.bookRequested=true
   }
-  // if you know that you need the book
   +?else:{
-    +?is(schoolPuzzle.otisToldJohnSkyeHasPass):{
+    +?is(schoolPuzzle.otisToldJohnAdaKnowsIroha):{
       +?once(schoolPuzzle_johnInterrupt1):{
+        +setConv2(Ada, John)
+        Johnathan: "Do you know anybody named, Iroha?"
+        Ada&talking: "Yes, I do. Why?"
+        Johnathan: "She has something I need. Do you know where she is?"
+        Ada: "If I had to guess I would say she is in the music room."
+        Ada&talking: "She often goes up there after school to practice."
+        Johnathan&bored: "On the floor above this one?"
+        Johnathan&angry: "The elevators are down! How am I supposed to get up there?"
+        Ada: "You can get there through the library."
+        Johnathan&thinking: "Oh yeah."
+        Ada&talking: "But that is the back entrance. You need music room access credentials."
+        Johnathan&bored: "Why is everything in this school locked?"
+        Ada: "I have access."
+        Johnathan&surprised: "Oh! Can you get me in there?"
+        Ada: "I suppose I could. But only after I get my physics book."
         +setConv()
-        Johnathan: "PLACEHOLDER John asks Ada to talk to Skye and she won't let him."
+        Skye: "I heard ya! I'm still looking."
+        Ada&talking: "Until I get that book, I am not leaving Skye's side."
+        Johnathan: "Maybe I can help find it? Where was the last place Skye had it?"
+        +setConv()
+        Skye: "Right here! In this locker!"
+        Johnathan&bored: "Not super helpful..."
+        Ada&sigh: "I suppose a reasonable place to look for lost books might be the library."
+        Ada: "Perhaps you can check there?"
+        Johnathan&happy: "Okay, thanks."
         +endConv()
       }
       +?else:{
         +setConv()
-        Johnathan: "Ada won't let me talk to Skye until she gets her physics book."
+        Johnathan: "Ada won't help me until she gets her physics book."
         +endConv()
       }
     }
@@ -61,10 +83,10 @@
   +setConv()
   +:ld(Ada, down)
   +:ld(Skye, down)
-  Johnathan: "Oof, something smells rank."
+  Johnathan&angry: "Oof, something smells rank."
   Ada&sigh: "Indeed it does."
   Ada&talking: "Why are you milling about here? I thought you had some sort of pizza endeavor or whatever."
-  Johnathan: "I do! I'm trying to get a job at Deliver's today, but I need to take something to the Office for Mr. Ralgo first."
+  Johnathan&happy: "I do! I'm trying to get a job at Deliver's today, but I need to take something to the Office for Mr. Ralgo first."
   Johnathan: "What about you? No wait, let me guess. You're going home to do homework right?"
   Ada&sigh: "Well yes, I would be. Unfortunately Skye has my physics text book and I need it for tonights assignments."
   +setConv2(Skye, Ada)
@@ -80,14 +102,14 @@
   +setConv()
   +:ld(Ada, down)
   Ada&sigh: "And so, you see, I must remain here."
-  Johnathan: "I'll... uh... leave you to it."
+  Johnathan&embarrassed: "I'll... uh... leave you to it."
   +:ld(Ada, left)
   +endConv()
 
 @hallway3_AdaSkyeDefault1
   +setConv()
   +:ld(Ada, left)
-  Ada&talking: "I do not plan on leaving until you find that book."
+  Ada&talking: "I do not plan on leaving until Skye finds my physics book."
   +setAnimState(Skye, search look)
   Skye&sigh: "I know, I know. Geez you're so stubborn."
   +setAnimState(Skye, search up)

@@ -49,13 +49,13 @@
   +walkToOffset(Ralgo, 0, -2)
   +:ld(Ralgo, right)
   +setAnimState(Ralgo, talking)
-  Ralgo: "I'll remind you all that we have an assignment due today. Please leave it with me before you leave for today."
-  Ralgo: "Also... check the Boards tonight for your next assignment. I know it's new software but we're supposed to be using it and the best way I can think of is to give you a chance to see the lesson beforehand."
+  Ralgo: "I'll remind you all that we have an assignment due today. Please leave it with me before you leave for today." // voice v_da879426-f37b-475c-abf5-d05be1449d28
+  Ralgo: "Also... check the Boards tonight for your next assignment. I know it's new software but we're supposed to be using it and the best way I can think of is to give you a chance to see the lesson beforehand." // voice v_e9d44c51-95ce-4f88-b440-07e170df2770
   +walkToOffset(Ralgo, 0, 2)
   +:ld(Ralgo, right)
   +setAnimState(Ralgo, talking)
-  Ralgo: "Also also... Please stay away from the construction zones. Apparently a few jackwagons were caught around there at lunchtime, and I'd hate to see it and have to send you to detention."
-  Ralgo: "Very well. Class dismissed!"
+  Ralgo: "Also also... Please stay away from the construction zones. Apparently a few jackwagons were caught around there at lunchtime, and I'd hate to see it and have to send you to detention." // voice v_56687de1-eaa2-4ce7-bff3-2ef7dd351352
+  Ralgo: "Very well. Class dismissed!" // voice v_e9b1c28f-f751-4e71-a99a-e535d2628106
   +setAnimState(Ralgo, idle)
   +[chs]=|
     "johnathan-1",

@@ -382,6 +382,21 @@ Portraits render at their native cell dimensions as a final overlay, bottom-alig
 
 The equivalent explicit command is `+playDialogue(Eva, "Hello", happy)`; the emotion argument is optional.
 
+To request a recording, add `// voice` **after the closing quote**. Script Writer
+fills in a stable ID on save, or you can supply your own:
+
+```rpgscript
+Eva&happy: "Hello!" // voice v_eva_greeting
+```
+
+Use `// no-voice v_eva_greeting` to opt out while keeping existing takes.
+Unmarked dialogue and bare `// no-voice` are text-only. Keep the ID when editing
+or moving the line. If you edit `.rpgscript` files outside Script Writer, run
+`npm run voice:ids -- path/to/incanterm.json` to fill in bare requests before
+recording, playing, or exporting. Running it again leaves assigned IDs alone.
+Existing voiced `playDialogue` calls are still supported and share the same ID
+and take history as the shorthand. See the [Voice Studio pilot](voice-studio-pilot.md).
+
 Scene speakers automatically switch from `idle` to `talking` for each dialogue line, using their current facing's `talking-<direction>` animation. Advancing the line (or starting a replacement script) returns only automatically animated speakers to `idle`. Walking and explicitly selected animation states are left untouched, including manually selected talking states. A missing talking animation, off-scene speaker, or ambiguous character reference does not prevent dialogue; it simply skips automatic animation. No `setAnimState` commands are needed for ordinary speech.
 
 ### Character walking
