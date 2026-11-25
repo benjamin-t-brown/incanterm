@@ -440,7 +440,7 @@ export class ScriptRunner<Host> {
   centerToast: string | undefined;
   choice: ChoicePrompt | undefined;
   private onChoose: ((index: number) => void) | undefined;
-  private isWaitComplete: (() => boolean) | undefined;
+  private isWaitComplete: ((() => boolean) & { stepInterruptCharacterId?: string }) | undefined;
   private waitLocation: string | undefined;
   private timers: TimerBinding[] = [];
 
@@ -597,7 +597,8 @@ export class ScriptRunner<Host> {
     }
   }
 
-  dispatchTrigger(name: string, event: TriggerType, instanceId?: string, callIndex?: number): boolean {
+  dispatchTrigger(name: string, event: TriggerType, instanceId?: string, callIndex?: number,
+    step?: { characterId: string; stopWalk: () => void }): boolean {
     const trigger = this.library.triggers.get(name);
     if (!trigger) return false;
     for (let index = 0; index < trigger.calls.length; index++) {
@@ -608,7 +609,9 @@ export class ScriptRunner<Host> {
         if (this.dispatchCharacterTimer(trigger, index)) return true;
         continue;
       }
-      if (!this.isIdle()) continue;
+      const stepping = event === TriggerType.STEP ? step : undefined;
+      const interruptForeground = stepping && this.isWaitComplete?.stepInterruptCharacterId === stepping.characterId;
+      if (!this.isIdle() && !interruptForeground) continue;
       const pending = new Set<string>();
       try {
         if (!this.getTriggerConditionResult(call.condition, {
@@ -621,6 +624,13 @@ export class ScriptRunner<Host> {
         return false;
       }
       const frame = this.createFrame(call.target, [], instanceId, `${trigger.file}:${call.line}`);
+      if (stepping) {
+        if (interruptForeground) this.cancel();
+        for (const [owner, child] of this.subscripts) {
+          if (child.isWaitComplete?.stepInterruptCharacterId === stepping.characterId) this.clearSubscript(owner);
+        }
+        stepping.stopWalk();
+      }
       for (const key of pending) this.usedOnce.add(key);
       this.stack = [frame];
       this.run();
@@ -1099,9 +1109,9 @@ export class ScriptRunner<Host> {
         this.choice = question === undefined ? { options } : { options, question };
         this.onChoose = onChoose;
       },
-      waitUntil: (isComplete) => {
+      waitUntil: (isComplete, stepInterruptCharacterId) => {
         if (!isComplete()) {
-          this.isWaitComplete = isComplete;
+          this.isWaitComplete = Object.assign(() => isComplete(), { stepInterruptCharacterId });
           this.waitLocation = `${location} (+${command})`;
         }
       },

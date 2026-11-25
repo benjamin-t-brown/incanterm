@@ -131,6 +131,24 @@ it('selects an existing walker and variant in one command, and keeps the variant
   expect(control.playerWalkCh).toBe(actor);
 });
 
+it('spawns the requested NPC variant with its feet at the named marker before the next command', async () => {
+  const { root } = await createVariantFixture();
+  const scene = new Scene('room', 20, 16, 'bottom-up',
+    { ch: ' ', fg: { r: 0, g: 0, b: 0 }, bg: { r: 0, g: 0, b: 0 } },
+    [], [], new Set(), [], [], [{ id: 'door', name: 'Doorway', x: 4, y: 8 }],
+    (reference) => loadCharacterByReference(root, reference));
+  const control = new PlayerControl(scene);
+  const runner = new ScriptRunner(parseRpgScript(
+    '@start\n+spawnCh(Actor, 5x5, Doorway)\n+setFacing(Actor,left)', 'spawn.rpgscript', { commands },
+  ), { commands, context: { scene, playerControl: control } });
+  runner.start('start');
+  await vi.waitFor(() => {
+    runner.update();
+    expect(scene.entities[0]).toMatchObject({ variant: '5x5', facing: 'left', x: 4, bottomY: 8 });
+  });
+  expect(control.playerWalkCh).toBeUndefined();
+});
+
 it('waits for the requested spawn variant before continuing and anchors its feet at the marker', async () => {
   const { root } = await createVariantFixture();
   const scene = new Scene('spawn-room', 20, 16, 'bottom-up',

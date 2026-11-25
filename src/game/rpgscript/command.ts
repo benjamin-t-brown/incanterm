@@ -24,7 +24,7 @@ export type CommandContext = {
   showDialogue: (actor: string, text: string, emotion?: string, onFinish?: () => void, voice?: DialogueVoice) => void;
   showCenterToast: (message: string) => void;
   showChoices: (options: readonly string[], onChoose?: (index: number) => void, question?: string) => void;
-  waitUntil: (isComplete: () => boolean) => void;
+  waitUntil: (isComplete: () => boolean, stepInterruptCharacterId?: string) => void;
   writeLog: (message: string) => void;
 };
 

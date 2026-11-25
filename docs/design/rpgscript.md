@@ -12,6 +12,14 @@ The [extracted sources](../../reference/rpgscript-regem-ludos/README.md) are a r
 
 The existing implementation supports named scripts (`@name`), trigger definitions (`#name`), dialogue (`Character: "Text"`), command calls (`+command(...)`), conditionals and blocks, choices, substitutions, and script-to-script calls. Preserve existing syntax and semantics where applicable; inventory the existing tests and script corpus before changing behavior.
 
+### Interruptible marker walks
+
+Use `+walkToMarkerInt(player, Exit)` when a step trigger should take priority over the
+current interaction. If the player steps onto a trigger whose condition passes, the
+walk stops on that tile and the trigger script replaces the interrupted interaction.
+Commands after the walk do not run in that case. Otherwise the walk behaves like
+`+walkToMarker(player, Exit)`. Only the current player walk character activates step triggers.
+
 ### Character subscripts
 
 `+callChSubscript(Ralgo, moveToBoard)` starts `@moveToBoard(ch)` independently of

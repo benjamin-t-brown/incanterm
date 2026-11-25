@@ -598,10 +598,14 @@ export function createGameSession(
             character.bottomY >= trigger.y &&
             character.x < trigger.x + trigger.width &&
             character.bottomY < trigger.y + trigger.height &&
-            runner?.dispatchTrigger(trigger.trigger, TriggerType.STEP, trigger.id)
+            runner?.dispatchTrigger(trigger.trigger, TriggerType.STEP, trigger.id, undefined, {
+              characterId: character.id,
+              stopWalk: () => {
+                cancelPendingPropAction();
+                character.stopWalking();
+              },
+            })
           ) {
-            cancelPendingPropAction();
-            character.stopWalking();
             break;
           }
         }

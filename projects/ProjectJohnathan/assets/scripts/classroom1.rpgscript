@@ -12,7 +12,7 @@
   +?else:{
     +setAnimState(eva, write left)
     +[chs]=|
-      "otis3x3_ch",
+      "Otis",
       "ada3x3_ch",
       "tessa3x3",
       "fabian3x3_ch",
@@ -59,7 +59,7 @@
   +setAnimState(Ralgo, idle)
   +[chs]=|
     "johnathan-1",
-    "otis3x3_ch",
+    "Otis",
     "ada3x3_ch",
     "tessa3x3",
     "fabian3x3_ch",
@@ -93,7 +93,7 @@
   +callChSubscript(tessa3x3, classroom1_scatterCh)
   +waitMs(500)
   +callChSubscript(fabian3x3_ch, classroom1_scatterCh)
-  +callChSubscript(otis3x3_ch, classroom1_scatterCh)
+  +callChSubscript(Otis, classroom1_scatterCh)
   +waitMs(500)
   +callChSubscript(hadassah3x3, classroom1_scatterCh)
   +waitMs(500)

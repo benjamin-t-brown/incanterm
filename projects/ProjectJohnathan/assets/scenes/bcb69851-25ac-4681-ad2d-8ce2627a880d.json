@@ -349,6 +349,41 @@
       "name": "MarkerPoster",
       "x": 41,
       "y": 15
+    },
+    {
+      "id": "a7add94e-d00f-416c-824e-52b3e38b1d79",
+      "type": "Marker",
+      "name": "MarkerOtis",
+      "x": 76,
+      "y": 21
+    },
+    {
+      "id": "fd309746-f0ae-4b61-a5ac-51350eb279f9",
+      "type": "Marker",
+      "name": "MarkerVivi",
+      "x": 84,
+      "y": 19
+    },
+    {
+      "id": "0fade75f-c128-47cc-9329-3a535d3ec03e",
+      "type": "Marker",
+      "name": "MarkerVivi2",
+      "x": 62,
+      "y": 17
+    },
+    {
+      "id": "2fc4be45-e78c-48dc-a691-ab302c82005a",
+      "type": "Marker",
+      "name": "MarkerJohn2",
+      "x": 66,
+      "y": 16
+    },
+    {
+      "id": "b7258134-a9e9-4119-a6b5-3e16c51a9b6f",
+      "type": "Marker",
+      "name": "MarkerOtis2",
+      "x": 66,
+      "y": 18
     }
   ],
   "triggers": [
@@ -576,6 +611,18 @@
       "height": 3,
       "actionEnabled": true,
       "stepEnabled": false,
+      "description": ""
+    },
+    {
+      "id": "2ca0d392-9808-4c90-b91e-6a5a1b20d939",
+      "trigger": "hallwayGym_talkVivi1Step",
+      "event": "action",
+      "x": 57,
+      "y": 14,
+      "width": 2,
+      "height": 8,
+      "actionEnabled": false,
+      "stepEnabled": true,
       "description": ""
     }
   ]

@@ -1,6 +1,9 @@
 #load@hallwayGymLoad
   +:items_restoreTrashState()
   +setPlayerWalkCh(Johnathan, 3x3)
+  +?all(is(schoolPuzzle.isTryingToGetPastBlueDoor), isnot(schoolPuzzle.askedViviOut)):{
+    +:hallwayGym_spawnVivi()
+  }
 
 #hallwayGymUpdate
   timer,hallwayGymUpdater,2000
@@ -10,16 +13,20 @@
 #step@hallwayGym_toHallway1
   +changeScene(hallway1, FromGym)
 
+@hallwayGym_spawnVivi
+  +spawnCh(Vivi, 3x3, MarkerVivi)
+  +:ld(Vivi, left)
+
 #@hallwayGym_vendEnergy
   +?is(schoolPuzzle.drinkRequested):{
-    +walkToMarker(player, EnergyMarker)
+    +walkToMarkerInt(player, EnergyMarker)
     +:ld(player, up)
     +:schoolPuzzle_buyEnergyDrink()
     <
   }
   +setConv()
   +^tmp.hallwayGymEnergyTalk=0
-  +walkToMarker(player, EnergyMarker)
+  +walkToMarkerInt(player, EnergyMarker)
   +:ld(player, up)
   +?switch(tmp.hallwayGymEnergyTalk):{
     0: {
@@ -39,7 +46,7 @@
 #@hallwayGym_vendLime
   +setConv()
   +^tmp.hallwayGymLimeTalk=0
-  +walkToMarker(player, LimeMarker)
+  +walkToMarkerInt(player, LimeMarker)
   +:ld(player, up)
   +?switch(tmp.hallwayGymLimeTalk):{
     0: {
@@ -57,14 +64,14 @@
   +endConv()
 
 #@hallwayGym_trash
-  +walkToMarker(player, TrashMarker)
+  +walkToMarkerInt(player, TrashMarker)
   +:ld(player, up)
   +:items_searchTrash()
 
 #@hallwayGym_trianglePoster
   +^tmp.hallwayGymTriangleTalk=0
   +setConv()
-  +walkToMarker(player, MarkerPoster)
+  +walkToMarkerInt(player, MarkerPoster)
   +:ld(Johnathan, up)
   +?switch(tmp.hallwayGymTriangleTalk):{
     0: {
@@ -96,7 +103,7 @@
 #@hallwayGym_gymDoor
   +setConv()
   +^tmp.hallwayGymGymDoorTalk=0
-  +walkToMarker(John, MarkerGym)
+  +walkToMarkerInt(John, MarkerGym)
   +:ld(John, right)
   +?switch(tmp.hallwayGymGymDoorTalk):{
     0: {
@@ -116,7 +123,7 @@
 #@hallwayGym_outsideDoor
   +setConv()
   +^tmp.hallwayGymOutsideTalk=0
-  +walkToMarker(John, MarkerOutside)
+  +walkToMarkerInt(John, MarkerOutside)
   +:ld(John, up)
   +?switch(tmp.hallwayGymOutsideTalk):{
     0: {
@@ -147,13 +154,20 @@
   }
   +endConv()
 
+#hallwayGym_talkVivi1Step
+  step,?all(is(schoolPuzzle.isTryingToGetPastBlueDoor), isnot(schoolPuzzle.askedViviOut)):hallwayGym_talkVivi1
 @hallwayGym_talkVivi1
+  +setConv()
+  Johnathan: "Oh! Vivi! Over here!"
+  +walkToMarker(Vivi, MarkerVivi2, true)
+  +walkToMarker(John, MarkerJohn2, true)
+  +waiMs(3000)
   +setConv2(Vivi, Johnathan)
-  Johnathan: "Oh... hey Vivi."
+  Johnathan: "Hey Vivi."
   Vivi: "Hey."
   Johnathan&happy: "So.. uh... you got basketball practice today?"
   Vivi&shy: "Yeah."
-  Vivi: "Playoffs are soon. And all that."
+  Vivi: "Playoffs are soon. So..."
   Vivi&confident: "Gotta practice."
   Johnathan: "Yeah? Nice."
   +waitMs(1000)
@@ -165,9 +179,12 @@
   Johnathan&thinking: "Yeah."
   Johnathan: "Do you want to go out with me? Maybe we can get a coffee sometime?"
   Vivi&patient: "Um..."
+  +:ld(Vivi, down)
   Vivi&shy: "Well... I... um..."
+  +:ld(Vivi, left)
   Vivi&patient: "Um...."
   Johnathan&surprised: "Are you okay?"
+  +:ld(Vivi, right)
   Vivi&sad: "No thanks. I'm... not interested."
   Johnathan&bored: "Oof."
   Johnathan&sad: "Well okay then."
@@ -176,15 +193,23 @@
   Vivi&sad: "Sorry."
   Vivi: "I'm really sorry!"
   Johnathan&pleased: "It's okay. Honestly now I'm just relieved that's over."
+  +walkToOffset(Vivi, -1, 0)
+  Vivi&sad: "Thats... not what I meant."
 
   // Otis walks over
+  +spawnCh(Otis, default, hallwayGym_bathroomDoor)
+  +waitMs(500)
+  +walkToMarker(Otis, MarkerOtis2)
+  +:ld(Otis, up)
 
   +setConv()
   Otis&happy: "Would you look at that? Here are my two favorite people."
   Otis: "What's the happs with you two love birds?"
+  +:ld(Otis, left)
   Otis&angry: "Wait a sec... What's going on? Why do you look so sad?"
+  +walkToOffset(Vivi, 0, 1)
   Vivi: "Hey..."
-  +setConv2(Otis, Vivi)
+  +setConv2(Vivi, Otis)
   Vivi&angry: "Did you put him up to this?"
   Otis&surprised: "Whoah whoah, slow down. Up to what?"
   Vivi&angry: "I can't believe this. Are you trying to piss me off?"
@@ -195,11 +220,17 @@
   Vivi&angry: "I knew it!"
   +setConv()
   Otis&angry: "Well, yeah, cuz you are a good match!"
-  +setConv2(Otis, Vivi)
+  +setConv2(Vivi, Otis)
   Vivi&angry: "That isn't the point, and you know it!"
   Vivi&sad: "You know I can't. Not right now."
   Otis&angry: "Oh come on, Vivi. You don't have to do whatever you're told all the time."
   Vivi&angry: "Ohh... I can't stand you sometimes!"
-  Vivi&angry: "You make me soo angry."
+  Vivi&angry: "Stop trying to run my life!"
+  +walkToOffset(Vivi, -23, 0)
+  +despawnCh(Vivi)
+  Otis&angry: "Hey! Don't you have basketball practice?"
+  +walkToOffset(Otis, -2, 0)
+  Otis: "You're gonna miss it!"
   
+  +schoolPuzzle.askedViviOut=true
   +endConv()

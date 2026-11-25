@@ -15,9 +15,10 @@ import {
   getWalkOffset, parseBarkArgs, parsePositionArgs,
 } from './scene-command-support/arguments.js';
 import type { Choice, GameScriptContext } from './scene-command-support/context.js';
+import { getSpawnTarget, waitForCharacterLoad } from './scene-command-support/character-spawn.js';
 import { parseDialogueArgs } from './scene-command-support/dialogue.js';
 import { addInventoryItem, addNamedInventoryItem, getInventory, getItemName } from './scene-command-support/inventory.js';
-import { setFacingToward, walkScriptedToDestination } from './scene-command-support/movement.js';
+import { setFacingToward, walkScriptedToDestination, walkScriptedToMarker } from './scene-command-support/movement.js';
 import {
   getPropSlideControl, getSlidePropId, isSlideCommandReference, parseSlidePropArgs,
   parseSlidePropId, waitForPropSlideResult,
@@ -343,18 +344,7 @@ const setPlayerWalkCh = defineCommand({
     const variant = step.variant === undefined ? undefined
       : getCharacterVariantName(step.variant, script, 'setPlayerWalkCh');
     const pending = game.playerControl.setPlayerWalkCh(name, variant);
-    if (!pending) return;
-    let complete = false;
-    let failure: unknown;
-    void pending.then(
-      () => { complete = true; },
-      (error: unknown) => { failure = error; complete = true; },
-    );
-    script.waitUntil(() => {
-      if (!complete) return false;
-      if (failure) throw failure;
-      return true;
-    });
+    if (pending) waitForCharacterLoad(script, pending);
   },
 });
 
@@ -473,16 +463,17 @@ const walkToMarker = defineCommand({
     };
   },
   execute: (step, script, game: GameScriptContext) => {
-    const name = getPlayerCharacterName(step.character, script, 'walkToMarker');
-    const markerName = script.value(step.marker);
-    const skipWait = getSkipWait(step.skipWait, script);
-    if (typeof markerName !== 'string' || !markerName.trim())
-      throw new Error(`${script.location}: walkToMarker requires a marker name`);
-    const marker = game.scene.getMarker(markerName);
-    if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
-    const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
-    const destination = getWalkAnchor(game.scene, character, marker);
-    walkScriptedToDestination(name, destination, skipWait, script, game);
+    walkScriptedToMarker(step.character, step.marker, getSkipWait(step.skipWait, script), script, game, 'walkToMarker');
+  },
+});
+
+const walkToMarkerInt = defineCommand({
+  parse: (args, location) => {
+    if (args.length !== 2) return;
+    return { character: getScriptValue(args[0], location), marker: getScriptValue(args[1], location) };
+  },
+  execute: (step, script, game: GameScriptContext) => {
+    walkScriptedToMarker(step.character, step.marker, false, script, game, 'walkToMarkerInt');
   },
 });
 
@@ -664,6 +655,30 @@ const setPropAnimState = defineCommand({
       }
       prop.setAnimationState(state);
     }
+  },
+});
+
+const spawnCh = defineCommand({
+  parse: (args, location) => args.length === 3 ? {
+    character: getScriptValue(args[0], location),
+    variant: getScriptValue(args[1], location),
+    marker: getScriptValue(args[2], location),
+  } : undefined,
+  execute: (step, script, game: GameScriptContext) => {
+    const { name, variant, marker: markerName } = getSpawnTarget(step, script);
+    const scene = game.scene;
+    const marker = scene.getMarker(markerName);
+    if (!marker) throw new Error(`${script.location}: Scene ${scene.id} has no marker ${markerName}`);
+    if (!scene.loadCharacter) throw new Error(`${script.location}: Scene ${scene.id} cannot load characters`);
+    waitForCharacterLoad(script, scene.loadCharacter(name).then((character) => {
+      if (game.playerControl.scene !== scene) return;
+      if (scene.entities.some((entity) => entity.id === character.id))
+        throw new Error(`${script.location}: Scene ${scene.id} already has an entity named ${character.id}`);
+      character.setVariant(variant);
+      character.x = marker.x;
+      character.y = marker.y - character.bottomOffset;
+      scene.entities.push(character);
+    }));
   },
 });
 
@@ -925,6 +940,7 @@ export const commands = {
   setPropPos,
   chWalkToCoord,
   walkToMarker,
+  walkToMarkerInt,
   walkToOffset,
   stopCh,
   setSpeedMult,
@@ -936,6 +952,7 @@ export const commands = {
   setAnimState,
   setCharacterVariant,
   setPropAnimState,
+  spawnCh,
   despawnCh,
   waitMs,
   fadeOut,

@@ -1,12 +1,28 @@
 import type { CharacterDirection } from '../../editor/schema.js';
 import type { Character } from '../character.js';
-import { findCharacter, findPath, type Point } from '../character-movement.js';
+import { findCharacter, findPath, getWalkAnchor, type Point } from '../character-movement.js';
+import type { ScriptValue } from '../rpgscript/parser.js';
+import { getPlayerCharacterName } from './arguments.js';
 import type { CommandContext } from '../rpgscript/command.js';
 import type { GameScriptContext } from './context.js';
 
+export function walkScriptedToMarker(
+  actor: ScriptValue, target: ScriptValue, skipWait: boolean, script: CommandContext, game: GameScriptContext,
+  command: 'walkToMarker' | 'walkToMarkerInt',
+): void {
+  const name = getPlayerCharacterName(actor, script, command);
+  const markerName = script.value(target);
+  if (typeof markerName !== 'string' || !markerName.trim())
+    throw new Error(`${script.location}: ${command} requires a marker name`);
+  const marker = game.scene.getMarker(markerName);
+  if (!marker) throw new Error(`${script.location}: Scene ${game.scene.id} has no marker ${markerName}`);
+  const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
+  walkScriptedToDestination(name, getWalkAnchor(game.scene, character, marker), skipWait, script, game, command === 'walkToMarkerInt');
+}
+
 export function walkScriptedToDestination(
   name: string, destination: Point, skipWait: boolean,
-  script: CommandContext, game: GameScriptContext,
+  script: CommandContext, game: GameScriptContext, interruptOnStep = false,
 ): void {
   const character = findCharacter(game.scene, name, game.playerControl.playerWalkCh);
   if (character.x === destination.x && character.bottomY === destination.y) return;
@@ -32,7 +48,7 @@ export function walkScriptedToDestination(
     if (Date.now() < retryAtMs) return false;
     startAttempt();
     return character.x === destination.x && character.bottomY === destination.y;
-  });
+  }, interruptOnStep ? character.id : undefined);
 }
 
 export function setFacingToward(character: Character, x: number, y: number): void {

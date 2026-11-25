@@ -1,4 +1,5 @@
 import { commands } from './scene-commands.js';
+import { getSpawnTarget } from './scene-command-support/character-spawn.js';
 import {
   getAnimationStateName, getBark, getBusyState, getCharacterVariantName, getFacingDirection,
   getPlayerCharacterName, getPositionCoordinates, getPropInstanceName, getSkipWait,
@@ -153,6 +154,15 @@ export const sceneCommandsShim = {
         throw new Error(`${script.location}: walkToMarker requires a marker name`);
     },
   }),
+  walkToMarkerInt: defineCommand({
+    parse: commands.walkToMarkerInt.parse,
+    execute: (step, script) => {
+      getPlayerCharacterName(step.character, script, 'walkToMarkerInt');
+      const marker = script.value(step.marker);
+      if (typeof marker !== 'string' || !marker.trim())
+        throw new Error(`${script.location}: walkToMarkerInt requires a marker name`);
+    },
+  }),
   walkToOffset: defineCommand({
     parse: commands.walkToOffset.parse,
     execute: (step, script) => {
@@ -224,6 +234,10 @@ export const sceneCommandsShim = {
       getPropInstanceName(step.prop, script);
       getAnimationStateName(step.state, script, 'setPropAnimState');
     },
+  }),
+  spawnCh: defineCommand({
+    parse: commands.spawnCh.parse,
+    execute: (step, script) => { getSpawnTarget(step, script); },
   }),
   despawnCh: defineCommand({
     parse: commands.despawnCh.parse,

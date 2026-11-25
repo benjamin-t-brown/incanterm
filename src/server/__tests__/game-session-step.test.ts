@@ -27,6 +27,33 @@ function getWalkerColumn(screen: TerminalScreen): number {
 describe('game session step triggers', () => {
   afterEach(() => vi.useRealTimers());
 
+  it.each([
+    { command: 'walkToMarkerInt', condition: '', interrupted: true },
+    { command: 'walkToMarkerInt', condition: '?is(disabled):', interrupted: false },
+    { command: 'walkToMarker', condition: '', interrupted: false },
+  ])('$command crossing step,$condition with interrupted=$interrupted', ({ command, condition, interrupted }) => {
+    vi.useFakeTimers();
+    const screen = new TerminalScreen();
+    const scene = new Scene('room', 7, 7, 'bottom-up', clear, [createWalker('hero', 1, 1)], ['entry'],
+      new Set(), [], [createRegion('floor', 2, 1)], [{ id: 'exit', name: 'Exit', x: 5, y: 1 }]);
+    const scripts = parseRpgScript(
+      `#entry\nload,start\n#floor\nstep,${condition}enter\n@start\n+setPlayerWalkCh(hero)\n+${command}(player, Exit)\n+log("Reached exit")\n@enter\n+log("Stepped on floor")`,
+      'marker.rpgscript',
+    );
+    const session = createGameSession(scene, (text, cols, rows) => screen.apply(text, cols, rows), scripts);
+    try {
+      session.open();
+      const initial = getWalkerColumn(screen);
+      vi.advanceTimersByTime(1000);
+      const text = getPlainText(screen.buffer);
+      expect(text.includes('Stepped on floor')).toBe(interrupted);
+      expect(text.includes('Reached exit')).toBe(!interrupted);
+      expect(getWalkerColumn(screen)).toBe(initial + (interrupted ? 1 : 4));
+    } finally {
+      session.close();
+    }
+  });
+
   it('stops at the first successful step and runs its script before another step', () => {
     vi.useFakeTimers();
     const screen = new TerminalScreen();
